@@ -316,9 +316,8 @@ JavaScript and downloads silently lose their filename.
 
 ### Network-layer change discipline
 
-CLAUDE.md captures a "quadruple-check" rule: when a change
-introduces a new cross-origin endpoint or upload route, four
-hardening points must be audited in the same change — CSP
+A change that introduces a new cross-origin endpoint or upload
+route must audit four hardening points in the same commit — CSP
 `connect-src`, `CORS_ORIGINS`, `expose_headers`, and the
 `.env.example` plus self-hosting docs. Regression tests in
 `tests/test_batch_ui_sanity.py` enforce two of those checks
@@ -443,21 +442,20 @@ The webhook handler currently dispatches on
 `invoice.payment_failed` and `invoice.payment_succeeded` are not
 yet wired, so dunning state on a failed renewal will not flow
 back to the application until the next subscription event.
-Listed as `⚠️ Teilweise` in CLAUDE.md's Cloud Edition status.
 
 ### Email verification status
 
 Whether the registration flow performs email verification before
-allowing log-in is currently uncertain in the documentation
-(CLAUDE.md marks it `❓ prüfen`). Treat this as a pre-launch item
-to verify before exposing registration publicly.
+allowing log-in is currently uncertain in the documentation.
+Treat this as a pre-launch item to verify before exposing
+registration publicly.
 
 ### Monitoring not yet wired
 
 `/metrics`, Prometheus-FastAPI-Instrumentator, and a Grafana
 dashboard are not deployed today. Without them there is no
 runtime visibility into rate-limit hits, error rates, or latency
-percentiles. CLAUDE.md flags this as required before launch.
+percentiles. Treat this as required before public launch.
 
 ### API key in browser localStorage (PT-010)
 

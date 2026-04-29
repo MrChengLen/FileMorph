@@ -1,12 +1,11 @@
 # Sprint S1 — Technology First (Done-List)
 
-*Stand: 2026-04-24 · Motto: `CLAUDE.md` §Technology First*
+*Stand: 2026-04-24*
 
 A wave of backend-hygiene, bandwidth-awareness, observability, and static-asset
-hardening shipped under the Technology-First motto. Recorded here (not in
-`docs/open-tasks.md`) because these items were never priority-ranked backlog
-tickets — they came out of a live tech audit. Keep for historical context when
-reading the affected code.
+hardening shipped under the Technology-First motto. Recorded here because these
+items were never priority-ranked backlog tickets — they came out of a live tech
+audit. Keep for historical context when reading the affected code.
 
 ---
 
@@ -23,7 +22,7 @@ reading the affected code.
 | S1-D | `04f4f01` | Batch UI in the web app (multi-file + ZIP download) | API had `/convert/batch` for months; UI only ever posted one file. Closed the silent capability gap |
 | S1-E | `5b9b361` | `/ready` probe + `uvicorn --timeout-keep-alive 65` | Distinguishes "container alive" from "DB pool alive"; keep-alive sized above typical CDN 60 s idle so connections survive a full idle window |
 | S1-F | `a03f557` | Self-hosted Tailwind — drop `cdn.tailwindcss.com`, tighten CSP | `script-src 'self'` (no CDN allowance), removed the inline-config SHA-256 hash, standalone Tailwind CLI under `.tools/` |
-| scope-scrub | `303c3fa` | Scrub production-server specifics from public comments | Pre-Commit Scope-Check rule from `CLAUDE.md` — generic wording for RAM sizing + CDN idle timeout |
+| scope-scrub | `303c3fa` | Scrub production-server specifics from public comments | Generic wording for RAM sizing + CDN idle timeout — keeps the public repo deployment-agnostic |
 | S1.5 | `ccca957` | `API_BASE` split — heavy upload POSTs to optional separate subdomain | Lets the main site sit behind a proxy with a body-size cap while uploads bypass it via a tunnel subdomain; zero-config same-origin default keeps tests + dev unchanged |
 | S1-G | `75b0c11` | Cache-busting hash on tailwind bundle | `tailwind.<sha>.css` picked up by `CachingStaticFiles` regex → `Cache-Control: public, max-age=31536000, immutable`. Browsers cache forever; a rebuild rotates the filename |
 
@@ -64,7 +63,4 @@ Explicitly out of scope for S1, queued as the next decision point:
 
 ## Cross-References
 
-- Motto: `CLAUDE.md` §Technology First
 - Commit range: `98020dc..75b0c11` on `main`
-- Priority-ranked backlog: `docs/open-tasks.md`
-- Business-model alignment: `memory/business_model.md`

@@ -108,7 +108,7 @@ single `@register("src", "tgt")` decorator without touching the core.
 | **python-docx** | DOCX read/write | Microsoft OOXML reference implementation in Python. | python-pptx (PPTX-only, complementary), aspose-words (commercial) |
 | **pypdf** | PDF merge / split / page extraction | Pure-Python, BSD-licensed, AGPLv3-compatible. Active fork of the PyPDF2 lineage. | PyPDF2 (deprecated upstream), pdfplumber (read-only, extraction-focused), PyMuPDF (faster but ~50 MB native binary) |
 | **reportlab** | PDF generation (TXT→PDF) | BSD-licensed Open Source Edition; the right tool when generating a PDF from scratch rather than transforming HTML. | WeasyPrint (HTML→PDF — different use-case, kept in parallel), fpdf2 (lighter, fewer features) |
-| **WeasyPrint** | HTML/CSS → PDF | Used for any HTML-source PDF output (e.g. Markdown → HTML → PDF). SSRF-hardened in `app/main.py` via `url_fetcher=_deny_url_fetcher` — see CLAUDE.md "Sicherheits-Regeln". | wkhtmltopdf (deprecated; QtWebKit-based), Puppeteer/Playwright (Node.js + headless Chrome — much heavier) |
+| **WeasyPrint** | HTML/CSS → PDF | Used for any HTML-source PDF output (e.g. Markdown → HTML → PDF). SSRF-hardened in `app/main.py` via `url_fetcher=_deny_url_fetcher`. | wkhtmltopdf (deprecated; QtWebKit-based), Puppeteer/Playwright (Node.js + headless Chrome — much heavier) |
 | **markdown** | Markdown → HTML pre-processing for the WeasyPrint pipeline | Stable, predictable output; the dialect FileMorph ships matches what most users expect from a Markdown converter. | mistune (faster but a different feature set), markdown-it-py (CommonMark-strict) |
 | **openpyxl** | XLSX read/write | Pure Python, no Excel install required, predictable on Linux containers. | pandas (heavy dataframe overhead for simple reads), xlsxwriter (write-only) |
 | **ffmpeg-python** | Wrapper around the FFmpeg CLI for audio/video conversion | The FFmpeg binary itself is the workhorse; this library just gives it a typed Python surface. The binary must be available in the deployment image (Dockerfile installs it). | moviepy (heavier abstraction, slower), direct `subprocess.run` (no type hints, more boilerplate) |
@@ -117,8 +117,7 @@ single `@register("src", "tgt")` decorator without touching the core.
 **Event-loop discipline.** Every C-binding call (FFmpeg via
 `ffmpeg-python`, WeasyPrint, `pypdf`, large Pillow saves) runs
 through `asyncio.to_thread(...)`. A blocking call inside the FastAPI
-event loop is a single-user denial-of-service — see CLAUDE.md
-"Technology First".
+event loop is a single-user denial-of-service.
 
 **Why so many file libraries?** Each format family has a different
 shape: images are pixel grids, PDFs are paginated stream objects,
@@ -152,7 +151,7 @@ dependency.
 | Library | What it does | Why this | Alternative |
 |---|---|---|---|
 | **python-dotenv** | Loads `.env` for local development | In production `pydantic-settings` reads directly from the process environment (Docker injects the values). `.env` is convenience for the dev loop. | `os.getenv` only (no `.env` support), direnv (shell-side, not Python) |
-| **slowapi** | Rate-limit middleware (10 req/min on `/api/v1/convert` and `/api/v1/compress`) | In-memory storage. Single-instance only — adequate for the current deployment. Multi-instance would require swapping in a Redis backend (CLAUDE.md "Cloud Edition — Status": ❌ Redis not implemented). | fastapi-limiter (Redis-mandatory), starlette-context-rate-limit (lighter but more glue) |
+| **slowapi** | Rate-limit middleware (10 req/min on `/api/v1/convert` and `/api/v1/compress`) | In-memory storage. Single-instance only — adequate for the current deployment. Multi-instance would require swapping in a Redis backend. | fastapi-limiter (Redis-mandatory), starlette-context-rate-limit (lighter but more glue) |
 
 The shared limiter instance lives in `app/core/rate_limit.py`. Tests
 disable it via the session-scoped `disable_rate_limiting` fixture in
@@ -187,8 +186,7 @@ same code-base.
 **API-key authentication** for the file-only edition lives in
 `app/core/security.py` and uses SHA-256 + `hmac.compare_digest` (no
 bcrypt). The constant-time comparison is critical and intentional;
-do not "optimize" the loop to short-circuit. See CLAUDE.md
-"Sicherheits-Regeln".
+do not "optimize" the loop to short-circuit.
 
 **Why two hashing schemes?** API keys and passwords have different
 threat models. An API key is a high-entropy random token (256 bits
@@ -211,10 +209,9 @@ deliberately.
 
 **Webhook coverage status.** `customer.subscription.*` and
 `checkout.session.completed` are handled today.
-`invoice.payment_failed` and `invoice.payment_succeeded` are not —
-see CLAUDE.md "Cloud Edition — Status" (⚠️ Teilweise). Adding them
-is a tracked follow-up; they are needed before serious dunning
-behaviour can be wired up.
+`invoice.payment_failed` and `invoice.payment_succeeded` are not yet
+wired in. Adding them is a tracked follow-up; they are needed before
+serious dunning behaviour can be implemented.
 
 ---
 
@@ -266,8 +263,8 @@ without having to read the changelog backwards.
 | Library | What it would do | When it lands |
 |---|---|---|
 | **boto3** (commented in `requirements.txt`) | S3- or R2-compatible object storage | When FileMorph needs to scale beyond a single instance. The current stateless design — files held in `BytesIO`, temp dirs cleaned in `finally` blocks — is adequate for one box. |
-| **Redis** | Multi-instance rate-limit storage (slowapi backend), session storage | When FileMorph runs on more than one application container. Currently ❌ in CLAUDE.md "Cloud Edition — Status". |
-| **prometheus-fastapi-instrumentator** | `/metrics` endpoint for Prometheus / Grafana | Planned for post-launch monitoring (CLAUDE.md "Business-Metriken / KPI-Tracking" already documents the analytics stack). |
+| **Redis** | Multi-instance rate-limit storage (slowapi backend), session storage | When FileMorph runs on more than one application container. Not currently wired in. |
+| **prometheus-fastapi-instrumentator** | `/metrics` endpoint for Prometheus / Grafana | Planned for post-launch monitoring. |
 | **PostHog or Plausible** (external services, not Python deps) | Product / web analytics — both are GDPR-friendly, both can self-host | When the product needs funnel analysis or conversion tracking beyond what the structured logs already give. |
 
 ---
@@ -287,17 +284,18 @@ workflow:
    why, alternative. Future contributors will read this before they
    read the source.
 4. **Write an integration test** in `tests/`. New libraries without
-   tests do not get merged — see CLAUDE.md "Testing".
+   tests do not get merged.
 5. **License-check.** AGPLv3 is contagious for derivative works;
    GPLv3-only dependencies are **not** compatible with AGPLv3 and
    would force a license change. MIT, BSD, Apache-2.0 and LGPL are
    fine. When in doubt, ask before committing.
 
-CLAUDE.md is explicit: *"Don't add features beyond what the task
-requires."* That applies to dependencies too. A second PDF library
-"because it might be faster" is the kind of bloat that makes a
-six-month-old project feel like a six-year-old one. Reuse first;
-add only when the existing stack genuinely cannot do the job.
+The project rule is explicit: don't add features beyond what the
+task requires. That applies to dependencies too. A second PDF
+library "because it might be faster" is the kind of bloat that
+makes a six-month-old project feel like a six-year-old one. Reuse
+first; add only when the existing stack genuinely cannot do the
+job.
 
 ## Considered and Rejected
 
@@ -338,5 +336,5 @@ so the same arguments don't have to be relitigated every six months.
 - `requirements.txt` — authoritative version pins
 - `app/converters/` — the plugin registry
 - `app/core/config.py` — the canonical Settings class
-- CLAUDE.md "Architektur" + "Sicherheits-Regeln" + "Cloud Edition —
-  Status"
+- `docs/security-overview.md` — security posture and self-hoster
+  hardening checklist
