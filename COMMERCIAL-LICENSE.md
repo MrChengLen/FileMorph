@@ -46,8 +46,12 @@ product without disclosing your changes.
 | Tier | Scope | Annual |
 |---|---|---|
 | **Startup** | Self-hosted, up to 10 seats, single deployment | € 299 / year |
-| **Business** | Self-hosted, unlimited seats, single legal entity, support SLA 48 h | € 999 / year |
+| **Enterprise** | Self-hosted, unlimited seats, single legal entity, support SLA 48 h | € 999 / year |
 | **OEM / white-label** | Embed + redistribute inside your own product | Case-by-case |
+
+> Note: the SaaS plans on [filemorph.io/pricing](https://filemorph.io/pricing) (Pro / Business)
+> are a separate offering — usage of the hosted API. The tiers above license the
+> *source code* for self-hosted closed-source / OEM use.
 
 Prices exclude VAT. Multi-year discounts available.
 

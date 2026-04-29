@@ -47,6 +47,23 @@ FileMorph is an open-source file conversion service with two interfaces:
 
 ---
 
+## Editions
+
+FileMorph runs in two distinct editions, both built from this repository:
+
+| Edition | Where | What you get |
+|---|---|---|
+| **Community** | Self-hosted (Docker, standalone `.exe`, source) | File conversion + compression, REST API, single-user API-key auth |
+| **Cloud SaaS** | [filemorph.io](https://filemorph.io) | Community features + user accounts (JWT), tier quotas, Stripe billing, admin cockpit |
+
+The README and `docs/` are written for the **Community** edition. The SaaS-only
+features (account registration, Stripe checkout, admin cockpit) ship in the
+same codebase but stay dormant unless you provide a Postgres instance, Stripe
+API keys, and SMTP — see [docs/self-hosting.md](docs/self-hosting.md) for the
+full stack.
+
+---
+
 ## Supported Formats
 
 | Category      | Input formats                                                   | Output formats                                |

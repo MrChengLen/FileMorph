@@ -19,7 +19,12 @@ ALLOW_RE='^(app/templates/(impressum|privacy|terms)\.html|COMMERCIAL-LICENSE\.md
 PATTERNS='lennart\.seidel@icloud\.com|lennart@filemorph\.io|Reetwerder|21029 Hamburg'
 
 # Secret-value assignment patterns (catches paste of actual .env content).
-SECRET_ASSIGN='(JWT_SECRET|SMTP_PASSWORD|STRIPE_SECRET_KEY|STRIPE_WEBHOOK_SECRET|DATABASE_URL|API_KEY)=[^[:space:]$]'
+# Tolerant of optional spaces around the = sign.
+SECRET_ASSIGN='(JWT_SECRET|SMTP_PASSWORD|STRIPE_SECRET_KEY|STRIPE_WEBHOOK_SECRET|DATABASE_URL|API_KEY|POSTGRES_PASSWORD|GHCR_PAT|OPS_REPO_DISPATCH_PAT|HETZNER_SSH_KEY)[[:space:]]*=[[:space:]]*[^[:space:]$]'
+
+# Secret-value PATTERNS — catch leaked tokens by their format, regardless of variable name.
+# Stripe live, GitHub PATs (classic + fine-grained), AWS access keys, SSH private-key headers.
+SECRET_VALUES='sk_live_[a-zA-Z0-9]{8}|rk_live_[a-zA-Z0-9]{8}|ghp_[a-zA-Z0-9]{16}|gho_[a-zA-Z0-9]{16}|github_pat_[a-zA-Z0-9_]{16}|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----'
 
 for f in $STAGED_FILES; do
   echo "$f" | grep -Eq "$ALLOW_RE" && continue
@@ -31,6 +36,10 @@ for f in $STAGED_FILES; do
   fi
   if echo "$ADDITIONS" | grep -Eq "$SECRET_ASSIGN"; then
     echo "BLOCK: $f appears to contain a secret-value assignment (looks like .env content). Use docs-internal/ or .env (gitignored)." >&2
+    FAIL=1
+  fi
+  if echo "$ADDITIONS" | grep -Eq "$SECRET_VALUES"; then
+    echo "BLOCK: $f looks like it contains a leaked secret token (Stripe live / GitHub PAT / AWS key / SSH private key). Rotate the credential immediately and remove from staged content." >&2
     FAIL=1
   fi
 done
