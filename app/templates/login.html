@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Sign In — FileMorph{% endblock %}
+{% block content %}
+<main class="flex-1 flex items-center justify-center p-4 sm:p-6">
+  <div class="w-full max-w-md space-y-6">
+
+    <div class="text-center space-y-1">
+      <h1 class="text-2xl font-bold">Sign In</h1>
+      <p class="text-gray-400 text-sm">Welcome back to FileMorph</p>
+    </div>
+
+    <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6 space-y-4 shadow-xl">
+
+      <div class="space-y-1">
+        <label class="text-sm text-gray-400 font-medium">Email</label>
+        <input id="email" type="email" autocomplete="email" placeholder="you@example.com"
+          class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-brand transition-colors" />
+      </div>
+
+      <div class="space-y-1">
+        <label class="text-sm text-gray-400 font-medium">Password</label>
+        <input id="password" type="password" autocomplete="current-password" placeholder="••••••••"
+          class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-brand transition-colors" />
+      </div>
+
+      <div id="error-msg" class="hidden text-red-400 text-sm bg-red-950 rounded-lg px-4 py-3"></div>
+
+      <button id="login-btn"
+        class="w-full py-3 rounded-xl font-semibold text-white bg-brand hover:bg-brand-dark disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-sm">
+        Sign In
+      </button>
+
+      <p class="text-center text-sm text-gray-500">
+        No account?
+        <a href="/register" class="text-brand hover:underline">Create one</a>
+        &nbsp;·&nbsp;
+        <a href="/forgot-password" class="text-gray-400 hover:underline">Forgot password?</a>
+      </p>
+
+    </div>
+  </div>
+</main>
+<script src="/static/js/login.js"></script>
+{% endblock %}

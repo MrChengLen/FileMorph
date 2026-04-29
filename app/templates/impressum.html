@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Impressum — FileMorph{% endblock %}
+{% block content %}
+<main class="max-w-2xl mx-auto px-6 py-12 space-y-8 text-gray-300">
+
+  <div>
+    <a href="/" class="text-sm text-gray-500 hover:text-gray-300 transition-colors">← Back</a>
+    <h1 class="text-2xl font-bold mt-4 text-white">Impressum</h1>
+    <p class="text-xs text-gray-500 mt-1">Angaben gemäß § 5 TMG</p>
+  </div>
+
+  <section class="space-y-1">
+    <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500">Verantwortlich</h2>
+    <p>Lennart Seidel</p>
+    <p>Reetwerder 25b</p>
+    <p>21029 Hamburg</p>
+    <p>Deutschland</p>
+  </section>
+
+  <section class="space-y-1">
+    <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500">Kontakt</h2>
+    <p>E-Mail: <a href="mailto:legal@filemorph.io" class="text-brand hover:underline">legal@filemorph.io</a></p>
+  </section>
+
+  <section class="space-y-1">
+    <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500">Steuerliche Angaben</h2>
+    <p class="text-gray-500 text-xs">Steuernummer und USt-IdNr. werden nach Gewerbe-Anmeldung ergänzt.</p>
+  </section>
+
+  <section class="space-y-2 text-sm text-gray-400">
+    <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500">Inhaltlich Verantwortlicher</h2>
+    <p>Gemäß § 18 Abs. 2 MStV: Lennart Seidel, Reetwerder 25b, 21029 Hamburg</p>
+  </section>
+
+  <section class="space-y-2 text-sm text-gray-400">
+    <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500">Hinweis</h2>
+    <p>
+      FileMorph ist ein Open-Source-Projekt (AGPLv3). Die Nutzung der Community Edition
+      erfolgt ohne Garantie und auf eigene Verantwortung. Für den Betrieb eigener
+      Instanzen gelten die jeweiligen lokalen Gesetze des Betreibers.
+    </p>
+  </section>
+
+</main>
+{% endblock %}

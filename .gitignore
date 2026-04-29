@@ -1,0 +1,67 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+.venv/
+venv/
+env/
+
+# Environment
+.env
+!.env.example
+
+# API Keys (never commit real keys)
+data/api_keys.json
+
+# Temp files
+tmp/
+*.tmp
+
+# PyInstaller output
+dist/
+build/
+*.spec.bak
+
+# ffmpeg binaries (downloaded by CI build script)
+ffmpeg/
+
+# Tailwind standalone CLI (downloaded by scripts/build-tailwind.sh)
+.tools/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Claude Code session data (worktrees, settings)
+.claude/
+.clone/
+
+# Claude Code session transcripts
+2026-*-this-session-is-being-continued-*.txt
+
+# Stray binary/image assets under docs/ (diagrams go in as *.svg, screenshots don't)
+docs/*.jpg
+docs/*.jpeg
+docs/*.png
+
+# Internal strategy / planning docs — not for the public repo
+docs-internal/
+
+# Claude Code project guide — local dev/server-ops context, not for public repo
+/CLAUDE.md

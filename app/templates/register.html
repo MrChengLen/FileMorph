@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Create Account — FileMorph{% endblock %}
+{% block content %}
+<main class="flex-1 flex items-center justify-center p-4 sm:p-6">
+  <div class="w-full max-w-md space-y-6">
+
+    <div class="text-center space-y-1">
+      <h1 class="text-2xl font-bold">Create Account</h1>
+      <p class="text-gray-400 text-sm">Free forever — no credit card required</p>
+    </div>
+
+    <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6 space-y-4 shadow-xl">
+
+      <div class="space-y-1">
+        <label class="text-sm text-gray-400 font-medium">Email</label>
+        <input id="email" type="email" autocomplete="email" placeholder="you@example.com"
+          class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-brand transition-colors" />
+      </div>
+
+      <div class="space-y-1">
+        <label class="text-sm text-gray-400 font-medium">Password <span class="text-gray-600">(min. 8 characters)</span></label>
+        <input id="password" type="password" autocomplete="new-password" placeholder="••••••••"
+          class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-brand transition-colors" />
+      </div>
+
+      <div class="space-y-1">
+        <label class="text-sm text-gray-400 font-medium">Confirm Password</label>
+        <input id="password2" type="password" autocomplete="new-password" placeholder="••••••••"
+          class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-brand transition-colors" />
+      </div>
+
+      <div id="error-msg" class="hidden text-red-400 text-sm bg-red-950 rounded-lg px-4 py-3"></div>
+
+      <button id="reg-btn"
+        class="w-full py-3 rounded-xl font-semibold text-white bg-brand hover:bg-brand-dark disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-sm">
+        Create Account
+      </button>
+
+      <p class="text-center text-sm text-gray-500">
+        Already have an account?
+        <a href="/login" class="text-brand hover:underline">Sign in</a>
+      </p>
+
+    </div>
+  </div>
+</main>
+<script src="/static/js/register.js"></script>
+{% endblock %}

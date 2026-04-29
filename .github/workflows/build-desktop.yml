@@ -1,0 +1,76 @@
+name: Build Desktop App
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:   # Allow manual trigger from GitHub UI
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt pyinstaller
+
+      - name: Download ffmpeg (static Windows build)
+        shell: pwsh
+        run: |
+          $url = "https://github.com/BtbN/ffmpeg-builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip"
+          Invoke-WebRequest -Uri $url -OutFile ffmpeg.zip
+          Expand-Archive ffmpeg.zip -DestinationPath ffmpeg_extracted
+          $ffmpegDir = Get-ChildItem ffmpeg_extracted -Directory | Select-Object -First 1
+          New-Item -ItemType Directory -Force -Path "ffmpeg"
+          Copy-Item "$($ffmpegDir.FullName)\bin\ffmpeg.exe" "ffmpeg\ffmpeg.exe"
+          Copy-Item "$($ffmpegDir.FullName)\bin\ffprobe.exe" "ffmpeg\ffprobe.exe"
+          Write-Host "ffmpeg version:"
+          .\ffmpeg\ffmpeg.exe -version | Select-Object -First 1
+
+      - name: Build with PyInstaller
+        run: pyinstaller filemorph.spec --clean --noconfirm
+
+      - name: Create launcher (start.bat inside the dist folder)
+        shell: pwsh
+        run: |
+          $launcher = @"
+          @echo off
+          title FileMorph
+          start "" "%~dp0FileMorph.exe"
+          timeout /t 4 /nobreak >nul
+          start http://localhost:8000
+          "@
+          Set-Content -Path "dist\FileMorph\Start FileMorph.bat" -Value $launcher -Encoding UTF8
+
+      - name: Package into ZIP
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "dist\FileMorph\*" -DestinationPath "FileMorph-Windows.zip"
+          $size = (Get-Item "FileMorph-Windows.zip").Length / 1MB
+          Write-Host "Package size: $([math]::Round($size, 1)) MB"
+
+      - name: Upload to GitHub Release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: FileMorph-Windows.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload as workflow artifact (manual trigger)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: FileMorph-Windows
+          path: FileMorph-Windows.zip
+          retention-days: 7

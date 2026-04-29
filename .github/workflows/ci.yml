@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: ["main", "develop"]
+  pull_request:
+    branches: ["main"]
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg libheif-dev libcairo2 libpangocairo-1.0-0 libgdk-pixbuf2.0-0
+
+      - name: Install Python dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Lint (ruff)
+        run: ruff check .
+
+      - name: Format check (ruff)
+        run: ruff format --check .
+
+      # pip-audit scans dependencies for known CVEs.
+      # Currently non-blocking (|| true) — review findings before making mandatory.
+      # To make blocking: remove the '|| true' suffix.
+      - name: Dependency vulnerability scan (pip-audit)
+        run: pip-audit -r requirements.txt 2>&1 || true
+
+      - name: Run tests
+        run: pytest tests/ -v --tb=short

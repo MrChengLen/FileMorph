@@ -1,0 +1,51 @@
+#!/bin/sh
+# FileMorph pre-commit leak-blocker (CLAUDE.md "Pre-Commit Secret-Scan" + "Pre-Commit Scope-Check")
+# Install: git config core.hooksPath .githooks
+
+set -e
+
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM)
+[ -z "$STAGED_FILES" ] && exit 0
+
+FAIL=0
+
+# Block private identifiers in NEW staged content.
+# Allow legitimate locations (Impressum, privacy, terms, COMMERCIAL-LICENSE, gdpr-design).
+ALLOW_RE='^(app/templates/(impressum|privacy|terms)\.html|COMMERCIAL-LICENSE\.md|docs/gdpr-account-deletion-design\.md|docs/api-usage-guide\.md|docs-internal/.*|\.githooks/.*|CHANGELOG\.md)$'
+
+# Patterns to block in NEW lines (not in deletions).
+# Personal/operational identifiers that should never land in public code.
+# Secret-VALUES (JWT_SECRET=…, password=…) are caught via the assignment check below.
+PATTERNS='lennart\.seidel@icloud\.com|lennart@filemorph\.io|Reetwerder|21029 Hamburg'
+
+# Secret-value assignment patterns (catches paste of actual .env content).
+SECRET_ASSIGN='(JWT_SECRET|SMTP_PASSWORD|STRIPE_SECRET_KEY|STRIPE_WEBHOOK_SECRET|DATABASE_URL|API_KEY)=[^[:space:]$]'
+
+for f in $STAGED_FILES; do
+  echo "$f" | grep -Eq "$ALLOW_RE" && continue
+  # Only check additions (lines starting with "+")
+  ADDITIONS=$(git diff --cached -- "$f" | grep -E "^\+" | grep -Ev "^\+\+\+" || true)
+  if echo "$ADDITIONS" | grep -Eq "$PATTERNS"; then
+    echo "BLOCK: $f contains private identifier (personal email / home address). Move to docs-internal/ or redact." >&2
+    FAIL=1
+  fi
+  if echo "$ADDITIONS" | grep -Eq "$SECRET_ASSIGN"; then
+    echo "BLOCK: $f appears to contain a secret-value assignment (looks like .env content). Use docs-internal/ or .env (gitignored)." >&2
+    FAIL=1
+  fi
+done
+
+# Block staging of files that should be in docs-internal/.
+INTERNAL_PATHS='^docs/(admin-cockpit|email-setup|open-tasks|filemorph-io-runbook|marketing-plan|seo-strategy|business-case|claims-audit|launch-gate-snapshot|launch-readiness-tracker|seo-audit|user-acquisition-strategy|requirements-v2|sprint-5-multi-file-plan)\.md$'
+for f in $STAGED_FILES; do
+  if echo "$f" | grep -Eq "$INTERNAL_PATHS"; then
+    echo "BLOCK: $f belongs in docs-internal/ (operations-internal, not for self-hosters)." >&2
+    FAIL=1
+  fi
+done
+
+if [ "$FAIL" = "1" ]; then
+  echo "" >&2
+  echo "Bypass only if you are certain (NOT for force-push or main): git commit --no-verify" >&2
+  exit 1
+fi

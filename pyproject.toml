@@ -1,0 +1,19 @@
+[project]
+name = "filemorph"
+version = "1.0.0"
+description = "File conversion and compression tool with REST API"
+requires-python = ">=3.11"
+readme = "README.md"
+license = { text = "AGPL-3.0-or-later" }
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F"]
+ignore = ["E501", "E402"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

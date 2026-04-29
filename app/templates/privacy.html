@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Privacy Policy — FileMorph{% endblock %}
+{% block content %}
+<main class="max-w-2xl mx-auto px-6 py-12 space-y-8 text-gray-300 text-sm leading-relaxed">
+
+  <div>
+    <a href="/" class="text-sm text-gray-500 hover:text-gray-300 transition-colors">← Back</a>
+    <h1 class="text-2xl font-bold mt-4 text-white">Privacy Policy</h1>
+    <p class="text-xs text-gray-500 mt-1">Last updated: 2026-04-23 · Community + Cloud Edition</p>
+  </div>
+
+  <section class="space-y-3">
+    <h2 class="text-base font-semibold text-white">1. Who is responsible?</h2>
+    <p>
+      FileMorph is operated by Lennart Seidel, Reetwerder 25b, 21029 Hamburg, Germany.
+      Contact: <a href="mailto:privacy@filemorph.io" class="text-brand hover:underline">privacy@filemorph.io</a>.
+      See <a href="/impressum" class="text-brand hover:underline">Impressum</a> for full contact details.
+    </p>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="text-base font-semibold text-white">2. What data we process</h2>
+    <p><strong class="text-gray-200">2a. Uploaded files:</strong> Files you upload for conversion or compression are processed entirely server-side and deleted immediately after the converted output is returned to you. No file content is stored, logged, or retained in any form.</p>
+    <p><strong class="text-gray-200">2b. User accounts (Cloud Edition):</strong> If you register an account, we store your email address, a bcrypt hash of your password (never the plaintext), your subscription tier, your account creation timestamp, and &mdash; once you upgrade to a paid tier &mdash; the Stripe customer identifier that links your account to Stripe. Account data is persisted in our PostgreSQL database for the lifetime of your account and erased on deletion request (Art. 17 GDPR).</p>
+    <p><strong class="text-gray-200">2c. Transactional emails:</strong> When you request a password reset, we generate a single-use token (valid for 30 minutes) and send it to your registered email address as a reset link. The outgoing message is delivered from <code class="text-gray-400">no-reply@filemorph.io</code> via our email provider (see &sect; 3a). We do not send marketing emails.</p>
+    <p><strong class="text-gray-200">2d. Server logs:</strong> Our web server automatically records standard access log data for each request: IP address, request timestamp, HTTP method, URL path, response status code, and response size. Application-level events (logins, password-reset requests, subscription changes) are logged as structured JSON without plaintext email addresses &mdash; only the email domain is kept for debug purposes. Logs are rotated by the hosting infrastructure under standard operational policies (typically up to 30 days) and accessed only for security, abuse-detection, and debugging.</p>
+    <p><strong class="text-gray-200">2e. API keys:</strong> If you generate an API key (via the dashboard or command-line tool), only the SHA-256 hash of your key is stored. The plaintext key is shown to you exactly once at creation time and is never persisted on our servers.</p>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="text-base font-semibold text-white">3. Legal basis (GDPR Art. 6)</h2>
+    <p>Account creation, paid subscriptions, and transactional emails are processed on the basis of Art. 6(1)(b) GDPR (performance of a contract). Server-log processing, rate-limiting, and abuse prevention are based on our legitimate interest (Art. 6(1)(f) GDPR) in operating a secure and reliable service.</p>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="text-base font-semibold text-white">3a. External services (Sub-Processors)</h2>
+    <p>To operate FileMorph we rely on the following sub-processors. Each one receives only the minimum data needed for its task:</p>
+    <p><strong class="text-gray-200">Stripe (payments):</strong> When you upgrade to a paid tier, we create a Stripe customer record containing your email address and an internal user identifier, then redirect you to <code class="text-gray-400">checkout.stripe.com</code> to complete payment. Stripe handles all card details directly &mdash; FileMorph never sees or stores your card data. After checkout, Stripe returns a customer identifier which we store to manage your subscription. Stripe is a US-based company; the transfer is covered by the EU Standard Contractual Clauses under Stripe's Data Processing Agreement. Legal basis: Art. 6(1)(b) GDPR. See <a href="https://stripe.com/privacy" class="text-brand hover:underline" target="_blank" rel="noopener noreferrer">Stripe's privacy policy</a>.</p>
+    <p><strong class="text-gray-200">Zoho Mail (transactional email):</strong> Password-reset and other account-related emails are delivered through Zoho Mail (<code class="text-gray-400">smtp.zoho.eu</code>, hosted in Frankfurt, EU). Zoho receives the recipient address and the email contents (including the reset link). Legal basis: Art. 6(1)(b) GDPR. See <a href="https://www.zoho.com/privacy.html" class="text-brand hover:underline" target="_blank" rel="noopener noreferrer">Zoho's privacy policy</a>.</p>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="text-base font-semibold text-white">4. Hosting</h2>
+    <p>This service is hosted by Hetzner Online GmbH, Germany (Frankfurt data centre). Your requests are routed through Cloudflare's network for DDoS protection and performance. See <a href="https://www.hetzner.com/legal/privacy-policy" class="text-brand hover:underline" target="_blank">Hetzner's privacy policy</a> and <a href="https://www.cloudflare.com/privacypolicy/" class="text-brand hover:underline" target="_blank">Cloudflare's privacy policy</a> for their data processing terms.</p>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="text-base font-semibold text-white">5. Your rights (GDPR)</h2>
+    <p>You have the right to access, rectify, erase, and restrict processing of your personal data (Art. 15–21 GDPR). To exercise these rights, contact us at <a href="mailto:privacy@filemorph.io" class="text-brand hover:underline">privacy@filemorph.io</a>. You also have the right to lodge a complaint with your local data protection authority.</p>
+    <p><strong class="text-gray-200">Account deletion:</strong> To delete your account (email address, password hash, API keys, Stripe linkage), contact <a href="mailto:privacy@filemorph.io" class="text-brand hover:underline">privacy@filemorph.io</a>. Stripe may retain records of past transactions independently of our deletion, to comply with its own legal and tax obligations.</p>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="text-base font-semibold text-white">6. No cookies, no tracking</h2>
+    <p>FileMorph sets <strong class="text-gray-200">no cookies</strong> on its own domain and runs no tracking or analytics scripts. A small number of keys are written to your browser's <code class="text-gray-400">localStorage</code> only while you are signed in:</p>
+    <ul class="list-disc list-inside space-y-1 text-gray-400">
+      <li><code class="text-gray-300">fm_access_token</code> / <code class="text-gray-300">fm_refresh_token</code> &mdash; your JWT session tokens; strictly necessary to keep you signed in.</li>
+      <li><code class="text-gray-300">filemorph_api_key</code> &mdash; optional; remembers the API key shown in your dashboard across reloads so you don't need to paste it again. Cleared on logout.</li>
+    </ul>
+    <p>These entries fall under the "strictly necessary" exemption of Art. 5(3) ePrivacy Directive / § 25 Abs. 2 Nr. 2 TTDSG and therefore do not require a consent banner. For anonymous usage, nothing is stored in your browser at all.</p>
+    <p>When you start a paid-tier upgrade, you are redirected to Stripe Checkout on the <code class="text-gray-400">stripe.com</code> domain, which sets its own cookies. That is outside FileMorph's control and is governed by <a href="https://stripe.com/privacy" class="text-brand hover:underline" target="_blank" rel="noopener noreferrer">Stripe's privacy policy</a>.</p>
+    <p>Our pages load <strong class="text-gray-200">no external resources</strong>. All CSS (including Tailwind), JavaScript, fonts, and images are served from the FileMorph domain; your browser never contacts a third-party CDN to render the site.</p>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="text-base font-semibold text-white">7. Rate limiting &amp; abuse prevention</h2>
+    <p>We apply a temporary in-memory rate limit (max. 10 requests per minute per IP address) to protect the service from abuse. IP addresses used by the rate limiter are processed transiently in memory only and are never written to disk or logs. Legal basis: Art. 6(1)(f) GDPR — legitimate interest in service stability and security.</p>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="text-base font-semibold text-white">8. Changes to this policy</h2>
+    <p>We may update this policy when the service changes. Accounts and billing are live as of April 2026; persistent file history (Cloud Edition Phase 2) is planned but not yet implemented. The date at the top indicates the current version.</p>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="text-base font-semibold text-white">9. Admin access (transparency)</h2>
+    <p>Operator staff with the <code class="text-gray-400">admin</code> role can access an internal cockpit that lists registered email addresses in plaintext, along with subscription tier, account creation date, and Stripe subscription status &mdash; strictly for service operation, abuse response, and support. Admin actions (tier changes, role changes, deactivations) are recorded with the admin's user identifier, the target user's identifier, and the change performed, to enable internal auditing. Legal basis: Art. 6(1)(f) GDPR.</p>
+  </section>
+
+</main>
+{% endblock %}

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<!-- i18n: future Jinja2-Babel integration -->
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}FileMorph{% endblock %}</title>
+
+  <!-- B-2: Favicon and Web Manifest -->
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml" />
+  <link rel="manifest" href="/static/site.webmanifest" />
+  <meta name="theme-color" content="#6366f1" />
+  <!-- TODO: add favicon.ico (32x32) and apple-touch-icon.png (180x180) to app/static/ -->
+
+  <!-- B-3: Meta tags and Open Graph -->
+  <meta name="description" content="FileMorph — Free online file converter &amp; compressor. Convert images, documents, audio and video. Fast, private, no account required." />
+  <meta property="og:title" content="FileMorph" />
+  <meta property="og:description" content="File conversion and compression — open source, self-hostable." />
+  <meta property="og:type" content="website" />
+  <meta name="robots" content="index, follow" />
+
+  <link rel="stylesheet" href="/static/css/{{ tailwind_css }}" />
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body class="h-full bg-gray-950 text-gray-100 font-sans" data-api-base="{{ api_base_url }}">
+
+  <!-- B-4: Shared navbar -->
+  <nav class="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
+    <a href="/" class="flex items-center gap-3">
+      <svg class="w-8 h-8 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+      </svg>
+      <span class="text-xl font-bold tracking-tight">FileMorph</span>
+    </a>
+    <button id="nav-toggle" class="md:hidden text-gray-400 hover:text-white p-1" aria-label="Toggle menu">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+      </svg>
+    </button>
+    <div id="nav-menu" class="hidden md:flex items-center gap-6 text-sm">
+      <a href="/" class="text-gray-400 hover:text-white transition-colors">Convert</a>
+      <a href="/pricing" class="text-gray-400 hover:text-white transition-colors">Pricing</a>
+      <a href="/docs" target="_blank" class="text-gray-400 hover:text-white transition-colors">API Docs</a>
+      <a href="https://github.com/MrChengLen/FileMorph" target="_blank"
+         class="text-gray-400 hover:text-white transition-colors">GitHub</a>
+      <div id="nav-auth-desktop" class="flex items-center gap-3">
+        <a href="/login" class="text-sm text-gray-300 hover:text-white transition-colors">Sign In</a>
+        <a href="/register" class="text-sm px-4 py-1.5 rounded-lg bg-brand hover:bg-brand-dark text-white font-semibold transition-colors">Register</a>
+      </div>
+    </div>
+  </nav>
+  <div id="nav-mobile-menu" class="hidden md:hidden border-t border-gray-800 bg-gray-950 px-6 py-4 space-y-3 text-sm">
+    <a href="/" class="block text-gray-400 hover:text-white transition-colors py-1">Convert</a>
+    <a href="/pricing" class="block text-gray-400 hover:text-white transition-colors py-1">Pricing</a>
+    <a href="/docs" target="_blank" class="block text-gray-400 hover:text-white transition-colors py-1">API Docs</a>
+    <a href="https://github.com/MrChengLen/FileMorph" target="_blank"
+       class="block text-gray-400 hover:text-white transition-colors py-1">GitHub ↗</a>
+    <div id="nav-auth-mobile">
+      <a href="/login" class="block text-gray-400 hover:text-white transition-colors py-1">Sign In</a>
+      <a href="/register" class="block text-brand hover:text-white py-1">Register</a>
+    </div>
+  </div>
+
+  {% block content %}{% endblock %}
+  <footer class="border-t border-gray-800 px-6 py-5 mt-auto">
+    <div class="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-600">
+      <span>© 2026 FileMorph — AGPLv3 Open Source</span>
+      <nav class="flex flex-wrap items-center justify-center gap-4">
+        <a href="/privacy" class="hover:text-gray-400 transition-colors">Privacy Policy</a>
+        <a href="/terms" class="hover:text-gray-400 transition-colors">Terms of Use</a>
+        <a href="/impressum" class="hover:text-gray-400 transition-colors">Impressum</a>
+        <a href="/docs" target="_blank" class="hover:text-gray-400 transition-colors">API Docs</a>
+        <a href="https://github.com/MrChengLen/FileMorph" target="_blank" class="hover:text-gray-400 transition-colors">GitHub ↗</a>
+      </nav>
+    </div>
+  </footer>
+  <script src="/static/js/nav.js"></script>
+  <script src="/static/js/auth.js"></script>
+  <script src="/static/js/app.js"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

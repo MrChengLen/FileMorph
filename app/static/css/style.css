@@ -1,0 +1,26 @@
+/* FileMorph custom styles — minimal overrides on top of TailwindCSS */
+
+* {
+  box-sizing: border-box;
+}
+
+/* Smooth drag-over highlight */
+#drop-zone.drag-over {
+  border-color: #6366f1;
+  background-color: rgba(99, 102, 241, 0.05);
+}
+
+/* Range input styling for Firefox */
+input[type="range"] {
+  cursor: pointer;
+  height: 20px;
+}
+
+#drop-zone {
+  touch-action: manipulation;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #111827; }
+::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }

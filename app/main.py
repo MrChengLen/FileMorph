@@ -1,0 +1,308 @@
+import glob
+import logging
+import re
+import shutil
+import tempfile
+import time
+from contextlib import asynccontextmanager
+from pathlib import Path
+
+from fastapi import FastAPI, Request, status
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from starlette.middleware.gzip import GZipMiddleware
+
+from app.api.routes import compress, convert, formats, health
+from app.api.routes import auth as auth_route
+from app.api.routes import billing as billing_route
+from app.api.routes import cockpit as cockpit_route
+from app.api.routes import keys as keys_route
+from app.compat import base_dir, setup_ffmpeg_path
+from app.core.assets import tailwind_css_filename
+from app.core.config import settings
+from app.core.logging_config import configure_logging
+from app.core.rate_limit import limiter
+from app.converters.registry import _ensure_loaded
+from app.db.base import engine
+
+# Make bundled ffmpeg available before anything else loads
+setup_ffmpeg_path()
+
+# A-9: Structured logging configured before first use
+configure_logging(debug=settings.app_debug)
+
+logger = logging.getLogger("filemorph.startup")
+
+templates = Jinja2Templates(directory=str(base_dir() / "app" / "templates"))
+templates.env.globals["api_base_url"] = settings.api_base_url
+templates.env.globals["tailwind_css"] = tailwind_css_filename()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    configure_logging(debug=settings.app_debug)
+    _ensure_loaded()
+
+    if engine is not None:
+        from app.db.base import Base
+        import app.db.models  # noqa: F401 — register all ORM models
+
+        # Only bootstrap schema directly for the in-memory test engine.
+        # Postgres (prod) is managed by Alembic migrations (`alembic upgrade head`).
+        is_memory_sqlite = engine.url.get_backend_name() == "sqlite" and (
+            engine.url.database in (None, "", ":memory:")
+        )
+        if is_memory_sqlite:
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+            logger.info("In-memory SQLite schema created for test harness.")
+        else:
+            logger.info("Database engine configured; schema managed by Alembic.")
+
+    if shutil.which("ffmpeg") is None:
+        logger.warning(
+            "ffmpeg not found on PATH. Video and audio conversion/compression will not work."
+        )
+
+    # A-8: Sweep stale fm_ temp dirs on startup (older than 10 minutes)
+    tmp_root = Path(tempfile.gettempdir())
+    cutoff = time.time() - 600  # 10 minutes
+    for stale_dir in glob.glob(str(tmp_root / "fm_*")):
+        try:
+            p = Path(stale_dir)
+            if p.is_dir() and p.stat().st_mtime < cutoff:
+                shutil.rmtree(p, ignore_errors=True)
+                logger.info("Swept stale temp dir: %s", stale_dir)
+        except Exception:
+            logger.warning("Failed to sweep stale temp dir: %s", stale_dir)
+
+    yield
+
+
+app = FastAPI(
+    title="FileMorph",
+    description=(
+        "Convert and compress files between formats via REST API or Web UI.\n\n"
+        "**Authentication**: All API endpoints require the `X-API-Key` header.\n"
+        "Generate a key with: `python scripts/generate_api_key.py`"
+    ),
+    version=settings.app_version,
+    lifespan=lifespan,
+)
+
+# ── Middleware ────────────────────────────────────────────────────────────────
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# A-2: CORS fix — conditional credentials, restricted methods/headers.
+# `expose_headers` is load-bearing for cross-origin downloads: browsers hide
+# non-simple response headers from JS unless the server lists them. The Web
+# UI reads `Content-Disposition` to derive the download filename; without
+# this, the JS fallback kicks in and the saved file has no extension.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins_list,
+    allow_credentials=(len(settings.cors_origins_list) > 0 and settings.cors_origins_list != ["*"]),
+    allow_methods=["GET", "POST"],
+    allow_headers=["X-API-Key", "Content-Type", "Authorization"],
+    expose_headers=[
+        "Content-Disposition",
+        "X-FileMorph-Achieved-Bytes",
+        "X-FileMorph-Final-Quality",
+    ],
+)
+
+# Compress text responses (HTML, JSON, CSS, JS). Binary file downloads are
+# typically already compressed (JPEG/PNG/MP4) so the 1 KB floor avoids
+# pointless re-compression overhead on tiny responses.
+app.add_middleware(GZipMiddleware, minimum_size=1024)
+
+
+# A-4: Security headers middleware
+def _build_csp_header(api_base_url: str) -> str:
+    """Build the CSP header string.
+
+    `connect-src` gates `fetch()` / XHR targets. When the S1.5 upload
+    split is active (`API_BASE_URL` set), heavy-upload POSTs go
+    cross-origin to the tunnel subdomain — the CSP must list that
+    origin or the browser blocks the request before it even hits the
+    network. Empty default keeps same-origin deployments with a tight
+    `'self'`-only policy.
+
+    Self-hosted Tailwind (see scripts/build-tailwind.sh) lets us drop
+    the cdn.tailwindcss.com allowances and the inline-config SHA-256
+    hash. `unsafe-inline` stays on style-src because Tailwind-generated
+    utility classes still produce inline style for animations/accents.
+    """
+    connect_src = "'self'"
+    if api_base_url:
+        connect_src = f"'self' {api_base_url}"
+    return (
+        "default-src 'self'; "
+        "script-src 'self'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data:; "
+        f"connect-src {connect_src};"
+    )
+
+
+_CSP_HEADER = _build_csp_header(settings.api_base_url)
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Content-Security-Policy"] = _CSP_HEADER
+    return response
+
+
+@app.middleware("http")
+async def limit_upload_size(request: Request, call_next):
+    if request.method == "POST":
+        content_length = request.headers.get("content-length")
+        if content_length and int(content_length) > settings.max_upload_size_bytes:
+            return JSONResponse(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                content={
+                    "detail": f"File too large. Maximum size: {settings.max_upload_size_mb} MB"
+                },
+            )
+    return await call_next(request)
+
+
+# ── Custom error handlers (A-5) ───────────────────────────────────────────────
+
+
+@app.exception_handler(404)
+async def not_found_handler(request: Request, exc):
+    if request.url.path.startswith("/api/"):
+        return JSONResponse({"detail": "Endpoint not found."}, status_code=404)
+    return templates.TemplateResponse(request, "404.html", status_code=404)
+
+
+@app.exception_handler(500)
+async def server_error_handler(request: Request, exc):
+    logger.exception("Unhandled server error")
+    if request.url.path.startswith("/api/"):
+        return JSONResponse({"detail": "Internal server error."}, status_code=500)
+    return templates.TemplateResponse(request, "500.html", status_code=500)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error_handler(request: Request, exc: RequestValidationError):
+    # Pydantic 2 puts raw exception objects into ``ctx["error"]`` for
+    # ValueError-based field validators; ``jsonable_encoder`` renders them
+    # to strings so the JSONResponse can serialize the payload.
+    return JSONResponse(
+        {"detail": "Invalid request parameters.", "errors": jsonable_encoder(exc.errors())},
+        status_code=422,
+    )
+
+
+# ── Static files & templates ──────────────────────────────────────────────────
+
+# S1-B: Long-lived cache for content-hashed assets, short revalidate for the
+# rest. Regex matches `.abc12345.` or `-abc12345.` — 8+ hex chars sandwiched
+# between a separator and the extension dot, the convention emitted by
+# esbuild/vite/rollup hash-suffix builds. Matches nothing in the current repo
+# (static files are plain), so today everything takes the 5-min branch; the
+# immutable branch activates the day a bundler is introduced.
+_HASHED_ASSET = re.compile(r"[-.][a-f0-9]{8,}\.")
+
+
+class CachingStaticFiles(StaticFiles):
+    async def get_response(self, path: str, scope):
+        response = await super().get_response(path, scope)
+        if response.status_code == 200:
+            if _HASHED_ASSET.search(path):
+                response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+            else:
+                response.headers["Cache-Control"] = "public, max-age=300, must-revalidate"
+        return response
+
+
+app.mount(
+    "/static",
+    CachingStaticFiles(directory=str(base_dir() / "app" / "static")),
+    name="static",
+)
+
+
+# ── API Routers ───────────────────────────────────────────────────────────────
+
+app.include_router(health.router, prefix="/api/v1")
+app.include_router(formats.router, prefix="/api/v1")
+app.include_router(convert.router, prefix="/api/v1")
+app.include_router(compress.router, prefix="/api/v1")
+app.include_router(auth_route.router, prefix="/api/v1")
+app.include_router(keys_route.router, prefix="/api/v1")
+app.include_router(billing_route.router, prefix="/api/v1")
+app.include_router(cockpit_route.router, prefix="/api/v1")
+
+
+# ── Web UI ────────────────────────────────────────────────────────────────────
+
+
+@app.get("/", include_in_schema=False)
+async def index(request: Request):
+    return templates.TemplateResponse(request, "index.html")
+
+
+@app.get("/impressum", include_in_schema=False)
+async def impressum(request: Request):
+    return templates.TemplateResponse(request, "impressum.html")
+
+
+@app.get("/privacy", include_in_schema=False)
+async def privacy(request: Request):
+    return templates.TemplateResponse(request, "privacy.html")
+
+
+@app.get("/terms", include_in_schema=False)
+async def terms(request: Request):
+    return templates.TemplateResponse(request, "terms.html")
+
+
+@app.get("/login", include_in_schema=False)
+async def login_page(request: Request):
+    return templates.TemplateResponse(request, "login.html")
+
+
+@app.get("/register", include_in_schema=False)
+async def register_page(request: Request):
+    return templates.TemplateResponse(request, "register.html")
+
+
+@app.get("/forgot-password", include_in_schema=False)
+async def forgot_password_page(request: Request):
+    return templates.TemplateResponse(request, "forgot-password.html")
+
+
+@app.get("/reset-password", include_in_schema=False)
+async def reset_password_page(request: Request):
+    return templates.TemplateResponse(request, "reset-password.html")
+
+
+@app.get("/dashboard", include_in_schema=False)
+async def dashboard_page(request: Request):
+    return templates.TemplateResponse(request, "dashboard.html")
+
+
+@app.get("/pricing", include_in_schema=False)
+async def pricing_page(request: Request):
+    return templates.TemplateResponse(request, "pricing.html")
+
+
+@app.get("/cockpit", include_in_schema=False)
+async def cockpit_page(request: Request):
+    return templates.TemplateResponse(request, "cockpit.html")
