@@ -210,3 +210,4 @@ FileMorph is dual-licensed:
 
 - **[AGPL-3.0](LICENSE)** — free for personal use, academic use, internal company use, and open-source projects. If you host a modified version as a public network service, you must publish the source of your modifications.
 - **[Commercial License](COMMERCIAL-LICENSE.md)** — for closed-source SaaS, OEM / white-label, or any deployment that cannot meet the AGPL copyleft obligations. Contact **licensing@filemorph.io**.
+
