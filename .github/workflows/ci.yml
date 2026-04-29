@@ -37,10 +37,22 @@ jobs:
         run: ruff format --check .
 
       # pip-audit scans dependencies for known CVEs.
-      # Currently non-blocking (|| true) — review findings before making mandatory.
-      # To make blocking: remove the '|| true' suffix.
+      # Blocking — a failure means a published advisory affects a pinned dep.
+      # If a finding is genuinely unfixable upstream, add the ID to the --ignore-vuln list
+      # below with a comment naming the package + reason; never silence the whole step.
       - name: Dependency vulnerability scan (pip-audit)
-        run: pip-audit -r requirements.txt 2>&1 || true
+        run: pip-audit -r requirements.txt
 
       - name: Run tests
         run: pytest tests/ -v --tb=short
+
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: gitleaks (server-side secret scanner)
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,7 +1,7 @@
 # Self-Hosting Guide
 
 FileMorph is designed to be self-hosted. This guide covers production deployments with Docker,
-reverse proxy setup (nginx), HTTPS/SSL, and operational best practices.
+reverse proxy setup (Caddy or nginx), HTTPS/SSL, and operational best practices.
 
 ---
 
@@ -70,11 +70,48 @@ curl http://localhost:8000/api/v1/health
 
 ---
 
-## Reverse proxy with nginx (HTTPS)
+## Reverse proxy (HTTPS)
 
-Place FileMorph behind nginx to handle SSL termination and domain routing.
+Place FileMorph behind a reverse proxy to handle SSL termination, domain routing, and request-body limits.
 
-### nginx configuration
+### Option A — Caddy (recommended)
+
+Caddy auto-provisions and renews Let's Encrypt certificates without an extra agent. A
+single config file, no certbot, no manual renewal cron. This is the path the FileMorph
+team uses in production.
+
+```bash
+sudo apt install -y caddy
+sudo $EDITOR /etc/caddy/Caddyfile
+```
+
+```caddyfile
+# /etc/caddy/Caddyfile
+filemorph.example.com {
+    encode zstd gzip
+    request_body {
+        max_size 200MB
+    }
+    reverse_proxy 127.0.0.1:8000 {
+        transport http {
+            read_timeout  5m
+            write_timeout 5m
+        }
+    }
+}
+```
+
+```bash
+sudo systemctl reload caddy
+```
+
+Caddy reads the host from `Caddyfile`, requests an ACME certificate on first hit,
+and renews automatically. No further setup. Logs: `journalctl -u caddy -f`.
+
+### Option B — nginx + Certbot
+
+Use nginx if you already have it deployed for other services. Certbot handles certificate
+issuance and renewal.
 
 ```nginx
 # /etc/nginx/sites-available/filemorph
@@ -114,11 +151,7 @@ Enable and reload:
 sudo ln -s /etc/nginx/sites-available/filemorph /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl reload nginx
-```
 
-### Free SSL certificate with Certbot
-
-```bash
 sudo apt install certbot python3-certbot-nginx
 sudo certbot --nginx -d filemorph.example.com
 ```
