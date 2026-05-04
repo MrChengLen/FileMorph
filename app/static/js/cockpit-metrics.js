@@ -2,16 +2,24 @@
 // S10-lite: Anonymous Analytics widget on the admin cockpit.
 //
 // Renders three counter cards (page views, conversions, registrations) with
-// SVG sparklines, plus the top-format-pairs list and the 24h failure-rate
+// SVG sparklines, plus the top-format-pairs list and the today failure-rate
 // indicator. Data source: `/api/v1/cockpit/usage-summary?days=N`. Uses
 // vanilla SVG instead of Chart.js for the sparklines — they're tiny enough
 // (40px tall) that the 70 KB bundle would dwarf the value. The Chart.js
 // instance for the signups line-chart on this page is unaffected.
+//
+// Boot order (matters for non-admin users):
+//   1. cockpit.js verifies the JWT and either reveals #ck-dashboard (admin)
+//      or shows #ck-forbidden (non-admin) — we attach a MutationObserver to
+//      catch the moment the dashboard becomes visible.
+//   2. Range buttons + first fetch are bound only AFTER the dashboard
+//      appears. A non-admin therefore never wires up the listeners and the
+//      forbidden /cockpit/usage-summary call (which would 403) is skipped.
 (function () {
   'use strict';
 
   const $ = (id) => document.getElementById(id);
-  const state = { days: 7 };
+  const state = { days: 7, bound: false };
 
   function escapeHtml(s) {
     return String(s)
@@ -25,7 +33,7 @@
   function sparkline(series, color) {
     const w = 200, h = 40, pad = 2;
     if (!series || series.length === 0) {
-      return `<svg viewBox="0 0 ${w} ${h}" class="w-full h-10"><line x1="0" y1="${h / 2}" x2="${w}" y2="${h / 2}" stroke="#374151" stroke-width="1"/></svg>`;
+      return `<svg viewBox="0 0 ${w} ${h}" class="w-full h-10" aria-hidden="true"><line x1="0" y1="${h / 2}" x2="${w}" y2="${h / 2}" stroke="#374151" stroke-width="1"/></svg>`;
     }
     const values = series.map((p) => p.count);
     const maxV = Math.max(...values, 1);
@@ -37,7 +45,7 @@
         return `${x.toFixed(1)},${y.toFixed(1)}`;
       })
       .join(' ');
-    return `<svg viewBox="0 0 ${w} ${h}" class="w-full h-10" preserveAspectRatio="none"><polyline points="${points}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    return `<svg viewBox="0 0 ${w} ${h}" class="w-full h-10" aria-hidden="true" preserveAspectRatio="none"><polyline points="${points}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   }
 
   function card(label, value, series, color) {
@@ -67,13 +75,20 @@
       .join('');
   }
 
-  function renderFailureRate(rate) {
+  function renderFailureRate(rate, sampleSize) {
     const el = $('metrics-failure-rate');
     const hint = $('metrics-failure-hint');
     if (rate === null || rate === undefined) {
       el.textContent = '—';
       el.className = 'text-3xl font-bold mt-1 text-gray-500';
-      hint.textContent = 'No jobs in the last 24 hours.';
+      // Distinguish "no traffic" from "too little traffic to be meaningful".
+      // The endpoint returns null + a sample_size for both, so we read the
+      // count to pick the right user-facing copy.
+      if (sampleSize && sampleSize > 0) {
+        hint.textContent = `Only ${sampleSize} outcome${sampleSize === 1 ? '' : 's'} today — too few to compute a rate.`;
+      } else {
+        hint.textContent = 'No conversion or compression jobs today yet.';
+      }
       return;
     }
     const pct = (rate * 100).toFixed(1);
@@ -81,18 +96,54 @@
     if (rate < 0.01) el.className = 'text-3xl font-bold mt-1 text-emerald-400';
     else if (rate < 0.05) el.className = 'text-3xl font-bold mt-1 text-yellow-400';
     else el.className = 'text-3xl font-bold mt-1 text-red-400';
-    hint.textContent = '';
+    hint.textContent = sampleSize ? `n=${sampleSize} today` : '';
+  }
+
+  function showError() {
+    $('metrics-error').classList.remove('hidden');
+    $('metrics-grid').setAttribute('aria-busy', 'false');
+    $('metrics-grid').innerHTML = '';
+  }
+
+  function hideError() {
+    $('metrics-error').classList.add('hidden');
   }
 
   async function loadMetrics() {
     if (!window.FM || !window.FM.authFetch) return;
-    const res = await window.FM.authFetch(`/api/v1/cockpit/usage-summary?days=${state.days}`);
-    if (!res.ok) return;
-    const data = await res.json();
+    let res;
+    try {
+      res = await window.FM.authFetch(`/api/v1/cockpit/usage-summary?days=${state.days}`);
+    } catch (e) {
+      // Network-layer failure — surface so admin knows the call never reached
+      // the server (firewall, offline, DNS).
+      showError();
+      return;
+    }
+    if (res.status === 401 || res.status === 403) {
+      // Auth went stale or admin was demoted between page load and now.
+      // Don't render — cockpit.js will redirect the user shortly.
+      return;
+    }
+    if (!res.ok) {
+      // 5xx or unexpected status — admin needs to know the metrics pipeline
+      // is broken instead of seeing silently empty cards.
+      showError();
+      return;
+    }
+    let data;
+    try {
+      data = await res.json();
+    } catch (e) {
+      showError();
+      return;
+    }
+    hideError();
 
     if (data.metrics_enabled === false) {
       $('metrics-disabled').classList.remove('hidden');
       $('metrics-grid').innerHTML = '';
+      $('metrics-grid').setAttribute('aria-busy', 'false');
       $('metrics-extras').classList.add('hidden');
       return;
     }
@@ -105,8 +156,9 @@
       card('Conversions', t.conversions, data.conversions_series, 'text-brand'),
       card('Registrations', t.registrations, data.registrations_series, 'text-emerald-400'),
     ].join('');
+    $('metrics-grid').setAttribute('aria-busy', 'false');
     renderPairs(data.top_format_pairs);
-    renderFailureRate(data.failure_rate_24h);
+    renderFailureRate(data.failure_rate_today, data.failure_sample_size);
   }
 
   function highlightActiveRange() {
@@ -115,10 +167,15 @@
       b.classList.toggle('border-brand', active);
       b.classList.toggle('text-white', active);
       b.classList.toggle('text-gray-400', !active);
+      // a11y: signal the active state to screen readers in addition to the
+      // visual border-color change.
+      b.setAttribute('aria-pressed', active ? 'true' : 'false');
     });
   }
 
   function attachRangeButtons() {
+    if (state.bound) return;
+    state.bound = true;
     document.querySelectorAll('.ck-mrange').forEach((b) => {
       b.addEventListener('click', () => {
         state.days = parseInt(b.dataset.days, 10) || 7;
@@ -131,7 +188,10 @@
 
   // Wait for the dashboard to actually become visible (cockpit.js gates it
   // behind the role=admin check). Polling beats refactoring cockpit.js for
-  // an event hook this small.
+  // an event hook this small. The observer is one-shot — once the dashboard
+  // appears we wire up the buttons + first fetch, then disconnect. A
+  // non-admin user never reaches the cb so range buttons stay inert and we
+  // never make a /usage-summary call we know would 403.
   function whenDashboardReady(cb) {
     const dash = document.getElementById('ck-dashboard');
     if (!dash) return;
@@ -149,7 +209,9 @@
   }
 
   document.addEventListener('DOMContentLoaded', () => {
-    attachRangeButtons();
-    whenDashboardReady(loadMetrics);
+    whenDashboardReady(() => {
+      attachRangeButtons();
+      loadMetrics();
+    });
   });
 })();

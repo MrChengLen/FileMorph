@@ -202,9 +202,8 @@ async def page_view_counter(request: Request, call_next):
     """Count one page-view per successful GET to a user-facing HTML page.
 
     Runs *after* the response so we only count successes (status 200-399).
-    DB lookup uses its own session — the request's `Depends(get_db)` isn't
-    in scope here. Failures in the metrics path are logged + swallowed
-    inside ``metric_increment``; this middleware never raises.
+    ``metric_increment`` owns its own session via ``AsyncSessionLocal``; the
+    middleware merely checks the toggle + path filter and never raises.
     """
     response = await call_next(request)
     if (
@@ -214,13 +213,7 @@ async def page_view_counter(request: Request, call_next):
         and 200 <= response.status_code < 400
         and not any(request.url.path.startswith(p) for p in _PAGE_VIEW_IGNORED_PREFIXES)
     ):
-        try:
-            async with AsyncSessionLocal() as session:
-                await metric_increment(session, "page_views")
-        except Exception:
-            # Final safety net — increment() already logs, but if session
-            # construction itself fails we still swallow rather than 500.
-            logger.warning("page_view metric session-open failed", exc_info=True)
+        await metric_increment("page_views")
     return response
 
 

@@ -10,8 +10,6 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Uplo
 from fastapi.responses import FileResponse, JSONResponse, Response
 from starlette.background import BackgroundTask
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.api.deps import require_api_key
 from app.api.routes.auth import get_optional_user
 from app.compressors.image import (
@@ -27,7 +25,6 @@ from app.core.metrics import increment as metric_increment
 from app.core.quotas import _MB, get_quota, tier_for
 from app.core.rate_limit import limiter
 from app.core.utils import safe_download_name
-from app.db.base import get_db
 from app.db.models import User
 
 logger = logging.getLogger(__name__)
@@ -50,7 +47,6 @@ async def compress_file(
         "Mutually exclusive with quality. JPEG/WebP only.",
     ),
     user: User | None = Depends(get_optional_user),
-    db: AsyncSession | None = Depends(get_db),
 ) -> Response:
     if quality is not None and target_size_kb is not None:
         raise HTTPException(
@@ -214,10 +210,19 @@ async def compress_file(
             )
         logger.info("compression complete", extra=log_extra)
         # S10-lite: per-format counter for the cockpit Analytics view.
-        await metric_increment(db, f"compress.{ext}")
+        # increment opens its own session so a metrics failure can never
+        # corrupt the response (no caller transaction here, but the
+        # principle keeps batch / auth integrations safe).
+        await metric_increment(f"compress.{ext}")
+    except HTTPException:
+        # Track compression failures separately from infra so the cockpit
+        # has a meaningful failure-rate. The HTTPException still propagates.
+        await metric_increment("failures.compress")
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        raise
     except BaseException:
         # BackgroundTask only fires on the success path; clean up synchronously
-        # on any failure (HTTPException, cancellation, unexpected error).
+        # on cancellation / unexpected errors. HTTPException is caught above.
         shutil.rmtree(tmp_dir, ignore_errors=True)
         raise
 
@@ -247,7 +252,6 @@ async def compress_batch(
         description="Target output size in KB. Applies to all files. JPEG/WebP only.",
     ),
     user: User | None = Depends(get_optional_user),
-    db: AsyncSession | None = Depends(get_db),
 ) -> Response:
     if not files:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No files uploaded.")
@@ -356,7 +360,7 @@ async def compress_batch(
                     )
                 )
                 # S10-lite: per-format counter for batch successes (one per file).
-                await metric_increment(db, f"compress.{ext}")
+                await metric_increment(f"compress.{ext}")
             finally:
                 shutil.rmtree(tmp_dir, ignore_errors=True)
         except ValueError as e:
@@ -365,6 +369,7 @@ async def compress_batch(
                     name=out_name, status="error", size_in=size_in, error_message=str(e)
                 )
             )
+            await metric_increment("failures.compress")
         except Exception:
             logger.exception("Batch compression error on one file")
             results.append(
@@ -375,6 +380,7 @@ async def compress_batch(
                     error_message="Compression failed.",
                 )
             )
+            await metric_increment("failures.compress")
 
     duration_ms = round((time.monotonic() - _t0) * 1000)
     zip_bytes, summary = build_batch_zip(results, operation="compress", duration_ms=duration_ms)

@@ -10,8 +10,6 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Uplo
 from fastapi.responses import FileResponse, JSONResponse, Response
 from starlette.background import BackgroundTask
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.api.deps import require_api_key
 from app.api.routes.auth import get_optional_user
 from app.converters.base import UnsupportedConversionError
@@ -21,7 +19,6 @@ from app.core.metrics import increment as metric_increment
 from app.core.quotas import _MB, get_quota, tier_for
 from app.core.rate_limit import limiter
 from app.core.utils import safe_download_name
-from app.db.base import get_db
 from app.db.models import User
 
 logger = logging.getLogger(__name__)
@@ -42,7 +39,6 @@ async def convert_file(
     target_format: str = Form(..., description="Target format, e.g. 'jpg', 'pdf', 'mp3'"),
     quality: int = Form(85, ge=1, le=100, description="Quality 1-100 (where applicable)"),
     user: User | None = Depends(get_optional_user),
-    db: AsyncSession | None = Depends(get_db),
 ) -> Response:
     src_ext = Path(file.filename or "").suffix.lstrip(".").lower()
     tgt_ext = target_format.strip().lower().lstrip(".")
@@ -166,10 +162,21 @@ async def convert_file(
         )
         # S10-lite: per-format-pair counter for the cockpit. metric_increment
         # is fire-and-forget — no try/except needed (it swallows internally).
-        await metric_increment(db, f"convert.{src_ext}-to-{tgt_ext}")
+        # It opens its own session so a metrics failure can't corrupt the
+        # request's transaction (and there is none here, but the principle
+        # is what keeps batch + auth integrations safe).
+        await metric_increment(f"convert.{src_ext}-to-{tgt_ext}")
+    except HTTPException:
+        # Track conversion failures separately from infrastructure errors
+        # so the cockpit can show a meaningful failure-rate. We swallow the
+        # metric write itself — the user-visible exception still propagates.
+        await metric_increment("failures.convert")
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        raise
     except BaseException:
         # BackgroundTask only fires on the success path; clean up synchronously
-        # on any failure (HTTPException, cancellation, unexpected error).
+        # on any failure (cancellation, unexpected error). HTTPException is
+        # handled above so we can also count the failure.
         shutil.rmtree(tmp_dir, ignore_errors=True)
         raise
 
@@ -192,7 +199,6 @@ async def convert_batch(
     ),
     quality: int = Form(85, ge=1, le=100),
     user: User | None = Depends(get_optional_user),
-    db: AsyncSession | None = Depends(get_db),
 ) -> Response:
     if not files:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No files uploaded.")
@@ -276,7 +282,7 @@ async def convert_batch(
                     )
                 )
                 # S10-lite: per-pair counter for batch successes (one per file).
-                await metric_increment(db, f"convert.{src_ext}-to-{tgt_ext}")
+                await metric_increment(f"convert.{src_ext}-to-{tgt_ext}")
             finally:
                 shutil.rmtree(tmp_dir, ignore_errors=True)
         except UnsupportedConversionError as e:
@@ -285,12 +291,14 @@ async def convert_batch(
                     name=out_name, status="error", size_in=size_in, error_message=str(e)
                 )
             )
+            await metric_increment("failures.convert")
         except ValueError as e:
             results.append(
                 BatchFileResult(
                     name=out_name, status="error", size_in=size_in, error_message=str(e)
                 )
             )
+            await metric_increment("failures.convert")
         except Exception:
             logger.exception("Batch conversion error on one file")
             results.append(
@@ -301,6 +309,7 @@ async def convert_batch(
                     error_message="Conversion failed.",
                 )
             )
+            await metric_increment("failures.convert")
 
     duration_ms = round((time.monotonic() - _t0) * 1000)
     zip_bytes, summary = build_batch_zip(results, operation="convert", duration_ms=duration_ms)

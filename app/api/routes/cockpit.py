@@ -25,6 +25,12 @@ from app.core.rate_limit import limiter
 from app.db.base import get_db
 from app.db.models import DailyMetric, FileJob, JobStatusEnum, RoleEnum, TierEnum, UsageRecord, User
 
+# Metric keys grouped by the cockpit analytics roll-up — kept here so the
+# /usage-summary endpoint and any future filters share one definition. New
+# converters/compressors flow in via the prefix match; failure counters are
+# explicit so renames stay caught at static analysis.
+_FAILURE_KEYS = ("failures.convert", "failures.compress")
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/cockpit", tags=["Cockpit"], include_in_schema=False)
@@ -356,7 +362,11 @@ async def cockpit_usage_summary(
     - ``conversions_series``: same shape, summed across all ``convert.*`` keys per day.
     - ``registrations_series``: ``registrations`` counter per day.
     - ``top_format_pairs``: top-10 ``(src, tgt)`` pairs over the window.
-    - ``failure_rate_24h``: failures / (failures + successes) over the last day.
+    - ``failure_rate_today``: today's failures / (today's successes + failures).
+      Aggregated from ``daily_metrics`` (``failures.convert``, ``failures.compress``
+      vs ``convert.*`` and ``compress.*``). Returns ``null`` when the day is too
+      young to be meaningful (< 20 outcomes total) so the UI doesn't show a
+      noisy 100 %-on-one-failure tile.
     - ``totals``: convenience numbers for the header row.
 
     When ``METRICS_ENABLED`` is off, returns an explicit
@@ -373,7 +383,7 @@ async def cockpit_usage_summary(
             "conversions_series": [],
             "registrations_series": [],
             "top_format_pairs": [],
-            "failure_rate_24h": None,
+            "failure_rate_today": None,
             "totals": {"page_views": 0, "conversions": 0, "registrations": 0},
         }
 
@@ -396,6 +406,9 @@ async def cockpit_usage_summary(
     registrations: dict[str, int] = {}
     conversions: dict[str, int] = {}
     pair_totals: dict[str, int] = {}
+    today_str = today.isoformat()
+    today_successes = 0
+    today_failures = 0
 
     for r_date, key, count in rows:
         d_str = r_date.isoformat() if hasattr(r_date, "isoformat") else str(r_date)
@@ -407,10 +420,17 @@ async def cockpit_usage_summary(
             conversions[d_str] = conversions.get(d_str, 0) + int(count)
             pair = key.removeprefix("convert.")
             pair_totals[pair] = pair_totals.get(pair, 0) + int(count)
+            if d_str == today_str:
+                today_successes += int(count)
         elif key.startswith("compress."):
             # Compressions count toward "conversions" total; format-pair table
             # tracks transforms only, so compressions don't appear there.
             conversions[d_str] = conversions.get(d_str, 0) + int(count)
+            if d_str == today_str:
+                today_successes += int(count)
+        elif key in _FAILURE_KEYS:
+            if d_str == today_str:
+                today_failures += int(count)
 
     def _series(values: dict[str, int]) -> list[dict]:
         # Zero-fill missing days so the sparkline has continuous x-axis ticks.
@@ -420,21 +440,15 @@ async def cockpit_usage_summary(
             out.append({"date": day, "count": values.get(day, 0)})
         return out
 
-    # 24h failure-rate from FileJob (existing telemetry surface, no new table).
-    since_24h = datetime.now(timezone.utc) - timedelta(hours=24)
-    failed_24h = (
-        await db.execute(
-            select(func.count())
-            .select_from(FileJob)
-            .where(FileJob.status == JobStatusEnum.error, FileJob.created_at >= since_24h)
-        )
-    ).scalar() or 0
-    total_jobs_24h = (
-        await db.execute(
-            select(func.count()).select_from(FileJob).where(FileJob.created_at >= since_24h)
-        )
-    ).scalar() or 0
-    failure_rate_24h = (failed_24h / total_jobs_24h) if total_jobs_24h > 0 else None
+    # Today's failure rate from daily_metrics. Suppress the value when the
+    # sample is too small — a single failure on a quiet morning shouldn't
+    # show "100 % failure rate" on the dashboard.
+    today_total = today_successes + today_failures
+    _MIN_OUTCOMES_FOR_RATE = 20
+    if today_total >= _MIN_OUTCOMES_FOR_RATE:
+        failure_rate_today: float | None = today_failures / today_total
+    else:
+        failure_rate_today = None
 
     top_pairs = sorted(pair_totals.items(), key=lambda kv: kv[1], reverse=True)[:10]
 
@@ -445,7 +459,10 @@ async def cockpit_usage_summary(
         "conversions_series": _series(conversions),
         "registrations_series": _series(registrations),
         "top_format_pairs": [{"pair": p, "count": c} for p, c in top_pairs],
-        "failure_rate_24h": (round(failure_rate_24h, 4) if failure_rate_24h is not None else None),
+        "failure_rate_today": (
+            round(failure_rate_today, 4) if failure_rate_today is not None else None
+        ),
+        "failure_sample_size": today_total,
         "totals": {
             "page_views": sum(page_views.values()),
             "conversions": sum(conversions.values()),
