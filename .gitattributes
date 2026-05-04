@@ -14,6 +14,9 @@
 *.toml text eol=lf
 *.txt text eol=lf
 
+# Git hooks (extension-less, POSIX shell — must be LF on Linux runners and git-bash).
+.githooks/* text eol=lf
+
 # Binary files
 *.png binary
 *.jpg binary

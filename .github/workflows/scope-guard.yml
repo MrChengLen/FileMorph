@@ -1,0 +1,78 @@
+name: Scope Guard
+
+# Server-side guard: prevents ops-only files and operations-content
+# from landing in the public repo. This is the only layer that cannot
+# be bypassed with `git push --no-verify` — make it a required status
+# check on `main` in the branch-protection ruleset.
+
+on:
+  push:
+    branches: ["main", "develop"]
+  pull_request:
+    branches: ["main", "develop"]
+
+jobs:
+  scope-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine diff range
+        id: range
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "BASE=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_OUTPUT"
+            echo "HEAD=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
+          else
+            BASE="${{ github.event.before }}"
+            if [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+              BASE=$(git rev-list --max-parents=0 HEAD | tail -n1)
+            fi
+            echo "BASE=$BASE" >> "$GITHUB_OUTPUT"
+            echo "HEAD=${{ github.event.after }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Block ops-only files
+        run: |
+          set -e
+          BASE="${{ steps.range.outputs.BASE }}"
+          HEAD="${{ steps.range.outputs.HEAD }}"
+          CHANGED=$(git diff --name-only "$BASE".."$HEAD" --diff-filter=ACM)
+          echo "Changed files in range:"
+          echo "$CHANGED"
+          FORBIDDEN_RE='^(compose\.prod\.yml|deploy\.sh|\.env\.production(\..*)?|CLAUDE\.md)$|^runbooks/|^docs-internal/'
+          BAD=$(echo "$CHANGED" | grep -E "$FORBIDDEN_RE" || true)
+          if [ -n "$BAD" ]; then
+            echo "::error::Forbidden ops-only paths in public repo (move to MrChengLen/filemorph-ops):"
+            echo "$BAD"
+            exit 1
+          fi
+
+      - name: Block ops-content patterns
+        run: |
+          set -e
+          BASE="${{ steps.range.outputs.BASE }}"
+          HEAD="${{ steps.range.outputs.HEAD }}"
+          # Excluded paths use these strings legitimately (Self-Hoster-Doku,
+          # Impressum/Privacy/Terms, GDPR-Design, COMMERCIAL-LICENSE).
+          ADDED=$(git diff "$BASE".."$HEAD" -- \
+            ':!docs/self-hosting.md' \
+            ':!app/templates/privacy.html' \
+            ':!app/templates/impressum.html' \
+            ':!app/templates/terms.html' \
+            ':!COMMERCIAL-LICENSE.md' \
+            ':!docs/gdpr-account-deletion-design.md' \
+            ':!docs/api-usage-guide.md' \
+            ':!.githooks/pre-commit' \
+            ':!.githooks/pre-push' \
+            ':!.github/workflows/scope-guard.yml' \
+            | grep -E "^\+" | grep -Ev "^\+\+\+" || true)
+          PATTERN='/opt/filemorph(/|$|[[:space:]])|/var/log/filemorph|/home/deploy([[:space:]]|/)|Hetzner CX|HETZNER_HOST|HETZNER_SSH_USER|HETZNER_SSH_KEY|OPS_REPO_DISPATCH_PAT|GHCR_PAT|appleboy/ssh-action|lennart\.seidel@icloud\.com|lennart@filemorph\.io'
+          MATCHES=$(echo "$ADDED" | grep -E "$PATTERN" || true)
+          if [ -n "$MATCHES" ]; then
+            echo "::error::Forbidden ops-content in additions (move to MrChengLen/filemorph-ops):"
+            echo "$MATCHES"
+            exit 1
+          fi
