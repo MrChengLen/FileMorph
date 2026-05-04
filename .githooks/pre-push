@@ -1,0 +1,84 @@
+#!/bin/sh
+# FileMorph pre-push leak-blocker.
+# Catches commits made on other machines or with `git commit --no-verify` —
+# pre-commit only fires at commit-time, this runs against the full diff
+# being pushed.
+#
+# Reads stdin per the git pre-push protocol:
+#   <local_ref> <local_sha> <remote_ref> <remote_sha>
+#
+# For each ref being pushed, scans the diff between local and remote
+# (or merge-base with origin/main when pushing a brand-new branch).
+
+set -e
+
+ZERO=0000000000000000000000000000000000000000
+
+# Same patterns as pre-commit — keep in sync.
+ALLOW_RE='^(app/templates/(impressum|privacy|terms)\.html|COMMERCIAL-LICENSE\.md|docs/gdpr-account-deletion-design\.md|docs/api-usage-guide\.md|docs/self-hosting\.md|docs-internal/.*|\.githooks/.*|\.github/workflows/scope-guard\.yml|CHANGELOG\.md)$'
+PATTERNS='lennart\.seidel@icloud\.com|lennart@filemorph\.io|Reetwerder|21029 Hamburg'
+OPS_PATTERNS='/opt/filemorph(/|$|[[:space:]])|/var/log/filemorph|/home/deploy([[:space:]]|/)|Hetzner CX|HETZNER_HOST|HETZNER_SSH_USER|HETZNER_SSH_KEY|OPS_REPO_DISPATCH_PAT|GHCR_PAT|appleboy/ssh-action'
+SECRET_ASSIGN='(JWT_SECRET|SMTP_PASSWORD|STRIPE_SECRET_KEY|STRIPE_WEBHOOK_SECRET|DATABASE_URL|API_KEY|POSTGRES_PASSWORD|GHCR_PAT|OPS_REPO_DISPATCH_PAT|HETZNER_SSH_KEY)[[:space:]]*=[[:space:]]*[^[:space:]$]'
+SECRET_VALUES='sk_live_[a-zA-Z0-9]{8}|rk_live_[a-zA-Z0-9]{8}|ghp_[a-zA-Z0-9]{16}|gho_[a-zA-Z0-9]{16}|github_pat_[a-zA-Z0-9_]{16}|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----'
+INTERNAL_PATHS='^docs/(admin-cockpit|email-setup|open-tasks|filemorph-io-runbook|marketing-plan|seo-strategy|business-case|claims-audit|launch-gate-snapshot|launch-readiness-tracker|seo-audit|user-acquisition-strategy|requirements-v2|sprint-5-multi-file-plan)\.md$'
+FORBIDDEN_PATHS='^(compose\.prod\.yml|deploy\.sh|\.env\.production(\..*)?|CLAUDE\.md)$|^runbooks/|^docs-internal/'
+
+FAIL=0
+
+while read local_ref local_sha remote_ref remote_sha; do
+  # Branch is being deleted (local_sha=ZERO); nothing to scan.
+  if [ "$local_sha" = "$ZERO" ]; then
+    continue
+  fi
+  # New remote branch — diff against merge-base with origin/main, or root.
+  if [ "$remote_sha" = "$ZERO" ]; then
+    base=$(git merge-base "$local_sha" origin/main 2>/dev/null || git rev-list --max-parents=0 "$local_sha" | tail -n1)
+  else
+    base="$remote_sha"
+  fi
+
+  CHANGED=$(git diff --name-only "$base".."$local_sha" --diff-filter=ACM)
+  if [ -z "$CHANGED" ]; then
+    continue
+  fi
+
+  for f in $CHANGED; do
+    # Forbidden ops-only filenames — check unconditionally (no ALLOW_RE bypass).
+    if echo "$f" | grep -Eq "$FORBIDDEN_PATHS"; then
+      echo "BLOCK [pre-push]: $f is ops-only and must never land in the public repo. Move to MrChengLen/filemorph-ops instead." >&2
+      FAIL=1
+    fi
+    if echo "$f" | grep -Eq "$INTERNAL_PATHS"; then
+      echo "BLOCK [pre-push]: $f belongs in docs-internal/ (operations-internal, not for self-hosters)." >&2
+      FAIL=1
+    fi
+    # Content-pattern checks honor ALLOW_RE.
+    if echo "$f" | grep -Eq "$ALLOW_RE"; then
+      continue
+    fi
+    ADDITIONS=$(git diff "$base".."$local_sha" -- "$f" | grep -E "^\+" | grep -Ev "^\+\+\+" || true)
+    if echo "$ADDITIONS" | grep -Eq "$PATTERNS"; then
+      echo "BLOCK [pre-push]: $f contains private identifier (personal email / home address)." >&2
+      FAIL=1
+    fi
+    if echo "$ADDITIONS" | grep -Eq "$OPS_PATTERNS"; then
+      echo "BLOCK [pre-push]: $f contains an ops-content pattern (server path / Hetzner / deploy-secret variable). This belongs in MrChengLen/filemorph-ops." >&2
+      FAIL=1
+    fi
+    if echo "$ADDITIONS" | grep -Eq "$SECRET_ASSIGN"; then
+      echo "BLOCK [pre-push]: $f appears to contain a secret-value assignment (.env-like)." >&2
+      FAIL=1
+    fi
+    if echo "$ADDITIONS" | grep -Eq "$SECRET_VALUES"; then
+      echo "BLOCK [pre-push]: $f looks like it contains a leaked secret token. Rotate the credential immediately." >&2
+      FAIL=1
+    fi
+  done
+done
+
+if [ "$FAIL" = "1" ]; then
+  echo "" >&2
+  echo "Push blocked. Fix the offending content or move the file to MrChengLen/filemorph-ops." >&2
+  echo "Bypass only with explicit reason: git push --no-verify" >&2
+  exit 1
+fi
