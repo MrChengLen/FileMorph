@@ -14,10 +14,24 @@
 
   <!-- B-3: Meta tags and Open Graph -->
   <meta name="description" content="FileMorph — Free online file converter &amp; compressor. Convert images, documents, audio and video. Fast, private, no account required." />
+  <link rel="canonical" href="{{ app_base_url }}{{ request.url.path }}" />
   <meta property="og:title" content="FileMorph" />
   <meta property="og:description" content="File conversion and compression — open source, self-hostable." />
   <meta property="og:type" content="website" />
+  <meta property="og:url" content="{{ app_base_url }}{{ request.url.path }}" />
+  <meta property="og:image" content="{{ app_base_url }}/static/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="FileMorph" />
+  <meta name="twitter:description" content="File conversion and compression — open source, self-hostable." />
+  <meta name="twitter:image" content="{{ app_base_url }}/static/og-image.png" />
   <meta name="robots" content="index, follow" />
+
+  <!-- B-3: JSON-LD structured data (WebApplication + SoftwareApplication).
+       The exact bytes here match the SHA-256 source-hash injected into the
+       CSP header in app/main.py — keep both sides in sync via app/core/jsonld.py. -->
+  <script type="application/ld+json">{{ site_jsonld | safe }}</script>
 
   <link rel="stylesheet" href="/static/css/{{ tailwind_css }}" />
   <link rel="stylesheet" href="/static/css/style.css" />

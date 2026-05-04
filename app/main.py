@@ -18,7 +18,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from starlette.middleware.gzip import GZipMiddleware
 
-from app.api.routes import compress, convert, formats, health
+from app.api.routes import compress, convert, formats, health, seo
 from app.api.routes import auth as auth_route
 from app.api.routes import billing as billing_route
 from app.api.routes import cockpit as cockpit_route
@@ -26,6 +26,7 @@ from app.api.routes import keys as keys_route
 from app.compat import base_dir, setup_ffmpeg_path
 from app.core.assets import tailwind_css_filename
 from app.core.config import settings
+from app.core.jsonld import build_site_jsonld
 from app.core.logging_config import configure_logging
 from app.core.rate_limit import limiter
 from app.converters.registry import _ensure_loaded
@@ -39,9 +40,13 @@ configure_logging(debug=settings.app_debug)
 
 logger = logging.getLogger("filemorph.startup")
 
+_SITE_JSONLD, _SITE_JSONLD_CSP_SOURCE = build_site_jsonld(settings.app_base_url)
+
 templates = Jinja2Templates(directory=str(base_dir() / "app" / "templates"))
 templates.env.globals["api_base_url"] = settings.api_base_url
+templates.env.globals["app_base_url"] = settings.app_base_url
 templates.env.globals["tailwind_css"] = tailwind_css_filename()
+templates.env.globals["site_jsonld"] = _SITE_JSONLD
 
 
 @asynccontextmanager
@@ -144,9 +149,13 @@ def _build_csp_header(api_base_url: str) -> str:
     connect_src = "'self'"
     if api_base_url:
         connect_src = f"'self' {api_base_url}"
+    # Inline JSON-LD blocks need their SHA-256 source-hash on script-src.
+    # The hash is derived from the same canonical bytes the template renders,
+    # so editing app/core/jsonld.py auto-updates both sides.
+    script_src = f"'self' {_SITE_JSONLD_CSP_SOURCE}"
     return (
         "default-src 'self'; "
-        "script-src 'self'; "
+        f"script-src {script_src}; "
         "style-src 'self' 'unsafe-inline'; "
         "img-src 'self' data:; "
         f"connect-src {connect_src};"
@@ -240,6 +249,7 @@ app.mount(
 
 # ── API Routers ───────────────────────────────────────────────────────────────
 
+app.include_router(seo.router)  # /robots.txt and /sitemap.xml at root
 app.include_router(health.router, prefix="/api/v1")
 app.include_router(formats.router, prefix="/api/v1")
 app.include_router(convert.router, prefix="/api/v1")

@@ -67,3 +67,13 @@ if [ "$FAIL" = "1" ]; then
   echo "Bypass only if you are certain (NOT for force-push or main): git commit --no-verify" >&2
   exit 1
 fi
+
+# Soft advisory layer — App-repo vs Ops-repo scope-review on staged diff.
+# Catches subtle drift the hard gate above doesn't (hardcoded SaaS URLs,
+# Stripe-gated routes without guards, JSON-LD with hardcoded origins, ...).
+# Informational only — never blocks. See scripts/scope_review.py docstring.
+if command -v python >/dev/null 2>&1; then
+  python scripts/scope_review.py || true
+elif [ -x "Z:/Python/projects/fileforge/.venv/Scripts/python.exe" ]; then
+  "Z:/Python/projects/fileforge/.venv/Scripts/python.exe" scripts/scope_review.py || true
+fi
