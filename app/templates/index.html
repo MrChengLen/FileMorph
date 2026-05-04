@@ -168,7 +168,8 @@
           class="text-gray-600 hover:text-gray-400 transition-colors ml-1">GitHub ↗</a>
       </p>
 
-      <!-- Tier teaser -->
+      {% if pricing_enabled %}
+      <!-- Tier teaser — commercial offer surface, only on deployments with pricing enabled -->
       <div class="border border-gray-800 rounded-xl px-5 py-4 space-y-3">
         <div class="flex items-center justify-between">
           <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">Plans</p>
@@ -193,6 +194,7 @@
           <a href="/register" class="text-brand hover:underline">Register free for 50 MB &amp; API access →</a>
         </p>
       </div>
+      {% endif %}
 
       <!-- Developer API teaser -->
       <div class="border border-gray-800 rounded-xl px-5 py-4 space-y-2">

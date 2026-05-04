@@ -28,6 +28,12 @@ class Settings(BaseSettings):
     stripe_pro_price_id: str = ""
     stripe_business_price_id: str = ""
 
+    # Whether to expose /pricing — independent of Stripe availability so the
+    # SaaS deployment can run a "Coming Soon" pricing page during the window
+    # between launch and Stripe live-mode activation. Self-hosters default
+    # to off (no commercial offer to advertise).
+    pricing_page_enabled: bool = False
+
     # Transactional email (leave smtp_host empty to disable sending — dev mode)
     smtp_host: str = ""
     smtp_port: int = 587

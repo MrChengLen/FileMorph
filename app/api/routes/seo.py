@@ -28,13 +28,14 @@ _BASE_ROUTES: list[tuple[str, str]] = [
 def _sitemap_routes() -> list[tuple[str, str]]:
     """Resolve the active route list against runtime settings.
 
-    ``/pricing`` is only meaningful when Stripe is configured — listing it
-    on a self-hosted Community deployment would point search engines at a
-    page that 404s or shows a disabled checkout. Same logic applies to
-    future tier-gated pages (e.g. /upgrade).
+    ``/pricing`` is gated on ``pricing_page_enabled`` (not Stripe) so a
+    deployment can run a "Coming Soon" pricing page indexable by search
+    engines during the gap between launch and Stripe live-mode. A self-
+    hosted Community deployment leaves the flag off and the route stays
+    out of the sitemap entirely.
     """
     routes = list(_BASE_ROUTES)
-    if settings.stripe_secret_key:
+    if settings.pricing_page_enabled:
         routes.insert(1, ("/pricing", "0.8"))
     return routes
 

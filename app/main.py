@@ -47,6 +47,10 @@ templates.env.globals["api_base_url"] = settings.api_base_url
 templates.env.globals["app_base_url"] = settings.app_base_url
 templates.env.globals["tailwind_css"] = tailwind_css_filename()
 templates.env.globals["site_jsonld"] = _SITE_JSONLD
+# Pricing visibility: self-hosters default to off; SaaS turns it on. Two
+# flags so we can run a "Coming Soon" page between launch and Stripe live.
+templates.env.globals["pricing_enabled"] = bool(settings.pricing_page_enabled)
+templates.env.globals["stripe_enabled"] = bool(settings.stripe_secret_key)
 
 
 @asynccontextmanager
@@ -310,6 +314,9 @@ async def dashboard_page(request: Request):
 
 @app.get("/pricing", include_in_schema=False)
 async def pricing_page(request: Request):
+    # Self-host default: no commercial pricing surface at all.
+    if not settings.pricing_page_enabled:
+        return templates.TemplateResponse(request, "404.html", status_code=404)
     return templates.TemplateResponse(request, "pricing.html")
 
 

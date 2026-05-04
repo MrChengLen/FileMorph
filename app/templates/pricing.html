@@ -8,6 +8,15 @@
     <p class="text-gray-400 max-w-xl mx-auto">Start free. Upgrade when you need more. No hidden fees.</p>
   </div>
 
+  {% if not stripe_enabled %}
+  <div id="coming-soon-banner" class="max-w-2xl mx-auto bg-brand/10 border border-brand/40 rounded-xl px-5 py-4 text-center space-y-1">
+    <p class="text-sm font-semibold text-brand">Paid tiers — coming soon</p>
+    <p class="text-xs text-gray-400">
+      Free tier is live today. Pro &amp; Business launch shortly — paid checkouts go live once payment processing is fully set up.
+    </p>
+  </div>
+  {% endif %}
+
   <p class="text-center text-xs text-gray-500">
     Using without an account: up to 20 MB per file · single file at a time · 10 requests/minute · no API access
   </p>
@@ -50,10 +59,18 @@
         <li class="flex items-center gap-2"><span class="text-emerald-400">✓</span> API key management</li>
         <li class="flex items-center gap-2"><span class="text-emerald-400">✓</span> E-mail support</li>
       </ul>
+      {% if stripe_enabled %}
       <button id="pro-btn"
         class="block w-full text-center py-2.5 rounded-xl bg-brand hover:bg-brand-dark text-white transition-colors text-sm font-semibold">
         Upgrade to Pro
       </button>
+      {% else %}
+      <button id="pro-btn" disabled
+        class="block w-full text-center py-2.5 rounded-xl bg-gray-800 text-gray-500 cursor-not-allowed text-sm font-semibold"
+        aria-disabled="true">
+        Coming soon
+      </button>
+      {% endif %}
     </div>
 
     <!-- Business -->
@@ -71,10 +88,18 @@
         <li class="flex items-center gap-2"><span class="text-emerald-400">✓</span> Priority support (best effort)</li>
         <li class="flex items-center gap-2"><span class="text-emerald-400">✓</span> Dedicated onboarding</li>
       </ul>
+      {% if stripe_enabled %}
       <button id="business-btn"
         class="block w-full text-center py-2.5 rounded-xl border border-gray-700 hover:border-brand text-gray-300 hover:text-white transition-colors text-sm font-semibold">
         Upgrade to Business
       </button>
+      {% else %}
+      <button id="business-btn" disabled
+        class="block w-full text-center py-2.5 rounded-xl border border-gray-800 text-gray-500 cursor-not-allowed text-sm font-semibold"
+        aria-disabled="true">
+        Coming soon
+      </button>
+      {% endif %}
     </div>
 
   </div>
