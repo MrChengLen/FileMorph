@@ -121,5 +121,11 @@ def test_csp_connect_src_extends_to_api_base_when_set():
         f"API base not present in connect-src: {split!r}"
     )
     # Still tight elsewhere — api base leaks into connect-src only.
-    assert "script-src 'self';" in split
+    # script-src carries 'self' plus the SHA-256 source-hash for the
+    # inline JSON-LD block (see app/core/jsonld.py); it must NOT pick
+    # up the API-base origin.
+    assert "script-src 'self' 'sha256-" in split, f"script-src must keep 'self' + jsonld-hash: {split!r}"
+    assert "https://api.example.com" not in split.split("script-src")[1].split(";")[0], (
+        f"API base leaked into script-src: {split!r}"
+    )
     assert "default-src 'self';" in split
