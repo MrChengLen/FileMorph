@@ -213,29 +213,124 @@ def test_jsonld_url_built_from_app_base_url_not_hardcoded_saas():
     )
 
 
-def test_sitemap_omits_pricing_when_stripe_disabled(client, monkeypatch):
-    """Self-hosters running without Stripe credentials don't have a working
-    /pricing page. Listing it in the sitemap would point search engines at
-    a route that 404s or shows an inert checkout."""
+def test_sitemap_omits_pricing_when_pricing_page_disabled(client, monkeypatch):
+    """Self-hosters running without the pricing surface enabled don't have
+    a /pricing route at all (404 enforced in main.py). Listing it in the
+    sitemap would point search engines at a 404."""
     from app.core.config import settings
 
-    monkeypatch.setattr(settings, "stripe_secret_key", "")
+    monkeypatch.setattr(settings, "pricing_page_enabled", False)
     r = client.get("/sitemap.xml")
     assert r.status_code == 200
     assert "/pricing" not in r.text, (
-        "sitemap must not advertise /pricing on a Stripe-less deployment"
+        "sitemap must not advertise /pricing on a deployment with pricing disabled"
     )
 
 
-def test_sitemap_includes_pricing_when_stripe_enabled(client, monkeypatch):
-    """When Stripe is configured (e.g. on filemorph.io), /pricing belongs
-    in the sitemap so search engines index the offer page."""
+def test_sitemap_includes_pricing_when_pricing_page_enabled(client, monkeypatch):
+    """When pricing_page_enabled is on (filemorph.io SaaS), /pricing belongs
+    in the sitemap regardless of Stripe state — that's the whole point of
+    the split, so a 'Coming Soon' pricing page can be indexed before
+    Stripe live-mode comes online."""
     from app.core.config import settings
 
-    monkeypatch.setattr(settings, "stripe_secret_key", "sk_test_dummy")
+    monkeypatch.setattr(settings, "pricing_page_enabled", True)
     r = client.get("/sitemap.xml")
     assert r.status_code == 200
-    assert "/pricing" in r.text, "sitemap must list /pricing when Stripe is active"
+    assert "/pricing" in r.text, "sitemap must list /pricing when pricing_page_enabled is on"
+
+
+def test_pricing_route_returns_404_when_pricing_disabled(client, monkeypatch):
+    """Self-host default — no commercial pricing surface to advertise.
+    The route must 404 so search engines don't index a dangling page."""
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "pricing_page_enabled", False)
+    r = client.get("/pricing")
+    assert r.status_code == 404
+
+
+def test_pricing_route_renders_when_pricing_enabled(client, monkeypatch):
+    """When pricing_page_enabled is on, the page renders (200) — even if
+    Stripe itself is disabled (Coming-Soon mode)."""
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "pricing_page_enabled", True)
+    monkeypatch.setattr(settings, "stripe_secret_key", "")
+    r = client.get("/pricing")
+    assert r.status_code == 200
+
+
+def test_pricing_renders_coming_soon_when_stripe_disabled(client, monkeypatch):
+    """Coming-Soon mode: pricing page must surface a clear 'coming soon'
+    message and disable the upgrade buttons so visitors don't click into
+    a checkout that 503s."""
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "pricing_page_enabled", True)
+    monkeypatch.setattr(settings, "stripe_secret_key", "")
+    # Re-render globals (they're set at module import) — pull fresh from settings
+    from app.main import templates
+
+    templates.env.globals["stripe_enabled"] = False
+
+    r = client.get("/pricing")
+    assert r.status_code == 200
+    body = r.text.lower()
+    assert "coming soon" in body, "Coming-Soon banner missing when Stripe disabled"
+    assert "disabled" in body, "upgrade buttons must be disabled in Coming-Soon mode"
+
+
+def test_pricing_renders_live_buttons_when_stripe_enabled(client, monkeypatch):
+    """Live mode: upgrade buttons must NOT carry the disabled attribute, so
+    real users can hit the Stripe checkout endpoint."""
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "pricing_page_enabled", True)
+    monkeypatch.setattr(settings, "stripe_secret_key", "sk_test_dummy")
+    from app.main import templates
+
+    templates.env.globals["stripe_enabled"] = True
+
+    r = client.get("/pricing")
+    assert r.status_code == 200
+    # Find the pro button line; it must not include the `disabled` attribute
+    # in its tag (the Coming-Soon variant has `disabled` directly on <button>).
+    assert 'id="pro-btn"' in r.text
+    pro_line = next(
+        (line for line in r.text.splitlines() if 'id="pro-btn"' in line),
+        "",
+    )
+    assert "disabled" not in pro_line.lower(), "pro button must be enabled when Stripe is live"
+
+
+def test_navbar_omits_pricing_link_when_pricing_disabled(client, monkeypatch):
+    """A self-host build should not advertise a Pricing link in the nav."""
+    from app.core.config import settings
+    from app.main import templates
+
+    monkeypatch.setattr(settings, "pricing_page_enabled", False)
+    templates.env.globals["pricing_enabled"] = False
+
+    r = client.get("/")
+    assert r.status_code == 200
+    assert 'href="/pricing"' not in r.text, (
+        "navbar must hide /pricing link when pricing_page_enabled is off"
+    )
+
+
+def test_navbar_shows_pricing_link_when_pricing_enabled(client, monkeypatch):
+    from app.core.config import settings
+    from app.main import templates
+
+    monkeypatch.setattr(settings, "pricing_page_enabled", True)
+    templates.env.globals["pricing_enabled"] = True
+
+    r = client.get("/")
+    assert r.status_code == 200
+    assert 'href="/pricing"' in r.text, (
+        "navbar must show /pricing link when pricing_page_enabled is on"
+    )
 
 
 def test_og_image_carries_no_saas_specific_text():

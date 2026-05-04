@@ -54,7 +54,7 @@
     </button>
     <div id="nav-menu" class="hidden md:flex items-center gap-6 text-sm">
       <a href="/" class="text-gray-400 hover:text-white transition-colors">Convert</a>
-      <a href="/pricing" class="text-gray-400 hover:text-white transition-colors">Pricing</a>
+      {% if pricing_enabled %}<a href="/pricing" class="text-gray-400 hover:text-white transition-colors">Pricing</a>{% endif %}
       <a href="/docs" target="_blank" class="text-gray-400 hover:text-white transition-colors">API Docs</a>
       <a href="https://github.com/MrChengLen/FileMorph" target="_blank"
          class="text-gray-400 hover:text-white transition-colors">GitHub</a>
@@ -66,7 +66,7 @@
   </nav>
   <div id="nav-mobile-menu" class="hidden md:hidden border-t border-gray-800 bg-gray-950 px-6 py-4 space-y-3 text-sm">
     <a href="/" class="block text-gray-400 hover:text-white transition-colors py-1">Convert</a>
-    <a href="/pricing" class="block text-gray-400 hover:text-white transition-colors py-1">Pricing</a>
+    {% if pricing_enabled %}<a href="/pricing" class="block text-gray-400 hover:text-white transition-colors py-1">Pricing</a>{% endif %}
     <a href="/docs" target="_blank" class="block text-gray-400 hover:text-white transition-colors py-1">API Docs</a>
     <a href="https://github.com/MrChengLen/FileMorph" target="_blank"
        class="block text-gray-400 hover:text-white transition-colors py-1">GitHub ↗</a>
