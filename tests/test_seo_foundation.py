@@ -186,3 +186,75 @@ def test_jsonld_csp_hash_matches_rendered_block(client):
         f"  expected: {expected_hash}\n"
         f"  CSP: {csp}"
     )
+
+
+# ── Deployment-agnosticism regression guards ────────────────────────────────
+#
+# These tests pin the public OSS repo to deployment-agnostic content. A
+# self-hoster who runs the app behind their own domain must not see SaaS-
+# specific URLs leak into structured data, sitemaps, or static assets.
+# Reasoning behind these guards lives in CLAUDE.md ("Active Scope-Review
+# Before Commit"); the original drift was discovered post-S6 commit 8c5bdea.
+
+
+def test_jsonld_url_built_from_app_base_url_not_hardcoded_saas():
+    """``build_site_jsonld(app_base_url)`` must use the passed-in base URL
+    in every entry's ``url`` field. Hardcoding ``https://filemorph.io``
+    would ship the upstream SaaS origin in every self-hoster's structured
+    data — Google's Knowledge Graph would attribute their content to us."""
+    from app.core.jsonld import build_site_jsonld
+
+    canonical, _ = build_site_jsonld("https://files.example.com")
+    assert "https://files.example.com" in canonical, (
+        "JSON-LD must reflect the deployment's own app_base_url"
+    )
+    assert "filemorph.io" not in canonical, (
+        "JSON-LD leaked the upstream SaaS hostname into a self-hosted deployment"
+    )
+
+
+def test_sitemap_omits_pricing_when_stripe_disabled(client, monkeypatch):
+    """Self-hosters running without Stripe credentials don't have a working
+    /pricing page. Listing it in the sitemap would point search engines at
+    a route that 404s or shows an inert checkout."""
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "stripe_secret_key", "")
+    r = client.get("/sitemap.xml")
+    assert r.status_code == 200
+    assert "/pricing" not in r.text, (
+        "sitemap must not advertise /pricing on a Stripe-less deployment"
+    )
+
+
+def test_sitemap_includes_pricing_when_stripe_enabled(client, monkeypatch):
+    """When Stripe is configured (e.g. on filemorph.io), /pricing belongs
+    in the sitemap so search engines index the offer page."""
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "stripe_secret_key", "sk_test_dummy")
+    r = client.get("/sitemap.xml")
+    assert r.status_code == 200
+    assert "/pricing" in r.text, "sitemap must list /pricing when Stripe is active"
+
+
+def test_og_image_carries_no_saas_specific_text():
+    """The og-image is a static PNG shipped in the public OSS repo and
+    served by every deployment. A baked-in ``filemorph.io`` footer would
+    appear in every self-hoster's social embeds — wrong attribution, hard
+    to notice (it only shows in shared-link previews, not the live site)."""
+    from PIL import Image
+
+    asset = Path("app/static/og-image.png")
+    assert asset.exists(), "app/static/og-image.png missing"
+
+    # Visual check: the rendered PNG bytes must not encode the substring
+    # "filemorph.io" in any tEXt/iTXt PNG metadata chunk. The raster pixels
+    # themselves can't be string-matched, so this guards the metadata
+    # surface — which is what social scrapers + image search read.
+    raw = asset.read_bytes()
+    assert b"filemorph.io" not in raw, (
+        "og-image embeds 'filemorph.io' in metadata — re-render with footer_url=None"
+    )
+    with Image.open(asset) as im:
+        assert im.size == (1200, 630)

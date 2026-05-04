@@ -1,13 +1,14 @@
 """Site-wide JSON-LD structured data + their CSP source-hashes.
 
 The server emits JSON-LD inline in ``base.html``. Strict CSP (`script-src 'self'`)
-forbids inline scripts, so each block's SHA-256 hash is computed at import
+forbids inline scripts, so each block's SHA-256 hash is computed at startup
 time and injected into the Content-Security-Policy header. The same canonical
 JSON string is rendered inline; both sides are guaranteed in sync because they
 derive from the same Python literal.
 
-If you change ``SITE_JSONLD_DATA``, the hash recomputes automatically — no
-manual CSP edit needed.
+The ``url`` field is filled from ``settings.app_base_url`` at app startup, not
+hardcoded — that keeps a self-hoster's deployment from shipping the upstream
+SaaS URL in their structured data.
 """
 
 from __future__ import annotations
@@ -30,29 +31,36 @@ def _compile(data: list[dict] | dict) -> tuple[str, str]:
     return canonical, "'sha256-" + base64.b64encode(digest).decode("ascii") + "'"
 
 
-SITE_JSONLD_DATA: list[dict] = [
-    {
-        "@context": "https://schema.org",
-        "@type": "WebApplication",
-        "name": "FileMorph",
-        "url": "https://filemorph.io",
-        "applicationCategory": "Multimedia",
-        "operatingSystem": "Any",
-        "offers": {"@type": "Offer", "price": "0", "priceCurrency": "EUR"},
-        "description": (
-            "Privacy-first file converter & compressor — EU-hosted, AGPLv3, self-hostable."
-        ),
-    },
-    {
-        "@context": "https://schema.org",
-        "@type": "SoftwareApplication",
-        "name": "FileMorph",
-        "url": "https://filemorph.io",
-        "applicationCategory": "Multimedia",
-        "operatingSystem": "Linux, Windows, macOS, Docker",
-        "offers": {"@type": "Offer", "price": "0", "priceCurrency": "EUR"},
-        "license": "https://www.gnu.org/licenses/agpl-3.0.html",
-    },
-]
+def build_site_jsonld(app_base_url: str) -> tuple[str, str]:
+    """Build the homepage JSON-LD + its CSP source-hash for a given base URL.
 
-SITE_JSONLD, SITE_JSONLD_CSP_SOURCE = _compile(SITE_JSONLD_DATA)
+    Called once at app startup with ``settings.app_base_url`` so the structured
+    data points at the deployment's own canonical origin (e.g. a self-hoster's
+    `https://files.example.com`), not the upstream SaaS URL.
+    """
+    base = app_base_url.rstrip("/") or "http://localhost:8000"
+    data: list[dict] = [
+        {
+            "@context": "https://schema.org",
+            "@type": "WebApplication",
+            "name": "FileMorph",
+            "url": base,
+            "applicationCategory": "Multimedia",
+            "operatingSystem": "Any",
+            "offers": {"@type": "Offer", "price": "0", "priceCurrency": "EUR"},
+            "description": (
+                "Privacy-first file converter & compressor — open-source and self-hostable."
+            ),
+        },
+        {
+            "@context": "https://schema.org",
+            "@type": "SoftwareApplication",
+            "name": "FileMorph",
+            "url": base,
+            "applicationCategory": "Multimedia",
+            "operatingSystem": "Linux, Windows, macOS, Docker",
+            "offers": {"@type": "Offer", "price": "0", "priceCurrency": "EUR"},
+            "license": "https://www.gnu.org/licenses/agpl-3.0.html",
+        },
+    ]
+    return _compile(data)

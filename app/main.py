@@ -26,7 +26,7 @@ from app.api.routes import keys as keys_route
 from app.compat import base_dir, setup_ffmpeg_path
 from app.core.assets import tailwind_css_filename
 from app.core.config import settings
-from app.core.jsonld import SITE_JSONLD, SITE_JSONLD_CSP_SOURCE
+from app.core.jsonld import build_site_jsonld
 from app.core.logging_config import configure_logging
 from app.core.rate_limit import limiter
 from app.converters.registry import _ensure_loaded
@@ -40,11 +40,13 @@ configure_logging(debug=settings.app_debug)
 
 logger = logging.getLogger("filemorph.startup")
 
+_SITE_JSONLD, _SITE_JSONLD_CSP_SOURCE = build_site_jsonld(settings.app_base_url)
+
 templates = Jinja2Templates(directory=str(base_dir() / "app" / "templates"))
 templates.env.globals["api_base_url"] = settings.api_base_url
 templates.env.globals["app_base_url"] = settings.app_base_url
 templates.env.globals["tailwind_css"] = tailwind_css_filename()
-templates.env.globals["site_jsonld"] = SITE_JSONLD
+templates.env.globals["site_jsonld"] = _SITE_JSONLD
 
 
 @asynccontextmanager
@@ -150,7 +152,7 @@ def _build_csp_header(api_base_url: str) -> str:
     # Inline JSON-LD blocks need their SHA-256 source-hash on script-src.
     # The hash is derived from the same canonical bytes the template renders,
     # so editing app/core/jsonld.py auto-updates both sides.
-    script_src = f"'self' {SITE_JSONLD_CSP_SOURCE}"
+    script_src = f"'self' {_SITE_JSONLD_CSP_SOURCE}"
     return (
         "default-src 'self'; "
         f"script-src {script_src}; "
