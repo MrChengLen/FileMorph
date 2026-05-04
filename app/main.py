@@ -28,9 +28,10 @@ from app.core.assets import tailwind_css_filename
 from app.core.config import settings
 from app.core.jsonld import build_site_jsonld
 from app.core.logging_config import configure_logging
+from app.core.metrics import increment as metric_increment
 from app.core.rate_limit import limiter
 from app.converters.registry import _ensure_loaded
-from app.db.base import engine
+from app.db.base import AsyncSessionLocal, engine
 
 # Make bundled ffmpeg available before anything else loads
 setup_ffmpeg_path()
@@ -176,6 +177,50 @@ async def security_headers(request: Request, call_next):
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Content-Security-Policy"] = _CSP_HEADER
+    return response
+
+
+# S10-lite: paths the page-view counter ignores. Static assets, the API
+# surface, and the OpenAPI/docs UI shouldn't count as "someone visited the
+# site" — only navigations to user-facing HTML pages do. ``/api/*`` is
+# excluded so the convert/compress route counters (per-format-pair) aren't
+# double-counted by the generic page-view counter.
+_PAGE_VIEW_IGNORED_PREFIXES: tuple[str, ...] = (
+    "/static/",
+    "/api/",
+    "/docs",
+    "/openapi",
+    "/redoc",
+    "/robots.txt",
+    "/sitemap.xml",
+    "/favicon",
+)
+
+
+@app.middleware("http")
+async def page_view_counter(request: Request, call_next):
+    """Count one page-view per successful GET to a user-facing HTML page.
+
+    Runs *after* the response so we only count successes (status 200-399).
+    DB lookup uses its own session — the request's `Depends(get_db)` isn't
+    in scope here. Failures in the metrics path are logged + swallowed
+    inside ``metric_increment``; this middleware never raises.
+    """
+    response = await call_next(request)
+    if (
+        AsyncSessionLocal is not None
+        and settings.metrics_enabled
+        and request.method == "GET"
+        and 200 <= response.status_code < 400
+        and not any(request.url.path.startswith(p) for p in _PAGE_VIEW_IGNORED_PREFIXES)
+    ):
+        try:
+            async with AsyncSessionLocal() as session:
+                await metric_increment(session, "page_views")
+        except Exception:
+            # Final safety net — increment() already logs, but if session
+            # construction itself fails we still swallow rather than 500.
+            logger.warning("page_view metric session-open failed", exc_info=True)
     return response
 
 

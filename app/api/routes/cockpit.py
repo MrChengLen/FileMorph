@@ -20,9 +20,10 @@ from sqlalchemy import Select, and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.routes.auth import require_admin
+from app.core.config import settings
 from app.core.rate_limit import limiter
 from app.db.base import get_db
-from app.db.models import FileJob, JobStatusEnum, RoleEnum, TierEnum, UsageRecord, User
+from app.db.models import DailyMetric, FileJob, JobStatusEnum, RoleEnum, TierEnum, UsageRecord, User
 
 logger = logging.getLogger(__name__)
 
@@ -334,3 +335,120 @@ async def cockpit_timeseries(
 
     # Unreachable under Literal narrowing, but kept for defensive clarity.
     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported metric.")
+
+
+# ── S10-lite: usage-summary aggregations from daily_metrics ──────────────────
+
+
+@router.get("/usage-summary")
+@limiter.limit("30/minute")
+async def cockpit_usage_summary(
+    request: Request,
+    days: int = Query(7, ge=1, le=90, description="How many days of history to include."),
+    _admin: User = Depends(require_admin),
+    db: AsyncSession | None = Depends(get_db),
+):
+    """Aggregate the daily_metrics table into the cockpit Analytics view.
+
+    Returns one tile-set covering the last ``days`` days:
+
+    - ``page_views_series``: list of ``{date, count}`` for sparkline rendering.
+    - ``conversions_series``: same shape, summed across all ``convert.*`` keys per day.
+    - ``registrations_series``: ``registrations`` counter per day.
+    - ``top_format_pairs``: top-10 ``(src, tgt)`` pairs over the window.
+    - ``failure_rate_24h``: failures / (failures + successes) over the last day.
+    - ``totals``: convenience numbers for the header row.
+
+    When ``METRICS_ENABLED`` is off, returns an explicit
+    ``{"metrics_enabled": false, ...zeroed-payload...}`` so the UI can render
+    a "Tracking disabled" state instead of empty charts.
+    """
+    db = _db_required(db)
+
+    if not settings.metrics_enabled:
+        return {
+            "metrics_enabled": False,
+            "days": days,
+            "page_views_series": [],
+            "conversions_series": [],
+            "registrations_series": [],
+            "top_format_pairs": [],
+            "failure_rate_24h": None,
+            "totals": {"page_views": 0, "conversions": 0, "registrations": 0},
+        }
+
+    today = datetime.now(timezone.utc).date()
+    start = today - timedelta(days=days - 1)
+
+    # Pull every relevant row in one query — the table is tiny (one row per
+    # day per metric), so a date-range scan is cheaper than N round-trips.
+    rows = (
+        await db.execute(
+            select(DailyMetric.date, DailyMetric.metric_key, DailyMetric.count).where(
+                DailyMetric.date >= start, DailyMetric.date <= today
+            )
+        )
+    ).all()
+
+    # Group rows by metric category. Iso-date strings keep JSON serialization
+    # simple and order-stable for the frontend.
+    page_views: dict[str, int] = {}
+    registrations: dict[str, int] = {}
+    conversions: dict[str, int] = {}
+    pair_totals: dict[str, int] = {}
+
+    for r_date, key, count in rows:
+        d_str = r_date.isoformat() if hasattr(r_date, "isoformat") else str(r_date)
+        if key == "page_views":
+            page_views[d_str] = page_views.get(d_str, 0) + int(count)
+        elif key == "registrations":
+            registrations[d_str] = registrations.get(d_str, 0) + int(count)
+        elif key.startswith("convert."):
+            conversions[d_str] = conversions.get(d_str, 0) + int(count)
+            pair = key.removeprefix("convert.")
+            pair_totals[pair] = pair_totals.get(pair, 0) + int(count)
+        elif key.startswith("compress."):
+            # Compressions count toward "conversions" total; format-pair table
+            # tracks transforms only, so compressions don't appear there.
+            conversions[d_str] = conversions.get(d_str, 0) + int(count)
+
+    def _series(values: dict[str, int]) -> list[dict]:
+        # Zero-fill missing days so the sparkline has continuous x-axis ticks.
+        out: list[dict] = []
+        for i in range(days):
+            day = (start + timedelta(days=i)).isoformat()
+            out.append({"date": day, "count": values.get(day, 0)})
+        return out
+
+    # 24h failure-rate from FileJob (existing telemetry surface, no new table).
+    since_24h = datetime.now(timezone.utc) - timedelta(hours=24)
+    failed_24h = (
+        await db.execute(
+            select(func.count())
+            .select_from(FileJob)
+            .where(FileJob.status == JobStatusEnum.error, FileJob.created_at >= since_24h)
+        )
+    ).scalar() or 0
+    total_jobs_24h = (
+        await db.execute(
+            select(func.count()).select_from(FileJob).where(FileJob.created_at >= since_24h)
+        )
+    ).scalar() or 0
+    failure_rate_24h = (failed_24h / total_jobs_24h) if total_jobs_24h > 0 else None
+
+    top_pairs = sorted(pair_totals.items(), key=lambda kv: kv[1], reverse=True)[:10]
+
+    return {
+        "metrics_enabled": True,
+        "days": days,
+        "page_views_series": _series(page_views),
+        "conversions_series": _series(conversions),
+        "registrations_series": _series(registrations),
+        "top_format_pairs": [{"pair": p, "count": c} for p, c in top_pairs],
+        "failure_rate_24h": (round(failure_rate_24h, 4) if failure_rate_24h is not None else None),
+        "totals": {
+            "page_views": sum(page_views.values()),
+            "conversions": sum(conversions.values()),
+            "registrations": sum(registrations.values()),
+        },
+    }

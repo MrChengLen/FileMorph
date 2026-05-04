@@ -202,6 +202,11 @@ async def register(
     db.add(user)
     await db.commit()
     await db.refresh(user)
+    # S10-lite: count successful registrations for the cockpit Analytics view.
+    # Imported lazily to avoid circular imports through app.core.metrics.
+    from app.core.metrics import increment as metric_increment
+
+    await metric_increment(db, "registrations")
     return TokenResponse(
         access_token=create_access_token(str(user.id), role=user.role.value),
         refresh_token=create_refresh_token(str(user.id)),

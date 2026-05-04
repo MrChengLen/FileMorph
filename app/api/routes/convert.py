@@ -10,14 +10,18 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Uplo
 from fastapi.responses import FileResponse, JSONResponse, Response
 from starlette.background import BackgroundTask
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.api.deps import require_api_key
 from app.api.routes.auth import get_optional_user
 from app.converters.base import UnsupportedConversionError
 from app.converters.registry import _ensure_loaded, get_converter
 from app.core.batch import BatchFileResult, batch_error_response, build_batch_zip
+from app.core.metrics import increment as metric_increment
 from app.core.quotas import _MB, get_quota, tier_for
 from app.core.rate_limit import limiter
 from app.core.utils import safe_download_name
+from app.db.base import get_db
 from app.db.models import User
 
 logger = logging.getLogger(__name__)
@@ -38,6 +42,7 @@ async def convert_file(
     target_format: str = Form(..., description="Target format, e.g. 'jpg', 'pdf', 'mp3'"),
     quality: int = Form(85, ge=1, le=100, description="Quality 1-100 (where applicable)"),
     user: User | None = Depends(get_optional_user),
+    db: AsyncSession | None = Depends(get_db),
 ) -> Response:
     src_ext = Path(file.filename or "").suffix.lstrip(".").lower()
     tgt_ext = target_format.strip().lower().lstrip(".")
@@ -159,6 +164,9 @@ async def convert_file(
                 "success": True,
             },
         )
+        # S10-lite: per-format-pair counter for the cockpit. metric_increment
+        # is fire-and-forget — no try/except needed (it swallows internally).
+        await metric_increment(db, f"convert.{src_ext}-to-{tgt_ext}")
     except BaseException:
         # BackgroundTask only fires on the success path; clean up synchronously
         # on any failure (HTTPException, cancellation, unexpected error).
@@ -184,6 +192,7 @@ async def convert_batch(
     ),
     quality: int = Form(85, ge=1, le=100),
     user: User | None = Depends(get_optional_user),
+    db: AsyncSession | None = Depends(get_db),
 ) -> Response:
     if not files:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No files uploaded.")
@@ -266,6 +275,8 @@ async def convert_batch(
                         content=content,
                     )
                 )
+                # S10-lite: per-pair counter for batch successes (one per file).
+                await metric_increment(db, f"convert.{src_ext}-to-{tgt_ext}")
             finally:
                 shutil.rmtree(tmp_dir, ignore_errors=True)
         except UnsupportedConversionError as e:

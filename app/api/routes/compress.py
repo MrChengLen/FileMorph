@@ -10,6 +10,8 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Uplo
 from fastapi.responses import FileResponse, JSONResponse, Response
 from starlette.background import BackgroundTask
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.api.deps import require_api_key
 from app.api.routes.auth import get_optional_user
 from app.compressors.image import (
@@ -21,9 +23,11 @@ from app.compressors.image import (
 from app.compressors.video import _SUPPORTED_FORMATS as VIDEO_FMTS
 from app.compressors.video import compress_video
 from app.core.batch import BatchFileResult, batch_error_response, build_batch_zip
+from app.core.metrics import increment as metric_increment
 from app.core.quotas import _MB, get_quota, tier_for
 from app.core.rate_limit import limiter
 from app.core.utils import safe_download_name
+from app.db.base import get_db
 from app.db.models import User
 
 logger = logging.getLogger(__name__)
@@ -46,6 +50,7 @@ async def compress_file(
         "Mutually exclusive with quality. JPEG/WebP only.",
     ),
     user: User | None = Depends(get_optional_user),
+    db: AsyncSession | None = Depends(get_db),
 ) -> Response:
     if quality is not None and target_size_kb is not None:
         raise HTTPException(
@@ -208,6 +213,8 @@ async def compress_file(
                 }
             )
         logger.info("compression complete", extra=log_extra)
+        # S10-lite: per-format counter for the cockpit Analytics view.
+        await metric_increment(db, f"compress.{ext}")
     except BaseException:
         # BackgroundTask only fires on the success path; clean up synchronously
         # on any failure (HTTPException, cancellation, unexpected error).
@@ -240,6 +247,7 @@ async def compress_batch(
         description="Target output size in KB. Applies to all files. JPEG/WebP only.",
     ),
     user: User | None = Depends(get_optional_user),
+    db: AsyncSession | None = Depends(get_db),
 ) -> Response:
     if not files:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No files uploaded.")
@@ -347,6 +355,8 @@ async def compress_batch(
                         content=content,
                     )
                 )
+                # S10-lite: per-format counter for batch successes (one per file).
+                await metric_increment(db, f"compress.{ext}")
             finally:
                 shutil.rmtree(tmp_dir, ignore_errors=True)
         except ValueError as e:
