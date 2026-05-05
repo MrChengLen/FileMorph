@@ -1,9 +1,42 @@
 # FileMorph — Data Protection & GDPR Analysis
 
-**Date:** 2026-04-20
-**Scope:** Community Edition (current `main` branch) + Cloud Edition (planned via `docs/requirements-v2.md`)
+**Original analysis date:** 2026-04-20
+**Last refreshed:** 2026-05-05
+**Scope:** Community Edition (current `main` branch), Cloud Edition (live), planned Compliance Edition.
 **Analyst:** Automated compliance review
 **Reviewer note:** This document is a technical privacy analysis intended for engineering and legal review. It does not constitute legal advice. Engage a qualified data protection lawyer before launching any paid SaaS tier in the EU.
+
+---
+
+## 2026-05-05 status update — what shipped since the original analysis
+
+The 2026-04-20 analysis below was written against an older codebase
+state and lists several gaps as open that have since been closed. The
+table below shows the current state for any reader who needs a quick
+truth-check; the body of the document is preserved verbatim for the
+historical reasoning trail.
+
+| Original gap | Status now | Code anchor |
+|---|---|---|
+| Footer claim "files in memory only" was misleading | Fixed — footer copy and `/privacy` page describe disk-temp + cleanup honestly | `app/templates/privacy.html` §2a |
+| No startup sweep for stale `fm_*` temp dirs (A-8) | Closed — sweep deletes any `fm_*` dir &gt;10 minutes on app start | `app/main.py::lifespan` |
+| `tempfile.mkdtemp(prefix="filemorph_")` + original filename in temp path | Closed — UUID stems under `fm_`-prefixed dir | `app/api/routes/convert.py` |
+| `allow_origins=["*"]` with `allow_credentials=True` | Closed (PT-003) — strict allow-list, credentials only when origins set | `app/main.py` CORS middleware |
+| No privacy policy | Closed — `/privacy` route + `app/templates/privacy.html` (last revised 2026-04-23) | `app/main.py::privacy` |
+| No security headers | Closed — `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Content-Security-Policy`, `Permissions-Policy`, plus HSTS over HTTPS | `app/main.py::security_headers` |
+| No DPA / sub-processor list | Template shipped — `docs/sub-processors.md` (Cloud) + `legal/avv-template-*.md` (Compliance Edition, in flight) | repo |
+| No security disclosure surface | RFC 9116 `/.well-known/security.txt` + `/security` page + `SECURITY.md` | `app/api/routes/seo.py`, `app/templates/security.html` |
+| pip-audit "non-blocking" | Now blocking on every CI build | `.github/workflows/ci.yml` |
+
+What is still in flight for the Compliance-Edition push (NEU-B and
+later, on branch `compliance-pivot-foundation`): tamper-evident
+audit log with hash chain, `RETENTION_HOURS` toggle with a periodic
+sweep, `X-Output-SHA256` response header, cosign-signed images,
+GPG-signed tags, account-deletion endpoint, email-verification at
+registration, login rate-limit, PDF/A-2b output with veraPDF, and
+default-on EXIF strip for image conversions. The status table in
+`CLAUDE.md` "Cloud Edition — Status" is the authoritative running
+inventory.
 
 ---
 

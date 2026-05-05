@@ -208,9 +208,11 @@ filename cannot inject header bytes or break the parser.
 
 WeasyPrint accepts HTML and CSS, both of which can reference
 external URLs. To prevent server-side request forgery, every
-`weasyprint.HTML(...)` call passes `url_fetcher=_deny_url_fetcher`
-in `app/main.py`, which blocks all external fetches at the
-WeasyPrint level. Self-hosters should not disable this.
+`weasyprint.HTML(...)` call passes `url_fetcher=_deny_url_fetcher`,
+defined in `app/converters/document.py` and applied at the only
+call-site there. The fetcher rejects every URL unconditionally —
+WeasyPrint never opens a network connection. Self-hosters should
+not disable this.
 
 ### Decompression bombs
 
@@ -306,13 +308,17 @@ JavaScript and downloads silently lose their filename.
 
 ### Defensive headers
 
+All headers below are set by the `security_headers` middleware in
+`app/main.py`. Regression guards live in
+`tests/test_security_headers.py`.
+
 | Header | Value | Purpose |
 |---|---|---|
-| `Strict-Transport-Security` | `max-age=31536000; includeSubDomains` | Force HTTPS on subsequent visits |
+| `Strict-Transport-Security` | `max-age=31536000; includeSubDomains` (HTTPS only) | Force HTTPS on subsequent visits. The middleware reads `request.url.scheme` so the header is only emitted when the proxy reports `X-Forwarded-Proto: https` — adding HSTS to plaintext responses is meaningless and noisy in dev. |
 | `X-Content-Type-Options` | `nosniff` | Prevent MIME-sniffing |
 | `X-Frame-Options` | `DENY` | Defence-in-depth alongside `frame-ancestors` |
 | `Referrer-Policy` | `strict-origin-when-cross-origin` | Limit referrer leakage |
-| `Permissions-Policy` | conservative defaults | No camera/microphone/geolocation prompts |
+| `Permissions-Policy` | `camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()` | Lock the converter site out of features it never needs; future XSS or third-party include cannot prompt the user for camera/mic/geolocation. |
 
 ### Network-layer change discipline
 
@@ -392,9 +398,13 @@ to be effective. The following list is grouped by importance.
    bytes of cryptographic randomness. Rotation invalidates all
    active sessions, which is the desired behaviour after a
    suspected compromise.
-5. **Run `pip-audit -r requirements.txt` regularly.** It runs in
-   CI today as a non-blocking check; treat any High or Critical
-   finding as deploy-blocking and bump the affected pin.
+5. **`pip-audit -r requirements.txt` is a blocking gate in CI.**
+   Every push fails the build on any finding it cannot ignore. If
+   an upstream advisory is genuinely unfixable, add the ID to
+   `--ignore-vuln` in `.github/workflows/ci.yml` with a comment
+   naming the package and reason — never silence the whole step.
+   Self-hosters running an out-of-tree fork should run `pip-audit`
+   on the same cadence as their dependency updates.
 
 ### Recommended
 
@@ -552,8 +562,9 @@ For readers who want to jump directly to the code:
 | API-key hashing and verification | `app/core/security.py` |
 | Password hashing and JWT issuance | `app/core/auth.py` |
 | Rate limiter | `app/core/rate_limit.py` |
-| Magic-byte allow-list | `app/main.py` (search `BLOCKED_MAGIC`) |
-| WeasyPrint SSRF hardening | `app/main.py` (search `_deny_url_fetcher`) |
+| Magic-byte allow-list | `app/api/routes/convert.py`, `app/api/routes/compress.py` (search `BLOCKED_MAGIC`) |
+| WeasyPrint SSRF hardening | `app/converters/document.py` (search `_deny_url_fetcher`) |
+| Security-headers middleware (HSTS, Permissions-Policy, CSP, etc.) | `app/main.py::security_headers` |
 | CSP and CORS middleware | `app/main.py::_build_csp_header` |
 | Per-tier quotas and output cap | `app/core/quotas.py` |
 | Filename sanitisation | `app/core/utils.py::safe_download_name` |

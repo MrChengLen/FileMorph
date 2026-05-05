@@ -174,6 +174,15 @@ def _build_csp_header(api_base_url: str) -> str:
 _CSP_HEADER = _build_csp_header(settings.api_base_url)
 
 
+# Permissions-Policy disables browser features the app does not need.
+# Listing them as empty allow-lists prevents a future XSS or 3rd-party
+# inclusion from prompting the user for camera/mic/geolocation. The
+# string is static so we build it once at import time.
+_PERMISSIONS_POLICY = (
+    "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()"
+)
+
+
 @app.middleware("http")
 async def security_headers(request: Request, call_next):
     response = await call_next(request)
@@ -181,6 +190,13 @@ async def security_headers(request: Request, call_next):
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Content-Security-Policy"] = _CSP_HEADER
+    # HSTS is meaningful only over HTTPS — ``request.url.scheme`` reflects
+    # the proxy-forwarded protocol when ``X-Forwarded-Proto`` is honoured
+    # (Caddy / nginx do this by default). Setting it on plain HTTP would
+    # be ignored by browsers and noisy in dev.
+    if request.url.scheme == "https":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["Permissions-Policy"] = _PERMISSIONS_POLICY
     return response
 
 
