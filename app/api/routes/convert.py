@@ -229,6 +229,10 @@ async def convert_batch(
 
     _t0 = time.monotonic()
     results: list[BatchFileResult] = []
+    # Aggregate per-key counts for the post-loop metrics flush. One UPSERT
+    # per unique key (typically 1-3) instead of N round-trips for an N-file
+    # batch — keeps a 100-file batch from hammering the metrics table.
+    metric_counts: dict[str, int] = {}
 
     for upload, raw_target in zip(files, target_formats):
         tgt_ext = raw_target.strip().lower().lstrip(".")
@@ -281,8 +285,8 @@ async def convert_batch(
                         content=content,
                     )
                 )
-                # S10-lite: per-pair counter for batch successes (one per file).
-                await metric_increment(f"convert.{src_ext}-to-{tgt_ext}")
+                key = f"convert.{src_ext}-to-{tgt_ext}"
+                metric_counts[key] = metric_counts.get(key, 0) + 1
             finally:
                 shutil.rmtree(tmp_dir, ignore_errors=True)
         except UnsupportedConversionError as e:
@@ -291,14 +295,14 @@ async def convert_batch(
                     name=out_name, status="error", size_in=size_in, error_message=str(e)
                 )
             )
-            await metric_increment("failures.convert")
+            metric_counts["failures.convert"] = metric_counts.get("failures.convert", 0) + 1
         except ValueError as e:
             results.append(
                 BatchFileResult(
                     name=out_name, status="error", size_in=size_in, error_message=str(e)
                 )
             )
-            await metric_increment("failures.convert")
+            metric_counts["failures.convert"] = metric_counts.get("failures.convert", 0) + 1
         except Exception:
             logger.exception("Batch conversion error on one file")
             results.append(
@@ -309,7 +313,12 @@ async def convert_batch(
                     error_message="Conversion failed.",
                 )
             )
-            await metric_increment("failures.convert")
+            metric_counts["failures.convert"] = metric_counts.get("failures.convert", 0) + 1
+
+    # Flush aggregated counters — one UPSERT per unique key, all on isolated
+    # sessions so a metrics failure can't poison the response.
+    for key, count in metric_counts.items():
+        await metric_increment(key, by=count)
 
     duration_ms = round((time.monotonic() - _t0) * 1000)
     zip_bytes, summary = build_batch_zip(results, operation="convert", duration_ms=duration_ms)
