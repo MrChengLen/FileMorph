@@ -1,5 +1,12 @@
 # FileMorph — Commercial License
 
+> Behörden, Krankenhäuser und Kanzleien finden eine deutschsprachige
+> Erläuterung der Lizenz-Abgrenzung in
+> [`docs/agpl-fuer-behoerden.md`](docs/agpl-fuer-behoerden.md). Das
+> Compliance-Edition-Datenblatt mit Trust-Artefakten (Threat-Model,
+> SBOM-Pipeline, Patch-Policy) liegt unter
+> [`/enterprise`](https://filemorph.io/enterprise) auf der SaaS-Site.
+
 FileMorph is distributed under a **dual-license model**:
 
 | Use case | License | Cost |
@@ -43,15 +50,31 @@ product without disclosing your changes.
 
 ## Pricing (indicative — final terms per contract)
 
+The commercial-license offer is structured as a **Compliance Edition** with
+volume-based tiers. Procurement-driven buyers (Behörden, Krankenhäuser,
+Kanzleien, KRITIS-Operatoren) typically take Standard or Enterprise; small
+agencies and dev-shops embedding FileMorph into their own tooling take
+Starter. Pricing is **server-volume-based, not per-seat** — large
+organisations (e.g. a 5.000-Mitarbeitende Behörde) do not pay seat-multiples
+for a back-end file-conversion service.
+
 | Tier | Scope | Annual |
 |---|---|---|
-| **Startup** | Self-hosted, up to 10 seats, single deployment | € 299 / year |
-| **Enterprise** | Self-hosted, unlimited seats, single legal entity, support SLA 48 h | € 999 / year |
+| **Compliance Starter** | 1 server, ≤ 50 staff | € 1.490 |
+| **Compliance Standard** | 3 servers, ≤ 2.000 staff | € 7.490 |
+| **Compliance Enterprise** | unlimited servers, dedicated onboarding, custom SLA | from € 24.900 |
 | **OEM / white-label** | Embed + redistribute inside your own product | Case-by-case |
+
+KRITIS- and air-gap-deployment variants are negotiated case-by-case and
+include offline-update tooling, dedicated 4-hour reaction-time SLA, and
+patch-backports onto a fixed version line. These tiers are not generally
+quoted before an external pen-test report is on file — see
+[`docs/patch-policy.md`](docs/patch-policy.md) for the release-line and
+patching cadence.
 
 > Note: the SaaS plans on [filemorph.io/pricing](https://filemorph.io/pricing) (Pro / Business)
 > are a separate offering — usage of the hosted API. The tiers above license the
-> *source code* for self-hosted closed-source / OEM use.
+> *source code* for self-hosted closed-source, compliance, and OEM use.
 
 Prices exclude VAT. Multi-year discounts available.
 
