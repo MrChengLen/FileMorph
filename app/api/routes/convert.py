@@ -15,6 +15,7 @@ from app.api.routes.auth import get_optional_user
 from app.converters.base import UnsupportedConversionError
 from app.converters.registry import _ensure_loaded, get_converter
 from app.core.batch import BatchFileResult, batch_error_response, build_batch_zip
+from app.core.metrics import increment as metric_increment
 from app.core.quotas import _MB, get_quota, tier_for
 from app.core.rate_limit import limiter
 from app.core.utils import safe_download_name
@@ -159,9 +160,23 @@ async def convert_file(
                 "success": True,
             },
         )
+        # S10-lite: per-format-pair counter for the cockpit. metric_increment
+        # is fire-and-forget — no try/except needed (it swallows internally).
+        # It opens its own session so a metrics failure can't corrupt the
+        # request's transaction (and there is none here, but the principle
+        # is what keeps batch + auth integrations safe).
+        await metric_increment(f"convert.{src_ext}-to-{tgt_ext}")
+    except HTTPException:
+        # Track conversion failures separately from infrastructure errors
+        # so the cockpit can show a meaningful failure-rate. We swallow the
+        # metric write itself — the user-visible exception still propagates.
+        await metric_increment("failures.convert")
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        raise
     except BaseException:
         # BackgroundTask only fires on the success path; clean up synchronously
-        # on any failure (HTTPException, cancellation, unexpected error).
+        # on any failure (cancellation, unexpected error). HTTPException is
+        # handled above so we can also count the failure.
         shutil.rmtree(tmp_dir, ignore_errors=True)
         raise
 
@@ -266,6 +281,8 @@ async def convert_batch(
                         content=content,
                     )
                 )
+                # S10-lite: per-pair counter for batch successes (one per file).
+                await metric_increment(f"convert.{src_ext}-to-{tgt_ext}")
             finally:
                 shutil.rmtree(tmp_dir, ignore_errors=True)
         except UnsupportedConversionError as e:
@@ -274,12 +291,14 @@ async def convert_batch(
                     name=out_name, status="error", size_in=size_in, error_message=str(e)
                 )
             )
+            await metric_increment("failures.convert")
         except ValueError as e:
             results.append(
                 BatchFileResult(
                     name=out_name, status="error", size_in=size_in, error_message=str(e)
                 )
             )
+            await metric_increment("failures.convert")
         except Exception:
             logger.exception("Batch conversion error on one file")
             results.append(
@@ -290,6 +309,7 @@ async def convert_batch(
                     error_message="Conversion failed.",
                 )
             )
+            await metric_increment("failures.convert")
 
     duration_ms = round((time.monotonic() - _t0) * 1000)
     zip_bytes, summary = build_batch_zip(results, operation="convert", duration_ms=duration_ms)

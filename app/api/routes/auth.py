@@ -24,6 +24,7 @@ from app.core.auth import (
     verify_password,
 )
 from app.core.config import settings
+from app.core.metrics import increment as metric_increment
 from app.core.rate_limit import limiter
 from app.db.base import get_db
 from app.db.models import ApiKey, RoleEnum, User
@@ -202,6 +203,10 @@ async def register(
     db.add(user)
     await db.commit()
     await db.refresh(user)
+    # S10-lite: count successful registrations for the cockpit Analytics view.
+    # increment owns its session — kept off the request transaction so a
+    # metrics failure here can't corrupt the freshly committed user row.
+    await metric_increment("registrations")
     return TokenResponse(
         access_token=create_access_token(str(user.id), role=user.role.value),
         refresh_token=create_refresh_token(str(user.id)),

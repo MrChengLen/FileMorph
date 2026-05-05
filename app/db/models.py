@@ -8,8 +8,12 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
+from datetime import date as date_type
+
 from sqlalchemy import (
+    BigInteger,
     Boolean,
+    Date,
     DateTime,
     Enum,
     ForeignKey,
@@ -168,3 +172,33 @@ class UsageRecord(Base):
     # Relationships
     user: Mapped[Optional[User]] = relationship("User", back_populates="usage_records")
     api_key: Mapped[Optional[ApiKey]] = relationship("ApiKey", back_populates="usage_records")
+
+
+class DailyMetric(Base):
+    """Per-day, per-key counter — S10-lite analytics aggregation surface.
+
+    Composite primary key ``(date, metric_key)`` plus a ``count`` column. One
+    row per (day, metric) regardless of traffic volume — atomic UPSERT in
+    ``app.core.metrics.increment`` keeps it that way.
+
+    Examples of ``metric_key``:
+
+    - ``page_views`` — every GET to a non-API, non-static path
+    - ``convert.jpg-to-pdf`` — successful conversion per format-pair
+    - ``compress.jpg`` — successful compression per format
+    - ``registrations`` — successful new-user registrations
+    - ``failures.convert`` — failed conversions (any cause)
+
+    Counters are not personal data: they're aggregates, comparable to standard
+    web-server access-log roll-ups, so no Privacy-Policy update or DSGVO Art. 13
+    notice is required for shipping this. Self-hosters who don't want the
+    counters at all can set ``METRICS_ENABLED=false``.
+    """
+
+    __tablename__ = "daily_metrics"
+
+    date: Mapped[date_type] = mapped_column(Date, primary_key=True)
+    metric_key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    count: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+
+    __table_args__ = (Index("ix_daily_metrics_metric_key", "metric_key"),)

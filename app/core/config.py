@@ -34,6 +34,13 @@ class Settings(BaseSettings):
     # to off (no commercial offer to advertise).
     pricing_page_enabled: bool = False
 
+    # S10-lite analytics: per-day counter increments for page views,
+    # conversions, registrations, failures. Default on — the counters are
+    # aggregates only, no personal data, no cookie-banner implication.
+    # Self-hosters who don't want the table populated can set this false;
+    # the cockpit then renders an empty-state notice.
+    metrics_enabled: bool = True
+
     # Transactional email (leave smtp_host empty to disable sending — dev mode)
     smtp_host: str = ""
     smtp_port: int = 587
