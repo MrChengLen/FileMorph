@@ -333,6 +333,85 @@ def test_navbar_shows_pricing_link_when_pricing_enabled(client, monkeypatch):
     )
 
 
+# ── /enterprise gating mirrors /pricing — both are commercial-offer surface ──
+
+
+def test_sitemap_omits_enterprise_when_pricing_page_disabled(client, monkeypatch):
+    """Self-host default — neither /pricing nor /enterprise is served, so
+    listing /enterprise in the sitemap would point search engines at a 404
+    and (worse) leak the upstream enterprise@filemorph.io contact."""
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "pricing_page_enabled", False)
+    r = client.get("/sitemap.xml")
+    assert r.status_code == 200
+    assert "/enterprise" not in r.text
+
+
+def test_sitemap_includes_enterprise_when_pricing_page_enabled(client, monkeypatch):
+    """When the commercial-offer surface is on, /enterprise rides the same
+    sitemap gate as /pricing — procurement-driven discovery is the whole
+    point of the page."""
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "pricing_page_enabled", True)
+    r = client.get("/sitemap.xml")
+    assert r.status_code == 200
+    assert "/enterprise" in r.text
+
+
+def test_enterprise_route_returns_404_when_pricing_disabled(client, monkeypatch):
+    """Same gating as /pricing — a self-hoster running Community Edition
+    must not advertise the upstream enterprise@ contact as if it were
+    their own."""
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "pricing_page_enabled", False)
+    r = client.get("/enterprise")
+    assert r.status_code == 404
+
+
+def test_enterprise_route_renders_when_pricing_enabled(client, monkeypatch):
+    """When the commercial-offer surface is on, /enterprise renders and
+    surfaces the enterprise contact + the Compliance-Edition tier table."""
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "pricing_page_enabled", True)
+    r = client.get("/enterprise")
+    assert r.status_code == 200
+    body = r.text
+    assert "enterprise@filemorph.io" in body, "page must surface the procurement contact"
+    assert "Compliance Starter" in body, "tier table must list the entry-level tier"
+    assert "Compliance Standard" in body
+    assert "Compliance Enterprise" in body
+
+
+def test_navbar_omits_enterprise_link_when_pricing_disabled(client, monkeypatch):
+    """Self-host build hides the Enterprise nav entry too — same reasoning
+    as the /pricing nav guard."""
+    from app.core.config import settings
+    from app.main import templates
+
+    monkeypatch.setattr(settings, "pricing_page_enabled", False)
+    templates.env.globals["pricing_enabled"] = False
+
+    r = client.get("/")
+    assert r.status_code == 200
+    assert 'href="/enterprise"' not in r.text
+
+
+def test_navbar_shows_enterprise_link_when_pricing_enabled(client, monkeypatch):
+    from app.core.config import settings
+    from app.main import templates
+
+    monkeypatch.setattr(settings, "pricing_page_enabled", True)
+    templates.env.globals["pricing_enabled"] = True
+
+    r = client.get("/")
+    assert r.status_code == 200
+    assert 'href="/enterprise"' in r.text
+
+
 # ── security.txt (RFC 9116) + /security policy page ─────────────────────────
 
 

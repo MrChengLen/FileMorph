@@ -33,15 +33,17 @@ _BASE_ROUTES: list[tuple[str, str]] = [
 def _sitemap_routes() -> list[tuple[str, str]]:
     """Resolve the active route list against runtime settings.
 
-    ``/pricing`` is gated on ``pricing_page_enabled`` (not Stripe) so a
-    deployment can run a "Coming Soon" pricing page indexable by search
-    engines during the gap between launch and Stripe live-mode. A self-
-    hosted Community deployment leaves the flag off and the route stays
-    out of the sitemap entirely.
+    ``/pricing`` and ``/enterprise`` share the ``pricing_page_enabled``
+    gate — both are part of the commercial-offer surface. A self-hosted
+    Community deployment leaves the flag off and neither route is listed
+    or rendered, so search engines never index a 404. When enabled, the
+    enterprise page sits at priority 0.8 alongside pricing because
+    procurement-driven traffic is the higher-revenue funnel.
     """
     routes = list(_BASE_ROUTES)
     if settings.pricing_page_enabled:
         routes.insert(1, ("/pricing", "0.8"))
+        routes.insert(2, ("/enterprise", "0.8"))
     return routes
 
 

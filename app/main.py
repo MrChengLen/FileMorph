@@ -372,6 +372,17 @@ async def pricing_page(request: Request):
     return templates.TemplateResponse(request, "pricing.html")
 
 
+@app.get("/enterprise", include_in_schema=False)
+async def enterprise_page(request: Request):
+    # Same gating as /pricing — the Compliance-Edition landing page is part
+    # of the commercial-offer surface and a self-host deployment shouldn't
+    # advertise the upstream enterprise@filemorph.io contact as if it were
+    # their own. Operators forking the commercial offer rewrite both pages.
+    if not settings.pricing_page_enabled:
+        return templates.TemplateResponse(request, "404.html", status_code=404)
+    return templates.TemplateResponse(request, "enterprise.html")
+
+
 @app.get("/cockpit", include_in_schema=False)
 async def cockpit_page(request: Request):
     return templates.TemplateResponse(request, "cockpit.html")
