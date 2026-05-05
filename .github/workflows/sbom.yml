@@ -1,0 +1,72 @@
+name: SBOM
+
+# Generates a CycloneDX-JSON Software Bill of Materials for every push to
+# `main` (uploaded as a 90-day workflow artifact) and attaches the SBOM to
+# every published release. The artifact is named
+# `filemorph-{version}.cdx.json` so it lines up with the references in
+# docs/patch-policy.md and the EVB-IT-March-2026 SBOM mandate for Behörden
+# tenders.
+#
+# Why "environment" and not "requirements": `cyclonedx-py environment`
+# captures the actual installed graph including transitive dependencies
+# with their resolved versions, which is what a vulnerability scanner
+# wants to see. `cyclonedx-py requirements` would only emit the direct
+# pins from requirements.txt and miss everything pulled in transitively.
+
+on:
+  push:
+    branches: ["main"]
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  generate-sbom:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # needed for action-gh-release on `release` events
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install runtime dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install CycloneDX generator
+        # Pinned to the 5.x line for reproducibility; bump deliberately when
+        # CycloneDX schema spec advances.
+        run: pip install "cyclonedx-bom>=5,<6"
+
+      - name: Determine version label
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            VERSION="${{ github.event.release.tag_name }}"
+          else
+            VERSION="$(git rev-parse --short HEAD)"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Generate CycloneDX SBOM (JSON)
+        run: |
+          cyclonedx-py environment \
+            --output-file "filemorph-${{ steps.version.outputs.version }}.cdx.json" \
+            --output-format JSON
+
+      - name: Upload SBOM as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ steps.version.outputs.version }}
+          path: filemorph-*.cdx.json
+          retention-days: 90
+
+      - name: Attach SBOM to release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: filemorph-*.cdx.json
