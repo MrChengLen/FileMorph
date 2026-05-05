@@ -129,6 +129,37 @@ def test_increment_is_atomic_upsert_on_repeat():
     asyncio.run(_run())
 
 
+def test_increment_by_n_aggregates_in_one_round_trip():
+    """Batch flush path: ``increment(key, by=N)`` adds N in a single UPSERT.
+
+    The convert/compress batch handlers aggregate per-key counts into a
+    dict and call ``increment(key, by=count)`` once per unique key. The
+    test mirrors that pattern — bypassing the loop overhead and the
+    session-per-call cost we used to pay.
+    """
+
+    async def _run():
+        async with _TestSession() as s:
+            await increment("convert.jpg-to-pdf", by=7, db=s)
+            row = (
+                await s.execute(
+                    select(DailyMetric).where(DailyMetric.metric_key == "convert.jpg-to-pdf")
+                )
+            ).scalar_one()
+            assert row.count == 7
+
+            # Subsequent increments stack on top of the existing row.
+            await increment("convert.jpg-to-pdf", by=3, db=s)
+            row = (
+                await s.execute(
+                    select(DailyMetric).where(DailyMetric.metric_key == "convert.jpg-to-pdf")
+                )
+            ).scalar_one()
+            assert row.count == 10
+
+    asyncio.run(_run())
+
+
 def test_increment_keeps_separate_counters_per_key():
     async def _run():
         async with _TestSession() as s:

@@ -288,6 +288,9 @@ async def compress_batch(
 
     _t0 = time.monotonic()
     results: list[BatchFileResult] = []
+    # Aggregate per-key counts and flush once at the end — one UPSERT per
+    # unique key instead of N round-trips for an N-file batch.
+    metric_counts: dict[str, int] = {}
 
     for upload in files:
         original_stem = Path(upload.filename or "result").stem
@@ -359,8 +362,8 @@ async def compress_batch(
                         content=content,
                     )
                 )
-                # S10-lite: per-format counter for batch successes (one per file).
-                await metric_increment(f"compress.{ext}")
+                key = f"compress.{ext}"
+                metric_counts[key] = metric_counts.get(key, 0) + 1
             finally:
                 shutil.rmtree(tmp_dir, ignore_errors=True)
         except ValueError as e:
@@ -369,7 +372,7 @@ async def compress_batch(
                     name=out_name, status="error", size_in=size_in, error_message=str(e)
                 )
             )
-            await metric_increment("failures.compress")
+            metric_counts["failures.compress"] = metric_counts.get("failures.compress", 0) + 1
         except Exception:
             logger.exception("Batch compression error on one file")
             results.append(
@@ -380,7 +383,10 @@ async def compress_batch(
                     error_message="Compression failed.",
                 )
             )
-            await metric_increment("failures.compress")
+            metric_counts["failures.compress"] = metric_counts.get("failures.compress", 0) + 1
+
+    for key, count in metric_counts.items():
+        await metric_increment(key, by=count)
 
     duration_ms = round((time.monotonic() - _t0) * 1000)
     zip_bytes, summary = build_batch_zip(results, operation="compress", duration_ms=duration_ms)

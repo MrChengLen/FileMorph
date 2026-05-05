@@ -29,7 +29,9 @@
 
   // Build a sparkline path from an array of {date, count}. Width 200, height
   // 40, 2px stroke. Empty/zero arrays render a flat midline so the card
-  // never looks broken.
+  // never looks broken. Each data point also renders an invisible larger
+  // hit-circle with a native <title> tooltip — hovering the line reveals
+  // the date+count without needing a JS popup library.
   function sparkline(series, color) {
     const w = 200, h = 40, pad = 2;
     if (!series || series.length === 0) {
@@ -38,14 +40,22 @@
     const values = series.map((p) => p.count);
     const maxV = Math.max(...values, 1);
     const stepX = (w - pad * 2) / Math.max(series.length - 1, 1);
-    const points = series
-      .map((p, i) => {
-        const x = pad + i * stepX;
-        const y = h - pad - ((p.count / maxV) * (h - pad * 2));
-        return `${x.toFixed(1)},${y.toFixed(1)}`;
-      })
-      .join(' ');
-    return `<svg viewBox="0 0 ${w} ${h}" class="w-full h-10" aria-hidden="true" preserveAspectRatio="none"><polyline points="${points}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    const coords = series.map((p, i) => {
+      const x = pad + i * stepX;
+      const y = h - pad - ((p.count / maxV) * (h - pad * 2));
+      return { x, y, p };
+    });
+    const points = coords.map(({ x, y }) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+    // Hit-circles 4px radius (transparent fill) with native tooltip. We don't
+    // render visible dots — too noisy on a 40px-tall chart — but the larger
+    // hit area keeps mouse-precision forgiving.
+    const dots = coords
+      .map(
+        ({ x, y, p }) =>
+          `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4" fill="transparent" stroke="none"><title>${escapeHtml(p.date)}: ${p.count.toLocaleString()}</title></circle>`,
+      )
+      .join('');
+    return `<svg viewBox="0 0 ${w} ${h}" class="w-full h-10" preserveAspectRatio="none" role="img" aria-label="Sparkline chart"><polyline points="${points}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>${dots}</svg>`;
   }
 
   function card(label, value, series, color) {
