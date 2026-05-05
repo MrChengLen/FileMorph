@@ -333,6 +333,91 @@ def test_navbar_shows_pricing_link_when_pricing_enabled(client, monkeypatch):
     )
 
 
+# ── security.txt (RFC 9116) + /security policy page ─────────────────────────
+
+
+def test_security_txt_serves_with_required_rfc9116_fields(client):
+    """RFC 9116 requires at minimum Contact + Expires. We additionally pin
+    Canonical (must be absolute) and Policy (points at /security)."""
+    r = client.get("/.well-known/security.txt")
+    assert r.status_code == 200
+    body = r.text
+    assert body.startswith("Contact:"), "Contact must be the first line per RFC 9116 §2.5.3"
+    assert "\nExpires:" in body, "Expires field is mandatory"
+    assert "\nCanonical:" in body, "Canonical field anchors the file's identity"
+    assert "\nPolicy:" in body, "Policy must point at the human-readable disclosure page"
+    assert "/security" in body, "Policy URL must reference /security"
+
+
+def test_security_txt_expires_is_within_365_days(client):
+    """The Expires field is regenerated on every request to ~365 days out
+    so a forgotten cache or long-running instance can't serve an expired
+    file. RFC 9116 §2.5.5 mandates ≤1 year."""
+    from datetime import datetime, timezone
+
+    r = client.get("/.well-known/security.txt")
+    assert r.status_code == 200
+    m = re.search(r"^Expires:\s*(\S+)", r.text, re.MULTILINE)
+    assert m, "Expires field missing"
+    expires = datetime.fromisoformat(m.group(1).replace("+00:00", "+00:00"))
+    delta = expires - datetime.now(timezone.utc)
+    assert 364 <= delta.days <= 366, (
+        f"Expires should be ~365 days out, got {delta.days} — RFC 9116 §2.5.5 caps at 1 year"
+    )
+
+
+def test_security_txt_contact_uses_configured_email(client, monkeypatch):
+    """Self-hosters override SECURITY_CONTACT_EMAIL; the configured value
+    must surface in the response. Default points at the upstream so an
+    unconfigured deployment is still reachable."""
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "security_contact_email", "secops@example.com")
+    r = client.get("/.well-known/security.txt")
+    assert r.status_code == 200
+    assert "Contact: mailto:secops@example.com" in r.text
+
+
+def test_security_txt_canonical_built_from_app_base_url(client, monkeypatch):
+    """A self-hosted instance must advertise its OWN canonical URL — leaking
+    `https://filemorph.io` into Canonical/Policy would point bug reporters at
+    upstream instead of the operator who actually runs the binary. We
+    override the contact too so the only filemorph.io reference left in the
+    body is the upstream-project comment block, which is intentional."""
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "app_base_url", "https://files.example.com")
+    monkeypatch.setattr(settings, "security_contact_email", "secops@example.com")
+    r = client.get("/.well-known/security.txt")
+    assert r.status_code == 200
+    assert "Canonical: https://files.example.com/.well-known/security.txt" in r.text
+    assert "Policy: https://files.example.com/security" in r.text
+    # The upstream-project comment intentionally references the GitHub repo
+    # — strip that one allowed mention before asserting no leakage.
+    sanitized = r.text.replace("github.com/MrChengLen/FileMorph", "")
+    assert "filemorph.io" not in sanitized, (
+        "Canonical/Policy URLs must follow app_base_url; the only filemorph.io reference "
+        "allowed is the upstream-project comment"
+    )
+
+
+def test_security_page_renders_with_contact_email(client, monkeypatch):
+    """The /security page is the human-readable Policy referenced from
+    security.txt — must always render and surface the same contact email."""
+    from app.core.config import settings
+    from app.main import templates
+
+    monkeypatch.setattr(settings, "security_contact_email", "secops@example.com")
+    templates.env.globals["security_contact_email"] = "secops@example.com"
+
+    r = client.get("/security")
+    assert r.status_code == 200
+    assert "secops@example.com" in r.text
+    assert "/.well-known/security.txt" in r.text, (
+        "/security should link back to the machine-readable file"
+    )
+
+
 def test_og_image_carries_no_saas_specific_text():
     """The og-image is a static PNG shipped in the public OSS repo and
     served by every deployment. A baked-in ``filemorph.io`` footer would

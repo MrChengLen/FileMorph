@@ -48,6 +48,10 @@ templates.env.globals["api_base_url"] = settings.api_base_url
 templates.env.globals["app_base_url"] = settings.app_base_url
 templates.env.globals["tailwind_css"] = tailwind_css_filename()
 templates.env.globals["site_jsonld"] = _SITE_JSONLD
+# Surfaced into templates so the /security page can render the same contact
+# alias that /.well-known/security.txt advertises — one source of truth, set
+# via SECURITY_CONTACT_EMAIL env-var on each deployment.
+templates.env.globals["security_contact_email"] = settings.security_contact_email
 # Pricing visibility: self-hosters default to off; SaaS turns it on. Two
 # flags so we can run a "Coming Soon" page between launch and Stripe live.
 templates.env.globals["pricing_enabled"] = bool(settings.pricing_page_enabled)
@@ -323,6 +327,16 @@ async def privacy(request: Request):
 @app.get("/terms", include_in_schema=False)
 async def terms(request: Request):
     return templates.TemplateResponse(request, "terms.html")
+
+
+@app.get("/security", include_in_schema=False)
+async def security_page(request: Request):
+    # Human-readable companion to /.well-known/security.txt. The
+    # security.txt Policy field points here, so this page must always
+    # render — even on a self-host deployment that hasn't customised the
+    # contact alias (in that case it falls back to the upstream default
+    # security@filemorph.io, which is at least reachable rather than dead).
+    return templates.TemplateResponse(request, "security.html")
 
 
 @app.get("/login", include_in_schema=False)

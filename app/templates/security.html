@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Security disclosure policy — FileMorph{% endblock %}
+{% block content %}
+<main class="max-w-2xl mx-auto px-6 py-12 space-y-8 text-gray-300 text-sm leading-relaxed">
+
+  <div>
+    <a href="/" class="text-sm text-gray-500 hover:text-gray-300 transition-colors">← Back</a>
+    <h1 class="text-2xl font-bold mt-4 text-white">Security disclosure policy</h1>
+    <p class="text-xs text-gray-500 mt-1">RFC 9116 · referenced from <a href="/.well-known/security.txt" class="text-brand hover:underline">/.well-known/security.txt</a></p>
+  </div>
+
+  <section class="space-y-3">
+    <h2 class="text-base font-semibold text-white">Reporting a vulnerability</h2>
+    <p>
+      If you have discovered a security issue in FileMorph or in this deployment, please email
+      <a href="mailto:{{ security_contact_email }}" class="text-brand hover:underline">{{ security_contact_email }}</a>
+      with a clear description of the issue and any steps required to reproduce it. Encrypted
+      mail is welcome — request our PGP key at the same address if needed.
+    </p>
+    <p>
+      For issues in the open-source codebase itself, you may alternatively use
+      <a href="https://github.com/MrChengLen/FileMorph/security/advisories/new" class="text-brand hover:underline" target="_blank" rel="noopener noreferrer">GitHub Security Advisories</a>.
+      That channel is preferred for issues that affect every self-hosted instance, since the
+      repository maintainers can coordinate a CVE and release a patched version centrally.
+    </p>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="text-base font-semibold text-white">What to include in a report</h2>
+    <ul class="list-disc list-inside space-y-1 text-gray-400">
+      <li>A description of the vulnerability and its potential impact.</li>
+      <li>Steps to reproduce, including any required configuration or input files.</li>
+      <li>Affected version (commit hash or release tag if known).</li>
+      <li>Whether the issue has been disclosed publicly elsewhere.</li>
+    </ul>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="text-base font-semibold text-white">Our response</h2>
+    <ul class="list-disc list-inside space-y-1 text-gray-400">
+      <li><strong class="text-gray-200">Acknowledgement:</strong> within 72 hours of receipt.</li>
+      <li><strong class="text-gray-200">Initial triage:</strong> within 7 days, including a severity assessment.</li>
+      <li><strong class="text-gray-200">Fix timeline:</strong> critical issues within 7 days, high severity within 30 days, medium/low within the next regular release.</li>
+      <li><strong class="text-gray-200">Coordinated disclosure:</strong> we publish an advisory once a fixed release is available, and credit reporters who wish to be named.</li>
+    </ul>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="text-base font-semibold text-white">Scope</h2>
+    <p>In scope:</p>
+    <ul class="list-disc list-inside space-y-1 text-gray-400">
+      <li>The FileMorph application source code (this repository).</li>
+      <li>The official Docker images and release artifacts.</li>
+      <li>Documented API endpoints and the web UI.</li>
+    </ul>
+    <p>Out of scope:</p>
+    <ul class="list-disc list-inside space-y-1 text-gray-400">
+      <li>Third-party services we depend on (Stripe, Zoho, Cloudflare, Hetzner) — please report to those vendors directly.</li>
+      <li>Issues that require physical access to a self-hosted server, or social engineering of an operator.</li>
+      <li>Reports generated solely by automated scanners without a working proof-of-concept.</li>
+      <li>Self-hoster-specific deployment misconfiguration that is not caused by our defaults or documentation.</li>
+    </ul>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="text-base font-semibold text-white">Safe-harbour</h2>
+    <p>
+      Good-faith research in line with this policy will not result in legal action from the
+      FileMorph project. Please avoid privacy violations, service disruption, and data
+      destruction; test against your own self-hosted instance whenever possible.
+    </p>
+  </section>
+
+</main>
+{% endblock %}

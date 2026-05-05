@@ -1,12 +1,17 @@
-"""SEO foundation endpoints: ``/robots.txt`` and ``/sitemap.xml``.
+"""SEO + well-known foundation endpoints: ``/robots.txt``, ``/sitemap.xml``,
+and ``/.well-known/security.txt``.
 
-Mounted at the root (no ``/api/v1`` prefix) so search engines find them at
-the conventional locations. The route list is built per-request from
-``settings`` so that a self-hoster who has not configured Stripe does not
-advertise a ``/pricing`` route they don't actually serve.
+Mounted at the root (no ``/api/v1`` prefix) so the conventional discovery
+paths are honored. The route list is built per-request from ``settings`` so
+that a self-hoster who has not configured Stripe does not advertise a
+``/pricing`` route they don't actually serve. The same per-request principle
+keeps ``/.well-known/security.txt`` deployment-agnostic — the contact email
+and canonical URL are derived from ``app_base_url``.
 """
 
 from __future__ import annotations
+
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter
 from fastapi.responses import PlainTextResponse, Response
@@ -60,3 +65,37 @@ async def sitemap_xml() -> Response:
         "</urlset>\n"
     )
     return Response(content=body, media_type="application/xml")
+
+
+# ── /.well-known/security.txt (RFC 9116) ─────────────────────────────────────
+#
+# The Expires field re-renders on each request: the file is always at most
+# ~365 days from the current date, so a forgotten cache or a long-uptime
+# instance can't drift into expired-territory and get flagged by automated
+# scanners. RFC 9116 §2.5.5 mandates ≤1 year. We pick exactly 365 days from
+# *today* on every render — operator just rotates the contact email when
+# the alias changes; nothing else needs touching.
+
+
+@router.get(
+    "/.well-known/security.txt",
+    response_class=PlainTextResponse,
+    include_in_schema=False,
+)
+async def security_txt() -> str:
+    base = settings.app_base_url.rstrip("/")
+    expires = (datetime.now(timezone.utc) + timedelta(days=365)).strftime("%Y-%m-%dT%H:%M:%S+00:00")
+    contact = settings.security_contact_email
+    lines = [
+        f"Contact: mailto:{contact}",
+        f"Expires: {expires}",
+        "Preferred-Languages: en, de",
+        f"Canonical: {base}/.well-known/security.txt",
+        f"Policy: {base}/security",
+        "",
+        "# Reports about FileMorph itself (the open-source software at",
+        "# https://github.com/MrChengLen/FileMorph) are also welcome via",
+        "# GitHub Security Advisories on the repository.",
+        "",
+    ]
+    return "\n".join(lines)

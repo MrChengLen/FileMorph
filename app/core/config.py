@@ -53,6 +53,12 @@ class Settings(BaseSettings):
     # Public base URL used when building links in outbound emails.
     app_base_url: str = "http://localhost:8000"
 
+    # Contact for security disclosures (referenced from /.well-known/security.txt
+    # per RFC 9116). Self-hosters should override this to their own org's
+    # security alias; the default value points at the upstream project so even
+    # an unconfigured deployment is reachable rather than silently broken.
+    security_contact_email: str = "security@filemorph.io"
+
     # Optional cross-origin base for heavy upload POSTs (convert/compress,
     # single + batch). Empty string keeps uploads same-origin — the only
     # reason to set this is when the main site sits behind a proxy that
