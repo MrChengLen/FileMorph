@@ -83,12 +83,23 @@ using GitHub's OIDC keyless flow. To verify before pulling:
 
 ```bash
 cosign verify ghcr.io/mrchenglen/filemorph:vX.Y.Z \
-  --certificate-identity-regexp "^https://github.com/MrChengLen/FileMorph" \
-  --certificate-oidc-issuer "https://token.actions.githubusercontent.com"
+  --certificate-identity-regexp '^https://github\.com/MrChengLen/FileMorph/' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
-Git tags are signed with the maintainer's GPG key — `git tag --verify`
-on a cloned repository is the canonical check.
+Git tags are signed with the maintainer's GPG key listed in
+[`docs/release-signing.md`](./release-signing.md). The release
+workflow refuses to publish a release whose tag does not verify
+against an imported maintainer key, so an unsigned or tampered tag
+never produces a release artefact. Manual check on a cloned
+repository:
+
+```bash
+awk '/-----BEGIN PGP PUBLIC KEY BLOCK-----/,/-----END PGP PUBLIC KEY BLOCK-----/' \
+    docs/release-signing.md \
+  | gpg --import
+git verify-tag vX.Y.Z
+```
 
 ## End-of-life
 

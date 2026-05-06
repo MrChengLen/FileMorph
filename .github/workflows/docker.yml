@@ -15,6 +15,13 @@ jobs:
     permissions:
       contents: read
       packages: write
+      # NEU-B.4: cosign keyless signing uses the GitHub Actions OIDC
+      # token to prove identity to Sigstore's Fulcio CA — no long-lived
+      # signing key to manage or rotate. Verifiable later with
+      #   cosign verify ghcr.io/<owner>/<repo>@sha256:<digest> \
+      #     --certificate-identity-regexp "^https://github\\.com/<owner>/<repo>/" \
+      #     --certificate-oidc-issuer https://token.actions.githubusercontent.com
+      id-token: write
 
     steps:
       - uses: actions/checkout@v4
@@ -38,9 +45,28 @@ jobs:
             type=sha,format=short,prefix=sha-
 
       - name: Build and push Docker image
+        id: build
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+        with:
+          cosign-release: "v2.4.1"
+
+      - name: Sign published image (keyless / Sigstore)
+        env:
+          COSIGN_EXPERIMENTAL: "true"
+          DIGEST: ${{ steps.build.outputs.digest }}
+          TAGS: ${{ steps.meta.outputs.tags }}
+        # Sign every tag that got pushed at the SAME digest so a downstream
+        # `cosign verify ghcr.io/.../filemorph:<tag>` works regardless of
+        # which alias the consumer pulls.
+        run: |
+          for tag in $TAGS; do
+            cosign sign --yes "${tag}@${DIGEST}"
+          done
