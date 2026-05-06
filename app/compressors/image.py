@@ -3,6 +3,8 @@ from pathlib import Path
 
 from PIL import Image
 
+from app.converters._metadata import strip_metadata
+
 _SUPPORTED_FORMATS = ["jpg", "jpeg", "png", "webp", "tiff", "tif"]
 
 _PIL_FORMAT = {
@@ -22,16 +24,21 @@ def compress_image(input_path: Path, output_path: Path, quality: int = 85) -> Pa
 
     quality: 1 (worst) – 100 (best). For PNG (lossless) the quality
     parameter controls compression speed/level rather than visual quality.
+
+    NEU-C.2: PII-bearing metadata (EXIF GPS, camera serial, XMP/IPTC
+    creator) is stripped from the output by default — see
+    ``app/converters/_metadata.py``. ICC colour profile is preserved.
     """
     quality = max(1, min(100, quality))
     ext = input_path.suffix.lstrip(".").lower()
     pil_fmt = _PIL_FORMAT.get(ext, "JPEG")
 
     img = Image.open(input_path)
+    if pil_fmt == "JPEG" and img.mode in ("RGBA", "LA", "P"):
+        img = img.convert("RGB")
+    img = strip_metadata(img)
 
     if pil_fmt == "JPEG":
-        if img.mode in ("RGBA", "LA", "P"):
-            img = img.convert("RGB")
         img.save(output_path, format="JPEG", quality=quality, optimize=True)
     elif pil_fmt == "PNG":
         # PNG compress_level 0-9: map quality 100→0, quality 1→9
@@ -79,6 +86,9 @@ def compress_image_to_target(
     img = Image.open(input_path)
     if pil_fmt == "JPEG" and img.mode in ("RGBA", "LA", "P"):
         img = img.convert("RGB")
+    # NEU-C.2: strip PII before any encode pass — applies to every probe
+    # in the binary search, not just the final write.
+    img = strip_metadata(img)
 
     # Shortcut: if a high-quality re-encode is already within target, ship it.
     probe = _encode_to_bytes(img, pil_fmt, 95)

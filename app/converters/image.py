@@ -2,6 +2,7 @@ from pathlib import Path
 
 from PIL import Image
 
+from app.converters._metadata import strip_metadata
 from app.converters.base import BaseConverter
 from app.converters.registry import register
 
@@ -53,6 +54,15 @@ class _ImageConverter(BaseConverter):
 
         pil_fmt = _PIL_FORMAT.get(self._tgt_fmt, self._tgt_fmt.upper())
 
+        # NEU-C.2: strip PII-bearing metadata (EXIF GPS / camera serial /
+        # XMP creator / IPTC byline) before any save path. Default-on
+        # for every image conversion — see app/converters/_metadata.py.
+        # JPEG requires RGB (no alpha); do the mode coercion before the
+        # strip so we don't paste from a soon-to-be-discarded mode.
+        if pil_fmt == "JPEG" and img.mode in ("RGBA", "LA", "P"):
+            img = img.convert("RGB")
+        img = strip_metadata(img)
+
         # PNG and BMP are lossless — quality param is ignored
         if pil_fmt == "PNG":
             # compress_level=9 = maximum zlib deflate effort; optimize=True
@@ -62,9 +72,6 @@ class _ImageConverter(BaseConverter):
         elif pil_fmt in ("BMP", "GIF", "ICO", "TIFF"):
             img.save(output_path, format=pil_fmt)
         else:
-            # JPEG requires RGB (no alpha)
-            if pil_fmt == "JPEG" and img.mode in ("RGBA", "LA", "P"):
-                img = img.convert("RGB")
             img.save(output_path, format=pil_fmt, quality=quality, optimize=True)
 
         return output_path

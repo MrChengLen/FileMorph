@@ -358,6 +358,13 @@ mechanically.
   `fm_`-prefixed directory older than `TEMP_SWEEP_MAX_AGE_MINUTES`
   (default 10 min) — defence in depth for the case where a worker
   was killed before its `finally` could execute.
+- Image conversions and compressions strip EXIF / XMP / IPTC
+  metadata (GPS coordinates, camera serial, photographer name,
+  capture timestamps) by default — see
+  [`app/converters/_metadata.py`](../app/converters/_metadata.py).
+  ICC colour profiles are preserved so wide-gamut workflows are
+  not visibly desaturated. There is no per-request opt-out: a
+  caller who needs metadata kept holds the original.
 - Successful conversion and compression responses carry an
   `X-Output-SHA256` header — a streaming SHA-256 of the bytes the
   client receives. The same hash lands in the audit-log payload
