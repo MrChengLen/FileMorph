@@ -174,6 +174,61 @@ class UsageRecord(Base):
     api_key: Mapped[Optional[ApiKey]] = relationship("ApiKey", back_populates="usage_records")
 
 
+class AuditEvent(Base):
+    """Compliance Edition: tamper-evident operation log with hash chain.
+
+    Each row's ``record_hash`` is ``SHA-256(prev_hash || canonical_payload)``,
+    so any retroactive edit to a row breaks the chain from that point on.
+    The verification routine walks the table in id order and recomputes
+    each hash; the first mismatch is the tamper boundary.
+
+    Append-only enforcement at the database layer (Postgres trigger in
+    migration 005) means even a compromised application credential
+    cannot UPDATE or DELETE rows. SQLite (test harness only) skips the
+    trigger — the migration scopes the trigger to ``dialect.name ==
+    'postgresql'``.
+
+    The ``payload_json`` column carries the canonical-JSON
+    serialisation of the event details (sorted keys, no whitespace).
+    The hash covers exactly that string + the previous row's hash, so
+    an external auditor can recompute the chain from a SQL dump
+    without depending on application code.
+
+    See ``app/core/audit.py::record_event`` and ``verify_chain``.
+    """
+
+    __tablename__ = "audit_events"
+
+    # ``BigInteger().with_variant(Integer, "sqlite")`` keeps Postgres on
+    # bigserial (chain capacity > 2 billion rows) while letting SQLite
+    # treat the column as INTEGER PRIMARY KEY → autoincrementing ROWID.
+    # Plain ``BigInteger`` does not autoincrement on SQLite.
+    id: Mapped[int] = mapped_column(
+        BigInteger().with_variant(Integer, "sqlite"),
+        primary_key=True,
+        autoincrement=True,
+    )
+    occurred_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    event_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    actor_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    actor_ip: Mapped[Optional[str]] = mapped_column(String(45), nullable=True)
+    payload_json: Mapped[str] = mapped_column(String, nullable=False)
+    prev_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    record_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+
+    __table_args__ = (
+        Index("ix_audit_events_occurred_at", "occurred_at"),
+        Index("ix_audit_events_event_type", "event_type"),
+        Index("ix_audit_events_actor_user_id", "actor_user_id"),
+    )
+
+
 class DailyMetric(Base):
     """Per-day, per-key counter — S10-lite analytics aggregation surface.
 

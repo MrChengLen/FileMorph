@@ -41,6 +41,16 @@ class Settings(BaseSettings):
     # the cockpit then renders an empty-state notice.
     metrics_enabled: bool = True
 
+    # Compliance-Edition audit log (NEU-B.1). When false, ``record_event``
+    # is fire-and-forget — failures get logged at WARNING and the request
+    # path is unaffected. When true (Compliance Edition default; opt-in
+    # for any deployment that needs ISO 27001 A.12.4.1 / BORA §50 /
+    # BeurkG §39a compliance), a failed audit write raises
+    # AuditWriteError and the calling route refuses to serve a result it
+    # could not log. Self-hosters set ``AUDIT_FAIL_CLOSED=true`` in
+    # their environment when they need the strict mode.
+    audit_fail_closed: bool = False
+
     # Transactional email (leave smtp_host empty to disable sending — dev mode)
     smtp_host: str = ""
     smtp_port: int = 587

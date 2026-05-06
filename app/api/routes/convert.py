@@ -14,6 +14,7 @@ from app.api.deps import require_api_key
 from app.api.routes.auth import get_optional_user
 from app.converters.base import UnsupportedConversionError
 from app.converters.registry import _ensure_loaded, get_converter
+from app.core.audit import record_event as audit_record
 from app.core.batch import BatchFileResult, batch_error_response, build_batch_zip
 from app.core.metrics import increment as metric_increment
 from app.core.quotas import _MB, get_quota, tier_for
@@ -166,11 +167,34 @@ async def convert_file(
         # request's transaction (and there is none here, but the principle
         # is what keeps batch + auth integrations safe).
         await metric_increment(f"convert.{src_ext}-to-{tgt_ext}")
-    except HTTPException:
+        # NEU-B.1: tamper-evident audit trail. Same fire-and-forget shape as
+        # the metric write; Compliance Edition flips ``audit_fail_closed``
+        # so this raises and the request fails closed instead. The payload
+        # carries no file content — only metadata sufficient for an
+        # ISO 27001 A.12.4.1 / BORA §50 retrospective review.
+        await audit_record(
+            "convert.success",
+            actor_user_id=user.id if user is not None else None,
+            actor_ip=request.client.host if request.client else None,
+            payload={
+                "src": src_ext,
+                "tgt": tgt_ext,
+                "input_bytes": input_size_bytes,
+                "output_bytes": output_size_bytes,
+                "tier": tier,
+            },
+        )
+    except HTTPException as exc:
         # Track conversion failures separately from infrastructure errors
         # so the cockpit can show a meaningful failure-rate. We swallow the
         # metric write itself — the user-visible exception still propagates.
         await metric_increment("failures.convert")
+        await audit_record(
+            "convert.failure",
+            actor_user_id=user.id if user is not None else None,
+            actor_ip=request.client.host if request.client else None,
+            payload={"src": src_ext, "tgt": tgt_ext, "status_code": exc.status_code},
+        )
         shutil.rmtree(tmp_dir, ignore_errors=True)
         raise
     except BaseException:
