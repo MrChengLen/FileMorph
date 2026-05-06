@@ -152,6 +152,37 @@ def test_batch_compress_over_cap_file_marked_failed(
     assert "Output too large" in body["files"][0]["error_message"]
 
 
+def test_batch_per_file_cap_does_not_aggregate(client, auth_headers, override_free_user):
+    """H4 — output_cap_bytes is per-file, never aggregate-across-batch.
+
+    A regression that summed output across files in a batch (e.g., a
+    misplaced ``running_total >= cap`` accumulator) would silently reject
+    legitimate large batches even when each individual file fits the
+    per-file cap.
+
+    The test sends three small JPGs that each convert to ~tiny PNGs well
+    under the default free-tier cap (150 MB). The aggregate output is
+    obviously still well under that, so an aggregate cap of 150 MB
+    wouldn't catch it — but the test pins the contract that no synthetic
+    accumulator was introduced. If a future PR adds e.g. a 300-byte
+    aggregate cap, this test fails first.
+    """
+    files = [("files", (f"file{i}.jpg", _jpg_bytes(), "image/jpeg")) for i in range(3)]
+    r = client.post(
+        "/api/v1/convert/batch",
+        headers=auth_headers,
+        data={"target_formats": ["png", "png", "png"]},
+        files=files,
+    )
+    # All three files should succeed under the standard free-tier cap.
+    # Status 200 (zip with three outputs) — never 413, never 422.
+    assert r.status_code == 200, (
+        f"Per-file cap regressed to aggregate: status={r.status_code}, body={r.text[:200]}"
+    )
+    # Sanity: response is the zip, not an error JSON.
+    assert r.headers.get("content-type", "").startswith("application/zip")
+
+
 def test_batch_convert_partial_overflow(client, auth_headers, override_free_user, monkeypatch):
     """Mixed batch where one file overflows and another does not — good goes to
     zip, bad goes to manifest errors."""
