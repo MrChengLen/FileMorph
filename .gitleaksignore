@@ -13,9 +13,18 @@
 # fingerprint is listed here.
 
 # tests/test_pricing_limits_visible.py — Stripe test placeholder, never
-# a real key. The string ``sk_test_placeholder`` matches the
-# ``stripe-access-token`` rule (``(sk|pk|rk)_(test|live)_[0-9a-z]{10,99}``)
-# because "placeholder" is 11 chars. The test sets
-# ``settings.stripe_secret_key`` to a non-empty truthy value to exercise
-# the live-pricing branch of the page builder; nothing more.
+# a real key. The fixture string trips the ``stripe-access-token`` rule
+# (``(sk|pk|rk)_(test|live)_[0-9a-z]{10,99}``) because the suffix is 11
+# chars. The test sets ``settings.stripe_secret_key`` to a non-empty
+# truthy value to exercise the live-pricing branch of the page builder;
+# nothing more. (Literal omitted here on purpose — gitleaks scans the
+# ignore file too, and quoting the string would re-trip the same rule.)
 68333e9d96bcb342107b877a87375dad422943a7:tests/test_pricing_limits_visible.py:stripe-access-token:32
+
+# Self-bite from the first allowlist attempt (commit 709a131) — that
+# version of this file quoted the fixture literal in its own comment.
+# The comment was rewritten to remove the literal in the next commit
+# (3d84095), but historical commits the scanner walks still see the
+# literal at .gitleaksignore line 16. Pinning the fingerprint here
+# clears the PR scan.
+709a1313a582ca74eab1301b810b3bee9d79428a:.gitleaksignore:stripe-access-token:16
