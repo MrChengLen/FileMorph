@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import logging
 import shutil
 import tempfile
@@ -20,6 +21,7 @@ from app.compressors.image import (
 )
 from app.compressors.video import _SUPPORTED_FORMATS as VIDEO_FMTS
 from app.compressors.video import compress_video
+from app.core.audit import record_event as audit_record
 from app.core.batch import BatchFileResult, batch_error_response, build_batch_zip
 from app.core.metrics import increment as metric_increment
 from app.core.quotas import _MB, get_quota, tier_for
@@ -32,6 +34,22 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 BLOCKED_MAGIC = [b"MZ", b"\x7fELF", b"#!/", b"<?ph"]
+
+
+def _sha256_file(path: Path, *, chunk_size: int = 64 * 1024) -> str:
+    """Streaming SHA-256 over an on-disk file (NEU-B.2). Mirrors the
+    helper in ``app/api/routes/convert.py``; kept duplicated rather
+    than extracted because it lives at the route boundary and the
+    duplication is one helper, not a pattern. If a third caller
+    appears, promote to ``app/core/utils.py``."""
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        while True:
+            chunk = f.read(chunk_size)
+            if not chunk:
+                break
+            h.update(chunk)
+    return h.hexdigest()
 
 
 @router.post("/compress", tags=["Compress"], dependencies=[Depends(require_api_key)])
@@ -214,10 +232,32 @@ async def compress_file(
         # corrupt the response (no caller transaction here, but the
         # principle keeps batch / auth integrations safe).
         await metric_increment(f"compress.{ext}")
-    except HTTPException:
+        # NEU-B.2: integrity hash for downstream auditors (eDiscovery,
+        # GoBD-archival, beA-Anhang-Trail). Same chunk-streamed SHA-256
+        # as in convert.py.
+        output_hash = await asyncio.to_thread(_sha256_file, output_path)
+        await audit_record(
+            "compress.success",
+            actor_user_id=user.id if user is not None else None,
+            actor_ip=request.client.host if request.client else None,
+            payload={
+                "format": ext,
+                "input_bytes": input_size_bytes,
+                "output_bytes": output_size_bytes,
+                "output_sha256": output_hash,
+                "tier": tier,
+            },
+        )
+    except HTTPException as exc:
         # Track compression failures separately from infra so the cockpit
         # has a meaningful failure-rate. The HTTPException still propagates.
         await metric_increment("failures.compress")
+        await audit_record(
+            "compress.failure",
+            actor_user_id=user.id if user is not None else None,
+            actor_ip=request.client.host if request.client else None,
+            payload={"format": ext, "status_code": exc.status_code},
+        )
         shutil.rmtree(tmp_dir, ignore_errors=True)
         raise
     except BaseException:
@@ -226,7 +266,7 @@ async def compress_file(
         shutil.rmtree(tmp_dir, ignore_errors=True)
         raise
 
-    response_headers: dict[str, str] = {}
+    response_headers: dict[str, str] = {"X-Output-SHA256": output_hash}
     if target_result is not None:
         response_headers["X-FileMorph-Achieved-Bytes"] = str(target_result["achieved_bytes"])
         response_headers["X-FileMorph-Final-Quality"] = str(target_result["final_quality"])

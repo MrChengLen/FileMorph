@@ -353,9 +353,25 @@ mechanically.
   uses a `fm_`-prefixed directory and a UUID stem.
 - Cleanup runs in the request's `finally` block via
   `shutil.rmtree`.
-- A startup sweep removes any `fm_`-prefixed directory older than
-  ten minutes — a defence in depth in case a previous run was
-  killed before its `finally` could execute.
+- A startup sweep, plus a periodic background sweep
+  (`TEMP_SWEEP_INTERVAL_MINUTES`, default 60 min), removes any
+  `fm_`-prefixed directory older than `TEMP_SWEEP_MAX_AGE_MINUTES`
+  (default 10 min) — defence in depth for the case where a worker
+  was killed before its `finally` could execute.
+- Successful conversion and compression responses carry an
+  `X-Output-SHA256` header — a streaming SHA-256 of the bytes the
+  client receives. The same hash lands in the audit-log payload
+  (`output_sha256`), so an external auditor can verify the file
+  they hold matches the attestation FileMorph made at the moment
+  of conversion. This is the integrity-anchor that turns the
+  audit-log hash chain (NEU-B.1) into something a downstream
+  workflow (GoBD-archival, beA-Anhang-Trail, eDiscovery) can act
+  on without trusting the application path.
+- `RETENTION_HOURS` is an informational knob (default `0` =
+  ephemeral by design; the Cloud edition's published privacy
+  position). Compliance-edition self-hosters who plan to use the
+  reserved `FileJob.expires_at` column for a future storage-key
+  pipeline set it to the value their privacy policy declares.
 
 ### Account data (Cloud Edition)
 

@@ -51,6 +51,37 @@ class Settings(BaseSettings):
     # their environment when they need the strict mode.
     audit_fail_closed: bool = False
 
+    # NEU-B.2 retention policy. The Cloud edition runs strict
+    # zero-retention by design — every convert/compress flushes its temp
+    # dir in a ``finally`` block, and there is no S3/R2 storage layer
+    # active. ``retention_hours`` is therefore an informational knob
+    # surfaced to self-hosters: it documents the operator's declared
+    # retention window for any future storage-key-backed pipeline (the
+    # ``FileJob.expires_at`` column is reserved for exactly this) and
+    # is recorded into audit-event payloads where applicable. Default 0
+    # means "ephemeral by design" and matches the Cloud-edition privacy
+    # statement; Compliance-edition self-hosters who need a non-zero
+    # retention window for eDiscovery/GoBD workflows set this to the
+    # value their own privacy policy declares.
+    retention_hours: int = 0
+
+    # Background sweep cadence for orphaned ``fm_*`` temp dirs. The
+    # request path already cleans up its own temp dir in a ``finally``
+    # block; this sweep only catches crash-recovery cases where a worker
+    # was killed mid-conversion. A startup sweep covers process-restart
+    # crashes; the periodic sweep covers long-running processes that
+    # stay up across many incidents. Set to 0 to disable the periodic
+    # sweep entirely (the startup sweep still runs).
+    temp_sweep_interval_minutes: int = 60
+
+    # How old a temp dir must be before the sweep removes it. Smaller
+    # than the longest plausible single conversion (xlsx-on-low-CPU can
+    # take ~30 s; video conversions can run minutes). 10 minutes leaves
+    # a wide safety margin while still cleaning up promptly after a
+    # crash. Compliance-edition operators who run very long batch
+    # pipelines can raise this to match their longest job.
+    temp_sweep_max_age_minutes: int = 10
+
     # Transactional email (leave smtp_host empty to disable sending — dev mode)
     smtp_host: str = ""
     smtp_port: int = 587

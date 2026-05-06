@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import logging
 import shutil
 import tempfile
@@ -30,6 +31,25 @@ router = APIRouter()
 _ensure_loaded()
 
 BLOCKED_MAGIC = [b"MZ", b"\x7fELF", b"#!/", b"<?ph"]
+
+
+def _sha256_file(path: Path, *, chunk_size: int = 64 * 1024) -> str:
+    """Streaming SHA-256 over an on-disk file, returned as lowercase hex.
+
+    Used for the ``X-Output-SHA256`` response header (NEU-B.2). Runs
+    inside ``asyncio.to_thread`` so the synchronous read does not block
+    the event loop. ``chunk_size`` is 64 KiB — enough to keep syscall
+    overhead irrelevant, small enough that a 2 GB output costs no
+    measurable RAM.
+    """
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        while True:
+            chunk = f.read(chunk_size)
+            if not chunk:
+                break
+            h.update(chunk)
+    return h.hexdigest()
 
 
 @router.post("/convert", tags=["Convert"], dependencies=[Depends(require_api_key)])
@@ -143,6 +163,14 @@ async def convert_file(
         # (or above, before this block), the except handler cleans up sync.
         download_name = safe_download_name(f"{original_stem}.{tgt_ext}")
         output_size_bytes = output_disk_size
+
+        # NEU-B.2: integrity hash for downstream auditors / eDiscovery /
+        # GoBD-archival workflows. Cheap to compute (single pass over the
+        # already-on-disk output, bounded by the quota cap), and gives the
+        # caller a tamper-detection anchor without us having to keep the
+        # file or sign it. Read in chunks so large outputs don't double
+        # the memory footprint.
+        output_hash = await asyncio.to_thread(_sha256_file, output_path)
         amplification_ratio = (
             round(output_size_bytes / input_size_bytes, 3) if input_size_bytes > 0 else None
         )
@@ -181,6 +209,7 @@ async def convert_file(
                 "tgt": tgt_ext,
                 "input_bytes": input_size_bytes,
                 "output_bytes": output_size_bytes,
+                "output_sha256": output_hash,
                 "tier": tier,
             },
         )
@@ -208,6 +237,7 @@ async def convert_file(
         output_path,
         media_type="application/octet-stream",
         filename=download_name,
+        headers={"X-Output-SHA256": output_hash},
         background=BackgroundTask(shutil.rmtree, tmp_dir, ignore_errors=True),
     )
 
