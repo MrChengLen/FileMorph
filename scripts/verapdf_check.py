@@ -23,9 +23,19 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from reportlab.pdfgen import canvas
+# Make the repo importable when run from anywhere — matches the
+# convention in scripts/bench_conversions.py. CI invokes this as
+# ``python scripts/verapdf_check.py`` from the repo root, which puts
+# ``scripts/`` (not the repo root) on ``sys.path[0]`` and breaks
+# ``from app.…`` imports. Inserting the repo root explicitly fixes
+# both the CI invocation and any local ad-hoc run.
+_REPO = Path(__file__).resolve().parent.parent
+if str(_REPO) not in sys.path:
+    sys.path.insert(0, str(_REPO))
 
-from app.converters.pdfa import PdfToPdfaConverter
+from reportlab.pdfgen import canvas  # noqa: E402
+
+from app.converters.pdfa import PdfToPdfaConverter  # noqa: E402
 
 
 def main() -> int:
