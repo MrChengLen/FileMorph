@@ -82,6 +82,27 @@ class Settings(BaseSettings):
     # pipelines can raise this to match their longest job.
     temp_sweep_max_age_minutes: int = 10
 
+    # NEU-D.1 capacity guard. The pricing page advertises monthly
+    # call quotas (10k Pro / 100k Business); without a parallelism
+    # cap a single 25-file batch can OOM the worker on a 4 GB box.
+    # The semaphore in app/core/concurrency.py enforces a global
+    # cap and a per-actor cap on /convert + /compress. These three
+    # knobs let the operator tune for the actual host:
+    #
+    # - max_global_concurrency: total parallel slots. Default 4 is
+    #   sized for a 4 GB host with the existing per-tier output
+    #   caps; raise to ~CPU-count on a bigger box.
+    # - concurrency_acquire_timeout_seconds: how long a request
+    #   waits before giving up on a slot. Small enough that callers
+    #   fail fast under saturation, big enough to absorb the
+    #   sub-second jitter of two requests racing for the same slot.
+    # - concurrency_retry_after_seconds: value sent in the
+    #   ``Retry-After`` header when the slot is denied. Doubling as
+    #   the documentation contract for the rate-limited response.
+    max_global_concurrency: int = 4
+    concurrency_acquire_timeout_seconds: float = 0.5
+    concurrency_retry_after_seconds: int = 5
+
     # Transactional email (leave smtp_host empty to disable sending — dev mode)
     smtp_host: str = ""
     smtp_port: int = 587

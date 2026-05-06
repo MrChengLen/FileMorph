@@ -17,6 +17,7 @@ from app.converters.base import UnsupportedConversionError
 from app.converters.registry import _ensure_loaded, get_converter
 from app.core.audit import record_event as audit_record
 from app.core.batch import BatchFileResult, batch_error_response, build_batch_zip
+from app.core.concurrency import acquire_slot
 from app.core.metrics import increment as metric_increment
 from app.core.quotas import _MB, get_quota, tier_for
 from app.core.rate_limit import limiter
@@ -52,6 +53,20 @@ def _sha256_file(path: Path, *, chunk_size: int = 64 * 1024) -> str:
     return h.hexdigest()
 
 
+def _actor_id(request: Request, user: User | None) -> str:
+    """Stable identity for the per-actor concurrency cap (NEU-D.1).
+
+    Authenticated callers key on the user UUID — the same person
+    across IPs, the same cap. Anonymous callers fall back to the
+    remote IP, which is the only stable handle we have without
+    making them register. The ``X-API-Key`` value itself is never
+    used as the key (it's a secret; we don't want it in any log
+    extra dict, even hashed)."""
+    if user is not None:
+        return f"user:{user.id}"
+    return f"ip:{request.client.host if request.client else 'unknown'}"
+
+
 @router.post("/convert", tags=["Convert"], dependencies=[Depends(require_api_key)])
 @limiter.limit("10/minute")
 async def convert_file(
@@ -60,6 +75,19 @@ async def convert_file(
     target_format: str = Form(..., description="Target format, e.g. 'jpg', 'pdf', 'mp3'"),
     quality: int = Form(85, ge=1, le=100, description="Quality 1-100 (where applicable)"),
     user: User | None = Depends(get_optional_user),
+) -> Response:
+    tier = tier_for(user)
+    async with acquire_slot(actor_id=_actor_id(request, user), tier=tier):
+        return await _do_convert(request, file, target_format, quality, user, tier)
+
+
+async def _do_convert(
+    request: Request,
+    file: UploadFile,
+    target_format: str,
+    quality: int,
+    user: User | None,
+    tier: str,
 ) -> Response:
     src_ext = Path(file.filename or "").suffix.lstrip(".").lower()
     tgt_ext = target_format.strip().lower().lstrip(".")
@@ -76,7 +104,10 @@ async def convert_file(
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
 
     # Tier-based file size enforcement (anonymous: 20 MB, free: 50, pro: 100, business: 500)
-    tier = tier_for(user)
+    # ``tier`` is passed in from the wrapper that already acquired the
+    # NEU-D.1 concurrency slot — keep it identical to the slot's tier
+    # so cap-enforcement and capacity-accounting agree on who the
+    # caller is.
     quota = get_quota(tier)
     if file.size is not None and file.size > quota.max_file_size_bytes:
         limit_mb = quota.max_file_size_bytes // (1024 * 1024)
@@ -258,6 +289,24 @@ async def convert_batch(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No files uploaded.")
 
     tier = tier_for(user)
+    # NEU-D.1: a batch counts as one concurrency slot — the per-file
+    # work is sequential inside the route, so a 25-file batch holds
+    # the slot for 25× the per-file cost. Per-file accounting would
+    # double-charge against the per-actor cap and starve real second
+    # requests. The slot lives long enough that the global cap
+    # serialises bursts of large batches across users.
+    async with acquire_slot(actor_id=_actor_id(request, user), tier=tier):
+        return await _do_convert_batch(request, files, target_formats, quality, user, tier)
+
+
+async def _do_convert_batch(
+    request: Request,
+    files: list[UploadFile],
+    target_formats: list[str],
+    quality: int,
+    user: User | None,
+    tier: str,
+) -> Response:
     quota = get_quota(tier)
     if len(files) > quota.max_files_per_batch:
         raise HTTPException(

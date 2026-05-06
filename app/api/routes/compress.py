@@ -23,6 +23,7 @@ from app.compressors.video import _SUPPORTED_FORMATS as VIDEO_FMTS
 from app.compressors.video import compress_video
 from app.core.audit import record_event as audit_record
 from app.core.batch import BatchFileResult, batch_error_response, build_batch_zip
+from app.core.concurrency import acquire_slot
 from app.core.metrics import increment as metric_increment
 from app.core.quotas import _MB, get_quota, tier_for
 from app.core.rate_limit import limiter
@@ -52,6 +53,18 @@ def _sha256_file(path: Path, *, chunk_size: int = 64 * 1024) -> str:
     return h.hexdigest()
 
 
+def _actor_id(request: Request, user: User | None) -> str:
+    """Stable identity for the per-actor concurrency cap (NEU-D.1).
+
+    Same shape as the helper in ``app/api/routes/convert.py``;
+    duplicated rather than extracted while there are only two
+    callers. Promote to ``app/core/quotas.py`` (or a new
+    ``app/core/identity.py``) when a third route needs it."""
+    if user is not None:
+        return f"user:{user.id}"
+    return f"ip:{request.client.host if request.client else 'unknown'}"
+
+
 @router.post("/compress", tags=["Compress"], dependencies=[Depends(require_api_key)])
 @limiter.limit("10/minute")
 async def compress_file(
@@ -65,6 +78,19 @@ async def compress_file(
         "Mutually exclusive with quality. JPEG/WebP only.",
     ),
     user: User | None = Depends(get_optional_user),
+) -> Response:
+    tier = tier_for(user)
+    async with acquire_slot(actor_id=_actor_id(request, user), tier=tier):
+        return await _do_compress(request, file, quality, target_size_kb, user, tier)
+
+
+async def _do_compress(
+    request: Request,
+    file: UploadFile,
+    quality: int | None,
+    target_size_kb: int | None,
+    user: User | None,
+    tier: str,
 ) -> Response:
     if quality is not None and target_size_kb is not None:
         raise HTTPException(
@@ -81,8 +107,10 @@ async def compress_file(
             detail=f"Compression not supported for '.{ext}'. Supported: {IMAGE_FMTS + VIDEO_FMTS}",
         )
 
-    # Tier-based file size enforcement (anonymous: 20 MB, free: 50, pro: 100, business: 500)
-    tier = tier_for(user)
+    # Tier-based file size enforcement (anonymous: 20 MB, free: 50, pro: 100, business: 500).
+    # ``tier`` is passed in from the wrapper that already acquired the
+    # NEU-D.1 concurrency slot — keep it identical so cap-enforcement
+    # and capacity-accounting agree on the caller's tier.
     quota = get_quota(tier)
     if file.size is not None and file.size > quota.max_file_size_bytes:
         limit_mb = quota.max_file_size_bytes // (1024 * 1024)
@@ -296,6 +324,20 @@ async def compress_batch(
     if not files:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No files uploaded.")
 
+    tier = tier_for(user)
+    # NEU-D.1: same one-slot-per-batch policy as convert/batch.
+    async with acquire_slot(actor_id=_actor_id(request, user), tier=tier):
+        return await _do_compress_batch(request, files, quality, target_size_kb, user, tier)
+
+
+async def _do_compress_batch(
+    request: Request,
+    files: list[UploadFile],
+    quality: int | None,
+    target_size_kb: int | None,
+    user: User | None,
+    tier: str,
+) -> Response:
     if quality is not None and target_size_kb is not None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -303,7 +345,6 @@ async def compress_batch(
         )
     effective_quality = 85 if quality is None else quality
 
-    tier = tier_for(user)
     quota = get_quota(tier)
     if len(files) > quota.max_files_per_batch:
         raise HTTPException(
