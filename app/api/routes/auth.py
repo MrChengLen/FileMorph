@@ -13,6 +13,7 @@ from sqlalchemy.orm import selectinload
 
 from app.compat import base_dir
 from app.core import email as email_mod
+from app.core.audit import record_event as audit_record
 from app.core.auth import (
     create_access_token,
     create_password_reset_token,
@@ -185,6 +186,35 @@ def _db_required(db: AsyncSession | None) -> AsyncSession:
     return db
 
 
+def _email_hash(email: str) -> str:
+    """Lowercased SHA-256 of an email address.
+
+    Used in audit-event payloads for ``auth.login.failure`` and
+    ``auth.password_reset.requested`` so the chain records "this
+    email-shape was attempted N times" without recording the email
+    itself. Two reasons:
+
+    - Email addresses are PII (DSGVO Art. 4 Nr. 1). Storing them in
+      an append-only chain that may live for years exceeds the
+      data-minimisation principle (DSGVO Art. 5 Abs. 1 lit. c).
+    - An attacker who later exfiltrates the audit table learns
+      every email anyone ever tried to log in with. Hashing turns
+      that into "every email-hash anyone ever tried" — still useful
+      for failure-rate analysis, useless for credential stuffing.
+
+    Lowercased before hashing so ``Foo@Example.com`` and
+    ``foo@example.com`` collide on the same hash, matching the
+    existing case-insensitive lookup in ``forgot_password``.
+    """
+    return hashlib.sha256(email.strip().lower().encode("utf-8")).hexdigest()
+
+
+def _client_ip(request: Request) -> str | None:
+    """Return the caller's IP, or ``None`` if the harness left
+    ``request.client`` unset (TestClient sometimes does)."""
+    return request.client.host if request.client else None
+
+
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 
@@ -196,6 +226,15 @@ async def register(
     db = _db_required(db)
     existing = await db.execute(select(User).where(User.email == body.email))
     if existing.scalar_one_or_none():
+        # NEU-B.3: surface the duplicate-email attempt to the audit chain
+        # using the hash, not the address — enumeration-pattern visibility
+        # without the chain becoming a directory of every email anyone
+        # ever attempted.
+        await audit_record(
+            "auth.register.duplicate",
+            actor_ip=_client_ip(request),
+            payload={"email_hash": _email_hash(body.email)},
+        )
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="Email already registered."
         )
@@ -207,6 +246,14 @@ async def register(
     # increment owns its session — kept off the request transaction so a
     # metrics failure here can't corrupt the freshly committed user row.
     await metric_increment("registrations")
+    # NEU-B.3: ISO 27001 A.9.2.1 — record account creation with the new
+    # user's id as actor. ``audit_record`` opens its own session so a
+    # failure here can never corrupt the freshly committed user row.
+    await audit_record(
+        "auth.register.success",
+        actor_user_id=user.id,
+        actor_ip=_client_ip(request),
+    )
     return TokenResponse(
         access_token=create_access_token(str(user.id), role=user.role.value),
         refresh_token=create_refresh_token(str(user.id)),
@@ -222,9 +269,26 @@ async def login(request: Request, body: LoginRequest, db: AsyncSession | None = 
     )
     user = result.scalar_one_or_none()
     if not user or not verify_password(body.password, user.password_hash):
+        # NEU-B.3: ISO 27001 A.9.4.2 — record failed authentication. No
+        # actor_user_id (we don't reveal whether the email exists; the
+        # email_hash is enough to correlate brute-force attempts across
+        # the same target without storing the address itself).
+        await audit_record(
+            "auth.login.failure",
+            actor_ip=_client_ip(request),
+            payload={"email_hash": _email_hash(body.email)},
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password."
         )
+    # NEU-B.3: successful authentication, with user identity. The
+    # session-token issuance below is contingent on this audit row
+    # under audit_fail_closed=True (Compliance edition).
+    await audit_record(
+        "auth.login.success",
+        actor_user_id=user.id,
+        actor_ip=_client_ip(request),
+    )
     return TokenResponse(
         access_token=create_access_token(str(user.id), role=user.role.value),
         refresh_token=create_refresh_token(str(user.id)),
@@ -292,6 +356,16 @@ async def forgot_password(
 
     result = await db.execute(select(User).where(User.email.ilike(body.email)))
     user = result.scalar_one_or_none()
+    # NEU-B.3: every reset-request lands in the audit chain — both the
+    # match-and-send path and the no-match early-return path — keyed by
+    # email_hash so an auditor can see "thousands of resets attempted
+    # against this email-shape" without us logging the email itself.
+    await audit_record(
+        "auth.password_reset.requested",
+        actor_user_id=user.id if user is not None else None,
+        actor_ip=_client_ip(request),
+        payload={"email_hash": _email_hash(body.email)},
+    )
     if user is None or not user.is_active:
         email_domain = body.email.split("@", 1)[-1] if "@" in body.email else "invalid"
         logger.info("forgot_password: no active user (domain=%s, no email sent)", email_domain)
@@ -350,4 +424,19 @@ async def reset_password(
     user.password_hash = hash_password(body.new_password)
     await db.commit()
     logger.info("reset_password: password updated user=%s", user.id)
+    # NEU-B.3: ISO 27001 A.9.2.4 — credential changes are audit-relevant.
+    # Order is "commit then audit" because the audit log uses its own
+    # session and there is no two-phase commit between the user-table
+    # write and the audit-events insert. Under ``audit_fail_closed``,
+    # a failure here surfaces as a 500 *after* the password change
+    # has already landed; the chain still records the attempt on the
+    # next successful operation by this user. A future iteration that
+    # binds the audit insert into the same DB transaction (single-DB
+    # deployments) closes that gap; cross-DB Compliance setups need a
+    # separate design.
+    await audit_record(
+        "auth.password_reset.completed",
+        actor_user_id=user.id,
+        actor_ip=_client_ip(request),
+    )
     return {"message": "Password updated."}
