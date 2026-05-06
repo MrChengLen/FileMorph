@@ -24,6 +24,7 @@ from app.compressors.video import compress_video
 from app.core.audit import record_event as audit_record
 from app.core.batch import BatchFileResult, batch_error_response, build_batch_zip
 from app.core.concurrency import acquire_slot
+from app.core.data_classification import DEFAULT_CLASSIFICATION as DATA_CLASSIFICATION_DEFAULT
 from app.core.metrics import increment as metric_increment
 from app.core.quotas import _MB, get_quota, tier_for
 from app.core.rate_limit import limiter
@@ -274,6 +275,9 @@ async def _do_compress(
                 "output_bytes": output_size_bytes,
                 "output_sha256": output_hash,
                 "tier": tier,
+                "data_classification": getattr(
+                    request.state, "data_classification", DATA_CLASSIFICATION_DEFAULT
+                ),
             },
         )
     except HTTPException as exc:
@@ -284,7 +288,13 @@ async def _do_compress(
             "compress.failure",
             actor_user_id=user.id if user is not None else None,
             actor_ip=request.client.host if request.client else None,
-            payload={"format": ext, "status_code": exc.status_code},
+            payload={
+                "format": ext,
+                "status_code": exc.status_code,
+                "data_classification": getattr(
+                    request.state, "data_classification", DATA_CLASSIFICATION_DEFAULT
+                ),
+            },
         )
         shutil.rmtree(tmp_dir, ignore_errors=True)
         raise

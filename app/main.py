@@ -27,6 +27,11 @@ from app.api.routes import keys as keys_route
 from app.compat import base_dir, setup_ffmpeg_path
 from app.core.assets import tailwind_css_filename
 from app.core.config import settings
+from app.core.data_classification import (
+    REQUEST_HEADER as _DATA_CLASSIFICATION_HEADER,
+    RESPONSE_HEADER as _DATA_CLASSIFICATION_RESPONSE_HEADER,
+    normalize_classification as _normalize_data_classification,
+)
 from app.core.jsonld import build_site_jsonld
 from app.core.logging_config import configure_logging
 from app.core.metrics import increment as metric_increment
@@ -200,6 +205,7 @@ app.add_middleware(
         "X-FileMorph-Achieved-Bytes",
         "X-FileMorph-Final-Quality",
         "X-Output-SHA256",
+        "X-Data-Classification",
     ],
 )
 
@@ -319,6 +325,33 @@ async def limit_upload_size(request: Request, call_next):
                 },
             )
     return await call_next(request)
+
+
+# NEU-C.3: BSI-style data-classification taxonomy on the request boundary.
+# Reads ``X-Data-Classification`` from the caller, validates against the
+# fixed vocabulary in :mod:`app.core.data_classification`, stores the
+# resolved value on ``request.state`` so convert/compress can include it
+# in their audit-log payloads, and echoes it back on the response so the
+# caller can verify what the server actually used (which differs from
+# the input on invalid values).
+@app.middleware("http")
+async def data_classification(request: Request, call_next):
+    raw = request.headers.get(_DATA_CLASSIFICATION_HEADER)
+    classification, was_valid = _normalize_data_classification(raw)
+    request.state.data_classification = classification
+    if not was_valid:
+        # Truncate the rejected value before logging so a 4 KiB header
+        # bomb doesn't pollute the structured-log shipper. 64 chars is
+        # plenty to identify a typo while bounding the log line.
+        rejected = raw[:64] if isinstance(raw, str) else repr(raw)
+        logger.warning(
+            "data_classification: rejected X-Data-Classification=%r — falling back to %s",
+            rejected,
+            classification,
+        )
+    response = await call_next(request)
+    response.headers[_DATA_CLASSIFICATION_RESPONSE_HEADER] = classification
+    return response
 
 
 # ── Custom error handlers (A-5) ───────────────────────────────────────────────
