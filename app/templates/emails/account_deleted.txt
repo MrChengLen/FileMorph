@@ -6,7 +6,7 @@ This is a confirmation; the deletion is already complete.
 
 What was deleted
 ----------------
-  - Login credentials (password hash)
+  - Login credentials (your password)
   - All API keys
 
 What was anonymised

@@ -291,7 +291,9 @@ def test_delete_account_admin_with_peer_succeeds(client, mock_send_email):
 def test_delete_account_with_stripe_customer_returns_409(client):
     """Until the paid-path tax-retention flow ships (slice c.2),
     accounts that have ever touched Stripe must be refused — a naive
-    hard-delete would violate HGB §257 / AO §147."""
+    hard-delete would violate HGB §257 / AO §147. The detail message
+    points at the operator's support contact (deployment-agnostic) and
+    cites the legal driver so the operator response stays grounded."""
     asyncio.run(
         _insert_user(
             email="paid@example.com",
@@ -307,7 +309,9 @@ def test_delete_account_with_stripe_customer_returns_409(client):
         headers={"Authorization": f"Bearer {token}"},
     )
     assert res.status_code == 409
-    assert "privacy@" in res.json()["detail"].lower()
+    detail = res.json()["detail"].lower()
+    assert "tax-retention" in detail
+    assert "hgb" in detail
     assert asyncio.run(_user_exists("paid@example.com")) is True
 
 

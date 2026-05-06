@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from jinja2 import Environment, FileSystemLoader, select_autoescape
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -47,9 +47,17 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 # ── Schemas ───────────────────────────────────────────────────────────────────
 
 
+_PASSWORD_MAX = 128
+"""Hard cap on inbound passwords. bcrypt itself silently truncates at 72
+bytes, but accepting megabyte-sized inputs would let a caller burn
+server CPU on the bcrypt work-factor with each login attempt — a cheap
+DoS vector. 128 is comfortably past every real-world password manager
+and well below where bcrypt's truncation matters."""
+
+
 class RegisterRequest(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(..., max_length=_PASSWORD_MAX)
 
     @field_validator("password")
     @classmethod
@@ -61,7 +69,7 @@ class RegisterRequest(BaseModel):
 
 class LoginRequest(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(..., max_length=_PASSWORD_MAX)
 
 
 class TokenResponse(BaseModel):
@@ -88,7 +96,7 @@ class ForgotPasswordRequest(BaseModel):
 
 class ResetPasswordRequest(BaseModel):
     token: str
-    new_password: str
+    new_password: str = Field(..., max_length=_PASSWORD_MAX)
 
     @field_validator("new_password")
     @classmethod
@@ -115,7 +123,7 @@ class DeleteAccountRequest(BaseModel):
     See ``docs/gdpr-account-deletion-design.md`` § 3 for the rationale.
     """
 
-    password: str
+    password: str = Field(..., max_length=_PASSWORD_MAX)
     confirm_email: EmailStr
     confirm_word: str
 
@@ -244,6 +252,18 @@ def _client_ip(request: Request) -> str | None:
     """Return the caller's IP, or ``None`` if the harness left
     ``request.client`` unset (TestClient sometimes does)."""
     return request.client.host if request.client else None
+
+
+def _support_contact() -> str:
+    """Best-effort support address for user-facing copy.
+
+    Self-hosters configure their own SMTP identity, so any hardcoded
+    ``@filemorph.io`` address would ship our cloud team's inbox into
+    third-party deployments — a scope-review.py "deployment-agnostic"
+    violation. Prefer the operator's reply-to, fall back to the FROM
+    address, and only fall back to a neutral phrase when neither is
+    set (e.g. tests with no SMTP configured)."""
+    return settings.smtp_reply_to or settings.smtp_from_email or "your administrator"
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
@@ -615,7 +635,7 @@ def _render_account_deleted_emails(user_email: str, deleted_at_iso: str) -> tupl
         "user_email": user_email,
         "deleted_at": deleted_at_iso,
         "app_base_url": settings.app_base_url.rstrip("/"),
-        "support_email": settings.smtp_reply_to or "privacy@filemorph.io",
+        "support_email": _support_contact(),
     }
     html = _email_env.get_template("account_deleted.html").render(**ctx)
     text = _email_env.get_template("account_deleted.txt").render(**ctx)
@@ -700,7 +720,7 @@ async def delete_account(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=(
-                "Paid accounts must be deleted via privacy@filemorph.io while we "
+                f"Paid accounts must be deleted via {_support_contact()} while we "
                 "complete the tax-retention flow (HGB §257)."
             ),
         )
@@ -739,8 +759,15 @@ async def delete_account(
     # PostgreSQL handles the related-row cascade via the ON DELETE
     # clauses on api_keys (CASCADE), file_jobs (SET NULL), and
     # usage (SET NULL) — see app/db/models.py. SQLAlchemy's
-    # ``cascade='all, delete-orphan'`` on User.api_keys keeps the
-    # in-memory session state consistent on flush.
+    # ``cascade='all, delete-orphan'`` on User.api_keys would lazy-load
+    # the collection on flush; on the async session that triggers a
+    # MissingGreenlet error if any keys exist. Re-fetch with
+    # ``selectinload`` so the relationship is preloaded before
+    # ``db.delete`` walks the cascade.
+    result = await db.execute(
+        select(User).where(User.id == user_id).options(selectinload(User.api_keys))
+    )
+    user = result.scalar_one()
     await db.delete(user)
     await db.commit()
 

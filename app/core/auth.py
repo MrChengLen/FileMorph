@@ -24,7 +24,18 @@ def hash_password(password: str) -> str:
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return _bcrypt.checkpw(plain.encode(), hashed.encode())
+    """Compare a plaintext password against a stored bcrypt hash.
+
+    Returns False on any mismatch *and* on a malformed stored hash —
+    bcrypt raises ``ValueError("Invalid salt")`` when the stored hash
+    isn't a well-formed bcrypt string, which would otherwise surface as
+    a 500 from any path that calls this on a corrupted ``password_hash``
+    column (login, reset, delete-account). A False result is the right
+    semantics: no plaintext password matches a corrupted hash."""
+    try:
+        return _bcrypt.checkpw(plain.encode(), hashed.encode())
+    except ValueError:
+        return False
 
 
 def create_access_token(subject: str, role: str = "user") -> str:
