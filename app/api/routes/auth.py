@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from pydantic import BaseModel, EmailStr, field_validator
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -100,6 +100,31 @@ class ResetPasswordRequest(BaseModel):
 
 class VerifyEmailRequest(BaseModel):
     token: str
+
+
+class DeleteAccountRequest(BaseModel):
+    """Three-field re-confirmation: each field defends a different mistake.
+
+    * ``password`` — defends against a stolen JWT being used by someone
+      who doesn't know the password.
+    * ``confirm_email`` — defends against the user being signed into the
+      wrong account.
+    * ``confirm_word`` — defends against an accidental form submission;
+      must be the literal string ``DELETE``.
+
+    See ``docs/gdpr-account-deletion-design.md`` § 3 for the rationale.
+    """
+
+    password: str
+    confirm_email: EmailStr
+    confirm_word: str
+
+    @field_validator("confirm_word")
+    @classmethod
+    def must_be_literal_DELETE(cls, v: str) -> str:
+        if v != "DELETE":
+            raise ValueError('confirm_word must be exactly "DELETE".')
+        return v
 
 
 # ── Dependency ────────────────────────────────────────────────────────────────
@@ -577,3 +602,165 @@ async def resend_verification(request: Request, user: User = Depends(get_current
         payload={"trigger": "resend"},
     )
     return {"message": "Verification email sent."}
+
+
+# ── Account deletion (NEU-B.3 slice c.1, free path only) ──────────────────────
+
+
+_DELETE_GENERIC_400 = "Confirmation did not match."
+
+
+def _render_account_deleted_emails(user_email: str, deleted_at_iso: str) -> tuple[str, str]:
+    ctx = {
+        "user_email": user_email,
+        "deleted_at": deleted_at_iso,
+        "app_base_url": settings.app_base_url.rstrip("/"),
+        "support_email": settings.smtp_reply_to or "privacy@filemorph.io",
+    }
+    html = _email_env.get_template("account_deleted.html").render(**ctx)
+    text = _email_env.get_template("account_deleted.txt").render(**ctx)
+    return html, text
+
+
+async def _send_account_deleted_email_safe(user_email: str, deleted_at_iso: str) -> None:
+    """Confirmation email after a successful deletion. Never raises into
+    the caller — the deletion is already final, the email is informational.
+    A delivery failure is logged for the operator audit trail."""
+    html, text = _render_account_deleted_emails(user_email, deleted_at_iso)
+    try:
+        await email_mod.send_email(
+            to=user_email,
+            subject="Your FileMorph account has been deleted",
+            html=html,
+            text=text,
+        )
+    except email_mod.EmailSendError:
+        logger.exception("account_deletion: confirmation email failed for %s", user_email)
+
+
+async def _is_last_active_admin(db: AsyncSession, user: User) -> bool:
+    """Defends against a deployment locking itself out of the admin cockpit.
+
+    Self-hosters typically run with a single admin account; the cloud op
+    has more, but the guard belongs in the endpoint either way. If the
+    caller is not an admin the answer is trivially False."""
+    if user.role != RoleEnum.admin:
+        return False
+    result = await db.execute(
+        select(func.count(User.id)).where(
+            User.role == RoleEnum.admin,
+            User.is_active.is_(True),
+        )
+    )
+    active_admin_count = int(result.scalar_one())
+    return active_admin_count <= 1
+
+
+@router.delete("/account", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit("1/minute")
+async def delete_account(
+    request: Request,
+    body: DeleteAccountRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession | None = Depends(get_db),
+):
+    """Self-service account deletion (DSGVO Art. 17).
+
+    This is the **free-path** slice of the design in
+    ``docs/gdpr-account-deletion-design.md``. It hard-deletes accounts
+    that have never been linked to Stripe. Accounts with an active or
+    historical Stripe customer record are refused with 409 and pointed
+    at ``privacy@`` until the paid-path tax-retention flow lands
+    (HGB §257, AO §147 — slice c.2).
+
+    Auth: JWT bearer only. ``X-API-Key`` is intentionally rejected
+    because the API key is one of the things being deleted; using the
+    very key whose deletion is requested has chicken-and-egg semantics.
+    The route's ``Depends(get_current_user)`` already enforces JWT-only
+    by reading the ``Authorization`` header and ignoring ``X-API-Key``.
+
+    Re-confirmation: three fields must match (``password``,
+    ``confirm_email``, ``confirm_word=='DELETE'``). All three failures
+    return the same generic 400 so a stolen-JWT attacker cannot probe
+    which field is wrong.
+    """
+    db = _db_required(db)
+
+    # Re-confirmation gate — uniform 400 on any mismatch.
+    if body.confirm_email.lower() != user.email.lower():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=_DELETE_GENERIC_400)
+    if not verify_password(body.password, user.password_hash):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=_DELETE_GENERIC_400)
+    # ``confirm_word`` was validated by the Pydantic field validator.
+
+    # Tax-retention guard: any account that has touched Stripe needs the
+    # paid-path flow that's not implemented yet. Refusing here is the
+    # correct German-law-conformant behaviour until slice c.2 ships.
+    if user.stripe_customer_id is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "Paid accounts must be deleted via privacy@filemorph.io while we "
+                "complete the tax-retention flow (HGB §257)."
+            ),
+        )
+
+    # Last-admin guard.
+    if await _is_last_active_admin(db, user):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "You are the only active admin. Promote another user to admin "
+                "before deleting your account."
+            ),
+        )
+
+    user_id = user.id
+    user_email = user.email
+    email_domain = user_email.split("@", 1)[1] if "@" in user_email else "unknown"
+    had_subscription = bool(user.stripe_customer_id)
+    deleted_at_iso = datetime.now(timezone.utc).isoformat()
+
+    # NEU-B.3: record the *intent* before destroying the row. Once the
+    # commit lands, ``actor_user_id`` becomes a dangling FK that the
+    # audit-events ``ON DELETE SET NULL`` cascade nulls — but the
+    # event_type + payload + occurred_at survive for the auditor.
+    await audit_record(
+        "auth.account_deletion.requested",
+        actor_user_id=user_id,
+        actor_ip=_client_ip(request),
+        payload={
+            "email_domain": email_domain,
+            "had_subscription": had_subscription,
+            "deletion_mode": "free",
+        },
+    )
+
+    # PostgreSQL handles the related-row cascade via the ON DELETE
+    # clauses on api_keys (CASCADE), file_jobs (SET NULL), and
+    # usage (SET NULL) — see app/db/models.py. SQLAlchemy's
+    # ``cascade='all, delete-orphan'`` on User.api_keys keeps the
+    # in-memory session state consistent on flush.
+    await db.delete(user)
+    await db.commit()
+
+    logger.info(
+        "account_deletion",
+        extra={
+            "user_id": str(user_id),
+            "email_domain": email_domain,
+            "had_subscription": had_subscription,
+            "deletion_mode": "free",
+        },
+    )
+    await audit_record(
+        "auth.account_deletion.completed",
+        actor_ip=_client_ip(request),
+        payload={
+            "email_domain": email_domain,
+            "deletion_mode": "free",
+        },
+    )
+    await _send_account_deleted_email_safe(user_email, deleted_at_iso)
+    # 204 No Content — body intentionally empty.
+    return None
