@@ -1,37 +1,41 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""NEU-C.1.a: PDF → PDF/A-2b "markup" converter (pikepdf-based).
+"""PDF → PDF/A-2b converter (NEU-C.1.a markup + NEU-C.1.b re-render).
 
-Goal of this slice
+Goal of this module
+-------------------
+Produce a PDF that veraPDF accepts at conformance level 2b. Two
+paths cooperate:
+
+1. **NEU-C.1.b — ghostscript re-render** (when ``gs`` is on PATH):
+   gs's ``pdfwrite`` device with ``-dPDFA=2`` re-rasterises the
+   content stream, embeds every font subset, drops PDF/A-forbidden
+   features, and writes an ``OutputIntent`` from a generated
+   PDFA_def.ps. This is what closes the "fonts must be embedded"
+   gap — a source PDF with bare standard-14 references comes out
+   with proper subset embeds.
+
+2. **NEU-C.1.a — pikepdf markup pass** (always runs after gs, or
+   alone when gs is unavailable): asserts the PDF/A markers
+   pikepdf can write deterministically — XMP ``pdfaid:part=2`` /
+   ``conformance=B``, ``xmpMM:DocumentID`` / ``InstanceID``, a
+   clean ``/ID`` array, ``OutputIntent`` if not already present,
+   and a sweep of PDF/A-forbidden surfaces (``/JavaScript``,
+   ``/JS``, ``/OpenAction``, ``/EmbeddedFiles``).
+
+Combined behaviour
 ------------------
-Produce a PDF that **declares** PDF/A-2b conformance and has the
-minimum structural anchors a downstream auditor expects:
+Best case (gs available, source well-formed): ``rerender_succeeded``
+path produces a veraPDF-2b-clean output.
 
-* XMP metadata block with ``pdfaid:part = 2`` and
-  ``pdfaid:conformance = B``, plus a ``DocumentID`` and
-  ``InstanceID`` for traceability.
-* An ``OutputIntent`` of subtype ``GTS_PDFA1`` carrying an embedded
-  sRGB ICC profile (mandatory for PDF/A-2b — the consumer can
-  reproduce on-screen colour without the original device profile).
-* No PDF/A-forbidden surfaces: encryption, JavaScript, embedded
-  files, OpenAction triggers — all stripped before save.
-* A clean ``ID`` array so the file has a stable identity hash.
+Common case (gs unavailable on minimal hosts, e.g. Windows local-dev
+or a slim container): ``markup-only`` path produces a structurally
+valid PDF/A that declares 2b. veraPDF will accept it for sources
+that already had embedded fonts; for sources that didn't, veraPDF
+flags "fonts not embedded" and the operator knows to install gs
+or use the source's authoring tool to re-export.
 
-What this slice does NOT do
----------------------------
-A fully veraPDF-validating PDF/A-2b file requires re-rendering the
-content stream so that every glyph has an embedded font and no
-transparency groups remain. That is a ghostscript job (or a
-heavy in-process Python implementation) and lands in NEU-C.1.b.
-The veraPDF validator itself runs in a separate Java-based CI job
-(NEU-C.1.c).
-
-For the common Compliance-Edition use-case — Bürgerantrags-
-Anhänge / beA-Anhänge that are **already** PDFs from a modern
-editor with embedded fonts and no transparency — the markup-only
-path is sufficient: veraPDF in conformance mode 2b will accept the
-output. Sources with unembedded fonts get their conformance flagged
-as "needs ghostscript pass"; the converter logs a warning so the
-operator sees it in the structured log.
+We never raise on a missing or broken gs install — the markup path
+is the floor, gs is the upgrade.
 
 Why pikepdf is imported lazily
 ------------------------------
@@ -53,6 +57,7 @@ without learning a new endpoint.
 from __future__ import annotations
 
 import logging
+import tempfile
 import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -169,32 +174,86 @@ def _set_pdfa_xmp(pdf: "pikepdf_mod.Pdf") -> None:
 
 
 class PdfToPdfaConverter(BaseConverter):
-    """Convert a PDF to PDF/A-2b (markup-only).
+    """Convert a PDF to PDF/A-2b.
 
-    See module docstring for the conformance scope of this slice
-    and for the reason ``pikepdf`` is imported lazily inside
-    ``convert``."""
+    Tries the ghostscript re-render path first (NEU-C.1.b — embeds
+    fonts, drops forbidden features) and falls back to the
+    markup-only path (NEU-C.1.a) when gs is not on PATH or the
+    invocation fails. Either way the output declares PDF/A-2b
+    conformance and carries the structural anchors veraPDF expects.
+
+    See module docstring for the layered conformance scope and for
+    the reason ``pikepdf`` is imported lazily inside ``convert``."""
 
     def convert(self, input_path: Path, output_path: Path, **kwargs) -> Path:
         # Lazy import — see module docstring for the Windows DLL-load
         # conflict this avoids.
         import pikepdf
 
-        with pikepdf.open(str(input_path)) as pdf:
-            _strip_forbidden_surfaces(pdf)
-            _ensure_id_array(pdf)
-            _attach_output_intent(pdf, _srgb_icc_bytes())
-            _set_pdfa_xmp(pdf)
-            # ``object_stream_mode=disable`` keeps the byte layout of
-            # the output close to what an external auditor expects:
-            # PDF/A-2b allows object streams, but disabling them
-            # produces a more readable file for forensic review and
-            # makes the test assertions deterministic.
-            pdf.save(
-                str(output_path),
-                object_stream_mode=pikepdf.ObjectStreamMode.disable,
-                linearize=False,
-            )
+        from app.converters import _ghostscript as gs
+
+        icc_bytes = _srgb_icc_bytes()
+
+        # Stage 1: optional ghostscript re-render. The gs binary is
+        # opportunistic — if it's not on PATH (Windows local-dev,
+        # slim container), or if it fails on a degenerate input, we
+        # skip it and run the pikepdf markup pass on the original.
+        # The gs intermediate goes into a tempfile so the source PDF
+        # is never overwritten before the markup pass reads it.
+        gs_intermediate: Path | None = None
+        source_for_markup = input_path
+        rerender_mode = "markup"
+
+        if gs.is_available():
+            tmp = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False, prefix="fm_pdfa_gs_")
+            tmp.close()
+            gs_intermediate = Path(tmp.name)
+            try:
+                gs.rerender_to_pdfa(input_path, gs_intermediate, icc_bytes=icc_bytes)
+                source_for_markup = gs_intermediate
+                rerender_mode = "rerender"
+                logger.info(
+                    "pdfa.convert: ghostscript re-render succeeded for %s",
+                    input_path.name,
+                )
+            except gs.GhostscriptError as exc:
+                # Don't fail the whole convert — fall through with the
+                # original input. The structured log makes it
+                # discoverable which conversions hit this path so the
+                # operator can investigate at leisure.
+                logger.warning(
+                    "pdfa.convert: ghostscript failed for %s (%s); using markup-only path",
+                    input_path.name,
+                    exc,
+                )
+
+        try:
+            # Stage 2: pikepdf markup pass. Idempotent — runs whether
+            # the input is the original PDF (gs unavailable / failed)
+            # or gs's re-rendered intermediate. The OutputIntent guard
+            # avoids appending a second one when gs already wrote it
+            # via PDFA_def.ps.
+            with pikepdf.open(str(source_for_markup)) as pdf:
+                _strip_forbidden_surfaces(pdf)
+                _ensure_id_array(pdf)
+                if pdf.Root.get("/OutputIntents") is None:
+                    _attach_output_intent(pdf, icc_bytes)
+                _set_pdfa_xmp(pdf)
+                # ``object_stream_mode=disable`` keeps the byte layout
+                # of the output close to what an external auditor
+                # expects: PDF/A-2b allows object streams, but disabling
+                # them produces a more readable file for forensic review
+                # and makes the test assertions deterministic.
+                pdf.save(
+                    str(output_path),
+                    object_stream_mode=pikepdf.ObjectStreamMode.disable,
+                    linearize=False,
+                )
+        finally:
+            if gs_intermediate is not None:
+                gs_intermediate.unlink(missing_ok=True)
+
+        logger.info("pdfa.convert: %s mode=%s", output_path.name, rerender_mode)
         return output_path
 
 

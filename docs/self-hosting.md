@@ -297,6 +297,32 @@ concurrency slot for the whole batch — files inside the batch are
 processed sequentially. Increasing batch size therefore lengthens
 slot-hold time linearly without inflating the parallelism cost.
 
+### PDF/A-2b conformance (optional ghostscript)
+
+The `pdf → pdfa` conversion target has two paths and falls back
+automatically:
+
+- **Markup-only** (always available): pikepdf writes the PDF/A-2b
+  markers — XMP `pdfaid:part=2` / `conformance=B`, the `GTS_PDFA1`
+  OutputIntent, a fresh `/ID` array, and strips PDF/A-forbidden
+  surfaces. Sufficient when the source already has embedded fonts.
+- **Ghostscript re-render** (when `gs` is on PATH): runs the source
+  through `gs -dPDFA=2` first, which subset-embeds every font and
+  drops features PDF/A-2 forbids. Required for sources that
+  reference standard-14 fonts without embedding glyph data.
+
+The official Docker image bundles ghostscript so the upgrade path
+is on by default. On a custom build or systemd install:
+
+```bash
+sudo apt-get install -y ghostscript
+```
+
+Without `gs`, `pdf → pdfa` still succeeds — it just produces
+markup-only output that veraPDF will reject if the source has
+unembedded fonts. The structured log records `mode=rerender` vs
+`mode=markup` for each conversion so you can spot the gap.
+
 ### Updating
 
 ```bash

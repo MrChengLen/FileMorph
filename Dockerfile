@@ -1,9 +1,15 @@
 FROM python:3.12-slim
 
-# Install system dependencies (ffmpeg, libheif, rendering libs for WeasyPrint)
+# Install system dependencies:
+# - ffmpeg, libheif, cairo/pango: media + WeasyPrint rendering
+# - ghostscript: PDF/A-2b re-render path (app/converters/_ghostscript.py).
+#   Optional at runtime — pdfa.py falls back to markup-only when gs is
+#   missing — but bundling it here ensures the upgrade path is on by
+#   default for self-hosters of the official image.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
       ffmpeg \
+      ghostscript \
       libheif-dev \
       libffi-dev \
       libssl-dev \
