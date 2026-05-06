@@ -388,6 +388,20 @@ mechanically.
 - File-content hashes, original filenames, or upload metadata are
   not persisted. The `usage_records` table records only an
   operation type, byte counts, and a timestamp.
+- **Self-service account deletion** lives at `DELETE
+  /api/v1/auth/account` (Art. 17 GDPR). The free path is fully
+  self-service: three-field re-confirmation (`password`,
+  `confirm_email`, `confirm_word="DELETE"`), last-active-admin
+  guard returning 409, and a confirmation email after commit.
+  Cascade is hybrid: `api_keys` rows are removed, `file_jobs` and
+  `usage_records` actor IDs are nulled (analytics integrity
+  preserved), audit-event `actor_user_id` is nulled (the
+  `event_type` and payload survive). Accounts that have ever
+  touched Stripe are refused with 409 directing the user to the
+  operator support contact until the paid-path tax-retention
+  flow ships under HGB §257 / AO §147 — see
+  [`gdpr-account-deletion-design.md`](./gdpr-account-deletion-design.md)
+  § 5.B for the design.
 
 The full data-flow analysis, including the sub-processor list
 (Cloudflare for DNS / WAF, Stripe for payments, Zoho for
@@ -476,12 +490,18 @@ The webhook handler currently dispatches on
 yet wired, so dunning state on a failed renewal will not flow
 back to the application until the next subscription event.
 
-### Email verification status
+### Email verification
 
-Whether the registration flow performs email verification before
-allowing log-in is currently uncertain in the documentation.
-Treat this as a pre-launch item to verify before exposing
-registration publicly.
+Registration dispatches a fire-and-forget verification email to
+the address the caller registered with. The link carries a JWT
+bound to the email at issuance (`eat` claim, 7-day TTL) — a later
+email change silently invalidates the link without a per-token DB
+row. `POST /auth/verify-email` and `POST /auth/resend-verification`
+land the result. Verification is **not** currently a gate on
+log-in; verified state is recorded on `users.email_verified_at`
+and is available to features that need it (e.g. billing flows).
+Operators who want a hard log-in gate add the check in
+`get_current_user` before this lands as a default.
 
 ### Monitoring not yet wired
 
@@ -598,6 +618,9 @@ For readers who want to jump directly to the code:
 
 ---
 
-*Last revised 2026-04-27. The findings synthesised here are
+*Last revised 2026-05-06. The findings synthesised here are
 sourced from the static code review dated 2026-04-19 and the
-current state of the repository on the same date.*
+current state of the repository. The 2026-05-06 revision lands
+the self-service account-deletion endpoint, the email-verification
+flow, and the deployment-agnostic support contact (no FileMorph
+SaaS addresses leak into self-hosted error messages).*

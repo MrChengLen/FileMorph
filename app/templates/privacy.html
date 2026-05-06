@@ -47,7 +47,8 @@
   <section class="space-y-3">
     <h2 class="text-base font-semibold text-white">5. Your rights (GDPR)</h2>
     <p>You have the right to access, rectify, erase, and restrict processing of your personal data (Art. 15–21 GDPR). To exercise these rights, contact us at <a href="mailto:privacy@filemorph.io" class="text-brand hover:underline">privacy@filemorph.io</a>. You also have the right to lodge a complaint with your local data protection authority.</p>
-    <p><strong class="text-gray-200">Account deletion:</strong> To delete your account (email address, password hash, API keys, Stripe linkage), contact <a href="mailto:privacy@filemorph.io" class="text-brand hover:underline">privacy@filemorph.io</a>. Stripe may retain records of past transactions independently of our deletion, to comply with its own legal and tax obligations.</p>
+    <p><strong class="text-gray-200">Account deletion:</strong> Free accounts can be deleted from the API at <code class="text-gray-400">DELETE /api/v1/auth/account</code> after a three-field re-confirmation (your password, your email, and the literal word <code class="text-gray-400">DELETE</code>). The cascade removes your login credentials and API keys; conversion-job and usage-record entries are anonymised (your account ID is nulled, the rows are kept as anonymous aggregate data under DSGVO Art. 4(1)). A confirmation email is sent after the row is gone.</p>
+    <p>Accounts that have ever been linked to Stripe cannot use the self-service path yet — German commercial law (HGB §257, AO §147) requires a 10-year retention of tax-relevant records under Art. 17(3)(b) GDPR. For these accounts, contact <a href="mailto:privacy@filemorph.io" class="text-brand hover:underline">privacy@filemorph.io</a>. Stripe may retain records of past transactions independently of our deletion, to comply with its own legal and tax obligations.</p>
   </section>
 
   <section class="space-y-3">

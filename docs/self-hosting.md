@@ -323,6 +323,26 @@ markup-only output that veraPDF will reject if the source has
 unembedded fonts. The structured log records `mode=rerender` vs
 `mode=markup` for each conversion so you can spot the gap.
 
+### Auth flows (Cloud Edition)
+
+These endpoints ship in the same codebase but only become useful
+when the Cloud Edition is on (Postgres + SMTP configured):
+
+| Endpoint | Purpose | Notes |
+|---|---|---|
+| `POST /api/v1/auth/register` | Sign up | Fires a verification email best-effort; SMTP failure does not block registration. |
+| `POST /api/v1/auth/verify-email` | Mark `users.email_verified_at` | Token bound to email-at-issuance (`eat` claim, 7-day TTL). Email rotation silently invalidates stale links. |
+| `POST /api/v1/auth/resend-verification` | New verify link | Auth-required (no spam vector). 200 no-op when already verified. |
+| `DELETE /api/v1/auth/account` | Self-service delete | Three-field re-confirmation; last-active-admin guard returns 409; Stripe-touched accounts return 409 directing to your support contact. Confirmation email sent post-commit. |
+
+All four endpoints write `auth.*` events to the audit-log hash
+chain. Outbound email uses the same `SMTP_*` configuration as
+password-reset; the FROM address, reply-to, and the body's
+"contact us" link are taken from `SMTP_FROM_EMAIL` /
+`SMTP_REPLY_TO`. There are no hardcoded `@filemorph.io` addresses
+in the user-facing copy — self-hosters ship their own support
+identity.
+
 ### Updating
 
 ```bash
