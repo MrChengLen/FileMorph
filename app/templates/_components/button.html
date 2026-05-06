@@ -1,0 +1,48 @@
+{# button(label, href=None, variant='primary', size='md', disabled=False, type='button', id=None)
+
+   The single source of truth for buttons. Renders <a> when href is
+   set, else <button>.
+
+   variant — primary  : solid brand
+             secondary: hairline outline
+             ghost    : text-only
+   size    — sm | md | lg
+   disabled — adds aria-disabled + disabled attribute, mutes colours,
+              removes hover. For href variants, the link still
+              renders but is non-interactive.
+#}
+{% macro button(label, href=None, variant='primary', size='md', disabled=False, type='button', id=None) %}
+{# Class composition uses {% if %} branches so every literal class is
+   statically extractable by the Tailwind JIT scanner. Do not
+   concatenate variant names into class strings. #}
+{%- set base = 'inline-flex items-center justify-center gap-2 rounded-control font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand' -%}
+{%- if size == 'sm' -%}{%- set size_cls = 'px-4 py-2 text-sm' -%}
+{%- elif size == 'lg' -%}{%- set size_cls = 'px-7 py-3.5 text-base' -%}
+{%- else -%}{%- set size_cls = 'px-6 py-3 text-base' -%}
+{%- endif -%}
+{%- if disabled -%}
+  {%- set variant_cls = 'bg-surface-sunken text-ink-faint cursor-not-allowed' -%}
+{%- elif variant == 'secondary' -%}
+  {%- set variant_cls = 'border border-hairline text-ink hover:border-brand hover:text-ink' -%}
+{%- elif variant == 'ghost' -%}
+  {%- set variant_cls = 'text-ink-muted hover:text-ink' -%}
+{%- else -%}
+  {%- set variant_cls = 'bg-brand text-white hover:bg-brand-dark' -%}
+{%- endif -%}
+{%- if href and not disabled -%}
+<a href="{{ href }}"
+   class="{{ base }} {{ size_cls }} {{ variant_cls }}"
+   {% if id %}id="{{ id }}"{% endif %}
+   data-component="button"
+   data-variant="{{ variant }}"
+   data-size="{{ size }}">{{ label }}</a>
+{%- else -%}
+<button type="{{ type }}"
+        class="{{ base }} {{ size_cls }} {{ variant_cls }}"
+        {% if id %}id="{{ id }}"{% endif %}
+        {% if disabled %}disabled aria-disabled="true"{% endif %}
+        data-component="button"
+        data-variant="{{ variant }}"
+        data-size="{{ size }}">{{ label }}</button>
+{%- endif -%}
+{% endmacro %}

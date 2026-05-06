@@ -1,0 +1,22 @@
+{# page(title, max_w='page', center=False)
+
+   Wraps <main>. Authors call this once at the top of every content
+   block. The caller's body is yielded inside <main>.
+
+   max_w  — 'page' (64rem, default), 'prose-narrow' (42rem for
+            policy/legal copy), or 'full' (no constraint).
+   center — when True, content text-aligns center. Useful for hero
+            pages that have a centered focal point.
+#}
+{% macro page(title=None, max_w='page', center=False) %}
+<main class="flex-1 w-full px-4 sm:px-6 py-12 mx-auto
+             {% if max_w == 'page' %}max-w-page{% elif max_w == 'prose-narrow' %}max-w-prose-narrow{% endif %}
+             {% if center %}text-center{% endif %}
+             space-y-section-y"
+      data-component="page">
+  {% if title %}
+  <h1 class="text-h-page text-ink">{{ title }}</h1>
+  {% endif %}
+  {{ caller() }}
+</main>
+{% endmacro %}

@@ -1,0 +1,22 @@
+{# section(title=None, eyebrow=None, padded=True)
+
+   Semantic <section> with optional eyebrow + h2 stacked above the
+   body. Body is yielded via {{ caller() }}.
+
+   padded=True wraps the section in a card-like surface (use for
+   feature blocks). padded=False emits a plain <section> for simple
+   prose.
+#}
+{% macro section(title=None, eyebrow=None, padded=True) %}
+<section class="space-y-5
+                {% if padded %}bg-surface-raised border border-hairline rounded-card p-card-pad-md{% endif %}"
+         data-component="section">
+  {% if eyebrow %}
+  <p class="text-eyebrow uppercase text-ink-faint">{{ eyebrow }}</p>
+  {% endif %}
+  {% if title %}
+  <h2 class="text-h-sect text-ink">{{ title }}</h2>
+  {% endif %}
+  {{ caller() }}
+</section>
+{% endmacro %}

@@ -1,0 +1,29 @@
+{# text_input(name, type='text', label=None, placeholder='', autocomplete=None, required=False, value='', id=None, help=None)
+
+   Form input — single source of truth for the
+       bg-surface-sunken border border-hairline rounded-control px-3 py-2.5 …
+   recipe that today repeats 13 times across login, register,
+   forgot-password, reset-password, cockpit, and index. When `label`
+   is set, renders a <label> + input pair; without, a bare <input>.
+
+   help — optional muted help-text shown below the input.
+#}
+{% macro text_input(name, type='text', label=None, placeholder='', autocomplete=None, required=False, value='', id=None, help=None) %}
+{%- set input_id = id or name -%}
+<div class="space-y-1" data-component="text_input">
+  {% if label %}
+  <label for="{{ input_id }}" class="block text-sm font-medium text-ink-muted">{{ label }}</label>
+  {% endif %}
+  <input id="{{ input_id }}"
+         name="{{ name }}"
+         type="{{ type }}"
+         {% if value %}value="{{ value }}"{% endif %}
+         {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}
+         {% if autocomplete %}autocomplete="{{ autocomplete }}"{% endif %}
+         {% if required %}required{% endif %}
+         class="block w-full bg-surface-sunken border border-hairline rounded-control px-3 py-2.5 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition-colors" />
+  {% if help %}
+  <p class="text-xs text-ink-faint">{{ help }}</p>
+  {% endif %}
+</div>
+{% endmacro %}

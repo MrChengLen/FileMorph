@@ -68,6 +68,17 @@ if [ "$FAIL" = "1" ]; then
   exit 1
 fi
 
+# Tailwind dynamic-class gate — forbid `class="border-{{ x }}-500"` patterns
+# that break JIT extraction at build time. Hard gate (blocks the commit). See
+# scripts/check_template_classes.py docstring + app/templates/_components/README.md.
+if echo "$STAGED_FILES" | grep -qE '^app/templates/.*\.html$'; then
+  if command -v python >/dev/null 2>&1; then
+    python scripts/check_template_classes.py || exit 1
+  elif [ -x "Z:/Python/projects/fileforge/.venv/Scripts/python.exe" ]; then
+    "Z:/Python/projects/fileforge/.venv/Scripts/python.exe" scripts/check_template_classes.py || exit 1
+  fi
+fi
+
 # Soft advisory layer — App-repo vs Ops-repo scope-review on staged diff.
 # Catches subtle drift the hard gate above doesn't (hardcoded SaaS URLs,
 # Stripe-gated routes without guards, JSON-LD with hardcoded origins, ...).
