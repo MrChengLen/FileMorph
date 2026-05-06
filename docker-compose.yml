@@ -1,19 +1,19 @@
-services:
-  postgres:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: filemorph
-      POSTGRES_USER: filemorph
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U filemorph"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
+# FileMorph — Community Edition (single-container, anonymous + API-key auth)
+#
+# This is the default self-hosting recipe: one FastAPI container, no
+# database, no accounts. API keys live in ./data/api_keys.json. The
+# entrypoint generates a key on first run and prints it to the logs.
+#
+# Cloud Edition (user accounts, JWT, Stripe, admin cockpit) is an
+# optional overlay. Run it with:
+#
+#     docker compose -f docker-compose.yml -f docker-compose.cloud.yml up -d
+#
+# That overlay adds a Postgres service, sets ``DATABASE_URL`` so the
+# app starts in Cloud-Edition mode, and the entrypoint runs Alembic
+# migrations before uvicorn starts.
 
+services:
   filemorph:
     build: .
     ports:
@@ -23,12 +23,6 @@ services:
     env_file:
       - path: .env
         required: false
-    environment:
-      DATABASE_URL: postgresql+asyncpg://filemorph:${POSTGRES_PASSWORD:-changeme}@postgres/filemorph
-      JWT_SECRET: ${JWT_SECRET:-change-me-in-production-min-32-chars}
-    depends_on:
-      postgres:
-        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
@@ -41,6 +35,3 @@ services:
       options:
         max-size: "50m"
         max-file: "10"
-
-volumes:
-  postgres_data:

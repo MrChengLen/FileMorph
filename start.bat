@@ -8,25 +8,19 @@ echo   FileMorph - File Converter ^& Compressor
 echo  ================================================================
 echo.
 
-REM ── Mode 1: Standalone .exe (downloaded from GitHub Releases) ──────────────
-if exist "%~dp0FileMorph.exe" (
-    echo  Starting FileMorph...
-    start "" "%~dp0FileMorph.exe"
-    timeout /t 4 /nobreak >nul
-    start http://localhost:8000
-    exit /b 0
-)
+REM Docker-based startup (Community Edition by default).
+REM For Cloud Edition with user accounts, run instead:
+REM   docker compose -f docker-compose.yml -f docker-compose.cloud.yml up -d
+REM See README.md "Quickstart - Option B".
 
-REM ── Mode 2: Docker (for developers / source builds) ────────────────────────
 docker info >nul 2>&1
 if %errorlevel% neq 0 (
-    echo  FileMorph.exe not found and Docker Desktop is not running.
+    echo  Docker Desktop is not running.
     echo.
-    echo  To run FileMorph, either:
-    echo   A) Download the standalone app from GitHub Releases ^(no install needed^):
-    echo      https://github.com/MrChengLen/FileMorph/releases
+    echo  Please start Docker Desktop and run this file again.
     echo.
-    echo   B) Start Docker Desktop and run this file again ^(for developers^).
+    echo  If you do not want to use Docker:
+    echo    Use dev.ps1 to run from source ^(see README.md - Option C^).
     echo.
     pause
     exit /b 1
