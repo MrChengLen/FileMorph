@@ -1,0 +1,10 @@
+{# eyebrow(text, color='gray')
+
+   Small all-caps tracking-wide label that sits above headings.
+   color — 'gray' (default, ink-faint) or 'brand' (brand-coloured)
+#}
+{% macro eyebrow(text, color='gray') %}
+<p class="text-eyebrow uppercase
+          {% if color == 'brand' %}text-brand{% else %}text-ink-faint{% endif %}"
+   data-component="eyebrow">{{ text }}</p>
+{% endmacro %}

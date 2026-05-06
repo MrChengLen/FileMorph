@@ -1,0 +1,19 @@
+{# card(border='default', padded='md')
+
+   Surface card with hairline border + radius-card + canonical
+   padding. The body is yielded via {{ caller() }}, so this is a
+   wrapping macro: use as
+       {% call card.card() %}…body…{% endcall %}
+
+   border  — 'default' (hairline) or 'brand' (2px brand-coloured
+             outline, used for "highlighted" pricing tier)
+   padded  — 'md' (24px) or 'lg' (32px)
+#}
+{% macro card(border='default', padded='md') %}
+<div class="bg-surface-raised rounded-card
+            {% if border == 'brand' %}border-2 border-brand{% else %}border border-hairline{% endif %}
+            {% if padded == 'lg' %}p-card-pad-lg{% else %}p-card-pad-md{% endif %}"
+     data-component="card">
+  {{ caller() }}
+</div>
+{% endmacro %}

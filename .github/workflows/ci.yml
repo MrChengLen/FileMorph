@@ -36,6 +36,12 @@ jobs:
       - name: Format check (ruff)
         run: ruff format --check .
 
+      # Tailwind dynamic-class gate — forbids `class="prefix-{{ x }}-suffix"`
+      # patterns that JIT extraction misses, leaving the production bundle
+      # silently incomplete. See scripts/check_template_classes.py docstring.
+      - name: Template class gate
+        run: python scripts/check_template_classes.py
+
       # pip-audit scans dependencies for known CVEs.
       # Blocking — a failure means a published advisory affects a pinned dep.
       # If a finding is genuinely unfixable upstream, add the ID to the --ignore-vuln list
