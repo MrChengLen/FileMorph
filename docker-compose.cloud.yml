@@ -1,0 +1,53 @@
+# FileMorph — Cloud Edition overlay (Postgres + JWT + Stripe)
+#
+# Layers on top of docker-compose.yml. Adds the database the Cloud
+# Edition needs (user accounts, JWT auth, Stripe billing, admin
+# cockpit, audit-log, daily metrics) and switches the app into
+# Cloud-Edition mode by setting DATABASE_URL.
+#
+# When DATABASE_URL is set, the entrypoint runs ``alembic upgrade
+# head`` before uvicorn starts so the schema is in place on first
+# boot.
+#
+# Usage:
+#
+#   # First-time setup
+#   cp .env.example .env
+#   # edit .env to set strong POSTGRES_PASSWORD and JWT_SECRET (≥ 32 chars)
+#
+#   docker compose -f docker-compose.yml -f docker-compose.cloud.yml up -d
+#
+#   # Stop:
+#   docker compose -f docker-compose.yml -f docker-compose.cloud.yml down
+#
+# Stripe + SMTP envs (STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET,
+# SMTP_HOST etc.) are read from the same .env. They are optional —
+# the app boots without them but the billing and email flows won't
+# work until set. See docs/self-hosting.md and .env.example.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: filemorph
+      POSTGRES_USER: filemorph
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U filemorph"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  filemorph:
+    environment:
+      DATABASE_URL: postgresql+asyncpg://filemorph:${POSTGRES_PASSWORD:-changeme}@postgres/filemorph
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production-min-32-chars}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

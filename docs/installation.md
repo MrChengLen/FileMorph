@@ -2,25 +2,121 @@
 
 This guide covers all installation methods for FileMorph on **Windows** and **Linux**.
 
----
-
-## Method 1: Standalone App — Windows (recommended for end users)
-
-**Zero dependencies. Nothing to install. Just download and run.**
-
-1. Go to [github.com/MrChengLen/FileMorph/releases/latest](https://github.com/MrChengLen/FileMorph/releases/latest)
-2. Download `FileMorph-Windows.zip`
-3. Extract the ZIP anywhere
-4. Double-click **`start.bat`**
-
-On first start, your API key is displayed in the terminal — save it.
-The browser opens automatically at **http://localhost:8000**.
-
-> Bundled inside: Python 3.12, ffmpeg, and all libraries. No installation needed.
+The default mode is **Community Edition** — single-container, anonymous + API-key
+auth, no database. The optional **Cloud Edition** overlay adds Postgres for user
+accounts, JWT login, Stripe billing, and the admin cockpit.
 
 ---
 
-## Method 2: Local development — Windows (`dev.ps1`)
+## Method 1: Docker, Community Edition (recommended for self-hosting)
+
+Docker bundles all system dependencies (Python, ffmpeg, libheif, ghostscript) in
+one container. No accounts, no database — API keys live in `./data/api_keys.json`.
+
+### Prerequisites
+
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Windows / macOS), or
+- `docker` + `docker compose` v2 (Linux)
+
+### Step 1 — Clone
+
+```bash
+git clone https://github.com/MrChengLen/FileMorph.git
+cd FileMorph
+```
+
+### Step 2 — Start
+
+**Windows** — double-click `start.bat`
+**Linux / macOS** — run `./start.sh`
+
+Both scripts:
+1. Build the Docker image (first time: 2–5 minutes)
+2. Wait until the healthcheck passes
+3. Display your API key from the container logs
+4. Open the browser at **http://localhost:8000**
+
+### Manual start (without the launcher scripts)
+
+```bash
+docker compose up -d
+docker compose logs --tail=30 filemorph   # shows API key on first run
+```
+
+### Stopping and starting
+
+```bash
+docker compose stop      # stop containers (keeps API keys)
+docker compose start     # start again
+docker compose down      # stop and remove containers (keys in ./data are preserved)
+```
+
+### Updating
+
+```bash
+git pull
+docker compose build
+docker compose up -d
+```
+
+---
+
+## Method 2: Docker, Cloud Edition (user accounts + Stripe + cockpit)
+
+The Cloud-Edition features (registration, JWT login, billing, admin cockpit,
+audit log, daily metrics) need a Postgres database. The codebase ships a
+Cloud overlay (`docker-compose.cloud.yml`) that adds the Postgres service
+and switches the app into Cloud mode. The entrypoint runs
+`alembic upgrade head` automatically on every Cloud-mode start.
+
+### Step 1 — Configure secrets
+
+```bash
+cp .env.example .env
+```
+
+Then edit `.env` and set:
+
+- `POSTGRES_PASSWORD` — a strong random string
+- `JWT_SECRET` — at least 32 random characters
+
+Optional but recommended for production:
+
+- `CORS_ORIGINS` — your public origin(s) the browser is allowed to call from
+- `APP_BASE_URL` — your public URL (used in email links and OG tags)
+- `STRIPE_*` envs — if you want billing
+- `SMTP_*` envs — if you want password-reset / email-verification flows
+
+`.env.example` documents every supported variable with a one-line description.
+
+### Step 2 — Start
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.cloud.yml up -d
+```
+
+The first boot:
+1. Brings up the Postgres container and waits for the healthcheck
+2. Builds the FileMorph image
+3. Runs `alembic upgrade head` (creates all tables)
+4. Generates the legacy single-user API key (still printed for backwards-compat)
+5. Starts uvicorn
+
+The Web UI at **http://localhost:8000** now exposes `/register`, `/login`,
+`/dashboard`, and (for promoted admin users) `/cockpit`.
+
+### Stopping the Cloud-mode stack
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.cloud.yml down
+```
+
+Add `-v` to also remove the `postgres_data` volume — destructive, deletes all
+accounts and audit-log rows.
+
+---
+
+## Method 3: Local development — Windows (`dev.ps1`)
 
 The easiest way to run FileMorph from source on Windows.
 `dev.ps1` automates all setup steps and starts the server with live-reload.
@@ -84,57 +180,6 @@ git pull
 
 ---
 
-## Method 3: Docker (recommended for production and self-hosting)
-
-Docker bundles all system dependencies (Python, ffmpeg, libheif) in one container.
-
-### Prerequisites
-
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-
-### Step 1 — Clone the repository
-
-```bash
-git clone https://github.com/MrChengLen/FileMorph.git
-cd FileMorph
-```
-
-### Step 2 — Start
-
-**Windows** — double-click `start.bat`
-**Linux / macOS** — run `./start.sh`
-
-Both scripts:
-1. Build the Docker image (first time: 2–5 minutes)
-2. Wait until the health check passes
-3. Display your API key from the container logs
-4. Open the browser at **http://localhost:8000**
-
-### Manual start (without the launcher scripts)
-
-```bash
-docker compose up -d
-docker compose logs --tail=30 filemorph   # shows API key on first run
-```
-
-### Stopping and starting
-
-```bash
-docker compose stop      # stop containers (keeps API keys)
-docker compose start     # start again
-docker compose down      # stop and remove containers (keys in ./data are preserved)
-```
-
-### Updating
-
-```bash
-git pull
-docker compose build
-docker compose up -d
-```
-
----
-
 ## Method 4: Local Python — Linux (Ubuntu / Debian)
 
 ### Step 1 — Install system dependencies
@@ -144,9 +189,14 @@ sudo apt update
 sudo apt install -y \
   python3.11 python3.11-venv python3-pip \
   ffmpeg \
+  ghostscript \
   libheif-dev \
   libcairo2 libpangocairo-1.0-0 libgdk-pixbuf2.0-0
 ```
+
+> `ghostscript` is optional but enables full PDF/A-2b conformance. Without it,
+> `pdf → pdfa` falls back to markup-only output. See
+> [docs/self-hosting.md](self-hosting.md) for the trade-off.
 
 ### Step 2 — Clone and set up
 
@@ -201,9 +251,15 @@ will not work, but all other formats are unaffected.
 
 Audio and video conversion will not work until ffmpeg is installed.
 
-- **Windows:** `winget install ffmpeg` — restart PowerShell after
+- **Windows (dev.ps1):** `winget install ffmpeg` — restart PowerShell after
 - **Linux:** `sudo apt install ffmpeg`
-- **Standalone .exe:** ffmpeg is already bundled — no action needed
+- **Docker:** ffmpeg is bundled in the image — no action needed
+
+### Cloud-mode 500s on `/auth/register` after `docker compose up`
+
+You started the default community-mode compose, which has no Postgres.
+Either use the community-mode flow (no accounts), or layer the Cloud
+overlay: `docker compose -f docker-compose.yml -f docker-compose.cloud.yml up -d`.
 
 ### pip times out during installation
 
