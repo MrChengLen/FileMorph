@@ -1,0 +1,21 @@
+# gitleaks fingerprint allowlist
+#
+# One fingerprint per line. Format:
+#   <commit-sha>:<file>:<rule>:<line>
+#
+# Each entry needs a comment explaining *why* the match is benign — if
+# you cannot articulate that in one line, the value is probably a real
+# secret and should be rotated, not allowlisted.
+#
+# Inline ``# gitleaks:allow`` comments only suppress matches in commits
+# that contain the comment. Historical commits the scanner walks (via
+# ``--log-opts`` or default scan mode) still trip the rule unless the
+# fingerprint is listed here.
+
+# tests/test_pricing_limits_visible.py — Stripe test placeholder, never
+# a real key. The string ``sk_test_placeholder`` matches the
+# ``stripe-access-token`` rule (``(sk|pk|rk)_(test|live)_[0-9a-z]{10,99}``)
+# because "placeholder" is 11 chars. The test sets
+# ``settings.stripe_secret_key`` to a non-empty truthy value to exercise
+# the live-pricing branch of the page builder; nothing more.
+68333e9d96bcb342107b877a87375dad422943a7:tests/test_pricing_limits_visible.py:stripe-access-token:32

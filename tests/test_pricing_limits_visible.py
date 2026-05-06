@@ -29,7 +29,7 @@ def pricing_html(client, monkeypatch):
     # exactly as the public site shows them, regardless of whether
     # Stripe is configured in the dev env that runs the test suite.
     app.state  # access only — no mutation needed
-    monkeypatch.setattr(settings, "stripe_secret_key", "sk_test_placeholder")
+    monkeypatch.setattr(settings, "stripe_secret_key", "sk_test_placeholder")  # gitleaks:allow
     res = client.get("/pricing")
     assert res.status_code == 200, res.text
     return res.text
