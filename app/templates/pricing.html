@@ -38,15 +38,33 @@
         <p class="text-4xl font-bold mt-2">€0<span class="text-base font-normal text-gray-400">/mo</span></p>
         <p class="text-sm text-gray-400 mt-1">No credit card required</p>
       </div>
-      <ul class="space-y-2 text-sm text-gray-300 flex-1">
-        <li class="flex items-center gap-2"><span class="text-emerald-400">✓</span> Up to 50 MB per file <span class="text-gray-500">(vs. 20 MB anonymous)</span></li>
-        <li class="flex items-center gap-2"><span class="text-emerald-400">✓</span> Batch upload: <strong class="text-white">5 files</strong> per request</li>
-        <li class="flex items-center gap-2"><span class="text-emerald-400">✓</span> 30+ formats (images, docs, audio, video)</li>
-        <li class="flex items-center gap-2"><span class="text-emerald-400">✓</span> API key &mdash; 500 calls / month, 1 concurrent, 10 req/min</li>
-        <li class="flex items-center gap-2"><span class="text-emerald-400">✓</span> Saved API keys &amp; dashboard</li>
-        <li class="flex items-center gap-2 text-gray-600"><span>✗</span> Priority support</li>
+      <ul class="space-y-2.5 text-sm text-gray-300 flex-1">
+        <li class="flex items-start gap-2">
+          <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
+          <span>Up to 50 MB per file <span class="text-gray-500">(vs. 20 MB anonymous)</span></span>
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
+          <span>Batch upload: <strong class="text-white">5 files</strong> per request</span>
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
+          <span>30+ formats (images, docs, audio, video)</span>
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
+          <span>API key &mdash; <strong class="text-white">500 calls / month</strong>, 1 concurrent, 10 req/min</span>
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
+          <span>Saved API keys &amp; dashboard</span>
+        </li>
+        <li class="flex items-start gap-2 text-gray-500">
+          <span class="shrink-0 leading-6" aria-hidden="true">✗</span>
+          <span>Priority support</span>
+        </li>
       </ul>
-      <a href="/register" class="block text-center py-2.5 rounded-xl border border-gray-700 hover:border-brand text-gray-300 hover:text-white transition-colors text-sm font-semibold">
+      <a href="/register" class="block text-center py-2.5 rounded-xl border border-gray-700 hover:border-brand text-gray-300 hover:text-white transition-colors text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
         Get started free
       </a>
     </div>
@@ -59,22 +77,40 @@
         <p class="text-4xl font-bold mt-2">€7<span class="text-base font-normal text-gray-400">/mo</span></p>
         <p class="text-sm text-gray-400 mt-1">Billed monthly, cancel anytime</p>
       </div>
-      <ul class="space-y-2 text-sm text-gray-300 flex-1">
-        <li class="flex items-center gap-2"><span class="text-emerald-400">✓</span> Up to 100 MB per file</li>
-        <li class="flex items-center gap-2"><span class="text-emerald-400">✓</span> Batch upload: <strong class="text-white">25 files</strong> per request</li>
-        <li class="flex items-center gap-2"><span class="text-emerald-400">✓</span> 30+ formats incl. video</li>
-        <li class="flex items-center gap-2"><span class="text-emerald-400">✓</span> 10,000 API calls / month, <strong class="text-white">2 concurrent</strong>, 10 req/min</li>
-        <li class="flex items-center gap-2"><span class="text-emerald-400">✓</span> API key management</li>
-        <li class="flex items-center gap-2"><span class="text-emerald-400">✓</span> E-mail support</li>
+      <ul class="space-y-2.5 text-sm text-gray-300 flex-1">
+        <li class="flex items-start gap-2">
+          <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
+          <span>Up to 100 MB per file</span>
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
+          <span>Batch upload: <strong class="text-white">25 files</strong> per request</span>
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
+          <span>30+ formats incl. video</span>
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
+          <span><strong class="text-white">10,000 API calls / month</strong>, 2 concurrent, 10 req/min</span>
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
+          <span>API key management</span>
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
+          <span>E-mail support</span>
+        </li>
       </ul>
       {% if stripe_enabled %}
       <button id="pro-btn"
-        class="block w-full text-center py-2.5 rounded-xl bg-brand hover:bg-brand-dark text-white transition-colors text-sm font-semibold">
+        class="block w-full text-center py-2.5 rounded-xl bg-brand hover:bg-brand-dark text-white transition-colors text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
         Upgrade to Pro
       </button>
       {% else %}
       <button id="pro-btn" disabled
-        class="block w-full text-center py-2.5 rounded-xl bg-gray-800 text-gray-500 cursor-not-allowed text-sm font-semibold"
+        class="block w-full text-center py-2.5 rounded-xl bg-gray-800 text-gray-500 cursor-not-allowed text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-600"
         aria-disabled="true">
         Coming soon
       </button>
@@ -88,22 +124,40 @@
         <p class="text-4xl font-bold mt-2">€19<span class="text-base font-normal text-gray-400">/mo</span></p>
         <p class="text-sm text-gray-400 mt-1">Billed monthly, cancel anytime</p>
       </div>
-      <ul class="space-y-2 text-sm text-gray-300 flex-1">
-        <li class="flex items-center gap-2"><span class="text-emerald-400">✓</span> Up to 500 MB per file</li>
-        <li class="flex items-center gap-2"><span class="text-emerald-400">✓</span> Batch upload: <strong class="text-white">100 files</strong> per request</li>
-        <li class="flex items-center gap-2"><span class="text-emerald-400">✓</span> 100,000 API calls / month, <strong class="text-white">5 concurrent</strong>, 10 req/min</li>
-        <li class="flex items-center gap-2"><span class="text-emerald-400">✓</span> 30+ formats (images, docs, audio, video)</li>
-        <li class="flex items-center gap-2"><span class="text-emerald-400">✓</span> Priority support (best effort)</li>
-        <li class="flex items-center gap-2"><span class="text-emerald-400">✓</span> Dedicated onboarding</li>
+      <ul class="space-y-2.5 text-sm text-gray-300 flex-1">
+        <li class="flex items-start gap-2">
+          <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
+          <span>Up to 500 MB per file</span>
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
+          <span>Batch upload: <strong class="text-white">100 files</strong> per request</span>
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
+          <span><strong class="text-white">100,000 API calls / month</strong>, 5 concurrent, 10 req/min</span>
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
+          <span>30+ formats (images, docs, audio, video)</span>
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
+          <span>Priority support (best effort)</span>
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
+          <span>Dedicated onboarding</span>
+        </li>
       </ul>
       {% if stripe_enabled %}
       <button id="business-btn"
-        class="block w-full text-center py-2.5 rounded-xl border border-gray-700 hover:border-brand text-gray-300 hover:text-white transition-colors text-sm font-semibold">
+        class="block w-full text-center py-2.5 rounded-xl border border-gray-700 hover:border-brand text-gray-300 hover:text-white transition-colors text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
         Upgrade to Business
       </button>
       {% else %}
       <button id="business-btn" disabled
-        class="block w-full text-center py-2.5 rounded-xl border border-gray-800 text-gray-500 cursor-not-allowed text-sm font-semibold"
+        class="block w-full text-center py-2.5 rounded-xl border border-gray-800 text-gray-500 cursor-not-allowed text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-600"
         aria-disabled="true">
         Coming soon
       </button>
@@ -113,14 +167,14 @@
   </div>
 
   <!-- Enterprise -->
-  <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+  <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center items-start justify-between gap-4">
     <div>
-      <p class="font-semibold">Enterprise</p>
-      <p class="text-sm text-gray-400 mt-0.5">Custom volume, batch uploads up to 250 files, SLA, on-premise deployment, dedicated support &amp; contract.</p>
+      <p class="font-semibold">Enterprise / Compliance</p>
+      <p class="text-sm text-gray-400 mt-0.5">Custom volume, batch uploads up to 250 files, SLA, on-premise deployment, dedicated support &amp; contract. For DACH Behörden, hospitals, law firms see <a href="/enterprise" class="text-brand hover:underline">Compliance Edition →</a>.</p>
     </div>
-    <a href="mailto:enterprise@filemorph.io"
-      class="shrink-0 px-6 py-2.5 rounded-xl border border-gray-700 hover:border-brand text-gray-300 hover:text-white transition-colors text-sm font-semibold">
-      Contact Sales →
+    <a href="/enterprise"
+      class="shrink-0 px-6 py-2.5 rounded-xl border border-gray-700 hover:border-brand text-gray-300 hover:text-white transition-colors text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+      Compliance Edition →
     </a>
   </div>
 
