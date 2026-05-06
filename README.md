@@ -49,18 +49,24 @@ FileMorph is an open-source file conversion service with two interfaces:
 
 ## Editions
 
-FileMorph runs in two distinct editions, both built from this repository:
+FileMorph runs in three editions, all built from this repository:
 
 | Edition | Where | What you get |
 |---|---|---|
 | **Community** | Self-hosted (Docker, standalone `.exe`, source) | File conversion + compression, REST API, single-user API-key auth |
 | **Cloud SaaS** | [filemorph.io](https://filemorph.io) | Community features + user accounts (JWT), tier quotas, Stripe billing, admin cockpit |
+| **Compliance** | Self-hosted with commercial licence | Cloud-Edition features + tamper-evident audit log (SHA-256 hash chain), `X-Output-SHA256` integrity header, PDF/A-2b output (veraPDF-validated), default-on EXIF/XMP/IPTC strip, `X-Data-Classification` header, self-service account deletion, signed images (cosign) + signed releases (GPG). For DACH Behörden, Krankenhäuser, and Anwaltskanzleien. |
 
-The README and `docs/` are written for the **Community** edition. The SaaS-only
-features (account registration, Stripe checkout, admin cockpit) ship in the
-same codebase but stay dormant unless you provide a Postgres instance, Stripe
-API keys, and SMTP — see [docs/self-hosting.md](docs/self-hosting.md) for the
-full stack.
+The README and `docs/` are written for the **Community** edition. The
+Cloud-Edition features (account registration, Stripe checkout, admin
+cockpit, email verification, account deletion) ship in the same codebase
+but stay dormant unless you provide a Postgres instance, Stripe API keys,
+and SMTP — see [docs/self-hosting.md](docs/self-hosting.md) for the full
+stack and [docs/security-overview.md](docs/security-overview.md) for the
+defensive-transparency overview. The Compliance-Edition contract +
+commercial licence are described at
+[`/enterprise`](https://filemorph.io/enterprise) (live on filemorph.io)
+and [`COMMERCIAL-LICENSE.md`](COMMERCIAL-LICENSE.md).
 
 ---
 

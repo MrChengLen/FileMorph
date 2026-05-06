@@ -1,9 +1,50 @@
 # FileMorph — Data Protection & GDPR Analysis
 
-**Date:** 2026-04-20
-**Scope:** Community Edition (current `main` branch) + Cloud Edition (planned via `docs/requirements-v2.md`)
+**Original analysis date:** 2026-04-20
+**Last refreshed:** 2026-05-06
+**Scope:** Community Edition (current `main` branch), Cloud Edition (live), planned Compliance Edition.
 **Analyst:** Automated compliance review
 **Reviewer note:** This document is a technical privacy analysis intended for engineering and legal review. It does not constitute legal advice. Engage a qualified data protection lawyer before launching any paid SaaS tier in the EU.
+
+---
+
+## 2026-05-06 status update — what shipped since the original analysis
+
+The 2026-04-20 analysis below was written against an older codebase
+state and lists several gaps as open that have since been closed. The
+table below shows the current state for any reader who needs a quick
+truth-check; the body of the document is preserved verbatim for the
+historical reasoning trail.
+
+| Original gap | Status now | Code anchor |
+|---|---|---|
+| Footer claim "files in memory only" was misleading | Fixed — footer copy and `/privacy` page describe disk-temp + cleanup honestly | `app/templates/privacy.html` §2a |
+| No startup sweep for stale `fm_*` temp dirs (A-8) | Closed — sweep deletes any `fm_*` dir &gt;10 minutes on app start | `app/main.py::lifespan` |
+| `tempfile.mkdtemp(prefix="filemorph_")` + original filename in temp path | Closed — UUID stems under `fm_`-prefixed dir | `app/api/routes/convert.py` |
+| `allow_origins=["*"]` with `allow_credentials=True` | Closed (PT-003) — strict allow-list, credentials only when origins set | `app/main.py` CORS middleware |
+| No privacy policy | Closed — `/privacy` route + `app/templates/privacy.html` (last revised 2026-04-23) | `app/main.py::privacy` |
+| No security headers | Closed — `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Content-Security-Policy`, `Permissions-Policy`, plus HSTS over HTTPS | `app/main.py::security_headers` |
+| No DPA / sub-processor list | Template shipped — `docs/sub-processors.md` (Cloud) + `legal/avv-template-*.md` (Compliance Edition, in flight) | repo |
+| No security disclosure surface | RFC 9116 `/.well-known/security.txt` + `/security` page + `SECURITY.md` | `app/api/routes/seo.py`, `app/templates/security.html` |
+| pip-audit "non-blocking" | Now blocking on every CI build | `.github/workflows/ci.yml` |
+| Tamper-evident audit log | Closed — SHA-256 hash chain (Migration 005, Postgres append-only trigger) | `app/core/audit.py` |
+| `X-Output-SHA256` response header | Closed — chunk-streamed SHA-256 over the bytes the client receives | `app/api/routes/convert.py`, `app/api/routes/compress.py` |
+| `RETENTION_HOURS` toggle + periodic sweep | Closed — env-var driven, `TEMP_SWEEP_INTERVAL_MINUTES` periodic sweep | `app/core/config.py`, `app/main.py::lifespan` |
+| Email-verification at registration | Closed — fire-and-forget verify email at `/register`, JWT bound to email-at-issuance (`eat` claim, 7-day TTL); `users.email_verified_at` records state | `app/api/routes/auth.py` (verify_email + resend_verification routes), Migration 006 |
+| Self-service account deletion (free path) | Closed (slice c.1) — `DELETE /api/v1/auth/account` with three-field re-confirmation, last-admin guard, hybrid cascade, confirmation email; Stripe-touched accounts return 409 directing to operator support contact | `app/api/routes/auth.py::delete_account` |
+| Default-on EXIF strip for image conversions | Closed — `app/converters/_metadata.py` strips EXIF/XMP/IPTC; ICC preserved | `app/converters/image.py`, `app/compressors/image.py` |
+| PDF/A-2b conversion target | Closed — pikepdf markup pass + optional ghostscript re-render; veraPDF CI gate validates fixture conformance per PR | `app/converters/pdfa.py`, `.github/workflows/verapdf.yml` |
+| `X-Data-Classification` propagation | Closed — BSI-style taxonomy validated in middleware; echoed on responses; recorded in audit-log | `app/core/data_classification.py` |
+| Concurrency limiter (NEU-D.1) | Closed — global semaphore + per-actor tier-bound semaphore; 503 vs 429 with `Retry-After` | `app/core/concurrency.py` |
+| Cosign-signed images + GPG-signed tags | Closed — keyless OIDC sign on image push; `.github/workflows/release.yml` GPG-signs annotated tags | `.github/workflows/docker.yml`, `release.yml` |
+
+What is still in flight for the Compliance-Edition push: paid-path
+account-deletion (slice c.2 — `users.deleted_at` partial-unique-index
++ tax-retention column under HGB §257 / AO §147), `invoice.payment_*`
+Stripe webhook coverage, login per-user rate-limit lockout, and the
+Prometheus/Grafana monitoring (#139). The status table in
+`CLAUDE.md` "Cloud Edition — Status" is the authoritative running
+inventory.
 
 ---
 

@@ -272,6 +272,77 @@ All file processing happens in temporary directories that are cleaned up automat
 
 The only persistent data is `data/api_keys.json`.
 
+### Capacity tuning (NEU-D.1 concurrency limiter)
+
+`/convert` and `/compress` enforce a global parallelism cap and a
+per-actor cap so a single tenant cannot OOM the worker. The
+defaults are sized for a 4 GB host:
+
+| Env var | Default | What it controls |
+|---|---|---|
+| `MAX_GLOBAL_CONCURRENCY` | `4` | Total parallel conversions across all callers. Past the cap → `503 Service Unavailable` + `Retry-After`. Raise this to roughly the CPU count on a bigger box. |
+| `CONCURRENCY_ACQUIRE_TIMEOUT_SECONDS` | `0.5` | How long a request waits for a free slot before giving up. Small values fail fast; raise to absorb longer micro-bursts. |
+| `CONCURRENCY_RETRY_AFTER_SECONDS` | `5` | Value sent in the `Retry-After` response header. Should match the typical drain time of a saturated pool. |
+
+Per-actor limits (per user for authenticated callers, per IP for
+anonymous) are tier-bound and not env-tunable: anonymous and free
+get 1 concurrent request, Pro 2, Business 5, Enterprise 10. A
+request past the per-actor cap returns `429 Too Many Requests`
+with `Retry-After`. These numbers are documented on the public
+[`/pricing`](/pricing) page so callers can size their own client
+pools to match.
+
+A batch endpoint (`/convert/batch`, `/compress/batch`) holds **one**
+concurrency slot for the whole batch — files inside the batch are
+processed sequentially. Increasing batch size therefore lengthens
+slot-hold time linearly without inflating the parallelism cost.
+
+### PDF/A-2b conformance (optional ghostscript)
+
+The `pdf → pdfa` conversion target has two paths and falls back
+automatically:
+
+- **Markup-only** (always available): pikepdf writes the PDF/A-2b
+  markers — XMP `pdfaid:part=2` / `conformance=B`, the `GTS_PDFA1`
+  OutputIntent, a fresh `/ID` array, and strips PDF/A-forbidden
+  surfaces. Sufficient when the source already has embedded fonts.
+- **Ghostscript re-render** (when `gs` is on PATH): runs the source
+  through `gs -dPDFA=2` first, which subset-embeds every font and
+  drops features PDF/A-2 forbids. Required for sources that
+  reference standard-14 fonts without embedding glyph data.
+
+The official Docker image bundles ghostscript so the upgrade path
+is on by default. On a custom build or systemd install:
+
+```bash
+sudo apt-get install -y ghostscript
+```
+
+Without `gs`, `pdf → pdfa` still succeeds — it just produces
+markup-only output that veraPDF will reject if the source has
+unembedded fonts. The structured log records `mode=rerender` vs
+`mode=markup` for each conversion so you can spot the gap.
+
+### Auth flows (Cloud Edition)
+
+These endpoints ship in the same codebase but only become useful
+when the Cloud Edition is on (Postgres + SMTP configured):
+
+| Endpoint | Purpose | Notes |
+|---|---|---|
+| `POST /api/v1/auth/register` | Sign up | Fires a verification email best-effort; SMTP failure does not block registration. |
+| `POST /api/v1/auth/verify-email` | Mark `users.email_verified_at` | Token bound to email-at-issuance (`eat` claim, 7-day TTL). Email rotation silently invalidates stale links. |
+| `POST /api/v1/auth/resend-verification` | New verify link | Auth-required (no spam vector). 200 no-op when already verified. |
+| `DELETE /api/v1/auth/account` | Self-service delete | Three-field re-confirmation; last-active-admin guard returns 409; Stripe-touched accounts return 409 directing to your support contact. Confirmation email sent post-commit. |
+
+All four endpoints write `auth.*` events to the audit-log hash
+chain. Outbound email uses the same `SMTP_*` configuration as
+password-reset; the FROM address, reply-to, and the body's
+"contact us" link are taken from `SMTP_FROM_EMAIL` /
+`SMTP_REPLY_TO`. There are no hardcoded `@filemorph.io` addresses
+in the user-facing copy — self-hosters ship their own support
+identity.
+
 ### Updating
 
 ```bash

@@ -208,9 +208,11 @@ filename cannot inject header bytes or break the parser.
 
 WeasyPrint accepts HTML and CSS, both of which can reference
 external URLs. To prevent server-side request forgery, every
-`weasyprint.HTML(...)` call passes `url_fetcher=_deny_url_fetcher`
-in `app/main.py`, which blocks all external fetches at the
-WeasyPrint level. Self-hosters should not disable this.
+`weasyprint.HTML(...)` call passes `url_fetcher=_deny_url_fetcher`,
+defined in `app/converters/document.py` and applied at the only
+call-site there. The fetcher rejects every URL unconditionally —
+WeasyPrint never opens a network connection. Self-hosters should
+not disable this.
 
 ### Decompression bombs
 
@@ -306,13 +308,17 @@ JavaScript and downloads silently lose their filename.
 
 ### Defensive headers
 
+All headers below are set by the `security_headers` middleware in
+`app/main.py`. Regression guards live in
+`tests/test_security_headers.py`.
+
 | Header | Value | Purpose |
 |---|---|---|
-| `Strict-Transport-Security` | `max-age=31536000; includeSubDomains` | Force HTTPS on subsequent visits |
+| `Strict-Transport-Security` | `max-age=31536000; includeSubDomains` (HTTPS only) | Force HTTPS on subsequent visits. The middleware reads `request.url.scheme` so the header is only emitted when the proxy reports `X-Forwarded-Proto: https` — adding HSTS to plaintext responses is meaningless and noisy in dev. |
 | `X-Content-Type-Options` | `nosniff` | Prevent MIME-sniffing |
 | `X-Frame-Options` | `DENY` | Defence-in-depth alongside `frame-ancestors` |
 | `Referrer-Policy` | `strict-origin-when-cross-origin` | Limit referrer leakage |
-| `Permissions-Policy` | conservative defaults | No camera/microphone/geolocation prompts |
+| `Permissions-Policy` | `camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()` | Lock the converter site out of features it never needs; future XSS or third-party include cannot prompt the user for camera/mic/geolocation. |
 
 ### Network-layer change discipline
 
@@ -347,9 +353,32 @@ mechanically.
   uses a `fm_`-prefixed directory and a UUID stem.
 - Cleanup runs in the request's `finally` block via
   `shutil.rmtree`.
-- A startup sweep removes any `fm_`-prefixed directory older than
-  ten minutes — a defence in depth in case a previous run was
-  killed before its `finally` could execute.
+- A startup sweep, plus a periodic background sweep
+  (`TEMP_SWEEP_INTERVAL_MINUTES`, default 60 min), removes any
+  `fm_`-prefixed directory older than `TEMP_SWEEP_MAX_AGE_MINUTES`
+  (default 10 min) — defence in depth for the case where a worker
+  was killed before its `finally` could execute.
+- Image conversions and compressions strip EXIF / XMP / IPTC
+  metadata (GPS coordinates, camera serial, photographer name,
+  capture timestamps) by default — see
+  [`app/converters/_metadata.py`](../app/converters/_metadata.py).
+  ICC colour profiles are preserved so wide-gamut workflows are
+  not visibly desaturated. There is no per-request opt-out: a
+  caller who needs metadata kept holds the original.
+- Successful conversion and compression responses carry an
+  `X-Output-SHA256` header — a streaming SHA-256 of the bytes the
+  client receives. The same hash lands in the audit-log payload
+  (`output_sha256`), so an external auditor can verify the file
+  they hold matches the attestation FileMorph made at the moment
+  of conversion. This is the integrity-anchor that turns the
+  audit-log hash chain (NEU-B.1) into something a downstream
+  workflow (GoBD-archival, beA-Anhang-Trail, eDiscovery) can act
+  on without trusting the application path.
+- `RETENTION_HOURS` is an informational knob (default `0` =
+  ephemeral by design; the Cloud edition's published privacy
+  position). Compliance-edition self-hosters who plan to use the
+  reserved `FileJob.expires_at` column for a future storage-key
+  pipeline set it to the value their privacy policy declares.
 
 ### Account data (Cloud Edition)
 
@@ -359,6 +388,20 @@ mechanically.
 - File-content hashes, original filenames, or upload metadata are
   not persisted. The `usage_records` table records only an
   operation type, byte counts, and a timestamp.
+- **Self-service account deletion** lives at `DELETE
+  /api/v1/auth/account` (Art. 17 GDPR). The free path is fully
+  self-service: three-field re-confirmation (`password`,
+  `confirm_email`, `confirm_word="DELETE"`), last-active-admin
+  guard returning 409, and a confirmation email after commit.
+  Cascade is hybrid: `api_keys` rows are removed, `file_jobs` and
+  `usage_records` actor IDs are nulled (analytics integrity
+  preserved), audit-event `actor_user_id` is nulled (the
+  `event_type` and payload survive). Accounts that have ever
+  touched Stripe are refused with 409 directing the user to the
+  operator support contact until the paid-path tax-retention
+  flow ships under HGB §257 / AO §147 — see
+  [`gdpr-account-deletion-design.md`](./gdpr-account-deletion-design.md)
+  § 5.B for the design.
 
 The full data-flow analysis, including the sub-processor list
 (Cloudflare for DNS / WAF, Stripe for payments, Zoho for
@@ -392,9 +435,13 @@ to be effective. The following list is grouped by importance.
    bytes of cryptographic randomness. Rotation invalidates all
    active sessions, which is the desired behaviour after a
    suspected compromise.
-5. **Run `pip-audit -r requirements.txt` regularly.** It runs in
-   CI today as a non-blocking check; treat any High or Critical
-   finding as deploy-blocking and bump the affected pin.
+5. **`pip-audit -r requirements.txt` is a blocking gate in CI.**
+   Every push fails the build on any finding it cannot ignore. If
+   an upstream advisory is genuinely unfixable, add the ID to
+   `--ignore-vuln` in `.github/workflows/ci.yml` with a comment
+   naming the package and reason — never silence the whole step.
+   Self-hosters running an out-of-tree fork should run `pip-audit`
+   on the same cadence as their dependency updates.
 
 ### Recommended
 
@@ -443,12 +490,18 @@ The webhook handler currently dispatches on
 yet wired, so dunning state on a failed renewal will not flow
 back to the application until the next subscription event.
 
-### Email verification status
+### Email verification
 
-Whether the registration flow performs email verification before
-allowing log-in is currently uncertain in the documentation.
-Treat this as a pre-launch item to verify before exposing
-registration publicly.
+Registration dispatches a fire-and-forget verification email to
+the address the caller registered with. The link carries a JWT
+bound to the email at issuance (`eat` claim, 7-day TTL) — a later
+email change silently invalidates the link without a per-token DB
+row. `POST /auth/verify-email` and `POST /auth/resend-verification`
+land the result. Verification is **not** currently a gate on
+log-in; verified state is recorded on `users.email_verified_at`
+and is available to features that need it (e.g. billing flows).
+Operators who want a hard log-in gate add the check in
+`get_current_user` before this lands as a default.
 
 ### Monitoring not yet wired
 
@@ -552,8 +605,9 @@ For readers who want to jump directly to the code:
 | API-key hashing and verification | `app/core/security.py` |
 | Password hashing and JWT issuance | `app/core/auth.py` |
 | Rate limiter | `app/core/rate_limit.py` |
-| Magic-byte allow-list | `app/main.py` (search `BLOCKED_MAGIC`) |
-| WeasyPrint SSRF hardening | `app/main.py` (search `_deny_url_fetcher`) |
+| Magic-byte allow-list | `app/api/routes/convert.py`, `app/api/routes/compress.py` (search `BLOCKED_MAGIC`) |
+| WeasyPrint SSRF hardening | `app/converters/document.py` (search `_deny_url_fetcher`) |
+| Security-headers middleware (HSTS, Permissions-Policy, CSP, etc.) | `app/main.py::security_headers` |
 | CSP and CORS middleware | `app/main.py::_build_csp_header` |
 | Per-tier quotas and output cap | `app/core/quotas.py` |
 | Filename sanitisation | `app/core/utils.py::safe_download_name` |
@@ -564,6 +618,9 @@ For readers who want to jump directly to the code:
 
 ---
 
-*Last revised 2026-04-27. The findings synthesised here are
+*Last revised 2026-05-06. The findings synthesised here are
 sourced from the static code review dated 2026-04-19 and the
-current state of the repository on the same date.*
+current state of the repository. The 2026-05-06 revision lands
+the self-service account-deletion endpoint, the email-verification
+flow, and the deployment-agnostic support contact (no FileMorph
+SaaS addresses leak into self-hosted error messages).*

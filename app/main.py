@@ -1,3 +1,4 @@
+import asyncio
 import glob
 import logging
 import re
@@ -26,6 +27,11 @@ from app.api.routes import keys as keys_route
 from app.compat import base_dir, setup_ffmpeg_path
 from app.core.assets import tailwind_css_filename
 from app.core.config import settings
+from app.core.data_classification import (
+    REQUEST_HEADER as _DATA_CLASSIFICATION_HEADER,
+    RESPONSE_HEADER as _DATA_CLASSIFICATION_RESPONSE_HEADER,
+    normalize_classification as _normalize_data_classification,
+)
 from app.core.jsonld import build_site_jsonld
 from app.core.logging_config import configure_logging
 from app.core.metrics import increment as metric_increment
@@ -48,10 +54,66 @@ templates.env.globals["api_base_url"] = settings.api_base_url
 templates.env.globals["app_base_url"] = settings.app_base_url
 templates.env.globals["tailwind_css"] = tailwind_css_filename()
 templates.env.globals["site_jsonld"] = _SITE_JSONLD
+# Surfaced into templates so the /security page can render the same contact
+# alias that /.well-known/security.txt advertises — one source of truth, set
+# via SECURITY_CONTACT_EMAIL env-var on each deployment.
+templates.env.globals["security_contact_email"] = settings.security_contact_email
 # Pricing visibility: self-hosters default to off; SaaS turns it on. Two
 # flags so we can run a "Coming Soon" page between launch and Stripe live.
 templates.env.globals["pricing_enabled"] = bool(settings.pricing_page_enabled)
 templates.env.globals["stripe_enabled"] = bool(settings.stripe_secret_key)
+
+
+def _sweep_stale_temp_dirs(*, max_age_seconds: int) -> int:
+    """Remove any ``fm_*`` temp dir older than ``max_age_seconds``.
+
+    Returns the number of dirs swept — useful for tests and for the
+    INFO log line at the end of each periodic run. Errors on individual
+    dirs are logged at WARNING and do not stop the sweep; a permission
+    glitch on one stale dir should not leave the rest behind.
+
+    The request path always cleans its own temp dir in a ``finally``
+    block (or via ``BackgroundTask`` on the success path), so this
+    sweep only catches crash-recovery cases. The startup pass covers
+    process restarts; the periodic pass covers long-running processes
+    that stay up across many incidents.
+    """
+    tmp_root = Path(tempfile.gettempdir())
+    cutoff = time.time() - max_age_seconds
+    swept = 0
+    for stale_dir in glob.glob(str(tmp_root / "fm_*")):
+        try:
+            p = Path(stale_dir)
+            if p.is_dir() and p.stat().st_mtime < cutoff:
+                shutil.rmtree(p, ignore_errors=True)
+                logger.info("Swept stale temp dir: %s", stale_dir)
+                swept += 1
+        except Exception:
+            logger.warning("Failed to sweep stale temp dir: %s", stale_dir)
+    return swept
+
+
+async def _periodic_temp_sweep(
+    *, interval_seconds: int, max_age_seconds: int, stop_event: asyncio.Event
+) -> None:
+    """Run :func:`_sweep_stale_temp_dirs` on a fixed cadence.
+
+    Wakes up either when the interval elapses or when the lifespan
+    asks the loop to stop (via ``stop_event.set()``). Any per-tick
+    exception is caught and logged so a transient FS error doesn't
+    kill the loop and quietly stop sweeping forever.
+    """
+    while not stop_event.is_set():
+        try:
+            await asyncio.wait_for(stop_event.wait(), timeout=interval_seconds)
+        except asyncio.TimeoutError:
+            pass
+        if stop_event.is_set():
+            return
+        try:
+            _sweep_stale_temp_dirs(max_age_seconds=max_age_seconds)
+        except Exception:
+            logger.exception("Periodic temp-dir sweep raised; continuing")
 
 
 @asynccontextmanager
@@ -80,19 +142,35 @@ async def lifespan(app: FastAPI):
             "ffmpeg not found on PATH. Video and audio conversion/compression will not work."
         )
 
-    # A-8: Sweep stale fm_ temp dirs on startup (older than 10 minutes)
-    tmp_root = Path(tempfile.gettempdir())
-    cutoff = time.time() - 600  # 10 minutes
-    for stale_dir in glob.glob(str(tmp_root / "fm_*")):
-        try:
-            p = Path(stale_dir)
-            if p.is_dir() and p.stat().st_mtime < cutoff:
-                shutil.rmtree(p, ignore_errors=True)
-                logger.info("Swept stale temp dir: %s", stale_dir)
-        except Exception:
-            logger.warning("Failed to sweep stale temp dir: %s", stale_dir)
+    # A-8 / NEU-B.2: Sweep stale fm_ temp dirs on startup. Crash-recovery
+    # only — the request path cleans its own dirs in a ``finally`` block.
+    sweep_max_age = max(60, settings.temp_sweep_max_age_minutes * 60)
+    _sweep_stale_temp_dirs(max_age_seconds=sweep_max_age)
 
-    yield
+    # NEU-B.2: keep sweeping while the process runs, so a long-lived
+    # worker that survives many incidents does not accumulate orphans.
+    sweep_stop = asyncio.Event()
+    sweep_task: asyncio.Task | None = None
+    if settings.temp_sweep_interval_minutes > 0:
+        interval = settings.temp_sweep_interval_minutes * 60
+        sweep_task = asyncio.create_task(
+            _periodic_temp_sweep(
+                interval_seconds=interval,
+                max_age_seconds=sweep_max_age,
+                stop_event=sweep_stop,
+            ),
+            name="temp-sweep",
+        )
+
+    try:
+        yield
+    finally:
+        sweep_stop.set()
+        if sweep_task is not None:
+            try:
+                await asyncio.wait_for(sweep_task, timeout=5)
+            except (asyncio.TimeoutError, asyncio.CancelledError):
+                sweep_task.cancel()
 
 
 app = FastAPI(
@@ -126,6 +204,8 @@ app.add_middleware(
         "Content-Disposition",
         "X-FileMorph-Achieved-Bytes",
         "X-FileMorph-Final-Quality",
+        "X-Output-SHA256",
+        "X-Data-Classification",
     ],
 )
 
@@ -170,6 +250,15 @@ def _build_csp_header(api_base_url: str) -> str:
 _CSP_HEADER = _build_csp_header(settings.api_base_url)
 
 
+# Permissions-Policy disables browser features the app does not need.
+# Listing them as empty allow-lists prevents a future XSS or 3rd-party
+# inclusion from prompting the user for camera/mic/geolocation. The
+# string is static so we build it once at import time.
+_PERMISSIONS_POLICY = (
+    "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()"
+)
+
+
 @app.middleware("http")
 async def security_headers(request: Request, call_next):
     response = await call_next(request)
@@ -177,6 +266,13 @@ async def security_headers(request: Request, call_next):
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Content-Security-Policy"] = _CSP_HEADER
+    # HSTS is meaningful only over HTTPS — ``request.url.scheme`` reflects
+    # the proxy-forwarded protocol when ``X-Forwarded-Proto`` is honoured
+    # (Caddy / nginx do this by default). Setting it on plain HTTP would
+    # be ignored by browsers and noisy in dev.
+    if request.url.scheme == "https":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["Permissions-Policy"] = _PERMISSIONS_POLICY
     return response
 
 
@@ -229,6 +325,33 @@ async def limit_upload_size(request: Request, call_next):
                 },
             )
     return await call_next(request)
+
+
+# NEU-C.3: BSI-style data-classification taxonomy on the request boundary.
+# Reads ``X-Data-Classification`` from the caller, validates against the
+# fixed vocabulary in :mod:`app.core.data_classification`, stores the
+# resolved value on ``request.state`` so convert/compress can include it
+# in their audit-log payloads, and echoes it back on the response so the
+# caller can verify what the server actually used (which differs from
+# the input on invalid values).
+@app.middleware("http")
+async def data_classification(request: Request, call_next):
+    raw = request.headers.get(_DATA_CLASSIFICATION_HEADER)
+    classification, was_valid = _normalize_data_classification(raw)
+    request.state.data_classification = classification
+    if not was_valid:
+        # Truncate the rejected value before logging so a 4 KiB header
+        # bomb doesn't pollute the structured-log shipper. 64 chars is
+        # plenty to identify a typo while bounding the log line.
+        rejected = raw[:64] if isinstance(raw, str) else repr(raw)
+        logger.warning(
+            "data_classification: rejected X-Data-Classification=%r — falling back to %s",
+            rejected,
+            classification,
+        )
+    response = await call_next(request)
+    response.headers[_DATA_CLASSIFICATION_RESPONSE_HEADER] = classification
+    return response
 
 
 # ── Custom error handlers (A-5) ───────────────────────────────────────────────
@@ -325,6 +448,16 @@ async def terms(request: Request):
     return templates.TemplateResponse(request, "terms.html")
 
 
+@app.get("/security", include_in_schema=False)
+async def security_page(request: Request):
+    # Human-readable companion to /.well-known/security.txt. The
+    # security.txt Policy field points here, so this page must always
+    # render — even on a self-host deployment that hasn't customised the
+    # contact alias (in that case it falls back to the upstream default
+    # security@filemorph.io, which is at least reachable rather than dead).
+    return templates.TemplateResponse(request, "security.html")
+
+
 @app.get("/login", include_in_schema=False)
 async def login_page(request: Request):
     return templates.TemplateResponse(request, "login.html")
@@ -345,6 +478,14 @@ async def reset_password_page(request: Request):
     return templates.TemplateResponse(request, "reset-password.html")
 
 
+@app.get("/verify-email", include_in_schema=False)
+async def verify_email_page(request: Request):
+    # NEU-B.3 (slice b): the email link points here. The page-level JS
+    # extracts the ?token= parameter and POSTs it to
+    # /api/v1/auth/verify-email so the user sees confirmation in-app.
+    return templates.TemplateResponse(request, "verify-email.html")
+
+
 @app.get("/dashboard", include_in_schema=False)
 async def dashboard_page(request: Request):
     return templates.TemplateResponse(request, "dashboard.html")
@@ -356,6 +497,17 @@ async def pricing_page(request: Request):
     if not settings.pricing_page_enabled:
         return templates.TemplateResponse(request, "404.html", status_code=404)
     return templates.TemplateResponse(request, "pricing.html")
+
+
+@app.get("/enterprise", include_in_schema=False)
+async def enterprise_page(request: Request):
+    # Same gating as /pricing — the Compliance-Edition landing page is part
+    # of the commercial-offer surface and a self-host deployment shouldn't
+    # advertise the upstream enterprise@filemorph.io contact as if it were
+    # their own. Operators forking the commercial offer rewrite both pages.
+    if not settings.pricing_page_enabled:
+        return templates.TemplateResponse(request, "404.html", status_code=404)
+    return templates.TemplateResponse(request, "enterprise.html")
 
 
 @app.get("/cockpit", include_in_schema=False)

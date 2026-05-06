@@ -1,10 +1,17 @@
 # GDPR Account-Deletion Design
 
-**Status:** Design specification (not yet implemented).
+**Status:** Slice c.1 (free path) shipped 2026-05-06; slice c.2
+(paid path with HGB §257 / AO §147 tax retention) is the next
+follow-up. The endpoint, the cascade, the last-admin guard, the
+confirmation email, and the audit-chain integration described in
+§§ 3–9 are live; the Stripe-touched-account branch in § 5.B
+currently returns HTTP 409 directing the user to the operator
+support contact while the deleted_at column + partial unique
+index land.
 **Audience:** Self-hosters, contributors, and the FileMorph cloud
-operator who will pick up the implementation sprint.
-**Last updated:** 2026-04-28 (revised to add German tax-retention
-branch under HGB §257 / AO §147 for paid accounts).
+operator picking up slice c.2.
+**Last updated:** 2026-05-06 (status row above; body preserved as
+the design trail).
 
 ---
 

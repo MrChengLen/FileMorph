@@ -1,0 +1,79 @@
+# NEU-C.1.c: PDF/A-2b conformance gate.
+#
+# Runs the official veraPDF Docker image against a fixture our converter
+# produces from a worst-case source (unembedded standard-14 Helvetica).
+# Two parts cooperate: scripts/verapdf_check.py builds the fixture by
+# driving PdfToPdfaConverter on the runner (which has ghostscript +
+# pikepdf installed); the validator step then runs the veraPDF CLI in
+# its own container with --flavour 2b, failing the workflow on any
+# conformance error.
+#
+# Why a separate workflow file: the validator brings in Java + a Docker
+# pull, both of which are wasted overhead on commits that don't touch
+# the PDF/A path. Keeping it out of ci.yml means changes to e.g. an
+# image converter don't pay the veraPDF tax.
+#
+# Trigger surface: pull_request to main catches issues pre-merge; push
+# to main is a continuous post-merge guard. Pushes to feature branches
+# are intentionally not gated here — local pytest covers the structural
+# checks; veraPDF is the final-pre-merge stamp.
+
+name: PDF/A validation (veraPDF)
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  verapdf:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      # Ghostscript is the upgrade path for unembedded fonts (NEU-C.1.b).
+      # Without it the fixture would come out markup-only and veraPDF
+      # would correctly reject it for "fonts not embedded" — i.e. CI
+      # would mask the gs path being broken.
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ghostscript libcairo2 libpangocairo-1.0-0 libgdk-pixbuf2.0-0
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Generate PDF/A fixture via PdfToPdfaConverter
+        run: python scripts/verapdf_check.py
+
+      # The veraPDF maintainers publish a thin Docker image that wraps
+      # the official CLI. --flavour 2b validates against PDF/A-2b;
+      # --format mrr emits a machine-readable XML report to stdout for
+      # CI log grep. The CLI exits non-zero on any conformance error,
+      # which fails the step and the workflow.
+      - name: Validate PDF/A-2b conformance with veraPDF
+        run: |
+          docker run --rm -v "$PWD/build:/data" verapdf/cli:latest \
+            --flavour 2b --format mrr /data/verapdf-fixture.pdf
+
+      # Surface the fixture + validator output as a workflow artefact so
+      # a maintainer debugging a red CI run can download both without
+      # re-running the job locally.
+      - name: Upload fixture as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verapdf-fixture
+          path: build/verapdf-fixture.pdf
+          retention-days: 7

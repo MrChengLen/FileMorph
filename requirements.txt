@@ -8,6 +8,10 @@ Pillow>=10.3.0
 pillow-heif>=0.15.0
 python-docx>=1.1.0
 pypdf>=4.1.0
+# pikepdf provides the qpdf-backed PDF manipulation FileMorph uses
+# for PDF/A-2b output (NEU-C.1.a). Wheels bundle qpdf; no system
+# package required.
+pikepdf>=8.0,<11
 reportlab>=4.1.0
 weasyprint>=61.0
 markdown>=3.6

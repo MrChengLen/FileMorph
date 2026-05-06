@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import logging
 import shutil
 import tempfile
@@ -14,7 +15,10 @@ from app.api.deps import require_api_key
 from app.api.routes.auth import get_optional_user
 from app.converters.base import UnsupportedConversionError
 from app.converters.registry import _ensure_loaded, get_converter
+from app.core.audit import record_event as audit_record
 from app.core.batch import BatchFileResult, batch_error_response, build_batch_zip
+from app.core.concurrency import acquire_slot
+from app.core.data_classification import DEFAULT_CLASSIFICATION as DATA_CLASSIFICATION_DEFAULT
 from app.core.metrics import increment as metric_increment
 from app.core.quotas import _MB, get_quota, tier_for
 from app.core.rate_limit import limiter
@@ -31,6 +35,39 @@ _ensure_loaded()
 BLOCKED_MAGIC = [b"MZ", b"\x7fELF", b"#!/", b"<?ph"]
 
 
+def _sha256_file(path: Path, *, chunk_size: int = 64 * 1024) -> str:
+    """Streaming SHA-256 over an on-disk file, returned as lowercase hex.
+
+    Used for the ``X-Output-SHA256`` response header (NEU-B.2). Runs
+    inside ``asyncio.to_thread`` so the synchronous read does not block
+    the event loop. ``chunk_size`` is 64 KiB — enough to keep syscall
+    overhead irrelevant, small enough that a 2 GB output costs no
+    measurable RAM.
+    """
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        while True:
+            chunk = f.read(chunk_size)
+            if not chunk:
+                break
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _actor_id(request: Request, user: User | None) -> str:
+    """Stable identity for the per-actor concurrency cap (NEU-D.1).
+
+    Authenticated callers key on the user UUID — the same person
+    across IPs, the same cap. Anonymous callers fall back to the
+    remote IP, which is the only stable handle we have without
+    making them register. The ``X-API-Key`` value itself is never
+    used as the key (it's a secret; we don't want it in any log
+    extra dict, even hashed)."""
+    if user is not None:
+        return f"user:{user.id}"
+    return f"ip:{request.client.host if request.client else 'unknown'}"
+
+
 @router.post("/convert", tags=["Convert"], dependencies=[Depends(require_api_key)])
 @limiter.limit("10/minute")
 async def convert_file(
@@ -39,6 +76,19 @@ async def convert_file(
     target_format: str = Form(..., description="Target format, e.g. 'jpg', 'pdf', 'mp3'"),
     quality: int = Form(85, ge=1, le=100, description="Quality 1-100 (where applicable)"),
     user: User | None = Depends(get_optional_user),
+) -> Response:
+    tier = tier_for(user)
+    async with acquire_slot(actor_id=_actor_id(request, user), tier=tier):
+        return await _do_convert(request, file, target_format, quality, user, tier)
+
+
+async def _do_convert(
+    request: Request,
+    file: UploadFile,
+    target_format: str,
+    quality: int,
+    user: User | None,
+    tier: str,
 ) -> Response:
     src_ext = Path(file.filename or "").suffix.lstrip(".").lower()
     tgt_ext = target_format.strip().lower().lstrip(".")
@@ -55,7 +105,10 @@ async def convert_file(
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
 
     # Tier-based file size enforcement (anonymous: 20 MB, free: 50, pro: 100, business: 500)
-    tier = tier_for(user)
+    # ``tier`` is passed in from the wrapper that already acquired the
+    # NEU-D.1 concurrency slot — keep it identical to the slot's tier
+    # so cap-enforcement and capacity-accounting agree on who the
+    # caller is.
     quota = get_quota(tier)
     if file.size is not None and file.size > quota.max_file_size_bytes:
         limit_mb = quota.max_file_size_bytes // (1024 * 1024)
@@ -142,6 +195,14 @@ async def convert_file(
         # (or above, before this block), the except handler cleans up sync.
         download_name = safe_download_name(f"{original_stem}.{tgt_ext}")
         output_size_bytes = output_disk_size
+
+        # NEU-B.2: integrity hash for downstream auditors / eDiscovery /
+        # GoBD-archival workflows. Cheap to compute (single pass over the
+        # already-on-disk output, bounded by the quota cap), and gives the
+        # caller a tamper-detection anchor without us having to keep the
+        # file or sign it. Read in chunks so large outputs don't double
+        # the memory footprint.
+        output_hash = await asyncio.to_thread(_sha256_file, output_path)
         amplification_ratio = (
             round(output_size_bytes / input_size_bytes, 3) if input_size_bytes > 0 else None
         )
@@ -166,11 +227,45 @@ async def convert_file(
         # request's transaction (and there is none here, but the principle
         # is what keeps batch + auth integrations safe).
         await metric_increment(f"convert.{src_ext}-to-{tgt_ext}")
-    except HTTPException:
+        # NEU-B.1: tamper-evident audit trail. Same fire-and-forget shape as
+        # the metric write; Compliance Edition flips ``audit_fail_closed``
+        # so this raises and the request fails closed instead. The payload
+        # carries no file content — only metadata sufficient for an
+        # ISO 27001 A.12.4.1 / BORA §50 retrospective review.
+        await audit_record(
+            "convert.success",
+            actor_user_id=user.id if user is not None else None,
+            actor_ip=request.client.host if request.client else None,
+            payload={
+                "src": src_ext,
+                "tgt": tgt_ext,
+                "input_bytes": input_size_bytes,
+                "output_bytes": output_size_bytes,
+                "output_sha256": output_hash,
+                "tier": tier,
+                "data_classification": getattr(
+                    request.state, "data_classification", DATA_CLASSIFICATION_DEFAULT
+                ),
+            },
+        )
+    except HTTPException as exc:
         # Track conversion failures separately from infrastructure errors
         # so the cockpit can show a meaningful failure-rate. We swallow the
         # metric write itself — the user-visible exception still propagates.
         await metric_increment("failures.convert")
+        await audit_record(
+            "convert.failure",
+            actor_user_id=user.id if user is not None else None,
+            actor_ip=request.client.host if request.client else None,
+            payload={
+                "src": src_ext,
+                "tgt": tgt_ext,
+                "status_code": exc.status_code,
+                "data_classification": getattr(
+                    request.state, "data_classification", DATA_CLASSIFICATION_DEFAULT
+                ),
+            },
+        )
         shutil.rmtree(tmp_dir, ignore_errors=True)
         raise
     except BaseException:
@@ -184,6 +279,7 @@ async def convert_file(
         output_path,
         media_type="application/octet-stream",
         filename=download_name,
+        headers={"X-Output-SHA256": output_hash},
         background=BackgroundTask(shutil.rmtree, tmp_dir, ignore_errors=True),
     )
 
@@ -204,6 +300,24 @@ async def convert_batch(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No files uploaded.")
 
     tier = tier_for(user)
+    # NEU-D.1: a batch counts as one concurrency slot — the per-file
+    # work is sequential inside the route, so a 25-file batch holds
+    # the slot for 25× the per-file cost. Per-file accounting would
+    # double-charge against the per-actor cap and starve real second
+    # requests. The slot lives long enough that the global cap
+    # serialises bursts of large batches across users.
+    async with acquire_slot(actor_id=_actor_id(request, user), tier=tier):
+        return await _do_convert_batch(request, files, target_formats, quality, user, tier)
+
+
+async def _do_convert_batch(
+    request: Request,
+    files: list[UploadFile],
+    target_formats: list[str],
+    quality: int,
+    user: User | None,
+    tier: str,
+) -> Response:
     quota = get_quota(tier)
     if len(files) > quota.max_files_per_batch:
         raise HTTPException(

@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% block title %}Compliance Edition — FileMorph{% endblock %}
+{% block content %}
+<main class="max-w-4xl mx-auto px-6 py-12 space-y-16 text-gray-300 text-sm leading-relaxed">
+
+  <!-- Hero -->
+  <section class="space-y-5">
+    <p class="text-xs uppercase tracking-widest text-brand">FileMorph Compliance Edition</p>
+    <h1 class="text-3xl sm:text-4xl font-bold text-white leading-tight">
+      DSGVO-konforme File-Engine für die regulierte Verwaltung.
+    </h1>
+    <p class="text-lg text-gray-300 max-w-2xl">
+      Self-hosted hinter Ihrer Firewall. AGPLv3 + kommerzielle Lizenz.
+      EU-Vendor mit deutschem Impressum, Auftragsverarbeitungs-Vorlage,
+      und SBOM in jedem Release.
+    </p>
+    <div class="flex flex-wrap gap-3 pt-2">
+      <a href="mailto:enterprise@filemorph.io"
+         class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-brand hover:bg-brand-dark text-white font-semibold text-sm transition-colors">
+        Pilotgespräch anfragen
+      </a>
+      <a href="https://github.com/MrChengLen/FileMorph" target="_blank" rel="noopener noreferrer"
+         class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-gray-700 hover:border-brand text-gray-200 hover:text-white text-sm transition-colors">
+        Quellcode auf GitHub ↗
+      </a>
+    </div>
+  </section>
+
+  <!-- Why this exists -->
+  <section class="space-y-4">
+    <h2 class="text-xl font-bold text-white">Warum eine Compliance-Edition?</h2>
+    <p>
+      Behörden, Krankenhäuser und Kanzleien dürfen Bürger- und Mandantendaten
+      nicht durch CloudConvert / Convertio / Adobe-Acrobat-Server schicken —
+      die DSGVO-Datenkette und das EVB-IT-Vertragswerk lassen es schlicht
+      nicht zu. Gleichzeitig fehlt der typischen IT-Abteilung die Bandbreite,
+      ein Konvertierungs-Backend selbst zu pflegen.
+    </p>
+    <p>
+      FileMorph schließt diese Lücke: Die Open-Source-Engine deckt 16+
+      Format-Paare ab und läuft auf Ihrer eigenen Hetzner / On-Premise /
+      Air-Gap-Infrastruktur. Die Compliance-Edition liefert zusätzlich die
+      Verträge, die SLAs und die Roadmap-Garantien, die ein
+      EVB-IT-konformer Einkauf voraussetzt.
+    </p>
+  </section>
+
+  <!-- What's in the edition -->
+  <section class="space-y-4">
+    <h2 class="text-xl font-bold text-white">Inhalt der Compliance-Edition</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-2">
+        <h3 class="font-semibold text-white">Kommerzielle Lizenz</h3>
+        <p class="text-xs text-gray-400">Hebt die AGPLv3-Veröffentlichungspflicht für interne Eigenentwicklungen + öffentliche Bürgerportal-Integrationen auf.</p>
+      </div>
+      <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-2">
+        <h3 class="font-semibold text-white">Auftragsverarbeitungs-Vertrag (AVV)</h3>
+        <p class="text-xs text-gray-400">DSGVO Art. 28-konforme Vorlage, an Ihre Behörden- oder Klinik-Spezifika angepasst.</p>
+      </div>
+      <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-2">
+        <h3 class="font-semibold text-white">Audit-Log mit Hash-Chain</h3>
+        <p class="text-xs text-gray-400">SHA-256-verkettetes Operations-Log, ISO 27001 A.12.4.1 / BORA §50 / BeurkG §39a.</p>
+      </div>
+      <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-2">
+        <h3 class="font-semibold text-white">PDF/A-2b-Output</h3>
+        <p class="text-xs text-gray-400">Validiert nach veraPDF — für beA-Anhänge, Bürgerantrags-Archivierung, BSI TR-RESISCAN.</p>
+      </div>
+      <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-2">
+        <h3 class="font-semibold text-white">Signierte Releases + SBOM</h3>
+        <p class="text-xs text-gray-400">cosign-signiertes Docker-Image, GPG-signierte Git-Tags, CycloneDX-JSON-SBOM in jedem Release. EVB-IT-März-2026-tauglich.</p>
+      </div>
+      <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-2">
+        <h3 class="font-semibold text-white">Support-SLA</h3>
+        <p class="text-xs text-gray-400">Reaktionszeit nach Schweregrad — kritisch 4 h, hoch 24 h, mittel/niedrig im nächsten regulären Release.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Tier overview -->
+  <section class="space-y-4">
+    <h2 class="text-xl font-bold text-white">Tier-Übersicht</h2>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+        <thead class="bg-gray-950 text-xs uppercase tracking-wider text-gray-500">
+          <tr>
+            <th class="px-4 py-3 text-left font-semibold">Tier</th>
+            <th class="px-4 py-3 text-left font-semibold">Skope</th>
+            <th class="px-4 py-3 text-left font-semibold">Preis / Jahr</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-800">
+          <tr>
+            <td class="px-4 py-3 font-semibold text-white">Compliance Starter</td>
+            <td class="px-4 py-3 text-gray-400">1 Server, ≤ 50 Mitarbeitende</td>
+            <td class="px-4 py-3 text-gray-300">€ 1.490</td>
+          </tr>
+          <tr>
+            <td class="px-4 py-3 font-semibold text-white">Compliance Standard</td>
+            <td class="px-4 py-3 text-gray-400">3 Server, ≤ 2.000 Mitarbeitende</td>
+            <td class="px-4 py-3 text-gray-300">€ 7.490</td>
+          </tr>
+          <tr>
+            <td class="px-4 py-3 font-semibold text-white">Compliance Enterprise</td>
+            <td class="px-4 py-3 text-gray-400">unbegrenzte Server, dediziertes Onboarding, Custom-SLA</td>
+            <td class="px-4 py-3 text-gray-300">ab € 24.900</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="text-xs text-gray-500">
+      Server-Volumen-basiert, nicht per User-Seat. KRITIS- und Air-Gap-Varianten
+      auf Anfrage. Verbindliche Konditionen folgen dem persönlichen Gespräch.
+    </p>
+  </section>
+
+  <!-- Trust signals -->
+  <section class="space-y-4">
+    <h2 class="text-xl font-bold text-white">Vertrauensbasis vor dem Vertrag</h2>
+    <p>
+      Sie können FileMorph vor dem ersten Gespräch vollständig prüfen. Alle
+      relevanten Sicherheits- und Architektur-Dokumente sind frei zugänglich:
+    </p>
+    <ul class="list-disc list-inside space-y-1 text-gray-400">
+      <li><a href="/security" class="text-brand hover:underline">Security-Disclosure-Policy</a> — RFC 9116, mit Reaktionszeiten und Scope.</li>
+      <li><a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/architecture.md" class="text-brand hover:underline" target="_blank" rel="noopener noreferrer">Architektur-Übersicht</a> — Mermaid-Diagramm, Request-Lifecycle.</li>
+      <li><a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/threat-model.md" class="text-brand hover:underline" target="_blank" rel="noopener noreferrer">STRIDE-Threat-Model</a> — Bedrohung-Mitigation-Anker pro Kategorie.</li>
+      <li><a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/agpl-fuer-behoerden.md" class="text-brand hover:underline" target="_blank" rel="noopener noreferrer">AGPLv3 für Behörden</a> — wann Veröffentlichungspflicht greift, wann nicht.</li>
+      <li><a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/patch-policy.md" class="text-brand hover:underline" target="_blank" rel="noopener noreferrer">Patch-Policy</a> — Versionierung, CVSS-Bänder, signierte Artefakte.</li>
+      <li><a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/incident-response.md" class="text-brand hover:underline" target="_blank" rel="noopener noreferrer">Incident-Response-Plan</a> — Eskalation, Post-Mortem-Vorlage.</li>
+      <li><a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/sub-processors.md" class="text-brand hover:underline" target="_blank" rel="noopener noreferrer">Sub-Processor-Liste</a> — DSGVO Art. 28-Vorlage.</li>
+    </ul>
+  </section>
+
+  <!-- Limits we are honest about -->
+  <section class="space-y-4 bg-gray-900 border border-gray-800 rounded-xl p-6">
+    <h2 class="text-base font-semibold text-white">Worüber wir transparent sind</h2>
+    <ul class="list-disc list-inside space-y-2 text-gray-400 text-xs">
+      <li>FileMorph ist als Solo-Founder-Projekt gestartet. Wir suchen aktuell
+        unsere ersten drei Compliance-Pilotkunden als <em>Design-Partner</em>
+        (sechs Monate kostenfrei gegen Logo-Nennung und Feature-Quote).</li>
+      <li>Externe ISO 27001-Zertifizierung und externer Pen-Test sind als
+        Year-2-Roadmap-Items eingeplant — beide werden umgesetzt, sobald der
+        erste zahlende Pilot den Aufwand betriebswirtschaftlich rechtfertigt.</li>
+      <li>Reproducible-Builds und Air-Gap-Update-Mechanismus sind ebenfalls
+        Year-2 (für die KRITIS-Variante erforderlich, im Standard-Tier nicht
+        kritisch).</li>
+    </ul>
+  </section>
+
+  <!-- CTA -->
+  <section class="space-y-4 text-center pt-4">
+    <p class="text-base text-gray-200">
+      Sie evaluieren gerade Konvertierungs-Software für eine Behörde, ein
+      Krankenhaus oder eine Kanzlei? Sprechen Sie uns an.
+    </p>
+    <a href="mailto:enterprise@filemorph.io"
+       class="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-brand hover:bg-brand-dark text-white font-semibold text-sm transition-colors">
+      enterprise@filemorph.io
+    </a>
+    <p class="text-xs text-gray-500">
+      Antwort innerhalb eines Werktages. Vertrauliche Anfragen über
+      <a href="/.well-known/security.txt" class="text-brand hover:underline">security.txt</a>
+      werden mit demselben Schlüssel verschlüsselt.
+    </p>
+  </section>
+
+</main>
+{% endblock %}

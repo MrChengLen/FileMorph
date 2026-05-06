@@ -7,6 +7,107 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+The Compliance-First strategic pivot (2026-05): FileMorph adds the
+auditability + traceability surface that DACH Behörden, Krankenhäuser,
+and Anwaltskanzleien expect. None of this changes the existing public
+API behaviour for casual callers — every change is additive, defaulted
+off where applicable, and optional at deploy time.
+
+### Added — Trust foundation (NEU-A)
+
+- `security.txt` (RFC 9116) under `/.well-known/security.txt` plus a
+  human-readable `/security` page and `SECURITY.md`.
+- Architecture overview, sub-processor list, STRIDE threat model,
+  patch policy, incident-response playbook, AGPLv3 explainer for
+  German Behörden — all under `docs/`.
+- CycloneDX SBOM generation in CI (`.github/workflows/sbom.yml`),
+  attached to every GitHub release.
+- `/enterprise` Compliance-Edition landing page.
+- `COMMERCIAL-LICENSE.md` rewritten with the Compliance Edition
+  tier structure (Starter / Standard / Enterprise / KRITIS).
+
+### Added — Compliance code (NEU-B)
+
+- **Tamper-evident audit log** with SHA-256 hash chain
+  (`app/core/audit.py`, migration 005, Postgres append-only trigger).
+  ISO 27001 A.12.4.1 / BORA §50 / BeurkG §39a compatible. `verify_chain`
+  helper detects retroactive edits from a SQL dump alone.
+- `X-Output-SHA256` response header on `/convert` + `/compress`,
+  computed via chunk-streamed SHA-256 (NEU-B.2).
+- `RETENTION_HOURS` configurable retention window, periodic
+  background sweep of stale temp dirs.
+- `auth.{register,login,password_reset,email_verification,account_deletion}.*`
+  events feed the audit chain with hashed-email actor identifiers (no
+  raw email storage).
+- `cosign` keyless OIDC signing of every container image push
+  (`.github/workflows/docker.yml`) plus GPG-signed git tags via
+  `.github/workflows/release.yml` and a maintainer key list at
+  `docs/release-signing.md`.
+
+### Added — Use-case openers (NEU-C)
+
+- **PDF/A-2b conversion target** at `/api/v1/convert?target_format=pdfa`.
+  Two-path orchestration: ghostscript re-render path
+  (`app/converters/_ghostscript.py`) embeds fonts and applies
+  `-dPDFA=2`; pikepdf markup pass writes XMP `pdfaid:part=2` /
+  `conformance=B`, GTS_PDFA1 OutputIntent with embedded sRGB ICC, and
+  strips PDF/A-forbidden surfaces. Falls back to markup-only when gs
+  is not on PATH.
+- **veraPDF CI gate** (`.github/workflows/verapdf.yml`) runs the
+  official veraPDF Docker image against a converter-produced fixture
+  on every PR to main; fails the workflow on any conformance error.
+- **EXIF/XMP/IPTC stripped by default** on every image conversion +
+  compression (`app/converters/_metadata.py`). ICC profile preserved.
+- **`X-Data-Classification` header** middleware
+  (`app/core/data_classification.py`): BSI-style taxonomy
+  (`public` / `internal` / `confidential` / `restricted`); echoed
+  back on responses; propagated into every convert/compress
+  audit-log payload.
+
+### Added — Capacity (NEU-D)
+
+- **Concurrency limiter** (`app/core/concurrency.py`): global
+  semaphore + per-actor tier-bound semaphore with 0.5s acquire
+  timeout. 503 (global capacity) vs. 429 (per-actor) with
+  `Retry-After`.
+- `/pricing` page surfaces the per-tier concurrency + rate-limit
+  contract so callers can size their client pools.
+
+### Added — Cloud-Edition pre-launch hardening (NEU-B.3 b/c.1)
+
+- **Email verification** (NEU-B.3 slice b): Migration 006 adds
+  `users.email_verified_at`. JWT verify-token bound to email-at-
+  issuance (`eat` claim), 7-day TTL. `POST /auth/verify-email` +
+  `POST /auth/resend-verification` (auth-required to avoid spam-
+  vector). Fire-and-forget at register-time. New email + landing
+  page templates.
+- **Account deletion self-service, free path** (NEU-B.3 slice c.1):
+  `DELETE /api/v1/auth/account` with three-field re-confirmation
+  (`password` + `confirm_email` + `confirm_word=='DELETE'`). Last-
+  admin guard (409). Cascade: ApiKey CASCADE, FileJob/UsageRecord
+  SET NULL, audit-events SET NULL on actor. Confirmation email after
+  commit. Stripe-touched accounts return 409 directing to
+  `privacy@filemorph.io` until the paid-path tax-retention flow
+  (slice c.2 — HGB §257, AO §147) ships.
+
+### Operations
+
+- Docker base image now bundles `ghostscript` so the PDF/A re-render
+  path is on by default for self-hosters of the official image.
+- CI workflow installs `ghostscript` so the converter exercises the
+  full path under test.
+
+### Test coverage
+
+`tests/` grew from ~260 to **370 passed + 12 skipped** (the 12 are
+the PDF/A test modules that skip on Windows — see test_pdfa.py
+docstring for the qpdf DLL-load conflict; Linux CI + production
+are unaffected).
+
+---
+
 ## [1.0.2] — 2026-04-20
 
 ### Security

@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import logging
 import shutil
 import tempfile
@@ -20,7 +21,10 @@ from app.compressors.image import (
 )
 from app.compressors.video import _SUPPORTED_FORMATS as VIDEO_FMTS
 from app.compressors.video import compress_video
+from app.core.audit import record_event as audit_record
 from app.core.batch import BatchFileResult, batch_error_response, build_batch_zip
+from app.core.concurrency import acquire_slot
+from app.core.data_classification import DEFAULT_CLASSIFICATION as DATA_CLASSIFICATION_DEFAULT
 from app.core.metrics import increment as metric_increment
 from app.core.quotas import _MB, get_quota, tier_for
 from app.core.rate_limit import limiter
@@ -32,6 +36,34 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 BLOCKED_MAGIC = [b"MZ", b"\x7fELF", b"#!/", b"<?ph"]
+
+
+def _sha256_file(path: Path, *, chunk_size: int = 64 * 1024) -> str:
+    """Streaming SHA-256 over an on-disk file (NEU-B.2). Mirrors the
+    helper in ``app/api/routes/convert.py``; kept duplicated rather
+    than extracted because it lives at the route boundary and the
+    duplication is one helper, not a pattern. If a third caller
+    appears, promote to ``app/core/utils.py``."""
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        while True:
+            chunk = f.read(chunk_size)
+            if not chunk:
+                break
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _actor_id(request: Request, user: User | None) -> str:
+    """Stable identity for the per-actor concurrency cap (NEU-D.1).
+
+    Same shape as the helper in ``app/api/routes/convert.py``;
+    duplicated rather than extracted while there are only two
+    callers. Promote to ``app/core/quotas.py`` (or a new
+    ``app/core/identity.py``) when a third route needs it."""
+    if user is not None:
+        return f"user:{user.id}"
+    return f"ip:{request.client.host if request.client else 'unknown'}"
 
 
 @router.post("/compress", tags=["Compress"], dependencies=[Depends(require_api_key)])
@@ -48,6 +80,19 @@ async def compress_file(
     ),
     user: User | None = Depends(get_optional_user),
 ) -> Response:
+    tier = tier_for(user)
+    async with acquire_slot(actor_id=_actor_id(request, user), tier=tier):
+        return await _do_compress(request, file, quality, target_size_kb, user, tier)
+
+
+async def _do_compress(
+    request: Request,
+    file: UploadFile,
+    quality: int | None,
+    target_size_kb: int | None,
+    user: User | None,
+    tier: str,
+) -> Response:
     if quality is not None and target_size_kb is not None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -63,8 +108,10 @@ async def compress_file(
             detail=f"Compression not supported for '.{ext}'. Supported: {IMAGE_FMTS + VIDEO_FMTS}",
         )
 
-    # Tier-based file size enforcement (anonymous: 20 MB, free: 50, pro: 100, business: 500)
-    tier = tier_for(user)
+    # Tier-based file size enforcement (anonymous: 20 MB, free: 50, pro: 100, business: 500).
+    # ``tier`` is passed in from the wrapper that already acquired the
+    # NEU-D.1 concurrency slot — keep it identical so cap-enforcement
+    # and capacity-accounting agree on the caller's tier.
     quota = get_quota(tier)
     if file.size is not None and file.size > quota.max_file_size_bytes:
         limit_mb = quota.max_file_size_bytes // (1024 * 1024)
@@ -214,10 +261,41 @@ async def compress_file(
         # corrupt the response (no caller transaction here, but the
         # principle keeps batch / auth integrations safe).
         await metric_increment(f"compress.{ext}")
-    except HTTPException:
+        # NEU-B.2: integrity hash for downstream auditors (eDiscovery,
+        # GoBD-archival, beA-Anhang-Trail). Same chunk-streamed SHA-256
+        # as in convert.py.
+        output_hash = await asyncio.to_thread(_sha256_file, output_path)
+        await audit_record(
+            "compress.success",
+            actor_user_id=user.id if user is not None else None,
+            actor_ip=request.client.host if request.client else None,
+            payload={
+                "format": ext,
+                "input_bytes": input_size_bytes,
+                "output_bytes": output_size_bytes,
+                "output_sha256": output_hash,
+                "tier": tier,
+                "data_classification": getattr(
+                    request.state, "data_classification", DATA_CLASSIFICATION_DEFAULT
+                ),
+            },
+        )
+    except HTTPException as exc:
         # Track compression failures separately from infra so the cockpit
         # has a meaningful failure-rate. The HTTPException still propagates.
         await metric_increment("failures.compress")
+        await audit_record(
+            "compress.failure",
+            actor_user_id=user.id if user is not None else None,
+            actor_ip=request.client.host if request.client else None,
+            payload={
+                "format": ext,
+                "status_code": exc.status_code,
+                "data_classification": getattr(
+                    request.state, "data_classification", DATA_CLASSIFICATION_DEFAULT
+                ),
+            },
+        )
         shutil.rmtree(tmp_dir, ignore_errors=True)
         raise
     except BaseException:
@@ -226,7 +304,7 @@ async def compress_file(
         shutil.rmtree(tmp_dir, ignore_errors=True)
         raise
 
-    response_headers: dict[str, str] = {}
+    response_headers: dict[str, str] = {"X-Output-SHA256": output_hash}
     if target_result is not None:
         response_headers["X-FileMorph-Achieved-Bytes"] = str(target_result["achieved_bytes"])
         response_headers["X-FileMorph-Final-Quality"] = str(target_result["final_quality"])
@@ -256,6 +334,20 @@ async def compress_batch(
     if not files:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No files uploaded.")
 
+    tier = tier_for(user)
+    # NEU-D.1: same one-slot-per-batch policy as convert/batch.
+    async with acquire_slot(actor_id=_actor_id(request, user), tier=tier):
+        return await _do_compress_batch(request, files, quality, target_size_kb, user, tier)
+
+
+async def _do_compress_batch(
+    request: Request,
+    files: list[UploadFile],
+    quality: int | None,
+    target_size_kb: int | None,
+    user: User | None,
+    tier: str,
+) -> Response:
     if quality is not None and target_size_kb is not None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -263,7 +355,6 @@ async def compress_batch(
         )
     effective_quality = 85 if quality is None else quality
 
-    tier = tier_for(user)
     quota = get_quota(tier)
     if len(files) > quota.max_files_per_batch:
         raise HTTPException(

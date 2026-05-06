@@ -21,6 +21,14 @@
     Using without an account: up to 20 MB per file · single file at a time · 10 requests/minute · no API access
   </p>
 
+  <p class="text-center text-xs text-gray-500 max-w-3xl mx-auto">
+    Monthly call quotas are bucket sizes for spread-out use, not parallelism guarantees.
+    Each tier has a per-key concurrency cap so one batch can't starve the whole worker pool —
+    requests past the cap return <code class="text-gray-400">429</code> with a
+    <code class="text-gray-400">Retry-After</code> hint.
+    Large batches are processed sequentially inside the request.
+  </p>
+
   <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
 
     <!-- Free -->
@@ -34,7 +42,7 @@
         <li class="flex items-center gap-2"><span class="text-emerald-400">✓</span> Up to 50 MB per file <span class="text-gray-500">(vs. 20 MB anonymous)</span></li>
         <li class="flex items-center gap-2"><span class="text-emerald-400">✓</span> Batch upload: <strong class="text-white">5 files</strong> per request</li>
         <li class="flex items-center gap-2"><span class="text-emerald-400">✓</span> 30+ formats (images, docs, audio, video)</li>
-        <li class="flex items-center gap-2"><span class="text-emerald-400">✓</span> API key (500 calls / month)</li>
+        <li class="flex items-center gap-2"><span class="text-emerald-400">✓</span> API key &mdash; 500 calls / month, 1 concurrent, 10 req/min</li>
         <li class="flex items-center gap-2"><span class="text-emerald-400">✓</span> Saved API keys &amp; dashboard</li>
         <li class="flex items-center gap-2 text-gray-600"><span>✗</span> Priority support</li>
       </ul>
@@ -55,7 +63,7 @@
         <li class="flex items-center gap-2"><span class="text-emerald-400">✓</span> Up to 100 MB per file</li>
         <li class="flex items-center gap-2"><span class="text-emerald-400">✓</span> Batch upload: <strong class="text-white">25 files</strong> per request</li>
         <li class="flex items-center gap-2"><span class="text-emerald-400">✓</span> 30+ formats incl. video</li>
-        <li class="flex items-center gap-2"><span class="text-emerald-400">✓</span> 10,000 API calls / month</li>
+        <li class="flex items-center gap-2"><span class="text-emerald-400">✓</span> 10,000 API calls / month, <strong class="text-white">2 concurrent</strong>, 10 req/min</li>
         <li class="flex items-center gap-2"><span class="text-emerald-400">✓</span> API key management</li>
         <li class="flex items-center gap-2"><span class="text-emerald-400">✓</span> E-mail support</li>
       </ul>
@@ -83,7 +91,7 @@
       <ul class="space-y-2 text-sm text-gray-300 flex-1">
         <li class="flex items-center gap-2"><span class="text-emerald-400">✓</span> Up to 500 MB per file</li>
         <li class="flex items-center gap-2"><span class="text-emerald-400">✓</span> Batch upload: <strong class="text-white">100 files</strong> per request</li>
-        <li class="flex items-center gap-2"><span class="text-emerald-400">✓</span> 100,000 API calls / month</li>
+        <li class="flex items-center gap-2"><span class="text-emerald-400">✓</span> 100,000 API calls / month, <strong class="text-white">5 concurrent</strong>, 10 req/min</li>
         <li class="flex items-center gap-2"><span class="text-emerald-400">✓</span> 30+ formats (images, docs, audio, video)</li>
         <li class="flex items-center gap-2"><span class="text-emerald-400">✓</span> Priority support (best effort)</li>
         <li class="flex items-center gap-2"><span class="text-emerald-400">✓</span> Dedicated onboarding</li>

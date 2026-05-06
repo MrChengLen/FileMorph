@@ -1,0 +1,23 @@
+Your FileMorph account has been deleted
+=======================================
+
+Your FileMorph account {{ user_email }} was deleted on {{ deleted_at }}.
+This is a confirmation; the deletion is already complete.
+
+What was deleted
+----------------
+  - Login credentials (your password)
+  - All API keys
+
+What was anonymised
+-------------------
+  - Conversion-job history — your account ID was stripped; the records
+    are retained as anonymous aggregate data under DSGVO Art. 4(1).
+
+You can re-register with the same email address at any time. A new
+registration creates a fresh account with no link to this one.
+
+Questions about deletion or your data rights? Contact {{ support_email }}.
+
+—
+FileMorph · {{ app_base_url }}
