@@ -272,6 +272,31 @@ All file processing happens in temporary directories that are cleaned up automat
 
 The only persistent data is `data/api_keys.json`.
 
+### Capacity tuning (NEU-D.1 concurrency limiter)
+
+`/convert` and `/compress` enforce a global parallelism cap and a
+per-actor cap so a single tenant cannot OOM the worker. The
+defaults are sized for a 4 GB host:
+
+| Env var | Default | What it controls |
+|---|---|---|
+| `MAX_GLOBAL_CONCURRENCY` | `4` | Total parallel conversions across all callers. Past the cap → `503 Service Unavailable` + `Retry-After`. Raise this to roughly the CPU count on a bigger box. |
+| `CONCURRENCY_ACQUIRE_TIMEOUT_SECONDS` | `0.5` | How long a request waits for a free slot before giving up. Small values fail fast; raise to absorb longer micro-bursts. |
+| `CONCURRENCY_RETRY_AFTER_SECONDS` | `5` | Value sent in the `Retry-After` response header. Should match the typical drain time of a saturated pool. |
+
+Per-actor limits (per user for authenticated callers, per IP for
+anonymous) are tier-bound and not env-tunable: anonymous and free
+get 1 concurrent request, Pro 2, Business 5, Enterprise 10. A
+request past the per-actor cap returns `429 Too Many Requests`
+with `Retry-After`. These numbers are documented on the public
+[`/pricing`](/pricing) page so callers can size their own client
+pools to match.
+
+A batch endpoint (`/convert/batch`, `/compress/batch`) holds **one**
+concurrency slot for the whole batch — files inside the batch are
+processed sequentially. Increasing batch size therefore lengthens
+slot-hold time linearly without inflating the parallelism cost.
+
 ### Updating
 
 ```bash
