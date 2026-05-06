@@ -16,8 +16,10 @@ from app.core import email as email_mod
 from app.core.audit import record_event as audit_record
 from app.core.auth import (
     create_access_token,
+    create_email_verify_token,
     create_password_reset_token,
     create_refresh_token,
+    decode_email_verify_token,
     decode_password_reset_token,
     decode_token,
     hash_password,
@@ -94,6 +96,10 @@ class ResetPasswordRequest(BaseModel):
         if len(v) < 8:
             raise ValueError("Password must be at least 8 characters.")
         return v
+
+
+class VerifyEmailRequest(BaseModel):
+    token: str
 
 
 # ── Dependency ────────────────────────────────────────────────────────────────
@@ -254,6 +260,17 @@ async def register(
         actor_user_id=user.id,
         actor_ip=_client_ip(request),
     )
+    # NEU-B.3 (slice b): kick off the verification email. Fire-and-forget —
+    # SMTP failures are logged but do not block registration. The user
+    # gets logged in immediately; any feature that wants verified status
+    # later checks ``user.email_verified_at IS NOT NULL``.
+    await _send_verify_email_safe(user)
+    await audit_record(
+        "auth.email_verification.requested",
+        actor_user_id=user.id,
+        actor_ip=_client_ip(request),
+        payload={"trigger": "register"},
+    )
     return TokenResponse(
         access_token=create_access_token(str(user.id), role=user.role.value),
         refresh_token=create_refresh_token(str(user.id)),
@@ -340,6 +357,47 @@ def _render_reset_emails(user_email: str, reset_url: str) -> tuple[str, str]:
     html = _email_env.get_template("password_reset.html").render(**ctx)
     text = _email_env.get_template("password_reset.txt").render(**ctx)
     return html, text
+
+
+# ── Email-verification helpers (NEU-B.3 slice b) ──────────────────────────────
+
+
+def _build_verify_url(token: str) -> str:
+    base = settings.app_base_url.rstrip("/")
+    return f"{base}/verify-email?token={token}"
+
+
+def _render_verify_emails(user_email: str, verify_url: str) -> tuple[str, str]:
+    ctx = {
+        "user_email": user_email,
+        "verify_url": verify_url,
+        "app_base_url": settings.app_base_url.rstrip("/"),
+    }
+    html = _email_env.get_template("verify_email.html").render(**ctx)
+    text = _email_env.get_template("verify_email.txt").render(**ctx)
+    return html, text
+
+
+async def _send_verify_email_safe(user: User) -> None:
+    """Fire-and-forget verification email — never raises into the caller.
+
+    Used from /register (right after the user row is committed) and from
+    /resend-verification. SMTP failures are logged but do not roll back
+    the underlying state change: a user who never gets the email can
+    request another one via the resend route."""
+    token = create_email_verify_token(str(user.id), user.email)
+    verify_url = _build_verify_url(token)
+    html, text = _render_verify_emails(user_email=user.email, verify_url=verify_url)
+    try:
+        await email_mod.send_email(
+            to=user.email,
+            subject="Confirm your FileMorph email",
+            html=html,
+            text=text,
+        )
+        logger.info("verify_email: dispatched user=%s", user.id)
+    except email_mod.EmailSendError:
+        logger.exception("verify_email: delivery failed user=%s", user.id)
 
 
 @router.post("/forgot-password", status_code=status.HTTP_200_OK)
@@ -440,3 +498,82 @@ async def reset_password(
         actor_ip=_client_ip(request),
     )
     return {"message": "Password updated."}
+
+
+# ── Email verification endpoints (NEU-B.3 slice b) ────────────────────────────
+
+
+@router.post("/verify-email", status_code=status.HTTP_200_OK)
+@limiter.limit("10/minute")
+async def verify_email(
+    request: Request,
+    body: VerifyEmailRequest,
+    db: AsyncSession | None = Depends(get_db),
+):
+    """Consume a verification token and stamp ``email_verified_at``.
+
+    Idempotent: re-verifying an already-verified email returns 200 with
+    a no-op confirmation. The ``eat`` claim binds the token to the
+    user's email at issuance time, so a token issued before an email
+    rotation cannot auto-verify the new address."""
+    db = _db_required(db)
+    user_id, email_at_issuance = decode_email_verify_token(body.token)
+    try:
+        uid = uuid.UUID(user_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Verification link is invalid or has expired.",
+        )
+    result = await db.execute(select(User).where(User.id == uid))
+    user = result.scalar_one_or_none()
+    if user is None or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Verification link is invalid or has expired.",
+        )
+    # Email rotation since the token was issued silently invalidates the
+    # link — same UX as password-reset's phv-mismatch path.
+    if user.email != email_at_issuance:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Verification link is no longer valid.",
+        )
+
+    if user.email_verified_at is None:
+        user.email_verified_at = datetime.now(timezone.utc)
+        await db.commit()
+        # NEU-B.3: ISO 27001 A.9.2.1 — credential / identity-binding
+        # changes are audit-relevant. Same "commit then audit" ordering
+        # as password-reset.completed; under audit_fail_closed the
+        # state change has already landed if the audit insert fails.
+        await audit_record(
+            "auth.email_verification.completed",
+            actor_user_id=user.id,
+            actor_ip=_client_ip(request),
+        )
+        logger.info("verify_email: user=%s verified", user.id)
+
+    return {"message": "Email verified."}
+
+
+@router.post("/resend-verification", status_code=status.HTTP_200_OK)
+@limiter.limit("3/minute")
+async def resend_verification(request: Request, user: User = Depends(get_current_user)):
+    """Send a fresh verification email to the authenticated user.
+
+    Auth-required so the endpoint can't be used as a free email-spam
+    vector. Returns 200 with a no-op message when the email is already
+    verified (rather than 4xx) — the user-visible UX is "we tried to
+    help you" regardless of state, and we never confirm verification
+    state of an arbitrary email to an unauthenticated caller."""
+    if user.email_verified_at is not None:
+        return {"message": "Email already verified."}
+    await _send_verify_email_safe(user)
+    await audit_record(
+        "auth.email_verification.requested",
+        actor_user_id=user.id,
+        actor_ip=_client_ip(request),
+        payload={"trigger": "resend"},
+    )
+    return {"message": "Verification email sent."}

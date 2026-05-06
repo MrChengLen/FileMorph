@@ -478,6 +478,14 @@ async def reset_password_page(request: Request):
     return templates.TemplateResponse(request, "reset-password.html")
 
 
+@app.get("/verify-email", include_in_schema=False)
+async def verify_email_page(request: Request):
+    # NEU-B.3 (slice b): the email link points here. The page-level JS
+    # extracts the ?token= parameter and POSTs it to
+    # /api/v1/auth/verify-email so the user sees confirmation in-app.
+    return templates.TemplateResponse(request, "verify-email.html")
+
+
 @app.get("/dashboard", include_in_schema=False)
 async def dashboard_page(request: Request):
     return templates.TemplateResponse(request, "dashboard.html")

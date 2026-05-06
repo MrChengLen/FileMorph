@@ -76,6 +76,12 @@ class User(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # NEU-B.3 (slice b): NULL until the user clicks the verification link.
+    # The verify route stamps ``func.now()``; a future iteration may gate
+    # paid-tier upgrades or sensitive actions on this being non-NULL.
+    email_verified_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     # Relationships
     api_keys: Mapped[list[ApiKey]] = relationship(
