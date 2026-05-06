@@ -156,6 +156,45 @@ def test_card_padded_lg_uses_large_padding(env: Environment) -> None:
     assert "p-card-pad-lg" in div["class"]
 
 
+def test_card_default_has_shadow_token(env: Environment) -> None:
+    soup = _render(
+        env,
+        '{% import "_components/card.html" as card %}{% call card.card() %}body{% endcall %}',
+    )
+    div = soup.find("div", attrs={"data-component": "card"})
+    assert "shadow-card" in div["class"]
+
+
+def test_card_shadow_false_drops_shadow_token(env: Environment) -> None:
+    soup = _render(
+        env,
+        '{% import "_components/card.html" as card %}'
+        "{% call card.card(shadow=False) %}body{% endcall %}",
+    )
+    div = soup.find("div", attrs={"data-component": "card"})
+    assert "shadow-card" not in div["class"]
+
+
+def test_card_id_attribute_emitted(env: Environment) -> None:
+    soup = _render(
+        env,
+        '{% import "_components/card.html" as card %}'
+        "{% call card.card(id='ck-loading') %}body{% endcall %}",
+    )
+    div = soup.find("div", attrs={"data-component": "card"})
+    assert div.get("id") == "ck-loading"
+
+
+def test_card_hidden_initial_state_renders_hidden_class(env: Environment) -> None:
+    soup = _render(
+        env,
+        '{% import "_components/card.html" as card %}'
+        "{% call card.card(hidden=True) %}body{% endcall %}",
+    )
+    div = soup.find("div", attrs={"data-component": "card"})
+    assert "hidden" in div["class"]
+
+
 # ── button ─────────────────────────────────────────────────────────────────────
 
 
@@ -221,6 +260,25 @@ def test_button_size_lg_uses_large_padding(env: Environment) -> None:
     assert b["data-size"] == "lg"
     assert "px-7" in b["class"]
     assert "py-3.5" in b["class"]
+
+
+def test_button_full_width_adds_w_full_class(env: Environment) -> None:
+    soup = _render(
+        env,
+        '{% import "_components/button.html" as btn %}'
+        "{{ btn.button('Submit', full_width=True) }}",
+    )
+    b = soup.find("button")
+    assert "w-full" in b["class"]
+
+
+def test_button_default_is_not_full_width(env: Environment) -> None:
+    soup = _render(
+        env,
+        "{% import \"_components/button.html\" as btn %}{{ btn.button('Save') }}",
+    )
+    b = soup.find("button")
+    assert "w-full" not in b["class"]
 
 
 # ── eyebrow ────────────────────────────────────────────────────────────────────

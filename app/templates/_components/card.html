@@ -1,4 +1,4 @@
-{# card(border='default', padded='md')
+{# card(border='default', padded='md', shadow=True, id=None, hidden=False)
 
    Surface card with hairline border + radius-card + canonical
    padding. The body is yielded via {{ caller() }}, so this is a
@@ -8,11 +8,22 @@
    border  — 'default' (hairline) or 'brand' (2px brand-coloured
              outline, used for "highlighted" pricing tier)
    padded  — 'md' (24px) or 'lg' (32px)
+   shadow  — True applies the canonical shadow-card token (used by
+             auth-form cards, dashboard cards). Set False for cards
+             nested inside another card or on flat compositions.
+   id      — Optional DOM id, used by JS for show/hide toggles
+             (e.g., admin-cockpit loading/forbidden states).
+   hidden  — Render with the `hidden` Tailwind class set initially.
+             JS removes it via classList. Useful for cards that
+             start invisible.
 #}
-{% macro card(border='default', padded='md') %}
+{% macro card(border='default', padded='md', shadow=True, id=None, hidden=False) %}
 <div class="bg-surface-raised rounded-card
             {% if border == 'brand' %}border-2 border-brand{% else %}border border-hairline{% endif %}
-            {% if padded == 'lg' %}p-card-pad-lg{% else %}p-card-pad-md{% endif %}"
+            {% if padded == 'lg' %}p-card-pad-lg{% else %}p-card-pad-md{% endif %}
+            {% if shadow %}shadow-card{% endif %}
+            {% if hidden %}hidden{% endif %}"
+     {% if id %}id="{{ id }}"{% endif %}
      data-component="card">
   {{ caller() }}
 </div>

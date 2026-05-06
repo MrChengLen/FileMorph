@@ -1,17 +1,19 @@
 {% extends "base.html" %}
 {% import "_components/text_input.html" as ti %}
+{% import "_components/card.html" as uc %}
+{% import "_components/button.html" as ub %}
 {% block title %}Sign In — FileMorph{% endblock %}
 {% block content %}
 <main class="flex-1 flex items-center justify-center p-4 sm:p-6">
   <div class="w-full max-w-md space-y-6">
 
     <div class="text-center space-y-1">
-      <h1 class="text-2xl font-bold">Sign In</h1>
-      <p class="text-gray-400 text-sm">Welcome back to FileMorph</p>
+      <h1 class="text-h-sect text-ink">Sign In</h1>
+      <p class="text-ink-muted text-sm">Welcome back to FileMorph</p>
     </div>
 
-    <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6 space-y-4 shadow-xl">
-
+    {% call uc.card() %}
+    <div class="space-y-4">
       {{ ti.text_input('email', type='email', label='Email',
                        placeholder='you@example.com', autocomplete='email') }}
 
@@ -20,19 +22,17 @@
 
       <div id="error-msg" class="hidden text-red-400 text-sm bg-red-950 rounded-lg px-4 py-3"></div>
 
-      <button id="login-btn"
-        class="w-full py-3 rounded-xl font-semibold text-white bg-brand hover:bg-brand-dark disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-sm">
-        Sign In
-      </button>
+      {{ ub.button('Sign In', id='login-btn', full_width=True) }}
 
-      <p class="text-center text-sm text-gray-500">
+      <p class="text-center text-sm text-ink-faint">
         No account?
         <a href="/register" class="text-brand hover:underline">Create one</a>
         &nbsp;·&nbsp;
-        <a href="/forgot-password" class="text-gray-400 hover:underline">Forgot password?</a>
+        <a href="/forgot-password" class="text-ink-muted hover:underline">Forgot password?</a>
       </p>
-
     </div>
+    {% endcall %}
+
   </div>
 </main>
 <script src="/static/js/login.js"></script>
