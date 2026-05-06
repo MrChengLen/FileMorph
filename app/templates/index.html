@@ -1,4 +1,6 @@
 {% extends "base.html" %}
+{% import "_components/card.html" as uc %}
+{% import "_components/button.html" as ub %}
 {% block title %}FileMorph — File Converter & Compressor{% endblock %}
 {% block content %}
 
@@ -10,14 +12,15 @@
 
       <!-- Title -->
       <div class="text-center space-y-2">
-        <h1 class="text-3xl font-bold">Convert & Compress Files</h1>
-        <p class="text-gray-400 text-sm">
+        <h1 class="text-h-page text-ink">Convert & Compress Files</h1>
+        <p class="text-ink-muted text-sm">
           Images · Documents · Audio · Video · Spreadsheets
         </p>
       </div>
 
       <!-- Card -->
-      <div class="bg-gray-900 border border-gray-800 rounded-2xl p-4 sm:p-6 space-y-5 shadow-xl">
+      {% call uc.card() %}
+      <div class="space-y-5">
 
         <!-- Mode Toggle -->
         <div class="flex rounded-lg overflow-hidden border border-gray-700 text-sm font-medium">
@@ -127,10 +130,7 @@
         </div>
 
         <!-- Convert Button -->
-        <button id="convert-btn"
-          class="w-full py-3 rounded-xl font-semibold text-white bg-brand hover:bg-brand-dark disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-sm">
-          Convert
-        </button>
+        {{ ub.button('Convert', id='convert-btn', full_width=True) }}
 
         <!-- Progress / Result -->
         <div id="progress-section" class="hidden text-center space-y-2">
@@ -160,6 +160,7 @@
         </div>
 
       </div>
+      {% endcall %}
 
       <!-- Footer note -->
       <p class="text-center text-xs text-gray-700">

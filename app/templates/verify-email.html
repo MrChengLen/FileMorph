@@ -1,22 +1,24 @@
 {% extends "base.html" %}
+{% import "_components/card.html" as uc %}
 {% block title %}Confirming email — FileMorph{% endblock %}
 {% block content %}
 <main class="flex-1 flex items-center justify-center p-4 sm:p-6">
   <div class="w-full max-w-md space-y-6">
 
     <div class="text-center space-y-1">
-      <h1 class="text-2xl font-bold">Confirm your email</h1>
-      <p class="text-gray-400 text-sm">One click and you're done</p>
+      <h1 class="text-h-sect text-ink">Confirm your email</h1>
+      <p class="text-ink-muted text-sm">One click and you're done</p>
     </div>
 
-    <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6 space-y-4 shadow-xl">
+    {% call uc.card() %}
+    <div class="space-y-4">
 
       <div id="no-token-msg" class="hidden text-amber-400 text-sm bg-amber-950 rounded-lg px-4 py-3">
         This link is missing a verification token. Sign in and request a new
         verification email from your dashboard.
       </div>
 
-      <div id="pending-msg" class="hidden text-gray-400 text-sm bg-gray-800 rounded-lg px-4 py-3 text-center">
+      <div id="pending-msg" class="hidden text-ink-muted text-sm bg-surface-sunken rounded-lg px-4 py-3 text-center">
         Confirming your email&hellip;
       </div>
 
@@ -27,11 +29,13 @@
 
       <div id="error-msg" class="hidden text-red-400 text-sm bg-red-950 rounded-lg px-4 py-3"></div>
 
-      <p class="text-center text-sm text-gray-500">
+      <p class="text-center text-sm text-ink-faint">
         <a href="/login" class="text-brand hover:underline">Back to Sign In</a>
       </p>
 
     </div>
+    {% endcall %}
+
   </div>
 </main>
 <script src="/static/js/verify-email.js"></script>
