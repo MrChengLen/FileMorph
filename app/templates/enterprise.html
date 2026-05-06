@@ -89,10 +89,10 @@
     <h2 class="text-2xl font-bold text-white">Warum eine Compliance-Edition?</h2>
     <p>
       Behörden, Krankenhäuser und Kanzleien dürfen Bürger- und Mandantendaten
-      nicht durch CloudConvert / Convertio / Adobe-Acrobat-Server schicken —
-      die DSGVO-Datenkette und das EVB-IT-Vertragswerk lassen es schlicht
-      nicht zu. Gleichzeitig fehlt der typischen IT-Abteilung die Bandbreite,
-      ein Konvertierungs-Backend selbst zu pflegen.
+      in vielen Fällen nicht durch öffentliche Cloud-Konvertierungs-Dienste
+      verarbeiten — die DSGVO-Datenkette und das EVB-IT-Vertragswerk setzen
+      hier enge Grenzen. Gleichzeitig fehlt der typischen IT-Abteilung die
+      Bandbreite, ein Konvertierungs-Backend selbst zu pflegen.
     </p>
     <p>
       FileMorph schließt diese Lücke: Die Open-Source-Engine deckt 16+
@@ -165,11 +165,11 @@
     </div>
   </section>
 
-  <!-- Comparison table -->
+  <!-- Comparison table — generic categories only (no named competitors) -->
   <section class="space-y-5">
     <div>
-      <h2 class="text-2xl font-bold text-white">Vergleich mit Alternativen</h2>
-      <p class="text-gray-400 mt-2">Die drei am häufigsten in DACH-RFPs genannten Konvertierungs-Optionen.</p>
+      <h2 class="text-2xl font-bold text-white">Was wir gegenüber typischen Alternativen liefern</h2>
+      <p class="text-gray-400 mt-2">Eine Orientierung über die in DACH-RFPs gängigen Anbieter-Kategorien. Im Einzelfall kann ein konkretes Produkt mehr leisten — bitte individuell prüfen.</p>
     </div>
     <div class="overflow-x-auto">
       <table class="w-full text-sm bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
@@ -177,58 +177,58 @@
           <tr>
             <th class="px-4 py-3 text-left font-semibold">Kriterium</th>
             <th class="px-4 py-3 text-center font-semibold whitespace-nowrap">FileMorph<br/>Compliance</th>
-            <th class="px-4 py-3 text-center font-semibold">Stirling-PDF</th>
-            <th class="px-4 py-3 text-center font-semibold">CloudConvert</th>
+            <th class="px-4 py-3 text-center font-semibold">Typische Open-Source-Konvertierer</th>
+            <th class="px-4 py-3 text-center font-semibold">Typische SaaS-Konvertierer</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-800 text-gray-300">
           <tr>
             <td class="px-4 py-3 font-medium">Self-Hosted (Daten bleiben im Haus)</td>
             <td class="px-4 py-3 text-center text-emerald-400">✓</td>
-            <td class="px-4 py-3 text-center text-emerald-400">✓</td>
-            <td class="px-4 py-3 text-center text-gray-600">—</td>
+            <td class="px-4 py-3 text-center text-gray-400">häufig ✓</td>
+            <td class="px-4 py-3 text-center text-gray-400">selten</td>
           </tr>
           <tr>
-            <td class="px-4 py-3 font-medium">DSGVO-AVV-Vorlage</td>
+            <td class="px-4 py-3 font-medium">DSGVO-AVV-Vorlage in deutscher Form</td>
             <td class="px-4 py-3 text-center text-emerald-400">✓</td>
-            <td class="px-4 py-3 text-center text-gray-600">—</td>
-            <td class="px-4 py-3 text-center text-gray-400">teilw.</td>
+            <td class="px-4 py-3 text-center text-gray-400">selten</td>
+            <td class="px-4 py-3 text-center text-gray-400">variabel</td>
           </tr>
           <tr>
             <td class="px-4 py-3 font-medium">Audit-Log mit Hash-Chain</td>
             <td class="px-4 py-3 text-center text-emerald-400">✓</td>
-            <td class="px-4 py-3 text-center text-gray-600">—</td>
-            <td class="px-4 py-3 text-center text-gray-600">—</td>
+            <td class="px-4 py-3 text-center text-gray-400">variabel</td>
+            <td class="px-4 py-3 text-center text-gray-400">variabel</td>
           </tr>
           <tr>
             <td class="px-4 py-3 font-medium">PDF/A-2b veraPDF-validiert</td>
             <td class="px-4 py-3 text-center text-emerald-400">✓</td>
-            <td class="px-4 py-3 text-center text-gray-400">teilw.</td>
-            <td class="px-4 py-3 text-center text-gray-400">teilw.</td>
+            <td class="px-4 py-3 text-center text-gray-400">variabel</td>
+            <td class="px-4 py-3 text-center text-gray-400">variabel</td>
           </tr>
           <tr>
             <td class="px-4 py-3 font-medium">Multi-Format (Bild + Audio + Video + Sheet)</td>
             <td class="px-4 py-3 text-center text-emerald-400">✓</td>
-            <td class="px-4 py-3 text-center text-gray-600">PDF only</td>
-            <td class="px-4 py-3 text-center text-emerald-400">✓</td>
+            <td class="px-4 py-3 text-center text-gray-400">häufig auf einen Bereich beschränkt</td>
+            <td class="px-4 py-3 text-center text-gray-400">häufig ✓</td>
           </tr>
           <tr>
             <td class="px-4 py-3 font-medium">EU-Vendor mit deutschem Impressum</td>
             <td class="px-4 py-3 text-center text-emerald-400">✓</td>
-            <td class="px-4 py-3 text-center text-gray-600">UK</td>
-            <td class="px-4 py-3 text-center text-gray-600">DE/US-Mix</td>
+            <td class="px-4 py-3 text-center text-gray-400">variabel</td>
+            <td class="px-4 py-3 text-center text-gray-400">variabel</td>
           </tr>
           <tr>
             <td class="px-4 py-3 font-medium">Kommerzielle Lizenz auf AGPL-Code</td>
             <td class="px-4 py-3 text-center text-emerald-400">✓</td>
-            <td class="px-4 py-3 text-center text-gray-400">teilw.</td>
-            <td class="px-4 py-3 text-center text-gray-600">—</td>
+            <td class="px-4 py-3 text-center text-gray-400">selten</td>
+            <td class="px-4 py-3 text-center text-gray-400">nicht zutreffend</td>
           </tr>
         </tbody>
       </table>
     </div>
     <p class="text-xs text-gray-500">
-      Stand: Mai 2026. „teilw." = vorhanden, aber nicht in jeder Edition / nicht in deutscher Form. Wir aktualisieren die Tabelle, wenn sich der Wettbewerb bewegt.
+      Stand: Mai 2026. Die Tabelle beschreibt typische Eigenschaften der genannten Anbieter-Kategorien und ist kein abschließender Vergleich konkreter Produkte. Einzelne Anbieter können mehr oder weniger leisten — bitte das jeweils aktuelle Angebot direkt beim Hersteller prüfen.
     </p>
   </section>
 
