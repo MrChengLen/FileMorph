@@ -28,7 +28,7 @@ from __future__ import annotations
 import pytest
 from fastapi import HTTPException
 
-from app.core.auth import (
+from app.core.tokens import (
     create_access_token,
     create_email_verify_token,
     create_password_reset_token,

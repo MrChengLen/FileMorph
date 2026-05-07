@@ -40,11 +40,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import StaticPool
 
 from app.core import email as email_mod
-from app.core.auth import (
-    create_email_verify_token,
-    decode_email_verify_token,
-    hash_password,
-)
+from app.core.auth import hash_password
+from app.core.tokens import create_email_verify_token, decode_email_verify_token
 from app.db.base import Base, get_db
 from app.db.models import TierEnum, User
 from app.main import app
@@ -163,7 +160,7 @@ def test_token_rejects_wrong_type():
     only the ``type`` claim discriminates the flows. A regression here
     would let a stolen access token verify a different user's email
     (since ``sub`` carries the same user-id semantics)."""
-    from app.core.auth import (
+    from app.core.tokens import (
         create_access_token,
         create_password_reset_token,
         create_refresh_token,
