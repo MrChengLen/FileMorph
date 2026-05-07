@@ -46,6 +46,14 @@ CORS_ORIGINS=https://yourapp.example.com,https://portal.example.com
 # those POSTs to the listed URL; `CORS_ORIGINS` must include the main site
 # origin so the preflight passes. Format-list GET + auth stay same-origin.
 API_BASE_URL=
+
+# Default UI locale for visitors with no signal (no cookie, no
+# Accept-Language match, no /de|/en URL prefix). Upstream defaults to `de`
+# (Hamburg-based operator). Self-hosters targeting an EN-first audience
+# can flip this to `en` to render unprefixed routes (`/`, `/pricing`, …)
+# in English. Supported values: `de`, `en`. The /de/... and /en/...
+# prefixed routes always render in their respective locale regardless.
+LANG_DEFAULT=de
 ```
 
 ### 2. Start the container

@@ -1,6 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full">
-<!-- i18n: future Jinja2-Babel integration -->
+<html lang="{{ locale|default('de') }}" class="h-full">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -13,18 +12,26 @@
   <!-- TODO: add favicon.ico (32x32) and apple-touch-icon.png (180x180) to app/static/ -->
 
   <!-- B-3: Meta tags and Open Graph -->
-  <meta name="description" content="FileMorph — Free online file converter &amp; compressor. Convert images, documents, audio and video. Fast, private, no account required." />
+  <meta name="description" content="{{ _('FileMorph — Free online file converter & compressor. Convert images, documents, audio and video. Fast, private, no account required.') }}" />
   <link rel="canonical" href="{{ app_base_url }}{{ request.url.path }}" />
+  <!-- i18n: hreflang alternates so Google indexes each language as its own URL.
+       x-default points at the unprefixed route, which serves the operator's
+       configured LANG_DEFAULT (DE upstream). -->
+  <link rel="alternate" hreflang="de" href="{{ app_base_url }}{{ localized_url(base_path, 'de') }}" />
+  <link rel="alternate" hreflang="en" href="{{ app_base_url }}{{ localized_url(base_path, 'en') }}" />
+  <link rel="alternate" hreflang="x-default" href="{{ app_base_url }}{{ localized_url(base_path, none) }}" />
   <meta property="og:title" content="FileMorph" />
-  <meta property="og:description" content="File conversion and compression — open source, self-hostable." />
+  <meta property="og:description" content="{{ _('File conversion and compression — open source, self-hostable.') }}" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="{{ app_base_url }}{{ request.url.path }}" />
   <meta property="og:image" content="{{ app_base_url }}/static/og-image.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
+  <meta property="og:locale" content="{{ 'de_DE' if locale == 'de' else 'en_US' }}" />
+  <meta property="og:locale:alternate" content="{{ 'en_US' if locale == 'de' else 'de_DE' }}" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="FileMorph" />
-  <meta name="twitter:description" content="File conversion and compression — open source, self-hostable." />
+  <meta name="twitter:description" content="{{ _('File conversion and compression — open source, self-hostable.') }}" />
   <meta name="twitter:image" content="{{ app_base_url }}/static/og-image.png" />
   <meta name="robots" content="index, follow" />
 
@@ -40,53 +47,83 @@
 
   <!-- B-4: Shared navbar -->
   <nav class="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
-    <a href="/" class="flex items-center gap-3">
+    <a href="{{ localized_url('/', current_prefix) }}" class="flex items-center gap-3">
       <svg class="w-8 h-8 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
           d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
       </svg>
       <span class="text-xl font-bold tracking-tight">FileMorph</span>
     </a>
-    <button id="nav-toggle" class="md:hidden text-gray-400 hover:text-white p-1" aria-label="Toggle menu">
+    <button id="nav-toggle" class="md:hidden text-gray-400 hover:text-white p-1" aria-label="{{ _('Toggle menu') }}">
       <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
       </svg>
     </button>
     <div id="nav-menu" class="hidden md:flex items-center gap-6 text-sm">
-      <a href="/" class="text-gray-400 hover:text-white transition-colors">Convert</a>
-      {% if pricing_enabled %}<a href="/pricing" class="text-gray-400 hover:text-white transition-colors">Pricing</a>{% endif %}
-      {% if pricing_enabled %}<a href="/enterprise" class="text-gray-400 hover:text-white transition-colors">Enterprise</a>{% endif %}
-      <a href="/docs" target="_blank" class="text-gray-400 hover:text-white transition-colors">API Docs</a>
+      <a href="{{ localized_url('/', current_prefix) }}" class="text-gray-400 hover:text-white transition-colors">{{ _('Convert') }}</a>
+      {% if pricing_enabled %}<a href="{{ localized_url('/pricing', current_prefix) }}" class="text-gray-400 hover:text-white transition-colors">{{ _('Pricing') }}</a>{% endif %}
+      {% if pricing_enabled %}<a href="{{ localized_url('/enterprise', current_prefix) }}" class="text-gray-400 hover:text-white transition-colors">{{ _('Enterprise') }}</a>{% endif %}
+      <a href="/docs" target="_blank" class="text-gray-400 hover:text-white transition-colors">{{ _('API Docs') }}</a>
       <a href="https://github.com/MrChengLen/FileMorph" target="_blank"
          class="text-gray-400 hover:text-white transition-colors">GitHub</a>
+      <div role="group" aria-label="{{ _('Language') }}" class="flex items-center gap-2 border-l border-gray-800 pl-4">
+        <a href="{{ localized_url(base_path, 'de') }}"
+           hreflang="de"
+           {% if locale == 'de' %}aria-current="true"{% endif %}
+           class="text-xs uppercase tracking-wider {% if locale == 'de' %}text-white font-semibold{% else %}text-gray-500 hover:text-gray-300{% endif %} transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand rounded">
+          <span class="sr-only">{{ _('Switch to German') }}</span>DE
+        </a>
+        <span class="text-gray-700" aria-hidden="true">|</span>
+        <a href="{{ localized_url(base_path, 'en') }}"
+           hreflang="en"
+           {% if locale == 'en' %}aria-current="true"{% endif %}
+           class="text-xs uppercase tracking-wider {% if locale == 'en' %}text-white font-semibold{% else %}text-gray-500 hover:text-gray-300{% endif %} transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand rounded">
+          <span class="sr-only">{{ _('Switch to English') }}</span>EN
+        </a>
+      </div>
       <div id="nav-auth-desktop" class="flex items-center gap-3">
-        <a href="/login" class="text-sm text-gray-300 hover:text-white transition-colors">Sign In</a>
-        <a href="/register" class="text-sm px-4 py-1.5 rounded-lg bg-brand hover:bg-brand-dark text-white font-semibold transition-colors">Register</a>
+        <a href="{{ localized_url('/login', current_prefix) }}" class="text-sm text-gray-300 hover:text-white transition-colors">{{ _('Sign In') }}</a>
+        <a href="{{ localized_url('/register', current_prefix) }}" class="text-sm px-4 py-1.5 rounded-lg bg-brand hover:bg-brand-dark text-white font-semibold transition-colors">{{ _('Register') }}</a>
       </div>
     </div>
   </nav>
   <div id="nav-mobile-menu" class="hidden md:hidden border-t border-gray-800 bg-gray-950 px-6 py-4 space-y-3 text-sm">
-    <a href="/" class="block text-gray-400 hover:text-white transition-colors py-1">Convert</a>
-    {% if pricing_enabled %}<a href="/pricing" class="block text-gray-400 hover:text-white transition-colors py-1">Pricing</a>{% endif %}
-    {% if pricing_enabled %}<a href="/enterprise" class="block text-gray-400 hover:text-white transition-colors py-1">Enterprise</a>{% endif %}
-    <a href="/docs" target="_blank" class="block text-gray-400 hover:text-white transition-colors py-1">API Docs</a>
+    <div role="group" aria-label="{{ _('Language') }}" class="flex items-center gap-3 border-b border-gray-800 pb-3 mb-1">
+      <a href="{{ localized_url(base_path, 'de') }}"
+         hreflang="de"
+         {% if locale == 'de' %}aria-current="true"{% endif %}
+         class="text-xs uppercase tracking-wider {% if locale == 'de' %}text-white font-semibold{% else %}text-gray-500{% endif %}">
+        <span class="sr-only">{{ _('Switch to German') }}</span>DE
+      </a>
+      <span class="text-gray-700" aria-hidden="true">|</span>
+      <a href="{{ localized_url(base_path, 'en') }}"
+         hreflang="en"
+         {% if locale == 'en' %}aria-current="true"{% endif %}
+         class="text-xs uppercase tracking-wider {% if locale == 'en' %}text-white font-semibold{% else %}text-gray-500{% endif %}">
+        <span class="sr-only">{{ _('Switch to English') }}</span>EN
+      </a>
+    </div>
+    <a href="{{ localized_url('/', current_prefix) }}" class="block text-gray-400 hover:text-white transition-colors py-1">{{ _('Convert') }}</a>
+    {% if pricing_enabled %}<a href="{{ localized_url('/pricing', current_prefix) }}" class="block text-gray-400 hover:text-white transition-colors py-1">{{ _('Pricing') }}</a>{% endif %}
+    {% if pricing_enabled %}<a href="{{ localized_url('/enterprise', current_prefix) }}" class="block text-gray-400 hover:text-white transition-colors py-1">{{ _('Enterprise') }}</a>{% endif %}
+    <a href="/docs" target="_blank" class="block text-gray-400 hover:text-white transition-colors py-1">{{ _('API Docs') }}</a>
     <a href="https://github.com/MrChengLen/FileMorph" target="_blank"
        class="block text-gray-400 hover:text-white transition-colors py-1">GitHub ↗</a>
     <div id="nav-auth-mobile">
-      <a href="/login" class="block text-gray-400 hover:text-white transition-colors py-1">Sign In</a>
-      <a href="/register" class="block text-brand hover:text-white py-1">Register</a>
+      <a href="{{ localized_url('/login', current_prefix) }}" class="block text-gray-400 hover:text-white transition-colors py-1">{{ _('Sign In') }}</a>
+      <a href="{{ localized_url('/register', current_prefix) }}" class="block text-brand hover:text-white py-1">{{ _('Register') }}</a>
     </div>
   </div>
 
   {% block content %}{% endblock %}
   <footer class="border-t border-gray-800 px-6 py-5 mt-auto">
     <div class="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-600">
-      <span>© 2026 FileMorph — AGPLv3 Open Source</span>
+      <span>{{ _('© 2026 FileMorph — AGPLv3 Open Source') }}</span>
       <nav class="flex flex-wrap items-center justify-center gap-4">
-        <a href="/privacy" class="hover:text-gray-400 transition-colors">Privacy Policy</a>
-        <a href="/terms" class="hover:text-gray-400 transition-colors">Terms of Use</a>
-        <a href="/impressum" class="hover:text-gray-400 transition-colors">Impressum</a>
-        <a href="/docs" target="_blank" class="hover:text-gray-400 transition-colors">API Docs</a>
+        <a href="{{ localized_url('/privacy', current_prefix) }}" class="hover:text-gray-400 transition-colors">{{ _('Privacy Policy') }}</a>
+        <a href="{{ localized_url('/terms', current_prefix) }}" class="hover:text-gray-400 transition-colors">{{ _('Terms of Use') }}</a>
+        <a href="{{ localized_url('/impressum', current_prefix) }}" class="hover:text-gray-400 transition-colors">{{ _('Impressum') }}</a>
+        <a href="/docs" target="_blank" class="hover:text-gray-400 transition-colors">{{ _('API Docs') }}</a>
         <a href="https://github.com/MrChengLen/FileMorph" target="_blank" class="hover:text-gray-400 transition-colors">GitHub ↗</a>
       </nav>
     </div>

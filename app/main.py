@@ -14,12 +14,11 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from starlette.middleware.gzip import GZipMiddleware
 
-from app.api.routes import compress, convert, formats, health, seo
+from app.api.routes import compress, convert, formats, health, pages, seo
 from app.api.routes import auth as auth_route
 from app.api.routes import billing as billing_route
 from app.api.routes import cockpit as cockpit_route
@@ -32,10 +31,21 @@ from app.core.data_classification import (
     RESPONSE_HEADER as _DATA_CLASSIFICATION_RESPONSE_HEADER,
     normalize_classification as _normalize_data_classification,
 )
+from app.core.i18n import (
+    COOKIE_MAX_AGE as _LOCALE_COOKIE_MAX_AGE,
+    COOKIE_NAME as _LOCALE_COOKIE_NAME,
+    SUPPORTED_LOCALES,
+    base_path,
+    is_explicit_locale_signal,
+    localized_context,
+    localized_url,
+    resolve_locale,
+)
 from app.core.jsonld import build_site_jsonld
 from app.core.logging_config import configure_logging
 from app.core.metrics import increment as metric_increment
 from app.core.rate_limit import limiter
+from app.core.templates import templates
 from app.converters.registry import _ensure_loaded
 from app.db.base import AsyncSessionLocal, engine
 
@@ -49,7 +59,8 @@ logger = logging.getLogger("filemorph.startup")
 
 _SITE_JSONLD, _SITE_JSONLD_CSP_SOURCE = build_site_jsonld(settings.app_base_url)
 
-templates = Jinja2Templates(directory=str(base_dir() / "app" / "templates"))
+# Templates singleton lives in ``app/core/templates.py`` so the pages
+# router can import it without pulling main.py (avoids import cycle).
 templates.env.globals["api_base_url"] = settings.api_base_url
 templates.env.globals["app_base_url"] = settings.app_base_url
 templates.env.globals["tailwind_css"] = tailwind_css_filename()
@@ -62,6 +73,13 @@ templates.env.globals["security_contact_email"] = settings.security_contact_emai
 # flags so we can run a "Coming Soon" page between launch and Stripe live.
 templates.env.globals["pricing_enabled"] = bool(settings.pricing_page_enabled)
 templates.env.globals["stripe_enabled"] = bool(settings.stripe_secret_key)
+
+# i18n helpers exposed as Jinja globals so base.html can build the
+# language-switcher links and hreflang tags without the route having to
+# pre-compute them.
+templates.env.globals["supported_locales"] = SUPPORTED_LOCALES
+templates.env.globals["localized_url"] = localized_url
+templates.env.globals["base_path"] = base_path
 
 
 def _sweep_stale_temp_dirs(*, max_age_seconds: int) -> int:
@@ -260,6 +278,30 @@ _PERMISSIONS_POLICY = (
 
 
 @app.middleware("http")
+async def locale_resolver(request: Request, call_next):
+    """Resolve the active locale, stash on request.state, persist via cookie.
+
+    The cookie is only written when the locale was *explicit* (URL prefix
+    or ``?lang=`` param) — otherwise we'd race the cookie against the URL
+    on every page load and lock visitors out of Accept-Language detection.
+    """
+    locale = resolve_locale(request)
+    request.state.locale = locale
+    response = await call_next(request)
+    if is_explicit_locale_signal(request) and request.cookies.get(_LOCALE_COOKIE_NAME) != locale:
+        response.set_cookie(
+            _LOCALE_COOKIE_NAME,
+            value=locale,
+            max_age=_LOCALE_COOKIE_MAX_AGE,
+            samesite="lax",
+            secure=request.url.scheme == "https",
+            httponly=False,
+            path="/",
+        )
+    return response
+
+
+@app.middleware("http")
 async def security_headers(request: Request, call_next):
     response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
@@ -361,7 +403,9 @@ async def data_classification(request: Request, call_next):
 async def not_found_handler(request: Request, exc):
     if request.url.path.startswith("/api/"):
         return JSONResponse({"detail": "Endpoint not found."}, status_code=404)
-    return templates.TemplateResponse(request, "404.html", status_code=404)
+    return templates.TemplateResponse(
+        request, "404.html", context=localized_context(request), status_code=404
+    )
 
 
 @app.exception_handler(500)
@@ -369,7 +413,9 @@ async def server_error_handler(request: Request, exc):
     logger.exception("Unhandled server error")
     if request.url.path.startswith("/api/"):
         return JSONResponse({"detail": "Internal server error."}, status_code=500)
-    return templates.TemplateResponse(request, "500.html", status_code=500)
+    return templates.TemplateResponse(
+        request, "500.html", context=localized_context(request), status_code=500
+    )
 
 
 @app.exception_handler(RequestValidationError)
@@ -426,90 +472,14 @@ app.include_router(cockpit_route.router, prefix="/api/v1")
 
 
 # ── Web UI ────────────────────────────────────────────────────────────────────
+#
+# The pages router defines all 14 user-facing HTML routes once. We mount
+# it three times so the same handler serves the unprefixed path
+# (``x-default`` for SEO, defaults to the operator's ``LANG_DEFAULT``)
+# AND the explicit ``/de/...`` + ``/en/...`` prefixes. ``LocaleMiddleware``
+# resolves the active locale from the path so the per-request translator
+# in :func:`app.core.i18n.localized_context` picks the right ``.mo``.
 
-
-@app.get("/", include_in_schema=False)
-async def index(request: Request):
-    return templates.TemplateResponse(request, "index.html")
-
-
-@app.get("/impressum", include_in_schema=False)
-async def impressum(request: Request):
-    return templates.TemplateResponse(request, "impressum.html")
-
-
-@app.get("/privacy", include_in_schema=False)
-async def privacy(request: Request):
-    return templates.TemplateResponse(request, "privacy.html")
-
-
-@app.get("/terms", include_in_schema=False)
-async def terms(request: Request):
-    return templates.TemplateResponse(request, "terms.html")
-
-
-@app.get("/security", include_in_schema=False)
-async def security_page(request: Request):
-    # Human-readable companion to /.well-known/security.txt. The
-    # security.txt Policy field points here, so this page must always
-    # render — even on a self-host deployment that hasn't customised the
-    # contact alias (in that case it falls back to the upstream default
-    # security@filemorph.io, which is at least reachable rather than dead).
-    return templates.TemplateResponse(request, "security.html")
-
-
-@app.get("/login", include_in_schema=False)
-async def login_page(request: Request):
-    return templates.TemplateResponse(request, "login.html")
-
-
-@app.get("/register", include_in_schema=False)
-async def register_page(request: Request):
-    return templates.TemplateResponse(request, "register.html")
-
-
-@app.get("/forgot-password", include_in_schema=False)
-async def forgot_password_page(request: Request):
-    return templates.TemplateResponse(request, "forgot-password.html")
-
-
-@app.get("/reset-password", include_in_schema=False)
-async def reset_password_page(request: Request):
-    return templates.TemplateResponse(request, "reset-password.html")
-
-
-@app.get("/verify-email", include_in_schema=False)
-async def verify_email_page(request: Request):
-    # NEU-B.3 (slice b): the email link points here. The page-level JS
-    # extracts the ?token= parameter and POSTs it to
-    # /api/v1/auth/verify-email so the user sees confirmation in-app.
-    return templates.TemplateResponse(request, "verify-email.html")
-
-
-@app.get("/dashboard", include_in_schema=False)
-async def dashboard_page(request: Request):
-    return templates.TemplateResponse(request, "dashboard.html")
-
-
-@app.get("/pricing", include_in_schema=False)
-async def pricing_page(request: Request):
-    # Self-host default: no commercial pricing surface at all.
-    if not settings.pricing_page_enabled:
-        return templates.TemplateResponse(request, "404.html", status_code=404)
-    return templates.TemplateResponse(request, "pricing.html")
-
-
-@app.get("/enterprise", include_in_schema=False)
-async def enterprise_page(request: Request):
-    # Same gating as /pricing — the Compliance-Edition landing page is part
-    # of the commercial-offer surface and a self-host deployment shouldn't
-    # advertise the upstream enterprise@filemorph.io contact as if it were
-    # their own. Operators forking the commercial offer rewrite both pages.
-    if not settings.pricing_page_enabled:
-        return templates.TemplateResponse(request, "404.html", status_code=404)
-    return templates.TemplateResponse(request, "enterprise.html")
-
-
-@app.get("/cockpit", include_in_schema=False)
-async def cockpit_page(request: Request):
-    return templates.TemplateResponse(request, "cockpit.html")
+app.include_router(pages.router)  # /, /pricing, /enterprise, ...
+app.include_router(pages.router, prefix="/de")  # /de/, /de/pricing, ...
+app.include_router(pages.router, prefix="/en")  # /en/, /en/pricing, ...

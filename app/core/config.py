@@ -115,6 +115,14 @@ class Settings(BaseSettings):
     # Public base URL used when building links in outbound emails.
     app_base_url: str = "http://localhost:8000"
 
+    # Default UI locale for visitors with no signal (no cookie, no
+    # Accept-Language match, no URL prefix). FileMorph upstream defaults
+    # to ``de`` (Hamburg-based operator, German tax registration). A
+    # self-hoster targeting an EN-first audience can flip this with
+    # ``LANG_DEFAULT=en`` in the deployment env without touching code.
+    # Supported values: ``de``, ``en``.
+    lang_default: str = "de"
+
     # Contact for security disclosures (referenced from /.well-known/security.txt
     # per RFC 9116). Self-hosters should override this to their own org's
     # security alias; the default value points at the upstream project so even
