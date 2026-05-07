@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-05-07 14:26+0200\n"
+"POT-Creation-Date: 2026-05-07 15:22+0200\n"
 "PO-Revision-Date: 2026-05-07 13:43+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: de\n"
@@ -18,16 +18,217 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
 
+msgid "(vs. 20 MB anonymous)"
+msgstr ""
+
+msgid ", 1 concurrent, 10 req/min"
+msgstr ""
+
+msgid ", 2 concurrent, 10 req/min"
+msgstr ""
+
+msgid ", 5 concurrent, 10 req/min"
+msgstr ""
+
+msgid "/mo"
+msgstr ""
+
+msgid "10,000 API calls / month"
+msgstr ""
+
+msgid "100 MB · 10k API"
+msgstr ""
+
+msgid "100 files"
+msgstr ""
+
+msgid "100,000 API calls / month"
+msgstr ""
+
+msgid "25 files"
+msgstr ""
+
+msgid "30+ formats (images, docs, audio, video)"
+msgstr ""
+
+msgid "30+ formats incl. video"
+msgstr ""
+
+msgid "404 – Not Found"
+msgstr ""
+
+msgid "5 files"
+msgstr ""
+
+msgid "50 MB · API key"
+msgstr ""
+
+msgid "500 MB · 100k API"
+msgstr ""
+
+msgid "500 calls / month"
+msgstr ""
+
+msgid "500 – Server Error"
+msgstr ""
+
+msgid "A description of the vulnerability and its potential impact."
+msgstr ""
+
 msgid "API Docs"
+msgstr ""
+
+msgid "API Docs ↗"
+msgstr ""
+
+msgid "API key management"
+msgstr ""
+
+msgid "API key — "
+msgstr ""
+
+msgid "Acknowledgement:"
+msgstr ""
+
+msgid "Affected version (commit hash or release tag if known)."
+msgstr ""
+
+msgid "All prices excl. VAT where applicable. Payments processed by Stripe."
+msgstr ""
+
+msgid "Already have an account?"
+msgstr ""
+
+msgid "At least 8 characters"
+msgstr ""
+
+msgid "Back to Home"
+msgstr ""
+
+msgid "Back to Sign In"
+msgstr ""
+
+msgid "Batch upload:"
+msgstr ""
+
+msgid "Best quality"
+msgstr ""
+
+msgid "Billed monthly, cancel anytime"
+msgstr ""
+
+msgid "Business"
+msgstr ""
+
+msgid "Business · €19"
+msgstr ""
+
+msgid "By quality %"
+msgstr ""
+
+msgid "By target size"
+msgstr ""
+
+msgid "Choose a password you haven't used before"
+msgstr ""
+
+msgid "Clear all"
+msgstr ""
+
+msgid "Coming soon"
+msgstr ""
+
+msgid "Compliance Edition →"
+msgstr ""
+
+msgid "Compress"
+msgstr ""
+
+msgid "Compression mode"
+msgstr ""
+
+msgid "Confirm Password"
+msgstr ""
+
+msgid "Confirm password"
+msgstr ""
+
+msgid "Confirm your email"
+msgstr ""
+
+msgid "Confirming email"
+msgstr ""
+
+msgid "Confirming your email…"
 msgstr ""
 
 msgid "Convert"
 msgstr ""
 
+msgid "Convert & Compress Files"
+msgstr ""
+
+msgid "Coordinated disclosure:"
+msgstr ""
+
+msgid "Create Account"
+msgstr ""
+
+msgid "Create one"
+msgstr ""
+
+msgid ""
+"Custom volume, batch uploads up to 250 files, SLA, on-premise deployment,"
+" dedicated support & contract. For DACH Behörden, hospitals, law firms "
+"see"
+msgstr ""
+
+msgid "DOCX · PDF · TXT · MD · XLSX · CSV · JSON"
+msgstr ""
+
+msgid "Dedicated onboarding"
+msgstr ""
+
+msgid "Documented API endpoints and the web UI."
+msgstr ""
+
+msgid "Download Result"
+msgstr ""
+
+msgid "Drag & drop your files here"
+msgstr ""
+
+msgid "Drop files here or click to browse"
+msgstr ""
+
+msgid "E-mail support"
+msgstr ""
+
+msgid "Email"
+msgstr ""
+
+msgid "Enter your email to receive a reset link"
+msgstr ""
+
 msgid "Enterprise"
 msgstr ""
 
+msgid "Enterprise & self-hosted:"
+msgstr ""
+
+msgid "Enterprise / Compliance"
+msgstr ""
+
+msgid "File Converter & Compressor"
+msgstr ""
+
+msgid "File compression mode"
+msgstr ""
+
 msgid "File conversion and compression — open source, self-hostable."
+msgstr ""
+
+msgid "File conversion mode"
 msgstr ""
 
 msgid ""
@@ -35,22 +236,236 @@ msgid ""
 "documents, audio and video. Fast, private, no account required."
 msgstr ""
 
+msgid "Files are processed server-side and deleted immediately after conversion."
+msgstr ""
+
+msgid "Fix timeline:"
+msgstr ""
+
+msgid "For Developers"
+msgstr ""
+
+msgid "For issues in the open-source codebase itself, you may alternatively use"
+msgstr ""
+
+msgid "Forgot Password"
+msgstr ""
+
+msgid "Forgot password?"
+msgstr ""
+
+msgid "Free"
+msgstr ""
+
+msgid "Free forever — no credit card required"
+msgstr ""
+
+msgid ""
+"Free tier is live today. Pro & Business launch shortly — paid checkouts "
+"go live once payment processing is fully set up."
+msgstr ""
+
+msgid "Get API Key →"
+msgstr ""
+
+msgid "Get started free"
+msgstr ""
+
+msgid "GitHub Security Advisories"
+msgstr ""
+
+msgid "GitHub ↗"
+msgstr ""
+
+msgid ""
+"Good-faith research in line with this policy will not result in legal "
+"action from the FileMorph project. Please avoid privacy violations, "
+"service disruption, and data destruction; test against your own self-"
+"hosted instance whenever possible."
+msgstr ""
+
+msgid "If this email exists, you'll receive a reset link shortly."
+msgstr ""
+
+msgid ""
+"If you have discovered a security issue in FileMorph or in this "
+"deployment, please email"
+msgstr ""
+
+msgid "Images · Documents · Audio · Video · Spreadsheets"
+msgstr ""
+
 msgid "Impressum"
+msgstr ""
+
+msgid "In scope:"
+msgstr ""
+
+msgid "Initial triage:"
+msgstr ""
+
+msgid ""
+"Integrate file conversion into your app via REST API. One endpoint, all "
+"formats."
+msgstr ""
+
+msgid "Internal server error"
+msgstr ""
+
+msgid ""
+"Issues that require physical access to a self-hosted server, or social "
+"engineering of an operator."
+msgstr ""
+
+msgid "JPEG / WebP only."
 msgstr ""
 
 msgid "Language"
 msgstr ""
 
+msgid "MP4 · MOV · AVI · MKV · WebM · MP3 · WAV · FLAC · OGG · M4A"
+msgstr ""
+
+msgid "Min. 8 characters."
+msgstr ""
+
+msgid ""
+"Monthly call quotas are bucket sizes for spread-out use, not parallelism "
+"guarantees. Each tier has a per-key concurrency cap so one batch can't "
+"starve the whole worker pool — requests past the cap return"
+msgstr ""
+
+msgid "Most popular"
+msgstr ""
+
+msgid "New password"
+msgstr ""
+
+msgid "No account?"
+msgstr ""
+
+msgid "No credit card required"
+msgstr ""
+
+msgid "One click and you're done"
+msgstr ""
+
+msgid "Open dashboard"
+msgstr ""
+
+msgid "Our response"
+msgstr ""
+
+msgid "Out of scope:"
+msgstr ""
+
+msgid "Page not found"
+msgstr ""
+
+msgid "Paid tiers — coming soon"
+msgstr ""
+
+msgid "Password"
+msgstr ""
+
+msgid "Plans"
+msgstr ""
+
 msgid "Pricing"
+msgstr ""
+
+msgid "Priority support"
+msgstr ""
+
+msgid "Priority support (best effort)"
 msgstr ""
 
 msgid "Privacy Policy"
 msgstr ""
 
+msgid "Pro"
+msgstr ""
+
+msgid "Pro · €7/mo"
+msgstr ""
+
+msgid "Processing…"
+msgstr ""
+
+msgid "Quality"
+msgstr ""
+
+msgid "RFC 9116 · referenced from"
+msgstr ""
+
 msgid "Register"
 msgstr ""
 
+msgid "Register free for 50 MB & API access →"
+msgstr ""
+
+msgid "Reporting a vulnerability"
+msgstr ""
+
+msgid ""
+"Reports generated solely by automated scanners without a working proof-"
+"of-concept."
+msgstr ""
+
+msgid "Reset Password"
+msgstr ""
+
+msgid "Safe-harbour"
+msgstr ""
+
+msgid "Saved API keys & dashboard"
+msgstr ""
+
+msgid "Scope"
+msgstr ""
+
+msgid "Security disclosure policy"
+msgstr ""
+
+msgid "See all plans →"
+msgstr ""
+
+msgid "Select one or more files to convert or compress"
+msgstr ""
+
+msgid ""
+"Self-hoster-specific deployment misconfiguration that is not caused by "
+"our defaults or documentation."
+msgstr ""
+
+msgid "Send Reset Link"
+msgstr ""
+
+msgid "Set a new password"
+msgstr ""
+
 msgid "Sign In"
+msgstr ""
+
+msgid "Sign in"
+msgstr ""
+
+msgid "Simple, transparent pricing"
+msgstr ""
+
+msgid "Smaller file"
+msgstr ""
+
+msgid "Something went wrong on our end. Please try again in a moment."
+msgstr ""
+
+msgid "Start free. Upgrade when you need more. No hidden fees."
+msgstr ""
+
+msgid "Steps to reproduce, including any required configuration or input files."
+msgstr ""
+
+msgid "Supported: HEIC · JPG · PNG · WebP · BMP · TIFF · GIF"
 msgstr ""
 
 msgid "Switch to English"
@@ -59,12 +474,136 @@ msgstr ""
 msgid "Switch to German"
 msgstr ""
 
+msgid "Target Format"
+msgstr ""
+
+msgid "Target file size"
+msgstr ""
+
 msgid "Terms of Use"
+msgstr ""
+
+msgid ""
+"That channel is preferred for issues that affect every self-hosted "
+"instance, since the repository maintainers can coordinate a CVE and "
+"release a patched version centrally."
+msgstr ""
+
+msgid "The FileMorph application source code (this repository)."
+msgstr ""
+
+msgid "The official Docker images and release artifacts."
+msgstr ""
+
+msgid "The page you are looking for does not exist or has been moved."
+msgstr ""
+
+msgid ""
+"Third-party services we depend on (Stripe, Zoho, Cloudflare, Hetzner) — "
+"please report to those vendors directly."
+msgstr ""
+
+msgid "This link is missing a reset token. Request a new one from"
+msgstr ""
+
+msgid ""
+"This link is missing a verification token. Sign in and request a new "
+"verification email from your dashboard."
 msgstr ""
 
 msgid "Toggle menu"
 msgstr ""
 
+msgid "Type it again"
+msgstr ""
+
+msgid "Up to 100 MB per file"
+msgstr ""
+
+msgid "Up to 50 MB per file"
+msgstr ""
+
+msgid "Up to 500 MB per file"
+msgstr ""
+
+msgid "Update password"
+msgstr ""
+
+msgid "Upgrade to Business"
+msgstr ""
+
+msgid "Upgrade to Pro"
+msgstr ""
+
+msgid "Using anonymously: up to 20 MB per file."
+msgstr ""
+
+msgid ""
+"Using without an account: up to 20 MB per file · single file at a time · "
+"10 requests/minute · no API access"
+msgstr ""
+
+msgid "Welcome back to FileMorph"
+msgstr ""
+
+msgid "What to include in a report"
+msgstr ""
+
+msgid "Whether the issue has been disclosed publicly elsewhere."
+msgstr ""
+
+msgid "Your email is now verified."
+msgstr ""
+
+msgid "Your password has been updated."
+msgstr ""
+
+msgid ""
+"critical issues within 7 days, high severity within 30 days, medium/low "
+"within the next regular release."
+msgstr ""
+
+msgid "hint. Large batches are processed sequentially inside the request."
+msgstr ""
+
+msgid "min 0.05 MB"
+msgstr ""
+
+msgid "or click to browse (multi-file supported)"
+msgstr ""
+
+msgid "per request"
+msgstr ""
+
+msgid ""
+"we publish an advisory once a fixed release is available, and credit "
+"reporters who wish to be named."
+msgstr ""
+
+msgid "with a"
+msgstr ""
+
+msgid ""
+"with a clear description of the issue and any steps required to reproduce"
+" it. Encrypted mail is welcome — request our PGP key at the same address "
+"if needed."
+msgstr ""
+
+msgid "within 7 days, including a severity assessment."
+msgstr ""
+
+msgid "within 72 hours of receipt."
+msgstr ""
+
 msgid "© 2026 FileMorph — AGPLv3 Open Source"
+msgstr ""
+
+msgid "±3% tolerance"
+msgstr ""
+
+msgid "— select a file first —"
+msgstr ""
+
+msgid "← Back"
 msgstr ""
 

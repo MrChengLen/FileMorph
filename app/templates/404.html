@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 {% import "_components/button.html" as ub %}
-{% block title %}404 – Not Found | FileMorph{% endblock %}
+{% block title %}{{ _('404 – Not Found') }} | FileMorph{% endblock %}
 {% block content %}
 <div class="min-h-screen flex flex-col items-center justify-center px-6 text-center">
   <p class="text-8xl font-extrabold text-brand mb-4">404</p>
-  <h1 class="text-h-page text-ink mb-3">Page not found</h1>
+  <h1 class="text-h-page text-ink mb-3">{{ _('Page not found') }}</h1>
   <p class="text-ink-muted mb-8 max-w-md">
-    The page you are looking for does not exist or has been moved.
+    {{ _('The page you are looking for does not exist or has been moved.') }}
   </p>
-  {{ ub.button('Back to Home', href='/') }}
+  {{ ub.button(_('Back to Home'), href=localized_url('/', current_prefix)) }}
 </div>
 {% endblock %}

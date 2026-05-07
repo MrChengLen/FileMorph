@@ -2,33 +2,33 @@
 {% import "_components/text_input.html" as ti %}
 {% import "_components/card.html" as uc %}
 {% import "_components/button.html" as ub %}
-{% block title %}Sign In — FileMorph{% endblock %}
+{% block title %}{{ _('Sign In') }} — FileMorph{% endblock %}
 {% block content %}
 <main class="flex-1 flex items-center justify-center p-4 sm:p-6">
   <div class="w-full max-w-md space-y-6">
 
     <div class="text-center space-y-1">
-      <h1 class="text-h-sect text-ink">Sign In</h1>
-      <p class="text-ink-muted text-sm">Welcome back to FileMorph</p>
+      <h1 class="text-h-sect text-ink">{{ _('Sign In') }}</h1>
+      <p class="text-ink-muted text-sm">{{ _('Welcome back to FileMorph') }}</p>
     </div>
 
     {% call uc.card() %}
     <div class="space-y-4">
-      {{ ti.text_input('email', type='email', label='Email',
+      {{ ti.text_input('email', type='email', label=_('Email'),
                        placeholder='you@example.com', autocomplete='email') }}
 
-      {{ ti.text_input('password', type='password', label='Password',
+      {{ ti.text_input('password', type='password', label=_('Password'),
                        placeholder='••••••••', autocomplete='current-password') }}
 
       <div id="error-msg" class="hidden text-red-400 text-sm bg-red-950 rounded-lg px-4 py-3"></div>
 
-      {{ ub.button('Sign In', id='login-btn', full_width=True) }}
+      {{ ub.button(_('Sign In'), id='login-btn', full_width=True) }}
 
       <p class="text-center text-sm text-ink-faint">
-        No account?
-        <a href="/register" class="text-brand hover:underline">Create one</a>
+        {{ _('No account?') }}
+        <a href="{{ localized_url('/register', current_prefix) }}" class="text-brand hover:underline">{{ _('Create one') }}</a>
         &nbsp;·&nbsp;
-        <a href="/forgot-password" class="text-ink-muted hover:underline">Forgot password?</a>
+        <a href="{{ localized_url('/forgot-password', current_prefix) }}" class="text-ink-muted hover:underline">{{ _('Forgot password?') }}</a>
       </p>
     </div>
     {% endcall %}
