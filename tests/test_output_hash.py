@@ -112,18 +112,18 @@ def test_output_sha256_differs_for_different_inputs(client, auth_headers, tmp_pa
 
 
 def test_helper_matches_streaming_definition(tmp_path):
-    """Direct helper-level check: ``_sha256_file`` produces the same
+    """Direct helper-level check: ``sha256_file`` produces the same
     digest whether the input is one chunk or many. Guards against any
     refactor that changes the chunked-read semantics."""
-    from app.api.routes.convert import _sha256_file
+    from app.core.processing import sha256_file
 
     payload = b"FileMorph integrity-anchor reference vector\n" * 10_000
     path = tmp_path / "blob.bin"
     path.write_bytes(payload)
 
     expected = hashlib.sha256(payload).hexdigest()
-    assert _sha256_file(path) == expected
+    assert sha256_file(path) == expected
     # Tiny chunk size should not change the digest.
-    assert _sha256_file(path, chunk_size=17) == expected
+    assert sha256_file(path, chunk_size=17) == expected
     # And the standalone sha256 of an in-memory buffer agrees.
     assert hashlib.sha256(io.BytesIO(payload).read()).hexdigest() == expected
