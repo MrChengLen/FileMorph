@@ -605,7 +605,7 @@ For readers who want to jump directly to the code:
 | API-key hashing and verification | `app/core/security.py` |
 | Password hashing and JWT issuance | `app/core/auth.py` |
 | Rate limiter | `app/core/rate_limit.py` |
-| Magic-byte allow-list | `app/api/routes/convert.py`, `app/api/routes/compress.py` (search `BLOCKED_MAGIC`) |
+| Magic-byte allow-list | `app/core/processing.py` (`BLOCKED_MAGIC`); enforced in `app/api/routes/convert.py` + `compress.py` |
 | WeasyPrint SSRF hardening | `app/converters/document.py` (search `_deny_url_fetcher`) |
 | Security-headers middleware (HSTS, Permissions-Policy, CSP, etc.) | `app/main.py::security_headers` |
 | CSP and CORS middleware | `app/main.py::_build_csp_header` |

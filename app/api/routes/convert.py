@@ -1,5 +1,4 @@
 import asyncio
-import hashlib
 import logging
 import shutil
 import tempfile
@@ -20,6 +19,7 @@ from app.core.batch import BatchFileResult, batch_error_response, build_batch_zi
 from app.core.concurrency import acquire_slot
 from app.core.data_classification import DEFAULT_CLASSIFICATION as DATA_CLASSIFICATION_DEFAULT
 from app.core.metrics import increment as metric_increment
+from app.core.processing import BLOCKED_MAGIC, actor_id, sha256_file
 from app.core.quotas import _MB, get_quota, tier_for
 from app.core.rate_limit import limiter
 from app.core.utils import safe_download_name
@@ -32,41 +32,6 @@ router = APIRouter()
 # Trigger converter registration on module load
 _ensure_loaded()
 
-BLOCKED_MAGIC = [b"MZ", b"\x7fELF", b"#!/", b"<?ph"]
-
-
-def _sha256_file(path: Path, *, chunk_size: int = 64 * 1024) -> str:
-    """Streaming SHA-256 over an on-disk file, returned as lowercase hex.
-
-    Used for the ``X-Output-SHA256`` response header (NEU-B.2). Runs
-    inside ``asyncio.to_thread`` so the synchronous read does not block
-    the event loop. ``chunk_size`` is 64 KiB — enough to keep syscall
-    overhead irrelevant, small enough that a 2 GB output costs no
-    measurable RAM.
-    """
-    h = hashlib.sha256()
-    with path.open("rb") as f:
-        while True:
-            chunk = f.read(chunk_size)
-            if not chunk:
-                break
-            h.update(chunk)
-    return h.hexdigest()
-
-
-def _actor_id(request: Request, user: User | None) -> str:
-    """Stable identity for the per-actor concurrency cap (NEU-D.1).
-
-    Authenticated callers key on the user UUID — the same person
-    across IPs, the same cap. Anonymous callers fall back to the
-    remote IP, which is the only stable handle we have without
-    making them register. The ``X-API-Key`` value itself is never
-    used as the key (it's a secret; we don't want it in any log
-    extra dict, even hashed)."""
-    if user is not None:
-        return f"user:{user.id}"
-    return f"ip:{request.client.host if request.client else 'unknown'}"
-
 
 @router.post("/convert", tags=["Convert"], dependencies=[Depends(require_api_key)])
 @limiter.limit("10/minute")
@@ -78,7 +43,7 @@ async def convert_file(
     user: User | None = Depends(get_optional_user),
 ) -> Response:
     tier = tier_for(user)
-    async with acquire_slot(actor_id=_actor_id(request, user), tier=tier):
+    async with acquire_slot(actor_id=actor_id(request, user), tier=tier):
         return await _do_convert(request, file, target_format, quality, user, tier)
 
 
@@ -202,7 +167,7 @@ async def _do_convert(
         # caller a tamper-detection anchor without us having to keep the
         # file or sign it. Read in chunks so large outputs don't double
         # the memory footprint.
-        output_hash = await asyncio.to_thread(_sha256_file, output_path)
+        output_hash = await asyncio.to_thread(sha256_file, output_path)
         amplification_ratio = (
             round(output_size_bytes / input_size_bytes, 3) if input_size_bytes > 0 else None
         )
@@ -306,7 +271,7 @@ async def convert_batch(
     # double-charge against the per-actor cap and starve real second
     # requests. The slot lives long enough that the global cap
     # serialises bursts of large batches across users.
-    async with acquire_slot(actor_id=_actor_id(request, user), tier=tier):
+    async with acquire_slot(actor_id=actor_id(request, user), tier=tier):
         return await _do_convert_batch(request, files, target_formats, quality, user, tier)
 
 

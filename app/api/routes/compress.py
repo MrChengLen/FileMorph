@@ -1,5 +1,4 @@
 import asyncio
-import hashlib
 import logging
 import shutil
 import tempfile
@@ -26,6 +25,7 @@ from app.core.batch import BatchFileResult, batch_error_response, build_batch_zi
 from app.core.concurrency import acquire_slot
 from app.core.data_classification import DEFAULT_CLASSIFICATION as DATA_CLASSIFICATION_DEFAULT
 from app.core.metrics import increment as metric_increment
+from app.core.processing import BLOCKED_MAGIC, actor_id, sha256_file
 from app.core.quotas import _MB, get_quota, tier_for
 from app.core.rate_limit import limiter
 from app.core.utils import safe_download_name
@@ -34,36 +34,6 @@ from app.db.models import User
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-BLOCKED_MAGIC = [b"MZ", b"\x7fELF", b"#!/", b"<?ph"]
-
-
-def _sha256_file(path: Path, *, chunk_size: int = 64 * 1024) -> str:
-    """Streaming SHA-256 over an on-disk file (NEU-B.2). Mirrors the
-    helper in ``app/api/routes/convert.py``; kept duplicated rather
-    than extracted because it lives at the route boundary and the
-    duplication is one helper, not a pattern. If a third caller
-    appears, promote to ``app/core/utils.py``."""
-    h = hashlib.sha256()
-    with path.open("rb") as f:
-        while True:
-            chunk = f.read(chunk_size)
-            if not chunk:
-                break
-            h.update(chunk)
-    return h.hexdigest()
-
-
-def _actor_id(request: Request, user: User | None) -> str:
-    """Stable identity for the per-actor concurrency cap (NEU-D.1).
-
-    Same shape as the helper in ``app/api/routes/convert.py``;
-    duplicated rather than extracted while there are only two
-    callers. Promote to ``app/core/quotas.py`` (or a new
-    ``app/core/identity.py``) when a third route needs it."""
-    if user is not None:
-        return f"user:{user.id}"
-    return f"ip:{request.client.host if request.client else 'unknown'}"
 
 
 @router.post("/compress", tags=["Compress"], dependencies=[Depends(require_api_key)])
@@ -81,7 +51,7 @@ async def compress_file(
     user: User | None = Depends(get_optional_user),
 ) -> Response:
     tier = tier_for(user)
-    async with acquire_slot(actor_id=_actor_id(request, user), tier=tier):
+    async with acquire_slot(actor_id=actor_id(request, user), tier=tier):
         return await _do_compress(request, file, quality, target_size_kb, user, tier)
 
 
@@ -264,7 +234,7 @@ async def _do_compress(
         # NEU-B.2: integrity hash for downstream auditors (eDiscovery,
         # GoBD-archival, beA-Anhang-Trail). Same chunk-streamed SHA-256
         # as in convert.py.
-        output_hash = await asyncio.to_thread(_sha256_file, output_path)
+        output_hash = await asyncio.to_thread(sha256_file, output_path)
         await audit_record(
             "compress.success",
             actor_user_id=user.id if user is not None else None,
@@ -336,7 +306,7 @@ async def compress_batch(
 
     tier = tier_for(user)
     # NEU-D.1: same one-slot-per-batch policy as convert/batch.
-    async with acquire_slot(actor_id=_actor_id(request, user), tier=tier):
+    async with acquire_slot(actor_id=actor_id(request, user), tier=tier):
         return await _do_compress_batch(request, files, quality, target_size_kb, user, tier)
 
 
