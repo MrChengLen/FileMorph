@@ -20,6 +20,7 @@ ffmpeg-python>=0.2.0
 pydub>=0.25.1
 python-dotenv>=1.0.0
 slowapi>=0.1.9
+Babel>=2.14
 
 # ── Auth / Database ───────────────────────────────────────────────
 sqlalchemy[asyncio]>=2.0

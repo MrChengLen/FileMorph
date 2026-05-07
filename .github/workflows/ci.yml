@@ -42,6 +42,13 @@ jobs:
       - name: Template class gate
         run: python scripts/check_template_classes.py
 
+      # i18n drift gate — re-extract the .pot from current sources and fail
+      # if it differs from the committed file. Catches a developer who added
+      # `_('...')` calls but forgot `python scripts/i18n.py extract` before
+      # pushing. Translation work then stays in sync with code.
+      - name: i18n message-catalog drift
+        run: python scripts/i18n.py drift-check
+
       # pip-audit scans dependencies for known CVEs.
       # Blocking — a failure means a published advisory affects a pinned dep.
       # If a finding is genuinely unfixable upstream, add the ID to the --ignore-vuln list
