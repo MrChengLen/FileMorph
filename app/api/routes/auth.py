@@ -14,7 +14,8 @@ from sqlalchemy.orm import selectinload
 from app.compat import base_dir
 from app.core import email as email_mod
 from app.core.audit import record_event as audit_record
-from app.core.auth import (
+from app.core.auth import hash_password, verify_password
+from app.core.tokens import (
     create_access_token,
     create_email_verify_token,
     create_password_reset_token,
@@ -22,9 +23,7 @@ from app.core.auth import (
     decode_email_verify_token,
     decode_password_reset_token,
     decode_token,
-    hash_password,
     password_hash_version,
-    verify_password,
 )
 from app.core.config import settings
 from app.core.metrics import increment as metric_increment

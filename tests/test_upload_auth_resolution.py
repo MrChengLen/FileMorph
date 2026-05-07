@@ -29,7 +29,8 @@ from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
-from app.core.auth import create_access_token, hash_password
+from app.core.auth import hash_password
+from app.core.tokens import create_access_token
 from app.db.base import Base, get_db
 from app.db.models import ApiKey, TierEnum, User
 from app.main import app

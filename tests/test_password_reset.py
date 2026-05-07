@@ -20,11 +20,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import StaticPool
 
 from app.core import email as email_mod
-from app.core.auth import (
-    create_password_reset_token,
-    hash_password,
-    password_hash_version,
-)
+from app.core.auth import hash_password
+from app.core.tokens import create_password_reset_token, password_hash_version
 from app.db.base import Base, get_db
 from app.db.models import TierEnum, User
 from app.main import app
