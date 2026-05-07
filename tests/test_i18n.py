@@ -269,6 +269,40 @@ def test_active_locale_marked_aria_current(client):
     )
 
 
+def test_switcher_uses_aria_label_not_visible_sr_text(client):
+    """Switcher must show plain "DE" / "EN" with the screen-reader text on
+    ``aria-label`` — never inside a child ``<span class="sr-only">``.
+
+    Earlier markup wrapped the SR text in ``<span class="sr-only">Switch
+    to German</span>DE`` which renders correctly *only* when Tailwind's
+    ``sr-only`` utility makes it into the bundle. Our committed
+    ``app/static/css/tailwind.*.css`` does not contain that utility,
+    which let the SR string leak as visible text in production
+    (``"SWITCH TO GERMANDE"``). This guard pins the markup to the
+    a11y-equivalent ``aria-label`` form so a future Tailwind purge can't
+    break the visible label again.
+    """
+    r = client.get("/")
+    text = r.text
+
+    # Negative: the broken pattern must never reappear.
+    assert "Switch to GermanDE" not in text, (
+        "screen-reader text leaked into visible DE label — re-introducing sr-only span?"
+    )
+    assert "Switch to EnglishEN" not in text, (
+        "screen-reader text leaked into visible EN label — re-introducing sr-only span?"
+    )
+
+    # Positive: both switcher links carry aria-label so screen readers still
+    # announce the action even though the visible text is just "DE" / "EN".
+    assert re.search(r'<a[^>]*hreflang="de"[^>]*aria-label="[^"]+"', text), (
+        "DE switcher link missing aria-label"
+    )
+    assert re.search(r'<a[^>]*hreflang="en"[^>]*aria-label="[^"]+"', text), (
+        "EN switcher link missing aria-label"
+    )
+
+
 # ── Sub-router prefix isolation ───────────────────────────────────────────────
 
 
