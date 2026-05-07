@@ -45,10 +45,12 @@ jobs:
             if [[ -s /tmp/maintainer-keys.asc ]]; then
               gpg --import /tmp/maintainer-keys.asc
             else
-              echo "::warning::No PGP public keys found in docs/release-signing.md — verification will fail until at least one is added."
+              echo "::error::No PGP public keys found in docs/release-signing.md. Add a maintainer key block before publishing a release."
+              exit 1
             fi
           else
-            echo "::warning::docs/release-signing.md missing — cannot verify tag signature."
+            echo "::error::docs/release-signing.md missing — cannot verify tag signature. Restore the file or add a maintainer key block."
+            exit 1
           fi
 
       - name: Verify tag is GPG-signed

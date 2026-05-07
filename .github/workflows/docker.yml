@@ -67,6 +67,7 @@ jobs:
         # `cosign verify ghcr.io/.../filemorph:<tag>` works regardless of
         # which alias the consumer pulls.
         run: |
+          set -euo pipefail
           for tag in $TAGS; do
             cosign sign --yes "${tag}@${DIGEST}"
           done
