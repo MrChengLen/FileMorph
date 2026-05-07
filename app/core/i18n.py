@@ -5,9 +5,18 @@ Resolution chain (highest priority first):
 
 1. URL path-prefix (``/de/...`` or ``/en/...``)
 2. Query-param (``?lang=de|en``)
-3. Cookie (``fm_lang``)
-4. ``Accept-Language`` header (``de*`` | ``en*``)
-5. Default ``de`` (Hamburg-based operator, see plan)
+3. ``Accept-Language`` header (``de*`` | ``en*``)
+4. Default ``de`` (Hamburg-based operator, see plan)
+
+The app stores **no client-side locale preference** (no cookie, no
+localStorage). The URL is the single source of truth: a user who clicks
+the EN switcher lands on ``/en/...`` and stays there as long as
+in-app links propagate ``current_prefix``. A return visit to an
+unprefixed URL falls through to ``Accept-Language`` and the operator
+default. This keeps the published privacy guarantee ("no cookies")
+intact and makes shared URLs deterministic. Logged-in users get a
+sticky preference via ``User.preferred_lang`` (PR-i18n-3) — server-side,
+device-portable, strictly better than a cookie.
 
 The resolved locale lands on ``request.state.locale`` via
 :class:`LocaleMiddleware`. Routes that render templates pull it through
@@ -36,8 +45,6 @@ from app.core.config import settings
 
 SUPPORTED_LOCALES: tuple[str, ...] = ("de", "en")
 DEFAULT_LOCALE: str = "de"
-COOKIE_NAME: str = "fm_lang"
-COOKIE_MAX_AGE: int = 30 * 24 * 60 * 60  # 30 days
 LOCALE_DIR: Path = Path(__file__).resolve().parent.parent.parent / "locale"
 
 # Module-level translation cache. Populated lazily on first lookup.
@@ -134,15 +141,11 @@ def resolve_locale(request: Request) -> str:
     q = request.query_params.get("lang")
     if q in SUPPORTED_LOCALES:
         return q
-    # 3. Sticky cookie
-    c = request.cookies.get(COOKIE_NAME)
-    if c in SUPPORTED_LOCALES:
-        return c
-    # 4. Best-effort Accept-Language
+    # 3. Best-effort Accept-Language
     al = _accept_language_locale(request.headers.get("accept-language"))
     if al:
         return al
-    # 5. Operator default (DE unless overridden)
+    # 4. Operator default (DE unless overridden)
     return _effective_default()
 
 
@@ -153,19 +156,6 @@ async def get_locale(request: Request) -> str:
     that exercise routes without going through the full ASGI stack).
     """
     return getattr(request.state, "locale", None) or resolve_locale(request)
-
-
-def is_explicit_locale_signal(request: Request) -> bool:
-    """True when the caller's URL or query carries an unambiguous locale.
-
-    The cookie is only set when the signal was *explicit* — otherwise the
-    cookie would race the URL on every page load and surprise users who
-    hit a different prefix from a bookmark.
-    """
-    return (
-        path_prefix_locale(request.url.path) is not None
-        or request.query_params.get("lang") in SUPPORTED_LOCALES
-    )
 
 
 def localized_context(request: Request, **extra) -> dict:
