@@ -1,36 +1,35 @@
 {% extends "base.html" %}
 {% import "_components/card.html" as uc %}
-{% block title %}Confirming email — FileMorph{% endblock %}
+{% block title %}{{ _('Confirming email') }} — FileMorph{% endblock %}
 {% block content %}
 <main class="flex-1 flex items-center justify-center p-4 sm:p-6">
   <div class="w-full max-w-md space-y-6">
 
     <div class="text-center space-y-1">
-      <h1 class="text-h-sect text-ink">Confirm your email</h1>
-      <p class="text-ink-muted text-sm">One click and you're done</p>
+      <h1 class="text-h-sect text-ink">{{ _('Confirm your email') }}</h1>
+      <p class="text-ink-muted text-sm">{{ _("One click and you're done") }}</p>
     </div>
 
     {% call uc.card() %}
     <div class="space-y-4">
 
       <div id="no-token-msg" class="hidden text-amber-400 text-sm bg-amber-950 rounded-lg px-4 py-3">
-        This link is missing a verification token. Sign in and request a new
-        verification email from your dashboard.
+        {{ _('This link is missing a verification token. Sign in and request a new verification email from your dashboard.') }}
       </div>
 
       <div id="pending-msg" class="hidden text-ink-muted text-sm bg-surface-sunken rounded-lg px-4 py-3 text-center">
-        Confirming your email&hellip;
+        {{ _('Confirming your email…') }}
       </div>
 
       <div id="success-msg" class="hidden text-emerald-400 text-sm bg-emerald-950 rounded-lg px-4 py-3 text-center space-y-2">
-        <div>Your email is now verified.</div>
-        <a href="/dashboard" class="inline-block mt-1 text-brand hover:underline">Open dashboard &rarr;</a>
+        <div>{{ _('Your email is now verified.') }}</div>
+        <a href="{{ localized_url('/dashboard', current_prefix) }}" class="inline-block mt-1 text-brand hover:underline">{{ _('Open dashboard') }} &rarr;</a>
       </div>
 
       <div id="error-msg" class="hidden text-red-400 text-sm bg-red-950 rounded-lg px-4 py-3"></div>
 
       <p class="text-center text-sm text-ink-faint">
-        <a href="/login" class="text-brand hover:underline">Back to Sign In</a>
+        <a href="{{ localized_url('/login', current_prefix) }}" class="text-brand hover:underline">{{ _('Back to Sign In') }}</a>
       </p>
 
     </div>

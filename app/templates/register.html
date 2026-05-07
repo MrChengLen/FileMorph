@@ -2,35 +2,35 @@
 {% import "_components/text_input.html" as ti %}
 {% import "_components/card.html" as uc %}
 {% import "_components/button.html" as ub %}
-{% block title %}Create Account — FileMorph{% endblock %}
+{% block title %}{{ _('Create Account') }} — FileMorph{% endblock %}
 {% block content %}
 <main class="flex-1 flex items-center justify-center p-4 sm:p-6">
   <div class="w-full max-w-md space-y-6">
 
     <div class="text-center space-y-1">
-      <h1 class="text-h-sect text-ink">Create Account</h1>
-      <p class="text-ink-muted text-sm">Free forever — no credit card required</p>
+      <h1 class="text-h-sect text-ink">{{ _('Create Account') }}</h1>
+      <p class="text-ink-muted text-sm">{{ _('Free forever — no credit card required') }}</p>
     </div>
 
     {% call uc.card() %}
     <div class="space-y-4">
-      {{ ti.text_input('email', type='email', label='Email',
+      {{ ti.text_input('email', type='email', label=_('Email'),
                        placeholder='you@example.com', autocomplete='email') }}
 
-      {{ ti.text_input('password', type='password', label='Password',
+      {{ ti.text_input('password', type='password', label=_('Password'),
                        placeholder='••••••••', autocomplete='new-password',
-                       help='Min. 8 characters.') }}
+                       help=_('Min. 8 characters.')) }}
 
-      {{ ti.text_input('password2', type='password', label='Confirm Password',
+      {{ ti.text_input('password2', type='password', label=_('Confirm Password'),
                        placeholder='••••••••', autocomplete='new-password') }}
 
       <div id="error-msg" class="hidden text-red-400 text-sm bg-red-950 rounded-lg px-4 py-3"></div>
 
-      {{ ub.button('Create Account', id='reg-btn', full_width=True) }}
+      {{ ub.button(_('Create Account'), id='reg-btn', full_width=True) }}
 
       <p class="text-center text-sm text-ink-faint">
-        Already have an account?
-        <a href="/login" class="text-brand hover:underline">Sign in</a>
+        {{ _('Already have an account?') }}
+        <a href="{{ localized_url('/login', current_prefix) }}" class="text-brand hover:underline">{{ _('Sign in') }}</a>
       </p>
     </div>
     {% endcall %}

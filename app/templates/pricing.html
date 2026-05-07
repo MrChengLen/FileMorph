@@ -1,33 +1,33 @@
 {% extends "base.html" %}
 {% import "_components/card.html" as uc %}
-{% block title %}Pricing — FileMorph{% endblock %}
+{% block title %}{{ _('Pricing') }} — FileMorph{% endblock %}
 {% block content %}
 <main class="flex-1 max-w-5xl mx-auto w-full px-4 sm:px-6 py-12 space-y-10">
 
   <div class="text-center space-y-3">
-    <h1 class="text-h-page text-ink">Simple, transparent pricing</h1>
-    <p class="text-ink-muted max-w-xl mx-auto">Start free. Upgrade when you need more. No hidden fees.</p>
+    <h1 class="text-h-page text-ink">{{ _('Simple, transparent pricing') }}</h1>
+    <p class="text-ink-muted max-w-xl mx-auto">{{ _('Start free. Upgrade when you need more. No hidden fees.') }}</p>
   </div>
 
   {% if not stripe_enabled %}
   <div id="coming-soon-banner" class="max-w-2xl mx-auto bg-brand/10 border border-brand/40 rounded-xl px-5 py-4 text-center space-y-1">
-    <p class="text-sm font-semibold text-brand">Paid tiers — coming soon</p>
+    <p class="text-sm font-semibold text-brand">{{ _('Paid tiers — coming soon') }}</p>
     <p class="text-xs text-gray-400">
-      Free tier is live today. Pro &amp; Business launch shortly — paid checkouts go live once payment processing is fully set up.
+      {{ _('Free tier is live today. Pro & Business launch shortly — paid checkouts go live once payment processing is fully set up.') }}
     </p>
   </div>
   {% endif %}
 
   <p class="text-center text-xs text-gray-500">
-    Using without an account: up to 20 MB per file · single file at a time · 10 requests/minute · no API access
+    {{ _('Using without an account: up to 20 MB per file · single file at a time · 10 requests/minute · no API access') }}
   </p>
 
   <p class="text-center text-xs text-gray-500 max-w-3xl mx-auto">
-    Monthly call quotas are bucket sizes for spread-out use, not parallelism guarantees.
-    Each tier has a per-key concurrency cap so one batch can't starve the whole worker pool —
-    requests past the cap return <code class="text-gray-400">429</code> with a
-    <code class="text-gray-400">Retry-After</code> hint.
-    Large batches are processed sequentially inside the request.
+    {{ _('Monthly call quotas are bucket sizes for spread-out use, not parallelism guarantees. Each tier has a per-key concurrency cap so one batch can\'t starve the whole worker pool — requests past the cap return') }}
+    <code class="text-gray-400">429</code>
+    {{ _('with a') }}
+    <code class="text-gray-400">Retry-After</code>
+    {{ _('hint. Large batches are processed sequentially inside the request.') }}
   </p>
 
   <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
@@ -36,86 +36,86 @@
     {% call uc.card() %}
     <div class="flex flex-col gap-6 h-full">
       <div>
-        <p class="text-xs font-semibold uppercase tracking-wider text-ink-faint">Free</p>
-        <p class="text-4xl font-bold mt-2">€0<span class="text-base font-normal text-ink-muted">/mo</span></p>
-        <p class="text-sm text-ink-muted mt-1">No credit card required</p>
+        <p class="text-xs font-semibold uppercase tracking-wider text-ink-faint">{{ _('Free') }}</p>
+        <p class="text-4xl font-bold mt-2">€0<span class="text-base font-normal text-ink-muted">{{ _('/mo') }}</span></p>
+        <p class="text-sm text-ink-muted mt-1">{{ _('No credit card required') }}</p>
       </div>
       <ul class="space-y-2.5 text-sm text-gray-300 flex-1">
         <li class="flex items-start gap-2">
           <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span>Up to 50 MB per file <span class="text-ink-faint">(vs. 20 MB anonymous)</span></span>
+          <span>{{ _('Up to 50 MB per file') }} <span class="text-ink-faint">{{ _('(vs. 20 MB anonymous)') }}</span></span>
         </li>
         <li class="flex items-start gap-2">
           <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span>Batch upload: <strong class="text-white">5 files</strong> per request</span>
+          <span>{{ _('Batch upload:') }} <strong class="text-white">{{ _('5 files') }}</strong> {{ _('per request') }}</span>
         </li>
         <li class="flex items-start gap-2">
           <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span>30+ formats (images, docs, audio, video)</span>
+          <span>{{ _('30+ formats (images, docs, audio, video)') }}</span>
         </li>
         <li class="flex items-start gap-2">
           <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span>API key &mdash; <strong class="text-white">500 calls / month</strong>, 1 concurrent, 10 req/min</span>
+          <span>{{ _('API key — ') }}<strong class="text-white">{{ _('500 calls / month') }}</strong>{{ _(', 1 concurrent, 10 req/min') }}</span>
         </li>
         <li class="flex items-start gap-2">
           <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span>Saved API keys &amp; dashboard</span>
+          <span>{{ _('Saved API keys & dashboard') }}</span>
         </li>
         <li class="flex items-start gap-2 text-ink-faint">
           <span class="shrink-0 leading-6" aria-hidden="true">✗</span>
-          <span>Priority support</span>
+          <span>{{ _('Priority support') }}</span>
         </li>
       </ul>
-      <a href="/register" class="block text-center py-2.5 rounded-xl border border-hairline hover:border-brand text-gray-300 hover:text-white transition-colors text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
-        Get started free
+      <a href="{{ localized_url('/register', current_prefix) }}" class="block text-center py-2.5 rounded-xl border border-hairline hover:border-brand text-gray-300 hover:text-white transition-colors text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+        {{ _('Get started free') }}
       </a>
     </div>
     {% endcall %}
 
     <!-- Pro -->
     <div class="bg-gray-900 border-2 border-brand rounded-2xl p-6 flex flex-col gap-6 relative">
-      <span class="absolute -top-3 left-1/2 -translate-x-1/2 bg-brand text-white text-xs font-bold px-3 py-1 rounded-full">Most popular</span>
+      <span class="absolute -top-3 left-1/2 -translate-x-1/2 bg-brand text-white text-xs font-bold px-3 py-1 rounded-full">{{ _('Most popular') }}</span>
       <div>
-        <p class="text-xs font-semibold uppercase tracking-wider text-brand">Pro</p>
-        <p class="text-4xl font-bold mt-2">€7<span class="text-base font-normal text-gray-400">/mo</span></p>
-        <p class="text-sm text-gray-400 mt-1">Billed monthly, cancel anytime</p>
+        <p class="text-xs font-semibold uppercase tracking-wider text-brand">{{ _('Pro') }}</p>
+        <p class="text-4xl font-bold mt-2">€7<span class="text-base font-normal text-gray-400">{{ _('/mo') }}</span></p>
+        <p class="text-sm text-gray-400 mt-1">{{ _('Billed monthly, cancel anytime') }}</p>
       </div>
       <ul class="space-y-2.5 text-sm text-gray-300 flex-1">
         <li class="flex items-start gap-2">
           <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span>Up to 100 MB per file</span>
+          <span>{{ _('Up to 100 MB per file') }}</span>
         </li>
         <li class="flex items-start gap-2">
           <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span>Batch upload: <strong class="text-white">25 files</strong> per request</span>
+          <span>{{ _('Batch upload:') }} <strong class="text-white">{{ _('25 files') }}</strong> {{ _('per request') }}</span>
         </li>
         <li class="flex items-start gap-2">
           <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span>30+ formats incl. video</span>
+          <span>{{ _('30+ formats incl. video') }}</span>
         </li>
         <li class="flex items-start gap-2">
           <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span><strong class="text-white">10,000 API calls / month</strong>, 2 concurrent, 10 req/min</span>
+          <span><strong class="text-white">{{ _('10,000 API calls / month') }}</strong>{{ _(', 2 concurrent, 10 req/min') }}</span>
         </li>
         <li class="flex items-start gap-2">
           <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span>API key management</span>
+          <span>{{ _('API key management') }}</span>
         </li>
         <li class="flex items-start gap-2">
           <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span>E-mail support</span>
+          <span>{{ _('E-mail support') }}</span>
         </li>
       </ul>
       {% if stripe_enabled %}
       <button id="pro-btn"
         class="block w-full text-center py-2.5 rounded-xl bg-brand hover:bg-brand-dark text-white transition-colors text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
-        Upgrade to Pro
+        {{ _('Upgrade to Pro') }}
       </button>
       {% else %}
       <button id="pro-btn" disabled
         class="block w-full text-center py-2.5 rounded-xl bg-gray-800 text-gray-500 cursor-not-allowed text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-600"
         aria-disabled="true">
-        Coming soon
+        {{ _('Coming soon') }}
       </button>
       {% endif %}
     </div>
@@ -124,46 +124,46 @@
     {% call uc.card() %}
     <div class="flex flex-col gap-6 h-full">
       <div>
-        <p class="text-xs font-semibold uppercase tracking-wider text-ink-faint">Business</p>
-        <p class="text-4xl font-bold mt-2">€19<span class="text-base font-normal text-ink-muted">/mo</span></p>
-        <p class="text-sm text-ink-muted mt-1">Billed monthly, cancel anytime</p>
+        <p class="text-xs font-semibold uppercase tracking-wider text-ink-faint">{{ _('Business') }}</p>
+        <p class="text-4xl font-bold mt-2">€19<span class="text-base font-normal text-ink-muted">{{ _('/mo') }}</span></p>
+        <p class="text-sm text-ink-muted mt-1">{{ _('Billed monthly, cancel anytime') }}</p>
       </div>
       <ul class="space-y-2.5 text-sm text-gray-300 flex-1">
         <li class="flex items-start gap-2">
           <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span>Up to 500 MB per file</span>
+          <span>{{ _('Up to 500 MB per file') }}</span>
         </li>
         <li class="flex items-start gap-2">
           <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span>Batch upload: <strong class="text-white">100 files</strong> per request</span>
+          <span>{{ _('Batch upload:') }} <strong class="text-white">{{ _('100 files') }}</strong> {{ _('per request') }}</span>
         </li>
         <li class="flex items-start gap-2">
           <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span><strong class="text-white">100,000 API calls / month</strong>, 5 concurrent, 10 req/min</span>
+          <span><strong class="text-white">{{ _('100,000 API calls / month') }}</strong>{{ _(', 5 concurrent, 10 req/min') }}</span>
         </li>
         <li class="flex items-start gap-2">
           <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span>30+ formats (images, docs, audio, video)</span>
+          <span>{{ _('30+ formats (images, docs, audio, video)') }}</span>
         </li>
         <li class="flex items-start gap-2">
           <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span>Priority support (best effort)</span>
+          <span>{{ _('Priority support (best effort)') }}</span>
         </li>
         <li class="flex items-start gap-2">
           <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span>Dedicated onboarding</span>
+          <span>{{ _('Dedicated onboarding') }}</span>
         </li>
       </ul>
       {% if stripe_enabled %}
       <button id="business-btn"
         class="block w-full text-center py-2.5 rounded-xl border border-hairline hover:border-brand text-gray-300 hover:text-white transition-colors text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
-        Upgrade to Business
+        {{ _('Upgrade to Business') }}
       </button>
       {% else %}
       <button id="business-btn" disabled
         class="block w-full text-center py-2.5 rounded-xl border border-hairline text-ink-faint cursor-not-allowed text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-600"
         aria-disabled="true">
-        Coming soon
+        {{ _('Coming soon') }}
       </button>
       {% endif %}
     </div>
@@ -175,17 +175,17 @@
   {% call uc.card() %}
   <div class="flex flex-col sm:flex-row sm:items-center items-start justify-between gap-4">
     <div>
-      <p class="font-semibold">Enterprise / Compliance</p>
-      <p class="text-sm text-ink-muted mt-0.5">Custom volume, batch uploads up to 250 files, SLA, on-premise deployment, dedicated support &amp; contract. For DACH Behörden, hospitals, law firms see <a href="/enterprise" class="text-brand hover:underline">Compliance Edition →</a>.</p>
+      <p class="font-semibold">{{ _('Enterprise / Compliance') }}</p>
+      <p class="text-sm text-ink-muted mt-0.5">{{ _('Custom volume, batch uploads up to 250 files, SLA, on-premise deployment, dedicated support & contract. For DACH Behörden, hospitals, law firms see') }} <a href="{{ localized_url('/enterprise', current_prefix) }}" class="text-brand hover:underline">{{ _('Compliance Edition →') }}</a>.</p>
     </div>
-    <a href="/enterprise"
+    <a href="{{ localized_url('/enterprise', current_prefix) }}"
       class="shrink-0 px-6 py-2.5 rounded-xl border border-hairline hover:border-brand text-gray-300 hover:text-white transition-colors text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
-      Compliance Edition →
+      {{ _('Compliance Edition →') }}
     </a>
   </div>
   {% endcall %}
 
-  <p class="text-center text-xs text-gray-600">All prices excl. VAT where applicable. Payments processed by Stripe.</p>
+  <p class="text-center text-xs text-gray-600">{{ _('All prices excl. VAT where applicable. Payments processed by Stripe.') }}</p>
 
 </main>
 <script src="/static/js/pricing.js"></script>

@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 {% import "_components/button.html" as ub %}
-{% block title %}500 – Server Error | FileMorph{% endblock %}
+{% block title %}{{ _('500 – Server Error') }} | FileMorph{% endblock %}
 {% block content %}
 <div class="min-h-screen flex flex-col items-center justify-center px-6 text-center">
   <p class="text-8xl font-extrabold text-brand mb-4">500</p>
-  <h1 class="text-h-page text-ink mb-3">Internal server error</h1>
+  <h1 class="text-h-page text-ink mb-3">{{ _('Internal server error') }}</h1>
   <p class="text-ink-muted mb-8 max-w-md">
-    Something went wrong on our end. Please try again in a moment.
+    {{ _('Something went wrong on our end. Please try again in a moment.') }}
   </p>
-  {{ ub.button('Back to Home', href='/') }}
+  {{ ub.button(_('Back to Home'), href=localized_url('/', current_prefix)) }}
 </div>
 {% endblock %}

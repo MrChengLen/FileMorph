@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% import "_components/card.html" as uc %}
 {% import "_components/button.html" as ub %}
-{% block title %}FileMorph — File Converter & Compressor{% endblock %}
+{% block title %}FileMorph — {{ _('File Converter & Compressor') }}{% endblock %}
 {% block content %}
 
 <div class="min-h-full flex flex-col">
@@ -12,9 +12,9 @@
 
       <!-- Title -->
       <div class="text-center space-y-2">
-        <h1 class="text-h-page text-ink">Convert & Compress Files</h1>
+        <h1 class="text-h-page text-ink">{{ _('Convert & Compress Files') }}</h1>
         <p class="text-ink-muted text-sm">
-          Images · Documents · Audio · Video · Spreadsheets
+          {{ _('Images · Documents · Audio · Video · Spreadsheets') }}
         </p>
       </div>
 
@@ -26,18 +26,18 @@
         <div class="flex rounded-lg overflow-hidden border border-gray-700 text-sm font-medium">
           <button id="btn-mode-convert"
             class="flex-1 py-2 transition-colors bg-brand text-white"
-            aria-pressed="true" aria-label="File conversion mode">Convert</button>
+            aria-pressed="true" aria-label="{{ _('File conversion mode') }}">{{ _('Convert') }}</button>
           <button id="btn-mode-compress"
             class="flex-1 py-2 transition-colors text-gray-400 hover:text-white"
-            aria-pressed="false" aria-label="File compression mode">Compress</button>
+            aria-pressed="false" aria-label="{{ _('File compression mode') }}">{{ _('Compress') }}</button>
         </div>
 
         <!-- Drop Zone -->
         <div id="drop-zone"
           class="border-2 border-dashed border-gray-700 rounded-xl p-6 sm:p-10 text-center cursor-pointer hover:border-brand transition-colors group"
-          role="button" tabindex="0" aria-label="Drop files here or click to browse">
+          role="button" tabindex="0" aria-label="{{ _('Drop files here or click to browse') }}">
           <input id="file-input" type="file" multiple class="hidden"
-            aria-label="Select one or more files to convert or compress" />
+            aria-label="{{ _('Select one or more files to convert or compress') }}" />
 
           <div id="drop-idle" class="space-y-2">
             <svg class="mx-auto w-10 h-10 text-gray-600 group-hover:text-brand transition-colors"
@@ -45,12 +45,12 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
                 d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
             </svg>
-            <p class="text-gray-400">Drag & drop your files here</p>
-            <p class="text-xs text-gray-600">or click to browse (multi-file supported)</p>
+            <p class="text-gray-400">{{ _('Drag & drop your files here') }}</p>
+            <p class="text-xs text-gray-600">{{ _('or click to browse (multi-file supported)') }}</p>
             <p class="text-xs text-gray-700 mt-2">
-              Supported: HEIC · JPG · PNG · WebP · BMP · TIFF · GIF<br>
-              DOCX · PDF · TXT · MD · XLSX · CSV · JSON<br>
-              MP4 · MOV · AVI · MKV · WebM · MP3 · WAV · FLAC · OGG · M4A
+              {{ _('Supported: HEIC · JPG · PNG · WebP · BMP · TIFF · GIF') }}<br>
+              {{ _('DOCX · PDF · TXT · MD · XLSX · CSV · JSON') }}<br>
+              {{ _('MP4 · MOV · AVI · MKV · WebM · MP3 · WAV · FLAC · OGG · M4A') }}
             </p>
           </div>
 
@@ -65,7 +65,7 @@
               class="space-y-1 max-h-32 overflow-y-auto text-left px-2"></div>
             <button id="clear-file-btn"
               class="text-xs text-gray-600 hover:text-red-400 transition-colors mt-1">
-              Clear all
+              {{ _('Clear all') }}
             </button>
           </div>
         </div>
@@ -73,10 +73,10 @@
         <!-- Convert: target format -->
         <div id="convert-options" class="space-y-4">
           <div class="space-y-1">
-            <label class="text-sm text-gray-400 font-medium">Target Format</label>
+            <label class="text-sm text-gray-400 font-medium">{{ _('Target Format') }}</label>
             <select id="target-format"
               class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-brand transition-colors">
-              <option value="">— select a file first —</option>
+              <option value="">{{ _('— select a file first —') }}</option>
             </select>
             <!-- S1-B: Bandwidth-amplification hint — shown only when source/target
                  combination is known to inflate file size. Text set from app.js. -->
@@ -91,46 +91,46 @@
 
         <!-- Compress-mode toggle: quality % vs target size MB -->
         <div id="compress-mode-toggle" class="space-y-1 hidden">
-          <label class="text-sm text-gray-400 font-medium">Compression mode</label>
+          <label class="text-sm text-gray-400 font-medium">{{ _('Compression mode') }}</label>
           <div class="flex gap-2">
             <button type="button" id="cmode-quality" data-cmode="quality"
-              class="flex-1 py-2 rounded-lg text-sm border border-gray-700 bg-gray-800 text-gray-200 hover:bg-gray-700">By quality %</button>
+              class="flex-1 py-2 rounded-lg text-sm border border-gray-700 bg-gray-800 text-gray-200 hover:bg-gray-700">{{ _('By quality %') }}</button>
             <button type="button" id="cmode-target" data-cmode="target"
-              class="flex-1 py-2 rounded-lg text-sm border border-gray-700 bg-gray-800 text-gray-200 hover:bg-gray-700">By target size</button>
+              class="flex-1 py-2 rounded-lg text-sm border border-gray-700 bg-gray-800 text-gray-200 hover:bg-gray-700">{{ _('By target size') }}</button>
           </div>
-          <p class="text-xs text-gray-600">JPEG / WebP only.</p>
+          <p class="text-xs text-gray-600">{{ _('JPEG / WebP only.') }}</p>
         </div>
 
         <!-- Quality Slider (both modes) -->
         <div id="quality-section" class="space-y-1 hidden">
           <label class="text-sm text-gray-400 font-medium flex justify-between">
-            <span id="quality-heading">Quality</span>
+            <span id="quality-heading">{{ _('Quality') }}</span>
             <span id="quality-label" class="text-brand font-semibold">85%</span>
           </label>
           <input id="quality-slider" type="range" min="1" max="100" value="85"
             class="w-full accent-brand" />
           <div class="flex justify-between text-xs text-gray-600">
-            <span>Smaller file</span>
-            <span>Best quality</span>
+            <span>{{ _('Smaller file') }}</span>
+            <span>{{ _('Best quality') }}</span>
           </div>
         </div>
 
         <!-- Target Size Input (compress + cmode=target) -->
         <div id="target-size-section" class="space-y-1 hidden">
           <label class="text-sm text-gray-400 font-medium flex justify-between">
-            <span>Target file size</span>
+            <span>{{ _('Target file size') }}</span>
             <span id="target-size-label" class="text-brand font-semibold">2.0 MB</span>
           </label>
           <input id="target-size-input" type="number" min="0.05" step="0.1" value="2.0"
             class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-brand" />
           <div class="flex justify-between text-xs text-gray-600">
-            <span>min 0.05 MB</span>
-            <span>±3% tolerance</span>
+            <span>{{ _('min 0.05 MB') }}</span>
+            <span>{{ _('±3% tolerance') }}</span>
           </div>
         </div>
 
         <!-- Convert Button -->
-        {{ ub.button('Convert', id='convert-btn', full_width=True) }}
+        {{ ub.button(_('Convert'), id='convert-btn', full_width=True) }}
 
         <!-- Progress / Result -->
         <div id="progress-section" class="hidden text-center space-y-2">
@@ -140,7 +140,7 @@
               <path class="opacity-75" fill="currentColor"
                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
             </svg>
-            <span class="text-sm" id="progress-text">Processing…</span>
+            <span class="text-sm" id="progress-text">{{ _('Processing…') }}</span>
           </div>
         </div>
 
@@ -151,7 +151,7 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                 d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
             </svg>
-            <span id="download-link-label">Download Result</span>
+            <span id="download-link-label">{{ _('Download Result') }}</span>
           </a>
         </div>
 
@@ -164,56 +164,56 @@
 
       <!-- Footer note -->
       <p class="text-center text-xs text-gray-700">
-        Files are processed server-side and deleted immediately after conversion.
+        {{ _('Files are processed server-side and deleted immediately after conversion.') }}
         <a href="https://github.com/MrChengLen/FileMorph" target="_blank"
-          class="text-gray-600 hover:text-gray-400 transition-colors ml-1">GitHub ↗</a>
+          class="text-gray-600 hover:text-gray-400 transition-colors ml-1">{{ _('GitHub ↗') }}</a>
       </p>
 
       {% if pricing_enabled %}
       <!-- Tier teaser — commercial offer surface, only on deployments with pricing enabled -->
       <div class="border border-gray-800 rounded-xl px-5 py-4 space-y-3">
         <div class="flex items-center justify-between">
-          <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">Plans</p>
-          <a href="/pricing" class="text-xs text-brand hover:underline">See all plans →</a>
+          <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">{{ _('Plans') }}</p>
+          <a href="{{ localized_url('/pricing', current_prefix) }}" class="text-xs text-brand hover:underline">{{ _('See all plans →') }}</a>
         </div>
         <div class="grid grid-cols-3 gap-2 text-center text-xs">
           <div class="bg-gray-800 rounded-lg px-2 py-2.5">
-            <p class="font-semibold text-gray-300">Free</p>
-            <p class="text-gray-500 mt-0.5">50 MB · API key</p>
+            <p class="font-semibold text-gray-300">{{ _('Free') }}</p>
+            <p class="text-gray-500 mt-0.5">{{ _('50 MB · API key') }}</p>
           </div>
           <div class="bg-brand/10 border border-brand/30 rounded-lg px-2 py-2.5">
-            <p class="font-semibold text-brand">Pro · €7/mo</p>
-            <p class="text-gray-400 mt-0.5">100 MB · 10k API</p>
+            <p class="font-semibold text-brand">{{ _('Pro · €7/mo') }}</p>
+            <p class="text-gray-400 mt-0.5">{{ _('100 MB · 10k API') }}</p>
           </div>
           <div class="bg-gray-800 rounded-lg px-2 py-2.5">
-            <p class="font-semibold text-gray-300">Business · €19</p>
-            <p class="text-gray-500 mt-0.5">500 MB · 100k API</p>
+            <p class="font-semibold text-gray-300">{{ _('Business · €19') }}</p>
+            <p class="text-gray-500 mt-0.5">{{ _('500 MB · 100k API') }}</p>
           </div>
         </div>
         <p class="text-center text-xs text-gray-600 pt-1">
-          Using anonymously: up to 20 MB per file.
-          <a href="/register" class="text-brand hover:underline">Register free for 50 MB &amp; API access →</a>
+          {{ _('Using anonymously: up to 20 MB per file.') }}
+          <a href="{{ localized_url('/register', current_prefix) }}" class="text-brand hover:underline">{{ _('Register free for 50 MB & API access →') }}</a>
         </p>
       </div>
       {% endif %}
 
       <!-- Developer API teaser -->
       <div class="border border-gray-800 rounded-xl px-5 py-4 space-y-2">
-        <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">For Developers</p>
-        <p class="text-xs text-gray-400">Integrate file conversion into your app via REST API. One endpoint, all formats.</p>
+        <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">{{ _('For Developers') }}</p>
+        <p class="text-xs text-gray-400">{{ _('Integrate file conversion into your app via REST API. One endpoint, all formats.') }}</p>
         <pre class="text-xs text-emerald-400 bg-gray-900 rounded-lg px-3 py-2 overflow-x-auto font-mono">curl -X POST https://filemorph.io/api/v1/convert \
   -H "X-API-Key: YOUR_KEY" \
   -F "file=@photo.heic" \
   -F "target_format=jpg" --output result.jpg</pre>
         <div class="flex gap-3">
-          <a href="/docs" target="_blank" class="text-xs text-brand hover:underline">API Docs ↗</a>
-          <a href="/register" class="text-xs text-gray-400 hover:text-white">Get API Key →</a>
+          <a href="/docs" target="_blank" class="text-xs text-brand hover:underline">{{ _('API Docs ↗') }}</a>
+          <a href="{{ localized_url('/register', current_prefix) }}" class="text-xs text-gray-400 hover:text-white">{{ _('Get API Key →') }}</a>
         </div>
       </div>
 
       <!-- Enterprise contact -->
       <p class="text-center text-xs text-gray-600">
-        Enterprise &amp; self-hosted:
+        {{ _('Enterprise & self-hosted:') }}
         <a href="mailto:enterprise@filemorph.io"
            class="text-gray-500 hover:text-gray-300 transition-colors">enterprise@filemorph.io</a>
       </p>
