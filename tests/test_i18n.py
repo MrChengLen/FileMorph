@@ -1,15 +1,21 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """i18n infrastructure tests — pin the locale-resolution contract.
 
-Covers the five-step resolution chain in `app/core/i18n.py::resolve_locale`,
-the unknown-locale fallback, the cookie persistence rule (only-on-explicit-
-signal), the hreflang presence on every page, and the `<html lang>` /
-`og:locale` propagation.
+Covers the four-step resolution chain in
+``app/core/i18n.py::resolve_locale`` (URL-prefix → query-param →
+Accept-Language → operator default), the unknown-locale fallback, the
+hreflang presence on every page, the ``<html lang>`` / ``og:locale``
+propagation, and the **no-cookie** regression-guard.
+
+The app intentionally writes no client-side locale cookie — the
+published privacy policy (``app/templates/privacy.html`` §6) commits to
+"no cookies on its own domain", and the URL is the single source of
+truth for locale. ``test_no_locale_cookie_set_on_any_route`` is the
+programmatic guard against accidental reintroduction.
 
 These tests do not depend on any DE translations existing — PR-i18n-1
 ships infrastructure with empty .po files, so all rendered text stays
-EN. The tests assert *behaviour* (URL-prefix wins, cookie persists, etc.),
-not translated copy.
+EN. The tests assert *behaviour*, not translated copy.
 """
 
 from __future__ import annotations
@@ -29,14 +35,13 @@ from app.core.i18n import (
 
 @pytest.fixture(autouse=True)
 def _clear_cookies(client):
-    """Reset the session-scoped TestClient's cookie jar before each i18n test.
+    """Defensive: reset the session-scoped TestClient's cookie jar per test.
 
-    The shared ``client`` fixture in ``conftest.py`` is session-scoped, so
-    cookies from earlier i18n tests (e.g. a `/de/` visit setting
-    ``fm_lang=de``) would leak into later tests and steal priority over
-    the resolution chain we're trying to assert. Clearing per-test gives
-    each case a clean cookie jar without sacrificing the speed of a
-    shared TestClient.
+    The app no longer sets any locale cookie, but the session-scoped
+    ``client`` from ``conftest.py`` accumulates whatever any other test
+    in the suite happens to set. Clearing here pins each i18n test to a
+    clean jar so unrelated suite ordering can't leak state into the
+    resolution-chain assertions.
     """
     client.cookies.clear()
     yield
@@ -121,16 +126,8 @@ def test_query_param_lang_overrides_default(client):
     assert m and m.group(1) == "en"
 
 
-def test_cookie_overrides_default(client):
-    """A returning visitor with `fm_lang=en` cookie sees EN even on `/`."""
-    r = client.get("/", cookies={"fm_lang": "en"})
-    assert r.status_code == 200
-    m = re.search(r'<html lang="([^"]+)"', r.text)
-    assert m and m.group(1) == "en"
-
-
 def test_accept_language_en_falls_through(client):
-    """When no URL prefix / query / cookie, Accept-Language: en* wins over default DE."""
+    """When no URL prefix / query is present, Accept-Language: en* wins over default DE."""
     r = client.get("/", headers={"accept-language": "en-US,en;q=0.9"})
     assert r.status_code == 200
     m = re.search(r'<html lang="([^"]+)"', r.text)
@@ -139,9 +136,9 @@ def test_accept_language_en_falls_through(client):
 
 def test_unknown_locale_query_falls_back_to_default(client):
     """`?lang=fr` is not supported, and with no Accept-Language signal
-    the server falls back to step 5 (operator default = DE upstream).
+    the server falls back to the operator default (DE upstream).
 
-    We send an empty ``accept-language`` so the test pins step 5 in
+    We send an empty ``accept-language`` so the test pins the default in
     isolation; without it httpx's TestClient sometimes inherits a
     locale-shaped default that masks the fallback path.
     """
@@ -149,14 +146,6 @@ def test_unknown_locale_query_falls_back_to_default(client):
     assert r.status_code == 200
     m = re.search(r'<html lang="([^"]+)"', r.text)
     assert m and m.group(1) == DEFAULT_LOCALE
-
-
-def test_url_prefix_beats_cookie(client):
-    """Path-prefix resolution wins over cookie — prevents stale-cookie surprises."""
-    r = client.get("/en/", cookies={"fm_lang": "de"})
-    assert r.status_code == 200
-    m = re.search(r'<html lang="([^"]+)"', r.text)
-    assert m and m.group(1) == "en"
 
 
 def test_url_prefix_beats_query_param(client):
@@ -167,35 +156,36 @@ def test_url_prefix_beats_query_param(client):
     assert m and m.group(1) == "de"
 
 
-# ── Cookie persistence ────────────────────────────────────────────────────────
+# ── No-cookie regression-guard ────────────────────────────────────────────────
 
 
-def test_explicit_url_prefix_sets_cookie(client):
-    """Visiting `/en/` should set `fm_lang=en` cookie for sticky preference."""
-    r = client.get("/en/")
-    assert r.status_code == 200
-    set_cookie = r.headers.get("set-cookie", "")
-    assert "fm_lang=en" in set_cookie
+@pytest.mark.parametrize(
+    "url",
+    [
+        "/",
+        "/de/",
+        "/en/",
+        "/?lang=de",
+        "/?lang=en",
+        "/login",
+        "/de/login",
+        "/en/login",
+    ],
+)
+def test_no_locale_cookie_set_on_any_route(client, url):
+    """The app commits to "no cookies on its own domain" (privacy.html §6).
 
-
-def test_explicit_query_lang_sets_cookie(client):
-    """`?lang=en` is also explicit — cookie persists the choice."""
-    r = client.get("/?lang=en")
-    assert r.status_code == 200
-    set_cookie = r.headers.get("set-cookie", "")
-    assert "fm_lang=en" in set_cookie
-
-
-def test_unprefixed_path_does_not_set_cookie(client):
-    """`/` with no explicit locale signal must NOT set fm_lang.
-
-    Otherwise a default-DE visitor's first hit would write `fm_lang=de`,
-    locking them out of any future Accept-Language detection.
+    This is the programmatic gate against accidental reintroduction of a
+    locale cookie. Hits the URL space that PR-i18n-1 originally wired the
+    cookie to (root, prefixed, query-param, and a non-trivial page) and
+    asserts the response carries no ``fm_lang`` Set-Cookie.
     """
-    r = client.get("/")
+    r = client.get(url, headers={"accept-language": ""})
     assert r.status_code == 200
     set_cookie = r.headers.get("set-cookie", "")
-    assert "fm_lang" not in set_cookie
+    assert "fm_lang" not in set_cookie, (
+        f"locale cookie regression on {url!r} — Set-Cookie was: {set_cookie!r}"
+    )
 
 
 # ── hreflang + canonical ──────────────────────────────────────────────────────

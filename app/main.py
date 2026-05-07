@@ -32,11 +32,8 @@ from app.core.data_classification import (
     normalize_classification as _normalize_data_classification,
 )
 from app.core.i18n import (
-    COOKIE_MAX_AGE as _LOCALE_COOKIE_MAX_AGE,
-    COOKIE_NAME as _LOCALE_COOKIE_NAME,
     SUPPORTED_LOCALES,
     base_path,
-    is_explicit_locale_signal,
     localized_context,
     localized_url,
     resolve_locale,
@@ -279,26 +276,15 @@ _PERMISSIONS_POLICY = (
 
 @app.middleware("http")
 async def locale_resolver(request: Request, call_next):
-    """Resolve the active locale, stash on request.state, persist via cookie.
+    """Resolve the active locale and stash it on ``request.state``.
 
-    The cookie is only written when the locale was *explicit* (URL prefix
-    or ``?lang=`` param) — otherwise we'd race the cookie against the URL
-    on every page load and lock visitors out of Accept-Language detection.
+    No cookie is written. The URL is the single source of truth — see
+    ``app/core/i18n.py`` module docstring for the rationale and the
+    privacy-policy commitment ("FileMorph sets no cookies on its own
+    domain", ``app/templates/privacy.html`` §6).
     """
-    locale = resolve_locale(request)
-    request.state.locale = locale
-    response = await call_next(request)
-    if is_explicit_locale_signal(request) and request.cookies.get(_LOCALE_COOKIE_NAME) != locale:
-        response.set_cookie(
-            _LOCALE_COOKIE_NAME,
-            value=locale,
-            max_age=_LOCALE_COOKIE_MAX_AGE,
-            samesite="lax",
-            secure=request.url.scheme == "https",
-            httponly=False,
-            path="/",
-        )
-    return response
+    request.state.locale = resolve_locale(request)
+    return await call_next(request)
 
 
 @app.middleware("http")
