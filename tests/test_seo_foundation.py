@@ -287,7 +287,7 @@ def test_pricing_renders_live_buttons_when_stripe_enabled(client, monkeypatch):
     from app.core.config import settings
 
     monkeypatch.setattr(settings, "pricing_page_enabled", True)
-    monkeypatch.setattr(settings, "stripe_secret_key", "sk_test_dummy")
+    monkeypatch.setattr(settings, "stripe_secret_key", "sk_test_dummy")  # gitleaks:allow
     from app.main import templates
 
     templates.env.globals["stripe_enabled"] = True

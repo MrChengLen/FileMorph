@@ -41,8 +41,13 @@ def rate_limiter_enabled():
         _shared_limiter.reset()
     elif hasattr(_shared_limiter, "_storage") and hasattr(_shared_limiter._storage, "reset"):
         _shared_limiter._storage.reset()
-    yield
-    _shared_limiter.enabled = False
+    try:
+        yield
+    finally:
+        # Always disable on teardown — a test crash between yield and this
+        # line would otherwise leave the limiter ON and 429 every following
+        # test that hits convert/compress.
+        _shared_limiter.enabled = False
 
 
 def test_convert_route_returns_429_after_10_requests_per_minute(
