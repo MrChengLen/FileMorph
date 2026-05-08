@@ -46,7 +46,7 @@ Re-encode an image at a lower quality to reduce file size without changing forma
 
 | From | To | Notes |
 |------|-----|-------|
-| **DOCX** | PDF | Requires Microsoft Word on Windows, or LibreOffice on Linux. |
+| **DOCX** | PDF | Best-effort: tables, images, hyperlinks and basic styles preserved. Footnotes, headers/footers and embedded OLE objects are simplified. |
 | **DOCX** | TXT | Extracts plain text from all paragraphs. Formatting (bold, tables) is lost. |
 | **TXT** | PDF | Creates a clean PDF with Helvetica font, A4 page size. |
 | **PDF** | TXT | Extracts text from each page using PyPDF. Complex layouts (columns, forms) may not extract cleanly. |
@@ -55,16 +55,24 @@ Re-encode an image at a lower quality to reduce file size without changing forma
 
 ### Notes on DOCX → PDF
 
-**Windows**: Uses `docx2pdf` which interfaces with Microsoft Word via COM. Word must be installed.
+The pipeline runs in pure Python: `mammoth` extracts the DOCX body as HTML
+(with images inlined as `data:` URIs), then `WeasyPrint` renders the HTML
+to PDF. No external binary, no Microsoft Word, no LibreOffice required —
+works the same on Linux, macOS, Windows and inside the standard container.
 
-**Linux**: Requires LibreOffice:
-```bash
-sudo apt install libreoffice
-pip install docx2pdf
-```
-`docx2pdf` on Linux uses LibreOffice in headless mode.
+**What is preserved**: paragraphs, basic character formatting (bold, italic),
+tables (with cell borders), inline images, hyperlinks, and standard list
+styles.
 
-**Alternative** (any platform): Export manually from Microsoft Word or LibreOffice.
+**What is simplified**: footnotes and endnotes, headers and footers, page
+breaks, embedded OLE objects (Excel charts, Visio diagrams), and DOCX-native
+style hierarchies. When the source DOCX uses any of these, the resulting PDF
+includes a small notice banner at the top.
+
+**Security**: The HTML pipeline runs WeasyPrint with `_deny_url_fetcher`,
+blocking any external resource load that a malformed DOCX might attempt. See
+`tests/test_convert_document.py::test_docx_to_pdf_ssrf_blocked` for the
+regression guard.
 
 ---
 
