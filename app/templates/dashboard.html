@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% import "_components/card.html" as uc %}
 {% import "_components/button.html" as ub %}
-{% block title %}Dashboard — FileMorph{% endblock %}
+{% block title %}{{ _('Dashboard') }} — FileMorph{% endblock %}
 {% block content %}
 <main class="flex-1 max-w-3xl mx-auto w-full px-4 sm:px-6 py-8 space-y-6">
 
-  <h1 class="text-h-sect text-ink">Dashboard</h1>
+  <h1 class="text-h-sect text-ink">{{ _('Dashboard') }}</h1>
 
   <!-- User info card -->
   {% call uc.card() %}
@@ -13,10 +13,10 @@
     <div id="user-avatar"
       class="w-14 h-14 rounded-full bg-brand flex items-center justify-center text-2xl font-bold text-white shrink-0">?</div>
     <div class="min-w-0">
-      <p id="user-email" class="font-semibold truncate">Loading…</p>
+      <p id="user-email" class="font-semibold truncate">{{ _('Loading…') }}</p>
       <span id="user-tier"
         class="inline-block mt-1 text-xs px-2 py-0.5 rounded-full bg-brand/20 text-brand capitalize">—</span>
-      <p class="text-xs text-ink-faint mt-1">Member since <span id="user-since">—</span></p>
+      <p class="text-xs text-ink-faint mt-1">{{ _('Member since') }} <span id="user-since">—</span></p>
     </div>
   </div>
   {% endcall %}
@@ -26,28 +26,28 @@
   <div class="space-y-4">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
       <div>
-        <h2 class="font-semibold">API Keys</h2>
-        <p class="text-xs text-ink-faint mt-0.5">Use these to authenticate programmatic API requests.</p>
+        <h2 class="font-semibold">{{ _('API Keys') }}</h2>
+        <p class="text-xs text-ink-faint mt-0.5">{{ _('Use these to authenticate programmatic API requests.') }}</p>
       </div>
-      {{ ub.button('+ New Key', id='create-key-btn', size='sm') }}
+      {{ ub.button(_('+ New Key'), id='create-key-btn', size='sm') }}
     </div>
 
     <!-- New key reveal box -->
     <div id="new-key-box" class="hidden bg-emerald-950 border border-emerald-800 rounded-xl p-4 space-y-2">
-      <p class="text-xs text-emerald-400 font-semibold">Copy this key now — it will not be shown again.</p>
+      <p class="text-xs text-emerald-400 font-semibold">{{ _('Copy this key now — it will not be shown again.') }}</p>
       <div class="flex flex-col sm:flex-row sm:items-center gap-2">
         <code id="new-key-value"
           class="flex-1 text-xs text-emerald-300 break-all font-mono bg-black/30 rounded-lg px-3 py-2"></code>
         <button id="copy-key-btn"
           class="shrink-0 text-xs px-3 py-2 rounded-lg border border-emerald-700 text-emerald-400 hover:bg-emerald-900 transition-colors">
-          Copy
+          {{ _('Copy') }}
         </button>
       </div>
     </div>
 
     <!-- Keys list -->
     <div id="keys-list" class="space-y-2">
-      <p class="text-sm text-ink-faint">Loading…</p>
+      <p class="text-sm text-ink-faint">{{ _('Loading…') }}</p>
     </div>
   </div>
   {% endcall %}
