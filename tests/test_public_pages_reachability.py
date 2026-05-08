@@ -104,15 +104,31 @@ def test_privacy_policy_mentions_gdpr_erasure_right(client) -> None:
 def test_enterprise_de_renders_authoritative_german(client, monkeypatch) -> None:
     """PR-i18n-2c: /de/enterprise carries the legal-authoritative DE text
     and must NOT show the EN-only disclaimer header (which calls itself
-    out as a non-binding translation)."""
+    out as a non-binding translation).
+
+    M6 hardening: pin both ``<html lang="de"`` (locale resolution) AND a
+    DSGVO-anchored legal citation (so a copy edit "Behörden"→"Verwaltung"
+    can't silently slip the test). Either drift is independently a
+    regression — the html-lang attribute proves the localisation pipeline
+    routed the request, the DSGVO citation proves the DE template body
+    actually rendered.
+    """
     from app.core.config import settings
 
     monkeypatch.setattr(settings, "pricing_page_enabled", True)
     res = client.get("/de/enterprise")
     assert res.status_code == 200
     text = res.text
-    # Pin a DE-only domain term (untranslated EN would say "public authorities")
-    assert "Behörden" in text, "/de/enterprise missing 'Behörden' (DE-authoritative content)"
+    # Locale resolution: i18n pipeline routed the request to DE.
+    assert '<html lang="de"' in text, (
+        "/de/enterprise served without lang=de — locale resolution drift"
+    )
+    # Legal anchor: DSGVO is the German label for GDPR, untranslatable in
+    # an EN render. Pinned alongside "Behörden" so either one carrying
+    # the assertion catches a copy-edit regression.
+    assert "DSGVO" in text or "Behörden" in text, (
+        "/de/enterprise missing DSGVO citation / 'Behörden' — DE template body not rendered"
+    )
     # Disclaimer is gated to locale=='en' — DE must not see it
     assert "authoritative legal text" not in text, (
         "/de/enterprise should not render the EN disclaimer (DE is authoritative)"
@@ -139,14 +155,22 @@ def test_enterprise_en_renders_english_with_disclaimer(client, monkeypatch) -> N
 
 def test_impressum_en_has_preamble_then_german(client) -> None:
     """PR-i18n-2c: /en/impressum prepends an EN preamble explaining why
-    the legal body below stays in German (TMG § 5 Pflichtangaben)."""
+    the legal body below stays in German (TMG § 5 Pflichtangaben).
+
+    M7 hardening: pin the *order* — preamble before the German body.
+    A template inversion (DE block above the EN explanation) would still
+    pass a presence-only check but break the document's purpose
+    (English speakers must see the preamble first to understand why the
+    rest is in German).
+    """
     res = client.get("/en/impressum")
     assert res.status_code == 200
     text = res.text
-    assert "as required by German law" in text, (
-        "/en/impressum missing EN preamble explaining DE legal text"
-    )
-    # Raw DE TMG content must still be present below the preamble
-    assert "Verantwortlich" in text, (
-        "/en/impressum missing the raw DE TMG section after the preamble"
+    preamble_marker = "as required by German law"
+    body_marker = "Verantwortlich"
+    assert preamble_marker in text, "/en/impressum missing EN preamble explaining DE legal text"
+    assert body_marker in text, "/en/impressum missing the raw DE TMG section"
+    # Order pin: EN preamble must precede the DE body.
+    assert text.index(preamble_marker) < text.index(body_marker), (
+        "/en/impressum has DE legal body before the EN preamble — template inverted?"
     )

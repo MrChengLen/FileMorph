@@ -204,6 +204,10 @@ def test_checkout_pro_with_acknowledgement_records_audit_event(client):
     rows = _events_by_type("billing.checkout.withdrawal_waiver_recorded")
     assert len(rows) == 1
     assert str(rows[0].actor_user_id) == str(user.id)
+    # M10: pin actor_ip so a regression that drops `request.client.host`
+    # surfaces as a test failure rather than a silent loss of dispute
+    # reproducibility. TestClient's default client host is "testclient".
+    assert rows[0].actor_ip == "testclient"
     payload = json.loads(rows[0].payload_json)
     assert payload == {"tier": "pro"}
 
@@ -222,6 +226,7 @@ def test_checkout_business_with_acknowledgement_records_audit_event(client):
     rows = _events_by_type("billing.checkout.withdrawal_waiver_recorded")
     assert len(rows) == 1
     assert str(rows[0].actor_user_id) == str(user.id)
+    assert rows[0].actor_ip == "testclient"  # M10
     payload = json.loads(rows[0].payload_json)
     assert payload == {"tier": "business"}
 
@@ -236,3 +241,87 @@ def test_checkout_unauthenticated_returns_401(client):
     )
     assert res.status_code == 401
     assert _events_by_type("billing.checkout.withdrawal_waiver_recorded") == []
+
+
+# ── 4. Audit-chain integrity (H3) ────────────────────────────────────────────
+#
+# The hash-chain is what makes the audit log defensible at dispute time:
+# verify_chain() walks the table and returns the first id where the
+# recomputed SHA-256 of (prev_hash || payload) does not match the stored
+# record_hash. These two tests pin both halves of the contract — the
+# happy-path return of None for an intact chain, and the tamper-detection
+# return of the mutated row's id when payload_json is altered after the
+# fact. Without this guard, a refactor that switches the canonical-JSON
+# serialiser, the hashing primitive, or the chaining order could silently
+# break dispute reproducibility — the audit log would still record events
+# (so existing tests pass) but verify_chain would no longer detect edits.
+
+
+def test_audit_event_chain_intact_across_two_writes(client):
+    """Two real audit events written through the live route → verify_chain
+    returns None (chain intact). The /auth/login calls also write audit
+    rows; the chain spans all of them, so we check the global table
+    rather than just the checkout-typed subset.
+    """
+    asyncio.run(_insert_user(email="chain-1@example.com"))
+    asyncio.run(_insert_user(email="chain-2@example.com"))
+
+    for email, tier in [("chain-1@example.com", "pro"), ("chain-2@example.com", "business")]:
+        token = _login(client, email)
+        res = client.post(
+            f"/api/v1/billing/checkout/{tier}",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"withdrawal_waiver_acknowledged": True},
+        )
+        assert res.status_code == 200, res.text
+
+    # Per-type sanity: both checkouts logged their consent event. Each
+    # event's record_hash chains forward through the global table — the
+    # second checkout's prev_hash will not equal the first checkout's
+    # record_hash unless they happen to be adjacent in id-order, which
+    # depends on what other events the auth flow writes.
+    checkout_rows = _events_by_type("billing.checkout.withdrawal_waiver_recorded")
+    assert len(checkout_rows) == 2
+
+    async def _verify():
+        async with _TestSession() as s:
+            return await audit_module.verify_chain(s)
+
+    assert asyncio.run(_verify()) is None
+
+
+def test_audit_event_chain_detects_payload_tampering(client):
+    """Mutate one row's payload_json after-the-fact → verify_chain returns
+    that row's id. Pins the property that record_hash binds the payload."""
+    asyncio.run(_insert_user(email="chain-tamper@example.com"))
+    token = _login(client, "chain-tamper@example.com")
+    res = client.post(
+        "/api/v1/billing/checkout/pro",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"withdrawal_waiver_acknowledged": True},
+    )
+    assert res.status_code == 200, res.text
+
+    rows = _events_by_type("billing.checkout.withdrawal_waiver_recorded")
+    assert len(rows) == 1
+    tampered_id = rows[0].id
+
+    # Tamper: rewrite the payload to claim "business" while record_hash
+    # still binds the original "pro" payload. SQLite has no UPDATE
+    # trigger (Postgres does, via migration 005), so we can mutate
+    # directly to prove verify_chain catches it.
+    async def _tamper():
+        async with _TestSession() as s:
+            row = (
+                await s.execute(select(AuditEvent).where(AuditEvent.id == tampered_id))
+            ).scalar_one()
+            row.payload_json = json.dumps({"tier": "business"}, separators=(",", ":"))
+            await s.commit()
+
+    asyncio.run(_tamper())
+
+    async def _verify():
+        async with _TestSession() as s:
+            return await audit_module.verify_chain(s)
+
+    assert asyncio.run(_verify()) == tampered_id
