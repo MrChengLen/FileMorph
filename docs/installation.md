@@ -289,14 +289,6 @@ pip install pillow-heif
 
 On Linux, also install: `sudo apt install libheif-dev`
 
-### "DOCX to PDF conversion failed" (Linux)
-
-On Linux, DOCX → PDF requires LibreOffice:
-
-```bash
-sudo apt install libreoffice
-```
-
 ### Permission denied on `data/api_keys.json` (Linux)
 
 ```bash

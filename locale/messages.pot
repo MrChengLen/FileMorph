@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-05-07 15:22+0200\n"
+"POT-Creation-Date: 2026-05-08 15:52+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -322,6 +322,9 @@ msgstr ""
 msgid "Language"
 msgstr ""
 
+msgid "MP4 · MOV · AVI · MKV · WebM"
+msgstr ""
+
 msgid "MP4 · MOV · AVI · MKV · WebM · MP3 · WAV · FLAC · OGG · M4A"
 msgstr ""
 
@@ -465,6 +468,9 @@ msgid "Steps to reproduce, including any required configuration or input files."
 msgstr ""
 
 msgid "Supported: HEIC · JPG · PNG · WebP · BMP · TIFF · GIF"
+msgstr ""
+
+msgid "Supported: JPG · PNG · WebP · TIFF"
 msgstr ""
 
 msgid "Switch to English"

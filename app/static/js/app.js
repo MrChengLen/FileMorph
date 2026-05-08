@@ -120,6 +120,17 @@ function setMode(mode) {
     compressMode = 'quality';
   }
 
+  // Drop-zone help text differs per mode: convert covers all source formats,
+  // compress is limited to JPG/PNG/WebP/TIFF + MP4/AVI/MOV/MKV/WebM. The
+  // server rejects mismatches anyway, but showing the right list up-front
+  // keeps users from uploading e.g. an MP3 only to see a 422.
+  const supConv = document.getElementById('supported-convert');
+  const supComp = document.getElementById('supported-compress');
+  if (supConv && supComp) {
+    supConv.classList.toggle('hidden', mode !== 'convert');
+    supComp.classList.toggle('hidden', mode !== 'compress');
+  }
+
   updateConvertOptionsVisibility();
   renderFileList();
   updateQualityVisibility();
