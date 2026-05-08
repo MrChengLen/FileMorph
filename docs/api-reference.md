@@ -9,24 +9,94 @@ All responses are either a file download (`application/octet-stream`) or JSON.
 
 ## Authentication
 
-All endpoints except `/health` and `/formats` require an API key in the request header:
+FileMorph supports two parallel authentication schemes:
 
-```
-X-API-Key: your-api-key-here
-```
+| Scheme | Header | Issued by | Use case |
+|---|---|---|---|
+| **API key** (Community) | `X-API-Key: <key>` | `scripts/generate_api_key.py` | Self-host scripts, automation, CLI tooling |
+| **JWT Bearer** (Cloud overlay) | `Authorization: Bearer <token>` | `POST /api/v1/auth/login` | Browser sessions, multi-user deployments |
 
-Generate a key with:
+Either header satisfies the auth requirement on `/convert`, `/compress`, and their `/batch` variants. `/health` and `/formats` are public; the auth-flow endpoints (`/api/v1/auth/*`, `/api/v1/keys`, `/api/v1/billing/*`) require a JWT.
+
+### API key (Community Edition)
+
+Generate a key:
 ```bash
 python scripts/generate_api_key.py
 # or via Docker:
 docker compose exec filemorph python scripts/generate_api_key.py
 ```
 
-Keys are stored as SHA-256 hashes in `data/api_keys.json`. The plaintext key is shown exactly once at generation time.
+Keys are stored as SHA-256 hashes in `data/api_keys.json`. The plaintext key is shown exactly once at generation time. There is no key-rotation endpoint in the Community Edition — generate a new key and remove the old hash from the JSON file.
+
+### JWT Bearer (Cloud overlay)
+
+When `DATABASE_URL` is configured, the Cloud overlay enables registration / login / refresh:
+
+```bash
+# Register (returns access + refresh tokens)
+curl -X POST http://localhost:8000/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"alice@example.com","password":"correct-horse-battery-staple"}'
+
+# Login on a returning device
+curl -X POST http://localhost:8000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"alice@example.com","password":"correct-horse-battery-staple"}'
+
+# Use the access token
+curl http://localhost:8000/api/v1/auth/me \
+  -H "Authorization: Bearer <access-token>"
+
+# Refresh expired access tokens (15 min TTL on access, 30 d on refresh)
+curl -X POST http://localhost:8000/api/v1/auth/refresh \
+  -H "Content-Type: application/json" \
+  -d '{"refresh_token":"<your-refresh-token>"}'
+```
+
+Logged-in users can also generate API keys bound to their account at `POST /api/v1/keys`; those keys count against the user's tier quota rather than the anonymous tier.
 
 ---
 
 ## Endpoints
+
+### Cloud-Edition endpoints (account / billing / keys)
+
+The endpoints in this section only respond when the Cloud overlay is configured (`DATABASE_URL` set, and where applicable `JWT_SECRET`, `STRIPE_SECRET_KEY`). Without those, they return `503 Service Unavailable`. All require `Authorization: Bearer <jwt>` unless noted.
+
+**Auth (`/api/v1/auth/*`)**
+
+| Method + Path | Auth | Purpose |
+|---|---|---|
+| `POST /api/v1/auth/register` | none | Create account; returns access + refresh tokens. Sends a verification email (fire-and-forget). |
+| `POST /api/v1/auth/login` | none | Exchange email + password for access (15 min) + refresh (30 d) tokens. |
+| `POST /api/v1/auth/refresh` | none (refresh-token in body) | Issue a new access token. |
+| `GET /api/v1/auth/me` | Bearer | Return the currently authenticated user. |
+| `POST /api/v1/auth/forgot-password` | none | Issue a single-use password-reset link via email (30 min TTL). |
+| `POST /api/v1/auth/reset-password` | reset-token in body | Set a new password and invalidate older sessions via password-hash rotation. |
+| `POST /api/v1/auth/verify-email` | verify-token | Mark the user's email as verified. |
+| `POST /api/v1/auth/resend-verification` | Bearer | Re-send the verification mail (auth-required to avoid spam). |
+| `DELETE /api/v1/auth/account` | Bearer | Self-service account deletion. Requires re-confirmation: current password, registered email, and the literal string `DELETE`. Free-tier accounts only — accounts with a Stripe customer ID return `409` and route to `privacy@filemorph.io` for the manual paid-tier path (HGB §257 / AO §147 retention). |
+
+**API keys (`/api/v1/keys`)**
+
+| Method + Path | Auth | Purpose |
+|---|---|---|
+| `POST /api/v1/keys` | Bearer | Create a new API key bound to the authenticated user. Plaintext key is shown exactly once in the response. |
+| `GET /api/v1/keys` | Bearer | List the user's keys (id, name, prefix, created, last-used). |
+| `DELETE /api/v1/keys/{id}` | Bearer | Revoke a key. |
+
+**Billing (`/api/v1/billing/*`)**
+
+| Method + Path | Auth | Purpose |
+|---|---|---|
+| `POST /api/v1/billing/checkout/{tier}` | Bearer | Start a Stripe Checkout for `pro` / `business`. Body MUST include `withdrawal_waiver_acknowledged: true` (BGB §356 (5) consent — see `terms.html` § 9). Returns the Stripe Checkout URL; an `auth.billing.withdrawal_waiver_recorded` audit event is written before the redirect. |
+| `POST /api/v1/billing/portal` | Bearer | Return a Stripe Customer Portal URL so the user can manage card / cancel / re-subscribe. |
+| `POST /api/v1/billing/webhook` | Stripe signature | Stripe → FileMorph webhook receiver. Handles `customer.subscription.{created,updated,deleted}`. Not exposed in OpenAPI. |
+
+For schema details (request bodies, response shapes), open the auto-generated Swagger UI at `/docs` on the live deployment.
+
+---
 
 ### POST `/api/v1/convert`
 
@@ -171,6 +241,58 @@ curl -X POST http://localhost:8000/api/v1/compress \
 
 ---
 
+### POST `/api/v1/convert/batch`
+
+Convert several files in one request. Returns a ZIP archive with all converted outputs.
+
+**Authentication**: Required (`X-API-Key` or `Authorization: Bearer`)
+
+**Request**: `multipart/form-data`
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `files` | files (≥1) | Yes | One or more files to convert |
+| `target_formats` | string[] | Yes | Target format per file. Either one value (applied to all) or one per file (length must match `files`) |
+| `quality` | integer | No | Quality 1–100 (default 85). Applied uniformly. |
+
+**Response**: `200 OK` (`application/zip`) — archive with one entry per successful conversion. If at least one file fails, a `manifest.json` is added at archive root listing per-file results (success ZIP-only is preferred for all-success runs to keep the output clean).
+
+A run with **every** file failing returns `422 Unprocessable Content` with a JSON body listing per-file errors.
+
+```bash
+curl -X POST http://localhost:8000/api/v1/convert/batch \
+  -H "X-API-Key: YOUR_KEY" \
+  -F "files=@a.heic" -F "files=@b.png" -F "files=@c.gif" \
+  -F "target_formats=jpg" \
+  --output batch.zip
+```
+
+---
+
+### POST `/api/v1/compress/batch`
+
+Compress several files in one request. Same response shape as `/convert/batch`.
+
+**Authentication**: Required
+
+**Request**: `multipart/form-data`
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `files` | files (≥1) | Yes | One or more files to compress |
+| `quality` | integer | No | Quality 1–100 (default 85). Mutually exclusive with `target_size_kb`. |
+| `target_size_kb` | integer | No | Per-file target size. Mutually exclusive with `quality`. |
+
+```bash
+curl -X POST http://localhost:8000/api/v1/compress/batch \
+  -H "X-API-Key: YOUR_KEY" \
+  -F "files=@photo1.jpg" -F "files=@photo2.jpg" \
+  -F "quality=70" \
+  --output batch.zip
+```
+
+---
+
 ### GET `/api/v1/formats`
 
 Returns all supported conversion and compression formats.
@@ -221,6 +343,22 @@ Health check for monitoring and load balancer probes.
 
 ---
 
+## Response Headers
+
+Every successful conversion / compression carries integrity and classification metadata in response headers. CORS-enabled deployments expose these to browser clients (see `expose_headers` in `app/main.py`).
+
+| Header | Value | Set on |
+|---|---|---|
+| `X-Output-SHA256` | Hex-encoded SHA-256 of the response body | every `/convert`, `/compress`, and their batch variants |
+| `X-Data-Classification` | One of `public`, `internal`, `confidential`, `restricted` | every response — echoes the request header value, defaults to `internal` when absent (NEU-C.3 / BSI-style taxonomy) |
+| `X-FileMorph-Achieved-Bytes` | Actual output size in bytes | only on `/compress` calls with `target_size_kb` |
+| `X-FileMorph-Final-Quality` | Quality value the binary search settled on (1–100) | only on `/compress` calls with `target_size_kb` |
+| `Retry-After` | Seconds the client should wait before retrying | only on `503 Service Unavailable` (concurrency cap) |
+
+The `X-Data-Classification` value is also written to the audit-log entry for the request, so a downstream auditor can answer "what classification of data was processed in this call" from the database alone (see `app/core/audit.py`).
+
+---
+
 ## Error Responses
 
 All errors return JSON with a `detail` field:
@@ -234,11 +372,14 @@ All errors return JSON with a `detail` field:
 | HTTP Status | Meaning |
 |---|---|
 | `400 Bad Request` | Missing or malformed request data (e.g. filename without extension) |
-| `401 Unauthorized` | Missing or invalid `X-API-Key` |
-| `413 Request Entity Too Large` | File exceeds `MAX_UPLOAD_SIZE_MB` (default: 100 MB) |
-| `422 Unprocessable Entity` | Unsupported format combination, or missing form field |
+| `401 Unauthorized` | Missing or invalid `X-API-Key` / `Authorization: Bearer` |
+| `403 Forbidden` | Authenticated but role/tier doesn't permit the action (e.g. non-admin hitting `/cockpit/*`) |
+| `413 Content Too Large` | File exceeds `MAX_UPLOAD_SIZE_MB` (default: 100 MB) |
+| `415 Unsupported Media Type` | `target_size_kb` set on a lossless format (PNG/TIFF), or otherwise incompatible request shape |
+| `422 Unprocessable Content` | Unsupported format combination, missing form field, or every file in a batch failed |
 | `429 Too Many Requests` | Rate limit exceeded (see Rate Limiting section below) |
 | `500 Internal Server Error` | Conversion failed (e.g. corrupt file, missing binary) |
+| `503 Service Unavailable` | Global concurrency cap reached (`MAX_GLOBAL_CONCURRENCY`). Response carries `Retry-After`. |
 
 ---
 
@@ -252,9 +393,10 @@ Per-route limits (per IP address):
 | `POST /api/v1/convert/batch` | 3 / minute |
 | `POST /api/v1/compress` | 10 / minute |
 | `POST /api/v1/compress/batch` | 3 / minute |
-| `GET /api/v1/health` | 30 / minute |
+| `GET /api/v1/health`, `GET /api/v1/ready` | 30 / minute |
 | `GET /api/v1/formats` | 120 / minute |
 | Auth endpoints (`/api/v1/auth/*`) | 3–5 / minute |
+| Billing endpoints (`/api/v1/billing/*`) | 5 / minute |
 | Default (other routes) | 60 / minute |
 
 When exceeded, the response is `429 Too Many Requests`. For higher

@@ -17,7 +17,7 @@ class Settings(BaseSettings):
 
     api_keys_file: str = ""  # resolved below if empty
 
-    max_upload_size_mb: int = 2000
+    max_upload_size_mb: int = 100
 
     cors_origins: str = "http://localhost:8000"
     jwt_secret: str = "dev-secret-change-me-min-32-chars-long"
