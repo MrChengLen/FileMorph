@@ -274,7 +274,9 @@ def test_pricing_renders_coming_soon_when_stripe_disabled(client, monkeypatch):
 
     templates.env.globals["stripe_enabled"] = False
 
-    r = client.get("/pricing")
+    # Hit /en/pricing — the "coming soon" wording is English. The DE
+    # variant says "demnächst verfügbar" (also asserted by separate test).
+    r = client.get("/en/pricing")
     assert r.status_code == 200
     body = r.text.lower()
     assert "coming soon" in body, "Coming-Soon banner missing when Stripe disabled"

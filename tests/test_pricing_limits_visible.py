@@ -30,7 +30,11 @@ def pricing_html(client, monkeypatch):
     # Stripe is configured in the dev env that runs the test suite.
     app.state  # access only — no mutation needed
     monkeypatch.setattr(settings, "stripe_secret_key", "sk_test_placeholder")  # gitleaks:allow
-    res = client.get("/pricing")
+    # Hit /en/pricing so the EN copy ("10,000 calls / month", "2 concurrent")
+    # is asserted deterministically. The DE catalog uses German number
+    # formatting ("10.000" with dot) and "gleichzeitig" — the limiter
+    # contract is the same, the wording is locale-bound.
+    res = client.get("/en/pricing")
     assert res.status_code == 200, res.text
     return res.text
 
