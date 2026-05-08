@@ -47,10 +47,14 @@
             </svg>
             <p class="text-gray-400">{{ _('Drag & drop your files here') }}</p>
             <p class="text-xs text-gray-600">{{ _('or click to browse (multi-file supported)') }}</p>
-            <p class="text-xs text-gray-700 mt-2">
+            <p id="supported-convert" class="text-xs text-gray-700 mt-2">
               {{ _('Supported: HEIC · JPG · PNG · WebP · BMP · TIFF · GIF') }}<br>
               {{ _('DOCX · PDF · TXT · MD · XLSX · CSV · JSON') }}<br>
               {{ _('MP4 · MOV · AVI · MKV · WebM · MP3 · WAV · FLAC · OGG · M4A') }}
+            </p>
+            <p id="supported-compress" class="hidden text-xs text-gray-700 mt-2">
+              {{ _('Supported: JPG · PNG · WebP · TIFF') }}<br>
+              {{ _('MP4 · MOV · AVI · MKV · WebM') }}
             </p>
           </div>
 
