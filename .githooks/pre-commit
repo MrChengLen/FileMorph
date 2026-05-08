@@ -13,7 +13,7 @@ FAIL=0
 # locale/ catalogs are mechanically extracted from the impressum/privacy/terms templates above —
 # they cannot avoid carrying the same address/email strings. Treating them as public is consistent
 # with the source templates being public.
-ALLOW_RE='^(app/templates/(impressum|privacy|terms)\.html|COMMERCIAL-LICENSE\.md|docs/gdpr-account-deletion-design\.md|docs/api-usage-guide\.md|docs/self-hosting\.md|docs-internal/.*|\.githooks/.*|\.github/workflows/scope-guard\.yml|CHANGELOG\.md|locale/.*\.(po|pot|mo))$'
+ALLOW_RE='^(app/templates/(impressum|privacy|terms)\.html|COMMERCIAL-LICENSE\.md|docs/gdpr-account-deletion-design\.md|docs/api-usage-guide\.md|docs/self-hosting\.md|docs/dpa-template\.md|docs-internal/.*|\.githooks/.*|\.github/workflows/scope-guard\.yml|CHANGELOG\.md|locale/.*\.(po|pot|mo))$'
 
 # Personal/operational identifiers that should never land in public code.
 PATTERNS='lennart\.seidel@icloud\.com|lennart@filemorph\.io|Reetwerder|21029 Hamburg'
