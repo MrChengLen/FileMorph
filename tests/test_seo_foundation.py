@@ -288,30 +288,46 @@ def test_pricing_renders_live_buttons_with_waiver_gate_when_stripe_enabled(clien
     waiver checkbox. The button starts as ``disabled`` and ``pricing.js``
     unlocks it once the user actively ticks the matching waiver checkbox.
     Without this two-step consent the §356 (5) BGB waiver in ``terms.html``
-    §9 cannot be enforced. We assert the structural anchors here so a future
-    refactor that removes the gate fails loudly.
+    §9 cannot be enforced. We assert the structural anchors AND the
+    legally load-bearing label text here so a future refactor that removes
+    either the gate or the §356/14-day disclosure fails loudly.
     """
     from app.core.config import settings
+    from app.main import templates
 
     monkeypatch.setattr(settings, "pricing_page_enabled", True)
     monkeypatch.setattr(settings, "stripe_secret_key", "sk_test_dummy")  # gitleaks:allow
-    from app.main import templates
-
+    original_stripe_enabled = templates.env.globals.get("stripe_enabled")
     templates.env.globals["stripe_enabled"] = True
-
-    r = client.get("/pricing")
-    assert r.status_code == 200
-    body = r.text
-    # Each upgrade tier exposes a waiver checkbox that is wired to its button
-    # via the `data-target` attribute.
-    assert 'id="pro-waiver"' in body
-    assert 'data-target="pro-btn"' in body
-    assert 'id="business-waiver"' in body
-    assert 'data-target="business-btn"' in body
-    # The buttons themselves carry the `disabled` attribute on render — JS
-    # toggles it off once the checkbox is ticked.
-    assert 'id="pro-btn" disabled' in body
-    assert 'id="business-btn" disabled' in body
+    try:
+        r = client.get("/pricing")
+        assert r.status_code == 200
+        body = r.text
+        # Each upgrade tier exposes a waiver checkbox that is wired to its button
+        # via the `data-target` attribute.
+        assert 'id="pro-waiver"' in body
+        assert 'data-target="pro-btn"' in body
+        assert 'id="business-waiver"' in body
+        assert 'data-target="business-btn"' in body
+        # The buttons themselves carry the `disabled` attribute on render — JS
+        # toggles it off once the checkbox is ticked.
+        assert 'id="pro-btn" disabled' in body
+        assert 'id="business-btn" disabled' in body
+        # Legal load-bearing disclosure: the visible label MUST cite §356 BGB
+        # and the 14-day window. A copy-edit that drops either weakens the
+        # consent record and breaks dispute reproducibility — pin both.
+        body_lower = body.lower()
+        assert "§356" in body or "§ 356" in body, "BGB §356 (5) reference missing from waiver label"
+        assert "14-day" in body_lower or "14-tägig" in body_lower or "14 day" in body_lower, (
+            "14-day withdrawal-window disclosure missing from waiver label"
+        )
+    finally:
+        # Jinja globals are session-shared — revert so later tests see the
+        # original (unset / False) state.
+        if original_stripe_enabled is None:
+            templates.env.globals.pop("stripe_enabled", None)
+        else:
+            templates.env.globals["stripe_enabled"] = original_stripe_enabled
 
 
 def test_navbar_omits_pricing_link_when_pricing_disabled(client, monkeypatch):

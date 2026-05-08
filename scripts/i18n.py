@@ -40,9 +40,30 @@ def _pybabel(args: list[str]) -> int:
     return _run([sys.executable, "-m", "babel.messages.frontend"] + args)
 
 
+def _project_version() -> str:
+    """Read project version from pyproject.toml (single source of truth).
+
+    Falling back to "0.0.0" if pyproject is unparseable lets the extract
+    succeed in degenerate environments rather than blocking the whole
+    i18n pipeline on a header field.
+    """
+    pyproject = ROOT / "pyproject.toml"
+    if not pyproject.exists():
+        return "0.0.0"
+    try:
+        for line in pyproject.read_text(encoding="utf-8").splitlines():
+            stripped = line.strip()
+            if stripped.startswith("version") and "=" in stripped:
+                return stripped.split("=", 1)[1].strip().strip('"').strip("'")
+    except OSError:
+        pass
+    return "0.0.0"
+
+
 def cmd_extract() -> int:
     """Scan all sources → locale/messages.pot."""
     LOCALE_DIR.mkdir(parents=True, exist_ok=True)
+    version = _project_version()
     return _pybabel(
         [
             "extract",
@@ -51,6 +72,7 @@ def cmd_extract() -> int:
             "-o",
             str(POT_FILE),
             "--project=FileMorph",
+            f"--version={version}",
             "--copyright-holder=FileMorph",
             "--no-location",
             "--sort-output",
@@ -113,6 +135,7 @@ def cmd_drift_check() -> int:
     fd, tmp_name = tempfile.mkstemp(prefix="messages_drift_", suffix=".pot")
     os.close(fd)
     tmp_path = Path(tmp_name)
+    version = _project_version()
     try:
         rc = _pybabel(
             [
@@ -122,6 +145,7 @@ def cmd_drift_check() -> int:
                 "-o",
                 str(tmp_path),
                 "--project=FileMorph",
+                f"--version={version}",
                 "--copyright-holder=FileMorph",
                 "--no-location",
                 "--sort-output",
