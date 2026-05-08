@@ -8,9 +8,11 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.routes.auth import get_current_user
+from app.core.audit import record_event
 from app.core.config import settings
 from app.db.base import get_db
 from app.db.models import TierEnum, User
+from app.models.schemas import CheckoutRequest
 
 logger = logging.getLogger(__name__)
 
@@ -34,14 +36,27 @@ def _stripe_enabled() -> None:
 @router.post("/checkout/{tier}")
 async def create_checkout_session(
     tier: str,
+    body: CheckoutRequest,
+    request: Request,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Create a Stripe Checkout session for the given tier (pro | business)."""
+    """Create a Stripe Checkout session for the given tier (pro | business).
+
+    Requires `withdrawal_waiver_acknowledged: true` in the request body so the
+    user has explicitly waived their 14-day §312g BGB / §356 (5) BGB right of
+    withdrawal — the consent is recorded as a SHA-256 hash-chained audit event
+    so it can be reproduced at dispute time.
+    """
     _stripe_enabled()
     price_id = _TIER_TO_PRICE.get(tier, "")
     if not price_id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid tier.")
+    if not body.withdrawal_waiver_acknowledged:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="withdrawal_waiver_required",
+        )
 
     stripe.api_key = settings.stripe_secret_key
 
@@ -54,6 +69,15 @@ async def create_checkout_session(
         user.stripe_customer_id = customer.id
         await db.commit()
         customer_id = customer.id
+
+    actor_ip = request.client.host if request.client else None
+    await record_event(
+        event_type="billing.checkout.withdrawal_waiver_recorded",
+        actor_user_id=user.id,
+        actor_ip=actor_ip,
+        payload={"tier": tier},
+        db=db,
+    )
 
     session = stripe.checkout.Session.create(
         customer=customer_id,

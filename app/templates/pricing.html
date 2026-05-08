@@ -107,8 +107,13 @@
         </li>
       </ul>
       {% if stripe_enabled %}
-      <button id="pro-btn"
-        class="block w-full text-center py-2.5 rounded-xl bg-brand hover:bg-brand-dark text-white transition-colors text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+      <label for="pro-waiver" class="flex items-start gap-2 text-xs text-gray-400 mb-3 cursor-pointer">
+        <input type="checkbox" id="pro-waiver" class="withdrawal-waiver mt-0.5 shrink-0"
+               data-target="pro-btn" />
+        <span>{{ _('I waive my 14-day right of withdrawal and consent to immediate contract execution pursuant to §356 (5) BGB.') }}</span>
+      </label>
+      <button id="pro-btn" disabled
+        class="block w-full text-center py-2.5 rounded-xl bg-brand hover:bg-brand-dark text-white transition-colors text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-50 disabled:cursor-not-allowed">
         {{ _('Upgrade to Pro') }}
       </button>
       {% else %}
@@ -155,8 +160,13 @@
         </li>
       </ul>
       {% if stripe_enabled %}
-      <button id="business-btn"
-        class="block w-full text-center py-2.5 rounded-xl border border-hairline hover:border-brand text-gray-300 hover:text-white transition-colors text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+      <label for="business-waiver" class="flex items-start gap-2 text-xs text-gray-400 mb-3 cursor-pointer">
+        <input type="checkbox" id="business-waiver" class="withdrawal-waiver mt-0.5 shrink-0"
+               data-target="business-btn" />
+        <span>{{ _('I waive my 14-day right of withdrawal and consent to immediate contract execution pursuant to §356 (5) BGB.') }}</span>
+      </label>
+      <button id="business-btn" disabled
+        class="block w-full text-center py-2.5 rounded-xl border border-hairline hover:border-brand text-gray-300 hover:text-white transition-colors text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-50 disabled:cursor-not-allowed">
         {{ _('Upgrade to Business') }}
       </button>
       {% else %}
