@@ -332,3 +332,50 @@ def test_supported_locale_renders_each_page(client, locale):
     for page in pages:
         r = client.get(f"/{locale}{page}" if page != "/" else f"/{locale}/")
         assert r.status_code == 200, f"/{locale}{page} returned {r.status_code}"
+
+
+# ── M9 — DE-content smoke (catalog-loaded asserter) ─────────────────────────
+#
+# The 200-status smoke above passes even when the .mo catalog is missing,
+# corrupt, or out of sync — Babel falls back to the msgid (EN) silently.
+# These tests pin a stable DE-only string per page, so a missing catalog
+# (or a future PR that drops a translation) surfaces as a hard failure
+# rather than a silent regression to English.
+#
+# Strings chosen for stability:
+#   - ``Datenschutz``: navbar / privacy heading; would never appear in EN.
+#   - ``Nutzungsbedingungen``: terms-of-use heading; would render as
+#     "Terms" or "Terms of Use" in EN.
+#   - ``Impressum``: legal-imprint header; same word in both locales but
+#     the page also carries DE-only ``Verantwortlich`` which we pin as
+#     the second anchor for the DE branch.
+#   - ``Widerrufsrecht``: BGB §356 right-of-withdrawal language; appears
+#     on /de/privacy as part of the consumer-protection clause and is
+#     untranslatable in an EN render.
+
+
+@pytest.mark.parametrize(
+    "path,de_marker",
+    [
+        ("/de/privacy", "Datenschutz"),
+        ("/de/terms", "Nutzungsbedingungen"),
+        ("/de/impressum", "Verantwortlich"),
+        ("/de/security", "Sicherheit"),
+    ],
+)
+def test_de_page_renders_german_content(client, path, de_marker):
+    """A DE-marker string must appear in the rendered output. If the .mo
+    catalog is missing or corrupt, gettext falls back to the EN msgid and
+    this assertion fails — without it the 200-status test passes silently.
+    """
+    r = client.get(path)
+    assert r.status_code == 200, f"{path} returned {r.status_code}"
+    text = r.text
+    # Locale-resolution sanity (catches routing drift independently of
+    # the catalog status).
+    assert '<html lang="de"' in text, f"{path} served without lang=de — i18n routing drift"
+    # Catalog-loaded assertion — the actual M9 guard.
+    assert de_marker in text, (
+        f"{path} resolved to lang=de but DE marker '{de_marker}' missing — "
+        f"messages.mo loaded? gettext fallback to EN? Catalog out of sync?"
+    )
