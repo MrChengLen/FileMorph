@@ -10,14 +10,45 @@ def _deny_url_fetcher(url: str, **kwargs) -> None:
 
 
 # ---------------------------------------------------------------------------
-# DOCX → PDF
+# DOCX → PDF (mammoth → HTML → WeasyPrint → PDF)
 # ---------------------------------------------------------------------------
+# Pure-Python pipeline: mammoth extracts the DOCX body as HTML with images
+# inlined as data: URIs, WeasyPrint renders it to PDF. SSRF-safe — the same
+# _deny_url_fetcher used by md→pdf blocks any external URL the converted
+# HTML might reference. Best-effort: footnotes, headers/footers and embedded
+# OLE objects get simplified by mammoth; tables, images, hyperlinks and
+# basic paragraph styles survive intact.
 @register(("docx", "pdf"))
 class DocxToPdfConverter(BaseConverter):
     def convert(self, input_path: Path, output_path: Path, **kwargs) -> Path:
-        from docx2pdf import convert  # type: ignore
+        import mammoth
+        import weasyprint
 
-        convert(str(input_path), str(output_path))
+        with open(input_path, "rb") as f:
+            result = mammoth.convert_to_html(f)
+        html_body = result.value
+        had_warnings = any(m.type == "warning" for m in result.messages)
+
+        notice = (
+            (
+                '<div style="background:#fff3cd;border:1px solid #ffe39a;'
+                'padding:8px;font-size:10pt;margin-bottom:1em">'
+                "Some elements were simplified during conversion "
+                "(footnotes, headers/footers, or embedded objects)."
+                "</div>"
+            )
+            if had_warnings
+            else ""
+        )
+
+        full_html = (
+            "<!DOCTYPE html><html><head>"
+            "<style>body{font-family:sans-serif;margin:2cm;line-height:1.6}"
+            "table{border-collapse:collapse}"
+            "td,th{border:1px solid #999;padding:4pt}</style>"
+            f"</head><body>{notice}{html_body}</body></html>"
+        )
+        weasyprint.HTML(string=full_html, url_fetcher=_deny_url_fetcher).write_pdf(str(output_path))
         return output_path
 
 
