@@ -62,7 +62,7 @@ FileMorph runs in three editions, all built from this repository:
 |---|---|---|
 | **Community** | Self-hosted (Docker, source) | File conversion + compression, REST API, single-user API-key auth |
 | **Cloud SaaS** | [filemorph.io](https://filemorph.io) | Community features + user accounts (JWT), tier quotas, Stripe billing, admin cockpit |
-| **Compliance** | Self-hosted with commercial licence | Cloud-Edition features + tamper-evident audit log (SHA-256 hash chain), `X-Output-SHA256` integrity header, PDF/A-2b output (veraPDF-validated), default-on EXIF/XMP/IPTC strip, `X-Data-Classification` header, self-service account deletion, signed images (cosign) + signed releases (GPG). For DACH Behörden, Krankenhäuser, and Anwaltskanzleien. |
+| **Compliance** | Self-hosted with commercial licence | Cloud-Edition features + tamper-evident audit log (SHA-256 hash chain), `X-Output-SHA256` integrity header, PDF/A-2b output (CI gate validated against veraPDF for a worst-case fixture), default-on EXIF/XMP/IPTC strip, `X-Data-Classification` header, self-service account deletion, signed images (cosign) + cryptographically signed releases. For DACH Behörden, Krankenhäuser, and Anwaltskanzleien. |
 
 The README and `docs/` are written for the **Community** edition. The
 Cloud-Edition features (account registration, Stripe checkout, admin

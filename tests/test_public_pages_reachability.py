@@ -24,12 +24,13 @@ import pytest
 @pytest.mark.parametrize(
     "path,expected_marker",
     [
-        # /privacy and /terms are still raw English (PR-i18n-2c will handle
-        # them with a DE-as-authoritative legal footer). /impressum is DE
-        # in either prefix — same word in both languages. /security IS
-        # wrapped, so we hit the /en/ variant for the English marker.
-        ("/privacy", "Privacy Policy"),
-        ("/terms", "Terms of Use"),
+        # /privacy and /terms are now i18n-wrapped (PR-i18n-2c) — DE is the
+        # legal-authoritative version with EN footer. Default route renders DE
+        # so we hit /en/ for the EN marker. /impressum stays raw German (TMG-
+        # bound legal text); the word "Impressum" appears in both locales.
+        # /security was wrapped earlier and uses the same /en/ rule.
+        ("/en/privacy", "Privacy Policy"),
+        ("/en/terms", "Terms of Use"),
         ("/impressum", "Impressum"),
         ("/en/security", "Reporting a vulnerability"),
     ],
@@ -97,4 +98,55 @@ def test_privacy_policy_mentions_gdpr_erasure_right(client) -> None:
     # German or English variant — both are valid
     assert "art. 17" in text_lower or "erasure" in text_lower or "löschung" in text_lower, (
         "Privacy policy should reference Art. 17 GDPR / right to erasure"
+    )
+
+
+def test_enterprise_de_renders_authoritative_german(client, monkeypatch) -> None:
+    """PR-i18n-2c: /de/enterprise carries the legal-authoritative DE text
+    and must NOT show the EN-only disclaimer header (which calls itself
+    out as a non-binding translation)."""
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "pricing_page_enabled", True)
+    res = client.get("/de/enterprise")
+    assert res.status_code == 200
+    text = res.text
+    # Pin a DE-only domain term (untranslated EN would say "public authorities")
+    assert "Behörden" in text, "/de/enterprise missing 'Behörden' (DE-authoritative content)"
+    # Disclaimer is gated to locale=='en' — DE must not see it
+    assert "authoritative legal text" not in text, (
+        "/de/enterprise should not render the EN disclaimer (DE is authoritative)"
+    )
+
+
+def test_enterprise_en_renders_english_with_disclaimer(client, monkeypatch) -> None:
+    """PR-i18n-2c: /en/enterprise carries the EN translation plus the
+    disclaimer that points to the DE original as legally binding."""
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "pricing_page_enabled", True)
+    res = client.get("/en/enterprise")
+    assert res.status_code == 200
+    text = res.text
+    assert "authoritative legal text" in text, (
+        "/en/enterprise must render the EN-only disclaimer pointing to DE original"
+    )
+    # 'Behörden' would only appear if a string slipped through the EN-twin
+    assert "Behörden" not in text, (
+        "/en/enterprise still has raw German term 'Behörden' — translation gap"
+    )
+
+
+def test_impressum_en_has_preamble_then_german(client) -> None:
+    """PR-i18n-2c: /en/impressum prepends an EN preamble explaining why
+    the legal body below stays in German (TMG § 5 Pflichtangaben)."""
+    res = client.get("/en/impressum")
+    assert res.status_code == 200
+    text = res.text
+    assert "as required by German law" in text, (
+        "/en/impressum missing EN preamble explaining DE legal text"
+    )
+    # Raw DE TMG content must still be present below the preamble
+    assert "Verantwortlich" in text, (
+        "/en/impressum missing the raw DE TMG section after the preamble"
     )

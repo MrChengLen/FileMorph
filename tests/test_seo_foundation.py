@@ -283,9 +283,14 @@ def test_pricing_renders_coming_soon_when_stripe_disabled(client, monkeypatch):
     assert "disabled" in body, "upgrade buttons must be disabled in Coming-Soon mode"
 
 
-def test_pricing_renders_live_buttons_when_stripe_enabled(client, monkeypatch):
-    """Live mode: upgrade buttons must NOT carry the disabled attribute, so
-    real users can hit the Stripe checkout endpoint."""
+def test_pricing_renders_live_buttons_with_waiver_gate_when_stripe_enabled(client, monkeypatch):
+    """Live mode: upgrade buttons are gated behind a §356 (5) BGB withdrawal-
+    waiver checkbox. The button starts as ``disabled`` and ``pricing.js``
+    unlocks it once the user actively ticks the matching waiver checkbox.
+    Without this two-step consent the §356 (5) BGB waiver in ``terms.html``
+    §9 cannot be enforced. We assert the structural anchors here so a future
+    refactor that removes the gate fails loudly.
+    """
     from app.core.config import settings
 
     monkeypatch.setattr(settings, "pricing_page_enabled", True)
@@ -296,14 +301,17 @@ def test_pricing_renders_live_buttons_when_stripe_enabled(client, monkeypatch):
 
     r = client.get("/pricing")
     assert r.status_code == 200
-    # Find the pro button line; it must not include the `disabled` attribute
-    # in its tag (the Coming-Soon variant has `disabled` directly on <button>).
-    assert 'id="pro-btn"' in r.text
-    pro_line = next(
-        (line for line in r.text.splitlines() if 'id="pro-btn"' in line),
-        "",
-    )
-    assert "disabled" not in pro_line.lower(), "pro button must be enabled when Stripe is live"
+    body = r.text
+    # Each upgrade tier exposes a waiver checkbox that is wired to its button
+    # via the `data-target` attribute.
+    assert 'id="pro-waiver"' in body
+    assert 'data-target="pro-btn"' in body
+    assert 'id="business-waiver"' in body
+    assert 'data-target="business-btn"' in body
+    # The buttons themselves carry the `disabled` attribute on render — JS
+    # toggles it off once the checkbox is ticked.
+    assert 'id="pro-btn" disabled' in body
+    assert 'id="business-btn" disabled' in body
 
 
 def test_navbar_omits_pricing_link_when_pricing_disabled(client, monkeypatch):

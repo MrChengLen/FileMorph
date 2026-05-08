@@ -49,7 +49,7 @@ def build_site_jsonld(app_base_url: str) -> tuple[str, str]:
             "operatingSystem": "Any",
             "offers": {"@type": "Offer", "price": "0", "priceCurrency": "EUR"},
             "description": (
-                "Privacy-first file converter & compressor — open-source and self-hostable."
+                "Privacy-respecting file converter & compressor — open-source and self-hostable."
             ),
         },
         {

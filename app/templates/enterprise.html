@@ -1,347 +1,336 @@
 {% extends "base.html" %}
-{% block title %}Compliance Edition — FileMorph{% endblock %}
+{% block title %}{{ _('Compliance Edition') }} — FileMorph{% endblock %}
 {% block content %}
 <main class="max-w-4xl mx-auto px-6 py-12 space-y-20 text-gray-300 text-sm leading-relaxed">
 
+  {% if locale == 'en' %}
+  <div class="border-l-4 border-brand bg-brand/5 px-5 py-4 text-sm rounded-r-lg space-y-2">
+    <p class="text-white font-semibold">{{ _('FileMorph operates under German law (Hamburg).') }}</p>
+    <p class="text-gray-300 leading-relaxed">{{ _('Compliance assertions on this page cite German statutes (HGB §257, AO §147, DSGVO Art 17). This English translation is provided for accessibility — the German version is the authoritative legal text in case of conflict.') }}</p>
+  </div>
+  {% endif %}
+
   <!-- Hero -->
   <section class="space-y-6">
-    <p class="text-xs uppercase tracking-widest text-brand">FileMorph Compliance Edition</p>
+    <p class="text-xs uppercase tracking-widest text-brand">{{ _('FileMorph Compliance Edition') }}</p>
     <h1 class="text-3xl sm:text-4xl font-bold text-white leading-tight">
-      DSGVO-konforme File-Engine für die regulierte Verwaltung.
+      {{ _('GDPR-aligned file engine for regulated administration.') }}
     </h1>
     <p class="text-lg text-gray-300 max-w-2xl leading-relaxed">
-      Self-hosted hinter Ihrer Firewall. AGPLv3 + kommerzielle Lizenz.
-      EU-Vendor mit deutschem Impressum, Auftragsverarbeitungs-Vorlage,
-      und SBOM in jedem Release.
+      {{ _('Self-hosted behind your firewall. AGPLv3 + commercial license. EU vendor with German imprint, individually drafted DPA template in pilot conversation, and SBOM in every release.') }}
     </p>
     <div class="flex flex-wrap gap-3 pt-4">
       <a href="mailto:enterprise@filemorph.io"
          class="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-brand hover:bg-brand-dark text-white font-semibold text-base transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
-        Pilotgespräch anfragen
+        {{ _('Request pilot call') }}
       </a>
       <a href="#tier-uebersicht"
          class="inline-flex items-center gap-2 px-6 py-3 rounded-lg border border-gray-700 hover:border-brand text-gray-200 hover:text-white text-base transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
-        Was kostet die Edition?
+        {{ _('What does the Edition cost?') }}
       </a>
     </div>
   </section>
 
   <!-- In-page Trust-Summary — proof before doc-links -->
   <section class="bg-gray-900/50 border border-gray-800 rounded-xl p-6 space-y-4">
-    <p class="text-xs uppercase tracking-wider text-gray-500">Engineering-Beweis vor dem Vertrag</p>
+    <p class="text-xs uppercase tracking-wider text-gray-500">{{ _('Engineering proof before contract') }}</p>
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-5 text-sm">
       <div class="space-y-1">
-        <p class="text-white font-semibold">SHA-256-Audit-Log</p>
-        <p class="text-gray-400 text-xs leading-relaxed">Jede Operation in einer fortlaufenden Hash-Chain. Manipulation an einer alten Zeile bricht die nachfolgende Kette.</p>
+        <p class="text-white font-semibold">{{ _('SHA-256 audit log') }}</p>
+        <p class="text-gray-400 text-xs leading-relaxed">{{ _('Every operation in a continuous hash chain. Tampering with an old row breaks every following one.') }}</p>
       </div>
       <div class="space-y-1">
-        <p class="text-white font-semibold">Signiertes Image + SBOM</p>
-        <p class="text-gray-400 text-xs leading-relaxed">cosign-keyless-OIDC, GPG-signierte Git-Tags, CycloneDX-JSON-SBOM in jedem GitHub-Release.</p>
+        <p class="text-white font-semibold">{{ _('Signed image + SBOM') }}</p>
+        <p class="text-gray-400 text-xs leading-relaxed">{{ _('cosign keyless OIDC, cryptographically signed git tags, CycloneDX-JSON SBOM in every GitHub release.') }}</p>
       </div>
       <div class="space-y-1">
-        <p class="text-white font-semibold">PDF/A-2b veraPDF-validiert</p>
-        <p class="text-gray-400 text-xs leading-relaxed">Konformitäts-Gate läuft als CI-Workflow. Kein Release ohne grünes veraPDF gegen einen Worst-Case-Source-PDF.</p>
+        <p class="text-white font-semibold">{{ _('PDF/A-2b veraPDF-validated') }}</p>
+        <p class="text-gray-400 text-xs leading-relaxed">{{ _('Conformance gate runs as CI workflow. No release without green veraPDF against a worst-case source PDF.') }}</p>
       </div>
     </div>
   </section>
 
-  <!-- Tier overview — moved up: B2G procurement reads price first -->
+  <!-- Tier overview -->
   <section id="tier-uebersicht" class="space-y-5">
     <div>
-      <h2 class="text-2xl font-bold text-white">Tier-Übersicht</h2>
-      <p class="text-gray-400 mt-2">Server-Volumen-basiert, nicht per User-Seat. Verbindliche Konditionen folgen dem persönlichen Gespräch.</p>
+      <h2 class="text-2xl font-bold text-white">{{ _('Tier overview') }}</h2>
+      <p class="text-gray-400 mt-2">{{ _('Server-volume-based, not per user seat. Binding terms follow the personal conversation.') }}</p>
     </div>
     <div class="overflow-x-auto">
       <table class="w-full text-sm bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
         <thead class="bg-gray-950 text-xs uppercase tracking-wider text-gray-500">
           <tr>
-            <th class="px-4 py-3 text-left font-semibold">Tier</th>
-            <th class="px-4 py-3 text-left font-semibold">Umfang</th>
-            <th class="px-4 py-3 text-left font-semibold whitespace-nowrap">Preis / Jahr</th>
+            <th class="px-4 py-3 text-left font-semibold">{{ _('Tier') }}</th>
+            <th class="px-4 py-3 text-left font-semibold">{{ _('Scope') }}</th>
+            <th class="px-4 py-3 text-left font-semibold whitespace-nowrap">{{ _('Price / year') }}</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-800">
           <tr>
-            <td class="px-4 py-3 font-semibold text-white">Compliance Starter</td>
-            <td class="px-4 py-3 text-gray-400">1 Server, ≤ 50 Mitarbeitende</td>
-            <td class="px-4 py-3 text-gray-200 whitespace-nowrap">€ 1.490</td>
+            <td class="px-4 py-3 font-semibold text-white">{{ _('Compliance Starter') }}</td>
+            <td class="px-4 py-3 text-gray-400">{{ _('1 server, ≤ 50 employees') }}</td>
+            <td class="px-4 py-3 text-gray-200 whitespace-nowrap">€ 1,490</td>
           </tr>
           <tr>
-            <td class="px-4 py-3 font-semibold text-white">Compliance Standard</td>
-            <td class="px-4 py-3 text-gray-400">3 Server, ≤ 2.000 Mitarbeitende</td>
-            <td class="px-4 py-3 text-gray-200 whitespace-nowrap">€ 7.490</td>
+            <td class="px-4 py-3 font-semibold text-white">{{ _('Compliance Standard') }}</td>
+            <td class="px-4 py-3 text-gray-400">{{ _('3 servers, ≤ 2,000 employees') }}</td>
+            <td class="px-4 py-3 text-gray-200 whitespace-nowrap">€ 7,490</td>
           </tr>
           <tr>
-            <td class="px-4 py-3 font-semibold text-white">Compliance Enterprise</td>
-            <td class="px-4 py-3 text-gray-400">unbegrenzte Server, dediziertes Onboarding, Custom-SLA</td>
-            <td class="px-4 py-3 text-gray-200 whitespace-nowrap">ab € 24.900</td>
+            <td class="px-4 py-3 font-semibold text-white">{{ _('Compliance Enterprise') }}</td>
+            <td class="px-4 py-3 text-gray-400">{{ _('unlimited servers, dedicated onboarding, custom SLA') }}</td>
+            <td class="px-4 py-3 text-gray-200 whitespace-nowrap">{{ _('from € 24,900') }}</td>
           </tr>
         </tbody>
       </table>
     </div>
     <p class="text-xs text-gray-500">
-      KRITIS- und Air-Gap-Varianten auf Anfrage. Alle Tiers enthalten kommerzielle Lizenz, AVV-Vorlage, signiertes Docker-Image und Support-SLA.
+      {{ _('KRITIS and air-gap variants on request. All tiers include commercial license, DPA template, signed Docker image and support SLA.') }}
     </p>
   </section>
 
   <!-- Why this exists -->
   <section class="space-y-5">
-    <h2 class="text-2xl font-bold text-white">Warum eine Compliance-Edition?</h2>
+    <h2 class="text-2xl font-bold text-white">{{ _('Why a Compliance Edition?') }}</h2>
     <p>
-      Behörden, Krankenhäuser und Kanzleien dürfen Bürger- und Mandantendaten
-      in vielen Fällen nicht durch öffentliche Cloud-Konvertierungs-Dienste
-      verarbeiten — die DSGVO-Datenkette und das EVB-IT-Vertragswerk setzen
-      hier enge Grenzen. Gleichzeitig fehlt der typischen IT-Abteilung die
-      Bandbreite, ein Konvertierungs-Backend selbst zu pflegen.
+      {{ _('Public authorities, hospitals and law firms often may not process citizen and client data through public cloud conversion services — the GDPR data chain and the EVB-IT contract framework set tight limits here. At the same time, the typical IT department lacks the bandwidth to maintain a conversion backend on its own.') }}
     </p>
     <p>
-      FileMorph schließt diese Lücke: Die Open-Source-Engine deckt 16+
-      Format-Paare ab und läuft auf Ihrer eigenen Hetzner / On-Premise /
-      Air-Gap-Infrastruktur. Die Compliance-Edition liefert zusätzlich die
-      Verträge, die SLAs und die Roadmap-Garantien, die ein
-      EVB-IT-konformer Einkauf voraussetzt.
+      {{ _('FileMorph closes this gap: the open-source engine covers 16+ format pairs and runs on your own Hetzner / on-premises / air-gap infrastructure. The Compliance Edition additionally provides the contracts, SLAs and roadmap guarantees that an EVB-IT-compliant procurement requires.') }}
     </p>
   </section>
 
   <!-- What's in the edition -->
   <section class="space-y-5">
-    <h2 class="text-2xl font-bold text-white">Inhalt der Compliance-Edition</h2>
+    <h2 class="text-2xl font-bold text-white">{{ _('What\'s in the Compliance Edition') }}</h2>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
       <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-3">
-        <h3 class="text-base font-semibold text-white tracking-tight">Kommerzielle Lizenz</h3>
-        <p class="text-gray-400 leading-relaxed">Hebt die AGPLv3-Veröffentlichungspflicht für interne Eigenentwicklungen + öffentliche Bürgerportal-Integrationen auf.</p>
+        <h3 class="text-base font-semibold text-white tracking-tight">{{ _('Commercial license') }}</h3>
+        <p class="text-gray-400 leading-relaxed">{{ _('Lifts the AGPLv3 publication obligation for internal in-house developments + public citizen-portal integrations.') }}</p>
       </div>
       <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-3">
-        <h3 class="text-base font-semibold text-white tracking-tight">Auftragsverarbeitungs-Vertrag (AVV)</h3>
-        <p class="text-gray-400 leading-relaxed">DSGVO Art. 28-konforme Vorlage, an Ihre Behörden- oder Klinik-Spezifika angepasst.</p>
+        <h3 class="text-base font-semibold text-white tracking-tight">{{ _('Data Processing Agreement (DPA)') }}</h3>
+        <p class="text-gray-400 leading-relaxed">{{ _('GDPR Art. 28-compliant DPA — drafted jointly in the pilot conversation and adapted to your authority or clinic specifics.') }}</p>
       </div>
       <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-3">
-        <h3 class="text-base font-semibold text-white tracking-tight">Audit-Log mit Hash-Chain</h3>
-        <p class="text-gray-400 leading-relaxed">SHA-256-verkettetes Operations-Log, ISO 27001 A.12.4.1 / BORA §50 / BeurkG §39a.</p>
+        <h3 class="text-base font-semibold text-white tracking-tight">{{ _('Audit log with hash chain') }}</h3>
+        <p class="text-gray-400 leading-relaxed">{{ _('SHA-256-chained operations log, ISO 27001 A.12.4.1 / BORA §50 / BeurkG §39a.') }}</p>
       </div>
       <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-3">
-        <h3 class="text-base font-semibold text-white tracking-tight">PDF/A-2b-Output</h3>
-        <p class="text-gray-400 leading-relaxed">Validiert nach veraPDF — für beA-Anhänge, Bürgerantrags-Archivierung, BSI TR-RESISCAN.</p>
+        <h3 class="text-base font-semibold text-white tracking-tight">{{ _('PDF/A-2b output') }}</h3>
+        <p class="text-gray-400 leading-relaxed">{{ _('Conformance secured by veraPDF CI gate against a worst-case source PDF — for beA attachments, citizen-application archiving, BSI TR-RESISCAN.') }}</p>
       </div>
       <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-3">
-        <h3 class="text-base font-semibold text-white tracking-tight">Signierte Releases + SBOM</h3>
-        <p class="text-gray-400 leading-relaxed">cosign-signiertes Docker-Image, GPG-signierte Git-Tags, CycloneDX-JSON-SBOM in jedem Release. Auf die EVB-IT-Cloud-Klausel (März 2026) ausgerichtet.</p>
+        <h3 class="text-base font-semibold text-white tracking-tight">{{ _('Signed releases + SBOM') }}</h3>
+        <p class="text-gray-400 leading-relaxed">{{ _('cosign-signed Docker image, cryptographically signed git tags, CycloneDX-JSON SBOM in every release. Aligned with the EVB-IT cloud clause (March 2026).') }}</p>
       </div>
       <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-3">
-        <h3 class="text-base font-semibold text-white tracking-tight">Support-SLA</h3>
-        <p class="text-gray-400 leading-relaxed">Reaktionszeit nach Schweregrad — kritisch 4 h, hoch 24 h, mittel/niedrig im nächsten regulären Release.</p>
+        <h3 class="text-base font-semibold text-white tracking-tight">{{ _('Support SLA') }}</h3>
+        <p class="text-gray-400 leading-relaxed">{{ _('Response-time targets by severity — critical 4 h, high 24 h, medium/low in the next regular release. Targets apply Mon–Fri 09:00–18:00 CET, excluding German public holidays.') }}</p>
       </div>
     </div>
   </section>
 
-  <!-- Pilot programme — extracted from transparency block, elevated -->
+  <!-- Pilot programme -->
   <section class="space-y-5">
-    <h2 class="text-2xl font-bold text-white">Design-Partner-Programm</h2>
+    <h2 class="text-2xl font-bold text-white">{{ _('Design Partner Programme') }}</h2>
     <div class="bg-brand/5 border border-brand/30 rounded-xl p-6 space-y-4">
       <p class="text-base text-gray-200 leading-relaxed">
-        Drei Plätze. Sechs Monate kostenfrei. Direkter Einfluss auf die
-        Roadmap der Compliance-Edition.
+        {{ _('Three spots. Six months free. Direct influence on the Compliance Edition roadmap.') }}
       </p>
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
         <div class="space-y-1">
-          <p class="text-white font-semibold">Was Sie geben</p>
-          <p class="text-gray-400 text-xs leading-relaxed">Logo-Nennung als Pilotkunde (optional). Roadmap-Feedback alle vier Wochen. Bereitschaft, Feature-Tickets zu priorisieren.</p>
+          <p class="text-white font-semibold">{{ _('What you give') }}</p>
+          <p class="text-gray-400 text-xs leading-relaxed">{{ _('Logo mention as pilot customer (optional). Roadmap feedback every four weeks. Willingness to prioritize feature tickets.') }}</p>
         </div>
         <div class="space-y-1">
-          <p class="text-white font-semibold">Was Sie bekommen</p>
-          <p class="text-gray-400 text-xs leading-relaxed">Vollständige Compliance-Edition. Onboarding gemeinsam mit dem Maintainer. Bug-Hotfix mit Priorität.</p>
+          <p class="text-white font-semibold">{{ _('What you get') }}</p>
+          <p class="text-gray-400 text-xs leading-relaxed">{{ _('Full Compliance Edition. Onboarding together with the maintainer. Priority bug hotfixes.') }}</p>
         </div>
         <div class="space-y-1">
-          <p class="text-white font-semibold">Wer passt</p>
-          <p class="text-gray-400 text-xs leading-relaxed">Behörde, Klinik-IT, Anwaltskanzlei mit konkretem DSGVO-Konvertierungs-Use-Case. Wir filtern auf Pilotreife — nicht jeder Interessent passt.</p>
+          <p class="text-white font-semibold">{{ _('Who\'s a fit') }}</p>
+          <p class="text-gray-400 text-xs leading-relaxed">{{ _('Public authority, clinic IT, law firm with a concrete GDPR conversion use case. We filter for pilot readiness — not every applicant fits.') }}</p>
         </div>
       </div>
       <div class="pt-2">
         <a href="mailto:enterprise@filemorph.io?subject=Design-Partner-Bewerbung"
            class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-brand hover:bg-brand-dark text-white font-semibold text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
-          Als Design-Partner bewerben
+          {{ _('Apply as design partner') }}
         </a>
       </div>
     </div>
   </section>
 
-  <!-- Comparison table — generic categories only (no named competitors) -->
+  <!-- Comparison table -->
   <section class="space-y-5">
     <div>
-      <h2 class="text-2xl font-bold text-white">Was wir gegenüber typischen Alternativen liefern</h2>
-      <p class="text-gray-400 mt-2">Eine Orientierung über die in DACH-RFPs gängigen Anbieter-Kategorien. Im Einzelfall kann ein konkretes Produkt mehr leisten — bitte individuell prüfen.</p>
+      <h2 class="text-2xl font-bold text-white">{{ _('What we deliver compared to typical alternatives') }}</h2>
+      <p class="text-gray-400 mt-2">{{ _('An orientation about the provider categories common in DACH RFPs. In individual cases, a specific product may do more — please check individually.') }}</p>
     </div>
     <div class="overflow-x-auto">
       <table class="w-full text-sm bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
         <thead class="bg-gray-950 text-xs uppercase tracking-wider text-gray-500">
           <tr>
-            <th class="px-4 py-3 text-left font-semibold">Kriterium</th>
-            <th class="px-4 py-3 text-center font-semibold whitespace-nowrap">FileMorph<br/>Compliance</th>
-            <th class="px-4 py-3 text-center font-semibold">Typische Open-Source-Konvertierer</th>
-            <th class="px-4 py-3 text-center font-semibold">Typische SaaS-Konvertierer</th>
+            <th class="px-4 py-3 text-left font-semibold">{{ _('Criterion') }}</th>
+            <th class="px-4 py-3 text-center font-semibold whitespace-nowrap">FileMorph<br/>{{ _('Compliance') }}</th>
+            <th class="px-4 py-3 text-center font-semibold">{{ _('Typical open-source converters') }}</th>
+            <th class="px-4 py-3 text-center font-semibold">{{ _('Typical SaaS converters') }}</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-800 text-gray-300">
           <tr>
-            <td class="px-4 py-3 font-medium">Self-Hosted (Daten bleiben im Haus)</td>
+            <td class="px-4 py-3 font-medium">{{ _('Self-hosted (data stays in-house)') }}</td>
             <td class="px-4 py-3 text-center text-emerald-400">✓</td>
-            <td class="px-4 py-3 text-center text-gray-400">häufig ✓</td>
-            <td class="px-4 py-3 text-center text-gray-400">selten</td>
+            <td class="px-4 py-3 text-center text-gray-400">{{ _('often ✓') }}</td>
+            <td class="px-4 py-3 text-center text-gray-400">{{ _('rare') }}</td>
           </tr>
           <tr>
-            <td class="px-4 py-3 font-medium">DSGVO-AVV-Vorlage in deutscher Form</td>
+            <td class="px-4 py-3 font-medium">{{ _('GDPR DPA template in German form') }}</td>
             <td class="px-4 py-3 text-center text-emerald-400">✓</td>
-            <td class="px-4 py-3 text-center text-gray-400">selten</td>
-            <td class="px-4 py-3 text-center text-gray-400">variabel</td>
+            <td class="px-4 py-3 text-center text-gray-400">{{ _('rare') }}</td>
+            <td class="px-4 py-3 text-center text-gray-400">{{ _('varies') }}</td>
           </tr>
           <tr>
-            <td class="px-4 py-3 font-medium">Audit-Log mit Hash-Chain</td>
+            <td class="px-4 py-3 font-medium">{{ _('Audit log with hash chain') }}</td>
             <td class="px-4 py-3 text-center text-emerald-400">✓</td>
-            <td class="px-4 py-3 text-center text-gray-400">variabel</td>
-            <td class="px-4 py-3 text-center text-gray-400">variabel</td>
+            <td class="px-4 py-3 text-center text-gray-400">{{ _('varies') }}</td>
+            <td class="px-4 py-3 text-center text-gray-400">{{ _('varies') }}</td>
           </tr>
           <tr>
-            <td class="px-4 py-3 font-medium">PDF/A-2b veraPDF-validiert</td>
+            <td class="px-4 py-3 font-medium">{{ _('PDF/A-2b veraPDF-validated') }}</td>
             <td class="px-4 py-3 text-center text-emerald-400">✓</td>
-            <td class="px-4 py-3 text-center text-gray-400">variabel</td>
-            <td class="px-4 py-3 text-center text-gray-400">variabel</td>
+            <td class="px-4 py-3 text-center text-gray-400">{{ _('varies') }}</td>
+            <td class="px-4 py-3 text-center text-gray-400">{{ _('varies') }}</td>
           </tr>
           <tr>
-            <td class="px-4 py-3 font-medium">Multi-Format (Bild + Audio + Video + Sheet)</td>
+            <td class="px-4 py-3 font-medium">{{ _('Multi-format (image + audio + video + sheet)') }}</td>
             <td class="px-4 py-3 text-center text-emerald-400">✓</td>
-            <td class="px-4 py-3 text-center text-gray-400">häufig auf einen Bereich beschränkt</td>
-            <td class="px-4 py-3 text-center text-gray-400">häufig ✓</td>
+            <td class="px-4 py-3 text-center text-gray-400">{{ _('often limited to one area') }}</td>
+            <td class="px-4 py-3 text-center text-gray-400">{{ _('often ✓') }}</td>
           </tr>
           <tr>
-            <td class="px-4 py-3 font-medium">EU-Vendor mit deutschem Impressum</td>
+            <td class="px-4 py-3 font-medium">{{ _('EU vendor with German imprint') }}</td>
             <td class="px-4 py-3 text-center text-emerald-400">✓</td>
-            <td class="px-4 py-3 text-center text-gray-400">variabel</td>
-            <td class="px-4 py-3 text-center text-gray-400">variabel</td>
+            <td class="px-4 py-3 text-center text-gray-400">{{ _('varies') }}</td>
+            <td class="px-4 py-3 text-center text-gray-400">{{ _('varies') }}</td>
           </tr>
           <tr>
-            <td class="px-4 py-3 font-medium">Kommerzielle Lizenz auf AGPL-Code</td>
+            <td class="px-4 py-3 font-medium">{{ _('Commercial license on AGPL code') }}</td>
             <td class="px-4 py-3 text-center text-emerald-400">✓</td>
-            <td class="px-4 py-3 text-center text-gray-400">selten</td>
-            <td class="px-4 py-3 text-center text-gray-400">nicht zutreffend</td>
+            <td class="px-4 py-3 text-center text-gray-400">{{ _('rare') }}</td>
+            <td class="px-4 py-3 text-center text-gray-400">{{ _('not applicable') }}</td>
           </tr>
         </tbody>
       </table>
     </div>
     <p class="text-xs text-gray-500">
-      Die Tabelle beschreibt typische Eigenschaften der genannten Anbieter-Kategorien und ist kein abschließender Vergleich konkreter Produkte. Einzelne Anbieter können mehr oder weniger leisten — bitte das jeweils aktuelle Angebot direkt beim Hersteller prüfen.
+      {{ _('The table describes typical characteristics of the named provider categories and is not a definitive comparison of specific products. Individual providers may do more or less — please check the current offer directly with the manufacturer.') }}
     </p>
   </section>
 
-  <!-- Trust signals — restructured: lead with bold descriptor + em-dash + link -->
+  <!-- Trust signals -->
   <section class="space-y-5">
     <div>
-      <h2 class="text-2xl font-bold text-white">Vertrauensbasis vor dem Vertrag</h2>
-      <p class="text-gray-400 mt-2">Sie können FileMorph vor dem ersten Gespräch vollständig prüfen. Alle relevanten Sicherheits- und Architektur-Dokumente sind frei zugänglich:</p>
+      <h2 class="text-2xl font-bold text-white">{{ _('Trust basis before contract') }}</h2>
+      <p class="text-gray-400 mt-2">{{ _('You can fully audit FileMorph before the first conversation. All relevant security and architecture documents are freely accessible:') }}</p>
     </div>
     <ul class="space-y-3 text-gray-300">
       <li>
-        <strong class="text-white font-semibold">Security-Disclosure-Policy</strong> —
-        <a href="/security" class="text-brand hover:underline">RFC 9116, mit Reaktionszeiten und Scope</a>.
+        <strong class="text-white font-semibold">{{ _('Security Disclosure Policy') }}</strong> —
+        <a href="{{ localized_url('/security', current_prefix) }}" class="text-brand hover:underline">{{ _('RFC 9116, with response times and scope') }}</a>.
       </li>
       <li>
-        <strong class="text-white font-semibold">Architektur-Übersicht</strong> —
-        <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/architecture.md" class="text-brand hover:underline" target="_blank" rel="noopener noreferrer">Mermaid-Diagramm und Request-Lifecycle ↗</a>.
+        <strong class="text-white font-semibold">{{ _('Architecture overview') }}</strong> —
+        <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/architecture.md" class="text-brand hover:underline" target="_blank" rel="noopener noreferrer">{{ _('Mermaid diagram and request lifecycle ↗') }}</a>.
       </li>
       <li>
-        <strong class="text-white font-semibold">STRIDE-Threat-Model</strong> —
-        <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/threat-model.md" class="text-brand hover:underline" target="_blank" rel="noopener noreferrer">Bedrohung-Mitigation-Anker pro Kategorie ↗</a>.
+        <strong class="text-white font-semibold">{{ _('STRIDE threat model') }}</strong> —
+        <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/threat-model.md" class="text-brand hover:underline" target="_blank" rel="noopener noreferrer">{{ _('threat-mitigation anchors per category ↗') }}</a>.
       </li>
       <li>
-        <strong class="text-white font-semibold">AGPLv3 für Behörden</strong> —
-        <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/agpl-fuer-behoerden.md" class="text-brand hover:underline" target="_blank" rel="noopener noreferrer">wann Veröffentlichungspflicht greift, wann nicht ↗</a>.
+        <strong class="text-white font-semibold">{{ _('AGPLv3 for public authorities') }}</strong> —
+        <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/agpl-fuer-behoerden.md" class="text-brand hover:underline" target="_blank" rel="noopener noreferrer">{{ _('when publication obligation applies, when not ↗') }}</a>.
       </li>
       <li>
-        <strong class="text-white font-semibold">Patch-Policy</strong> —
-        <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/patch-policy.md" class="text-brand hover:underline" target="_blank" rel="noopener noreferrer">Versionierung, CVSS-Bänder, signierte Artefakte ↗</a>.
+        <strong class="text-white font-semibold">{{ _('Patch policy') }}</strong> —
+        <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/patch-policy.md" class="text-brand hover:underline" target="_blank" rel="noopener noreferrer">{{ _('versioning, CVSS bands, signed artefacts ↗') }}</a>.
       </li>
       <li>
-        <strong class="text-white font-semibold">Incident-Response-Plan</strong> —
-        <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/incident-response.md" class="text-brand hover:underline" target="_blank" rel="noopener noreferrer">Eskalation, Post-Mortem-Vorlage ↗</a>.
+        <strong class="text-white font-semibold">{{ _('Incident response plan') }}</strong> —
+        <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/incident-response.md" class="text-brand hover:underline" target="_blank" rel="noopener noreferrer">{{ _('escalation, post-mortem template ↗') }}</a>.
       </li>
       <li>
-        <strong class="text-white font-semibold">Sub-Processor-Liste</strong> —
-        <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/sub-processors.md" class="text-brand hover:underline" target="_blank" rel="noopener noreferrer">DSGVO Art. 28-Anhang ↗</a>.
+        <strong class="text-white font-semibold">{{ _('Sub-processor list') }}</strong> —
+        <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/sub-processors.md" class="text-brand hover:underline" target="_blank" rel="noopener noreferrer">{{ _('GDPR Art. 28 annex ↗') }}</a>.
       </li>
       <li>
-        <strong class="text-white font-semibold">Quellcode</strong> —
-        <a href="https://github.com/MrChengLen/FileMorph" class="text-brand hover:underline" target="_blank" rel="noopener noreferrer">vollständiges GitHub-Repository ↗</a>.
+        <strong class="text-white font-semibold">{{ _('Source code') }}</strong> —
+        <a href="https://github.com/MrChengLen/FileMorph" class="text-brand hover:underline" target="_blank" rel="noopener noreferrer">{{ _('full GitHub repository ↗') }}</a>.
       </li>
     </ul>
   </section>
 
   <!-- FAQ -->
   <section class="space-y-5">
-    <h2 class="text-2xl font-bold text-white">Häufige Fragen</h2>
+    <h2 class="text-2xl font-bold text-white">{{ _('Frequently asked questions') }}</h2>
     <div class="space-y-4">
       <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-2">
-        <p class="text-white font-semibold">Hosten Sie auch, wenn wir nicht selbst betreiben können?</p>
-        <p class="text-gray-400 leading-relaxed">Compliance-Edition ist self-hosted. Wenn Sie keine eigene Infrastruktur betreiben können, ist filemorph.io (Cloud-Edition) der richtige Pfad — andere Datenklasse, andere Verträge, kein EVB-IT-Anker.</p>
+        <p class="text-white font-semibold">{{ _('Do you also host if we can\'t operate ourselves?') }}</p>
+        <p class="text-gray-400 leading-relaxed">{{ _('The Compliance Edition is self-hosted. If you can\'t operate your own infrastructure, filemorph.io (Cloud Edition) is the right path — different data class, different contracts, no EVB-IT anchor.') }}</p>
       </div>
       <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-2">
-        <p class="text-white font-semibold">Was passiert, wenn wir kündigen?</p>
-        <p class="text-gray-400 leading-relaxed">Sie behalten den Code (AGPLv3 bleibt). Sie verlieren die kommerzielle Lizenz, das aktualisierte AVV, neue Releases mit Compliance-Features, und den Support-SLA. Bestehende Installationen laufen weiter — kein Lock-in über Zwangs-Updates.</p>
+        <p class="text-white font-semibold">{{ _('What happens if we cancel?') }}</p>
+        <p class="text-gray-400 leading-relaxed">{{ _('You keep the code (AGPLv3 stays). You lose the commercial license, the updated DPA, new releases with compliance features, and the support SLA. Existing installations continue running — no lock-in via forced updates.') }}</p>
       </div>
       <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-2">
-        <p class="text-white font-semibold">Wie verhält sich AGPLv3 bei Bürgerportal-Integrationen?</p>
-        <p class="text-gray-400 leading-relaxed">Bei einer öffentlich erreichbaren Service-Integration greift die AGPL-Veröffentlichungspflicht. Die kommerzielle Lizenz hebt sie auf — Sie können FileMorph in einem Bürgerportal einbinden, ohne den Quellcode Ihres Portals offenzulegen. Detail in <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/agpl-fuer-behoerden.md" class="text-brand hover:underline" target="_blank" rel="noopener noreferrer">docs/agpl-fuer-behoerden.md ↗</a>.</p>
+        <p class="text-white font-semibold">{{ _('How does AGPLv3 behave with citizen-portal integrations?') }}</p>
+        <p class="text-gray-400 leading-relaxed">{{ _('For a publicly accessible service integration, the AGPL publication obligation applies. The commercial license lifts it — you can integrate FileMorph into a citizen portal without disclosing your portal\'s source code. Detail in') }} <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/agpl-fuer-behoerden.md" class="text-brand hover:underline" target="_blank" rel="noopener noreferrer">docs/agpl-fuer-behoerden.md ↗</a>.</p>
       </div>
       <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-2">
-        <p class="text-white font-semibold">Brauche ich für KRITIS die Enterprise-Stufe?</p>
-        <p class="text-gray-400 leading-relaxed">Standard-Tier reicht für die meisten KRITIS-Voraussetzungen (Self-Hosting, Audit-Log, signierte Artefakte). Enterprise wird relevant, sobald Air-Gap-Update-Mechanismus, Reproducible-Builds oder dedizierter Support-SLA gefordert sind. Wir klären das in 15 Minuten am Telefon.</p>
+        <p class="text-white font-semibold">{{ _('Do I need the Enterprise tier for KRITIS?') }}</p>
+        <p class="text-gray-400 leading-relaxed">{{ _('Standard tier is enough for most KRITIS requirements (self-hosting, audit log, signed artefacts). Enterprise becomes relevant once air-gap update mechanism, reproducible builds or dedicated support SLA are required. We clarify this in 15 minutes by phone.') }}</p>
       </div>
       <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-2">
-        <p class="text-white font-semibold">Wie sieht der Datenexport aus, wenn wir migrieren?</p>
-        <p class="text-gray-400 leading-relaxed">FileMorph ist stateless für Konvertierungen — es gibt nichts zu exportieren außer dem Audit-Log (Postgres, SQL-Dump-fähig) und Konfiguration (env-Vars). Migration zu einem Nachfolger ist eine SQL-Dump + Container-Image-Frage, kein Vendor-Lock-in.</p>
+        <p class="text-white font-semibold">{{ _('What does the data export look like if we migrate?') }}</p>
+        <p class="text-gray-400 leading-relaxed">{{ _('FileMorph is stateless for conversions — there is nothing to export apart from the audit log (Postgres, SQL-dumpable) and configuration (env vars). Migration to a successor is a SQL-dump + container-image question, not a vendor lock-in.') }}</p>
       </div>
     </div>
   </section>
 
-  <!-- Limits we are honest about — narrowed -->
+  <!-- Limits we are honest about -->
   <section class="space-y-5">
-    <h2 class="text-2xl font-bold text-white">Worüber wir transparent sind</h2>
+    <h2 class="text-2xl font-bold text-white">{{ _('What we\'re transparent about') }}</h2>
     <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-3">
       <ul class="list-disc list-outside ml-5 space-y-2 text-gray-300 leading-relaxed">
-        <li>Externe ISO 27001-Zertifizierung und externer Pen-Test sind als
-          Year-2-Roadmap-Items eingeplant — beide werden umgesetzt, sobald der
-          erste zahlende Pilot den Aufwand betriebswirtschaftlich rechtfertigt.</li>
-        <li>Reproducible-Builds und Air-Gap-Update-Mechanismus sind ebenfalls
-          Year-2 (für die KRITIS-Variante erforderlich, im Standard-Tier nicht
-          kritisch).</li>
-        <li>Wir benennen das, weil ein RFP-Reviewer es ohnehin bemerken würde —
-          und weil wir die Roadmap lieber transparent statt geschönt halten.</li>
+        <li>{{ _('External ISO 27001 certification and external pen test are planned as Year-2 roadmap items — both will be implemented as soon as the first paying pilot economically justifies the effort.') }}</li>
+        <li>{{ _('Reproducible builds and air-gap update mechanism are also Year-2 (required for the KRITIS variant, not critical in the standard tier).') }}</li>
+        <li>{{ _('We name it because an RFP reviewer would notice anyway — and because we prefer to keep the roadmap transparent rather than embellished.') }}</li>
       </ul>
     </div>
   </section>
 
-  <!-- Closing CTA — primary call + secondary email fallback -->
+  <!-- Closing CTA -->
   <section class="space-y-6 text-center pt-4 border-t border-gray-800">
     <div class="space-y-3 pt-8">
-      <h2 class="text-2xl font-bold text-white">Bereit für ein 15-Minuten-Pilotgespräch?</h2>
+      <h2 class="text-2xl font-bold text-white">{{ _('Ready for a 15-minute pilot call?') }}</h2>
       <p class="text-base text-gray-300 max-w-2xl mx-auto leading-relaxed">
-        Sie evaluieren Konvertierungs-Software für eine Behörde, ein Krankenhaus
-        oder eine Kanzlei? Schreiben Sie uns mit Ihrem Use-Case — wir antworten
-        innerhalb eines Werktages.
+        {{ _('You\'re evaluating conversion software for a public authority, hospital or law firm? Write to us with your use case — we respond within one business day.') }}
       </p>
     </div>
     <div class="flex flex-col sm:flex-row gap-3 justify-center items-center">
-      <a href="mailto:enterprise@filemorph.io?subject=Pilotgespräch%20Compliance-Edition"
+      <a href="mailto:enterprise@filemorph.io?subject=Pilot-call%20Compliance-Edition"
          class="inline-flex items-center gap-2 px-7 py-3.5 rounded-lg bg-brand hover:bg-brand-dark text-white font-semibold text-base transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
-        Pilotgespräch per E-Mail anfragen
+        {{ _('Request pilot call by email') }}
       </a>
-      <a href="mailto:enterprise@filemorph.io?subject=Design-Partner-Bewerbung"
+      <a href="mailto:enterprise@filemorph.io?subject=Design-Partner-Application"
          class="text-sm text-gray-400 hover:text-brand transition-colors">
-        oder direkt als Design-Partner bewerben →
+        {{ _('or apply directly as design partner →') }}
       </a>
     </div>
     <p class="text-xs text-gray-500 pt-4">
-      Vertrauliche Anfragen über
+      {{ _('Confidential inquiries via') }}
       <a href="/.well-known/security.txt" class="text-brand hover:underline">security.txt</a>
-      werden mit demselben Schlüssel verschlüsselt.
+      {{ _('are encrypted with the same key.') }}
     </p>
   </section>
 

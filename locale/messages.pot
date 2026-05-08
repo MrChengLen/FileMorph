@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-05-08 15:52+0200\n"
+"POT-Creation-Date: 2026-05-08 15:18+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,7 +17,23 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
 
+msgid ""
+" — for example: \"I hereby withdraw from the contract concluded on [date]"
+" for the FileMorph [Pro / Business] subscription.\" Including your "
+"registered email address speeds up identification of your account."
+msgstr ""
+
 msgid "(vs. 20 MB anonymous)"
+msgstr ""
+
+msgid ""
+"). The cascade removes your login credentials and API keys; conversion-"
+"job and usage-record entries are anonymised (your account ID is nulled, "
+"the rows are kept as anonymous aggregate data under DSGVO Art. 4(1)). A "
+"confirmation email is sent after the row is gone."
+msgstr ""
+
+msgid "+ New Key"
 msgstr ""
 
 msgid ", 1 concurrent, 10 req/min"
@@ -29,10 +45,28 @@ msgstr ""
 msgid ", 5 concurrent, 10 req/min"
 msgstr ""
 
+msgid ""
+", hosted in Frankfurt, EU). Zoho receives the recipient address and the "
+"email contents (including the reset link). Legal basis: Art. 6(1)(b) "
+"GDPR. See"
+msgstr ""
+
 msgid "/mo"
 msgstr ""
 
+msgid "1 server, ≤ 50 employees"
+msgstr ""
+
+msgid "1. Acceptance"
+msgstr ""
+
+msgid "1. Who is responsible?"
+msgstr ""
+
 msgid "10,000 API calls / month"
+msgstr ""
+
+msgid "10. Contact"
 msgstr ""
 
 msgid "100 MB · 10k API"
@@ -44,7 +78,37 @@ msgstr ""
 msgid "100,000 API calls / month"
 msgstr ""
 
+msgid "2. Description of Service"
+msgstr ""
+
+msgid "2. What data we process"
+msgstr ""
+
 msgid "25 files"
+msgstr ""
+
+msgid "2a. Uploaded files:"
+msgstr ""
+
+msgid "2b. User accounts (Cloud Edition):"
+msgstr ""
+
+msgid "2c. Transactional emails:"
+msgstr ""
+
+msgid "2d. Server logs:"
+msgstr ""
+
+msgid "2e. API keys:"
+msgstr ""
+
+msgid "3 servers, ≤ 2,000 employees"
+msgstr ""
+
+msgid "3. Acceptable Use"
+msgstr ""
+
+msgid "3. Legal basis (GDPR Art. 6)"
 msgstr ""
 
 msgid "30+ formats (images, docs, audio, video)"
@@ -53,10 +117,25 @@ msgstr ""
 msgid "30+ formats incl. video"
 msgstr ""
 
+msgid "3a. External services (Sub-Processors)"
+msgstr ""
+
+msgid "4. Disclaimer of Warranties"
+msgstr ""
+
+msgid "4. Hosting"
+msgstr ""
+
 msgid "404 – Not Found"
 msgstr ""
 
 msgid "5 files"
+msgstr ""
+
+msgid "5. Limitation of Liability"
+msgstr ""
+
+msgid "5. Your rights (GDPR)"
 msgstr ""
 
 msgid "50 MB · API key"
@@ -71,7 +150,34 @@ msgstr ""
 msgid "500 – Server Error"
 msgstr ""
 
+msgid "6. No cookies, no tracking"
+msgstr ""
+
+msgid "6. Open Source License"
+msgstr ""
+
+msgid "7. Governing Law"
+msgstr ""
+
+msgid "7. Rate limiting & abuse prevention"
+msgstr ""
+
+msgid "8. Changes to this policy"
+msgstr ""
+
+msgid "8. Subscriptions (Cloud Edition)"
+msgstr ""
+
+msgid "9. Admin access (transparency)"
+msgstr ""
+
+msgid "9. Right of Withdrawal (Consumers)"
+msgstr ""
+
 msgid "A description of the vulnerability and its potential impact."
+msgstr ""
+
+msgid "AGPLv3 for public authorities"
 msgstr ""
 
 msgid "API Docs"
@@ -80,10 +186,31 @@ msgstr ""
 msgid "API Docs ↗"
 msgstr ""
 
+msgid "API Keys"
+msgstr ""
+
 msgid "API key management"
 msgstr ""
 
 msgid "API key — "
+msgstr ""
+
+msgid ""
+"Account creation, paid subscriptions, and transactional emails are "
+"processed on the basis of Art. 6(1)(b) GDPR (performance of a contract). "
+"Server-log processing, rate-limiting, and abuse prevention are based on "
+"our legitimate interest (Art. 6(1)(f) GDPR) in operating a secure and "
+"reliable service."
+msgstr ""
+
+msgid "Account deletion:"
+msgstr ""
+
+msgid ""
+"Accounts that have ever been linked to Stripe cannot use the self-service"
+" path yet — German commercial law (HGB §257, AO §147) requires a 10-year "
+"retention of tax-relevant records under Art. 17(3)(b) GDPR. For these "
+"accounts, contact"
 msgstr ""
 
 msgid "Acknowledgement:"
@@ -92,13 +219,37 @@ msgstr ""
 msgid "Affected version (commit hash or release tag if known)."
 msgstr ""
 
+msgid ""
+"All CSS (including Tailwind), JavaScript, fonts, and images are served "
+"from the FileMorph domain; your browser never contacts a third-party CDN "
+"to render the site."
+msgstr ""
+
 msgid "All prices excl. VAT where applicable. Payments processed by Stripe."
 msgstr ""
 
 msgid "Already have an account?"
 msgstr ""
 
+msgid ""
+"An orientation about the provider categories common in DACH RFPs. In "
+"individual cases, a specific product may do more — please check "
+"individually."
+msgstr ""
+
+msgid "Apply as design partner"
+msgstr ""
+
+msgid "Architecture overview"
+msgstr ""
+
 msgid "At least 8 characters"
+msgstr ""
+
+msgid "Attempt to circumvent rate limits or security controls"
+msgstr ""
+
+msgid "Audit log with hash chain"
 msgstr ""
 
 msgid "Back to Home"
@@ -128,22 +279,61 @@ msgstr ""
 msgid "By target size"
 msgstr ""
 
+msgid ""
+"By using FileMorph (the \"Service\"), you agree to these Terms of Use. If"
+" you do not agree, do not use the Service."
+msgstr ""
+
 msgid "Choose a password you haven't used before"
 msgstr ""
 
 msgid "Clear all"
 msgstr ""
 
+msgid "Cloudflare's privacy policy"
+msgstr ""
+
 msgid "Coming soon"
 msgstr ""
 
+msgid "Commercial license"
+msgstr ""
+
+msgid "Commercial license on AGPL code"
+msgstr ""
+
+msgid "Compliance"
+msgstr ""
+
+msgid "Compliance Edition"
+msgstr ""
+
 msgid "Compliance Edition →"
+msgstr ""
+
+msgid "Compliance Enterprise"
+msgstr ""
+
+msgid "Compliance Standard"
+msgstr ""
+
+msgid "Compliance Starter"
+msgstr ""
+
+msgid ""
+"Compliance assertions on this page cite German statutes (HGB §257, AO "
+"§147, DSGVO Art 17). This English translation is provided for "
+"accessibility — the German version is the authoritative legal text in "
+"case of conflict."
 msgstr ""
 
 msgid "Compress"
 msgstr ""
 
 msgid "Compression mode"
+msgstr ""
+
+msgid "Confidential inquiries via"
 msgstr ""
 
 msgid "Confirm Password"
@@ -161,6 +351,19 @@ msgstr ""
 msgid "Confirming your email…"
 msgstr ""
 
+msgid ""
+"Conformance gate runs as CI workflow. No release without green veraPDF "
+"against a worst-case source PDF."
+msgstr ""
+
+msgid ""
+"Conformance secured by veraPDF CI gate against a worst-case source PDF — "
+"for beA attachments, citizen-application archiving, BSI TR-RESISCAN."
+msgstr ""
+
+msgid "Contact:"
+msgstr ""
+
 msgid "Convert"
 msgstr ""
 
@@ -170,10 +373,19 @@ msgstr ""
 msgid "Coordinated disclosure:"
 msgstr ""
 
+msgid "Copy"
+msgstr ""
+
+msgid "Copy this key now — it will not be shown again."
+msgstr ""
+
 msgid "Create Account"
 msgstr ""
 
 msgid "Create one"
+msgstr ""
+
+msgid "Criterion"
 msgstr ""
 
 msgid ""
@@ -185,7 +397,22 @@ msgstr ""
 msgid "DOCX · PDF · TXT · MD · XLSX · CSV · JSON"
 msgstr ""
 
+msgid "Dashboard"
+msgstr ""
+
+msgid "Data Processing Agreement (DPA)"
+msgstr ""
+
 msgid "Dedicated onboarding"
+msgstr ""
+
+msgid "Design Partner Programme"
+msgstr ""
+
+msgid "Do I need the Enterprise tier for KRITIS?"
+msgstr ""
+
+msgid "Do you also host if we can't operate ourselves?"
 msgstr ""
 
 msgid "Documented API endpoints and the web UI."
@@ -203,7 +430,16 @@ msgstr ""
 msgid "E-mail support"
 msgstr ""
 
+msgid "EU vendor with German imprint"
+msgstr ""
+
+msgid "Early expiration of the right of withdrawal:"
+msgstr ""
+
 msgid "Email"
+msgstr ""
+
+msgid "Engineering proof before contract"
 msgstr ""
 
 msgid "Enter your email to receive a reset link"
@@ -218,6 +454,17 @@ msgstr ""
 msgid "Enterprise / Compliance"
 msgstr ""
 
+msgid ""
+"Every operation in a continuous hash chain. Tampering with an old row "
+"breaks every following one."
+msgstr ""
+
+msgid ""
+"External ISO 27001 certification and external pen test are planned as "
+"Year-2 roadmap items — both will be implemented as soon as the first "
+"paying pilot economically justifies the effort."
+msgstr ""
+
 msgid "File Converter & Compressor"
 msgstr ""
 
@@ -230,12 +477,58 @@ msgstr ""
 msgid "File conversion mode"
 msgstr ""
 
+msgid "FileMorph Compliance Edition"
+msgstr ""
+
+msgid ""
+"FileMorph closes this gap: the open-source engine covers 16+ format pairs"
+" and runs on your own Hetzner / on-premises / air-gap infrastructure. The"
+" Compliance Edition additionally provides the contracts, SLAs and roadmap"
+" guarantees that an EVB-IT-compliant procurement requires."
+msgstr ""
+
+msgid ""
+"FileMorph is a file conversion and compression service. The Community "
+"Edition is provided free of charge, without warranty, and without SLA "
+"commitments."
+msgstr ""
+
+msgid ""
+"FileMorph is open source software licensed under the GNU Affero General "
+"Public License v3.0 (AGPLv3). The source code is available at"
+msgstr ""
+
+msgid ""
+"FileMorph is operated by Lennart Seidel, Reetwerder 25b, 21029 Hamburg, "
+"Germany."
+msgstr ""
+
+msgid ""
+"FileMorph is stateless for conversions — there is nothing to export apart"
+" from the audit log (Postgres, SQL-dumpable) and configuration (env "
+"vars). Migration to a successor is a SQL-dump + container-image question,"
+" not a vendor lock-in."
+msgstr ""
+
+msgid "FileMorph operates under German law (Hamburg)."
+msgstr ""
+
+msgid "FileMorph sets"
+msgstr ""
+
 msgid ""
 "FileMorph — Free online file converter & compressor. Convert images, "
-"documents, audio and video. Fast, private, no account required."
+"documents, audio and video. Privacy-respecting, no account required."
 msgstr ""
 
 msgid "Files are processed server-side and deleted immediately after conversion."
+msgstr ""
+
+msgid ""
+"Files you upload for conversion or compression are processed entirely "
+"server-side and deleted immediately after the converted output is "
+"returned to you. No file content is stored, logged, or retained in any "
+"form."
 msgstr ""
 
 msgid "Fix timeline:"
@@ -244,7 +537,17 @@ msgstr ""
 msgid "For Developers"
 msgstr ""
 
+msgid ""
+"For a publicly accessible service integration, the AGPL publication "
+"obligation applies. The commercial license lifts it — you can integrate "
+"FileMorph into a citizen portal without disclosing your portal's source "
+"code. Detail in"
+msgstr ""
+
 msgid "For issues in the open-source codebase itself, you may alternatively use"
+msgstr ""
+
+msgid "For questions about these Terms, contact:"
 msgstr ""
 
 msgid "Forgot Password"
@@ -256,12 +559,37 @@ msgstr ""
 msgid "Free"
 msgstr ""
 
-msgid "Free forever — no credit card required"
+msgid "Free accounts can be deleted from the API at"
+msgstr ""
+
+msgid "Free tier forever — upgrade only when you need more"
 msgstr ""
 
 msgid ""
 "Free tier is live today. Pro & Business launch shortly — paid checkouts "
 "go live once payment processing is fully set up."
+msgstr ""
+
+msgid "Frequently asked questions"
+msgstr ""
+
+msgid ""
+"Full Compliance Edition. Onboarding together with the maintainer. "
+"Priority bug hotfixes."
+msgstr ""
+
+msgid "GDPR Art. 28 annex ↗"
+msgstr ""
+
+msgid ""
+"GDPR Art. 28-compliant DPA — drafted jointly in the pilot conversation "
+"and adapted to your authority or clinic specifics."
+msgstr ""
+
+msgid "GDPR DPA template in German form"
+msgstr ""
+
+msgid "GDPR-aligned file engine for regulated administration."
 msgstr ""
 
 msgid "Get API Key →"
@@ -283,12 +611,46 @@ msgid ""
 "hosted instance whenever possible."
 msgstr ""
 
+msgid "Hetzner's privacy policy"
+msgstr ""
+
+msgid "How does AGPLv3 behave with citizen-portal integrations?"
+msgstr ""
+
+msgid ""
+"I waive my 14-day right of withdrawal and consent to immediate contract "
+"execution pursuant to §356 (5) BGB."
+msgstr ""
+
 msgid "If this email exists, you'll receive a reset link shortly."
+msgstr ""
+
+msgid ""
+"If you are a consumer (a natural person entering a contract for purposes "
+"outside your trade, business or profession) and reside in the European "
+"Union, you have the statutory right to withdraw from a paid subscription "
+"within fourteen (14) days of contract conclusion — the date your first "
+"Stripe payment is confirmed — without giving any reason."
+msgstr ""
+
+msgid ""
+"If you generate an API key (via the dashboard or command-line tool), only"
+" the SHA-256 hash of your key is stored. The plaintext key is shown to "
+"you exactly once at creation time and is never persisted on our servers."
 msgstr ""
 
 msgid ""
 "If you have discovered a security issue in FileMorph or in this "
 "deployment, please email"
+msgstr ""
+
+msgid ""
+"If you register an account, we store your email address, a bcrypt hash of"
+" your password (never the plaintext), your subscription tier, your "
+"account creation timestamp, and — once you upgrade to a paid tier — the "
+"Stripe customer identifier that links your account to Stripe. Account "
+"data is persisted in our PostgreSQL database for the lifetime of your "
+"account and erased on deletion request (Art. 17 GDPR)."
 msgstr ""
 
 msgid "Images · Documents · Audio · Video · Spreadsheets"
@@ -297,7 +659,18 @@ msgstr ""
 msgid "Impressum"
 msgstr ""
 
+msgid "Imprint per German Telemediengesetz §5 (TMG)."
+msgstr ""
+
 msgid "In scope:"
+msgstr ""
+
+msgid "Incident response plan"
+msgstr ""
+
+msgid ""
+"Infringe third-party intellectual property rights through the files you "
+"process"
 msgstr ""
 
 msgid "Initial triage:"
@@ -319,13 +692,43 @@ msgstr ""
 msgid "JPEG / WebP only."
 msgstr ""
 
+msgid ""
+"KRITIS and air-gap variants on request. All tiers include commercial "
+"license, DPA template, signed Docker image and support SLA."
+msgstr ""
+
 msgid "Language"
+msgstr ""
+
+msgid "Last updated: 2026-04-23 · Community + Cloud Edition"
+msgstr ""
+
+msgid "Last updated: 2026-05-08 · Community + Cloud Edition"
+msgstr ""
+
+msgid ""
+"Lifts the AGPLv3 publication obligation for internal in-house "
+"developments + public citizen-portal integrations."
+msgstr ""
+
+msgid "Loading…"
+msgstr ""
+
+msgid ""
+"Logo mention as pilot customer (optional). Roadmap feedback every four "
+"weeks. Willingness to prioritize feature tickets."
 msgstr ""
 
 msgid "MP4 · MOV · AVI · MKV · WebM"
 msgstr ""
 
 msgid "MP4 · MOV · AVI · MKV · WebM · MP3 · WAV · FLAC · OGG · M4A"
+msgstr ""
+
+msgid "Member since"
+msgstr ""
+
+msgid "Mermaid diagram and request lifecycle ↗"
 msgstr ""
 
 msgid "Min. 8 characters."
@@ -338,6 +741,9 @@ msgid ""
 msgstr ""
 
 msgid "Most popular"
+msgstr ""
+
+msgid "Multi-format (image + audio + video + sheet)"
 msgstr ""
 
 msgid "New password"
@@ -355,13 +761,44 @@ msgstr ""
 msgid "Open dashboard"
 msgstr ""
 
+msgid "Operator staff with the"
+msgstr ""
+
+msgid "Our pages load"
+msgstr ""
+
 msgid "Our response"
+msgstr ""
+
+msgid ""
+"Our web server automatically records standard access log data for each "
+"request: IP address, request timestamp, HTTP method, URL path, response "
+"status code, and response size. Application-level events (logins, "
+"password-reset requests, subscription changes) are logged as structured "
+"JSON without plaintext email addresses — only the email domain is kept "
+"for debug purposes. Logs are rotated by the hosting infrastructure under "
+"standard operational policies (typically up to 30 days) and accessed only"
+" for security, abuse-detection, and debugging."
 msgstr ""
 
 msgid "Out of scope:"
 msgstr ""
 
+msgid "PDF/A-2b output"
+msgstr ""
+
+msgid "PDF/A-2b veraPDF-validated"
+msgstr ""
+
 msgid "Page not found"
+msgstr ""
+
+msgid ""
+"Paid plans (Pro €7/month, Business €19/month) are billed monthly via "
+"Stripe and renew automatically until cancelled. You may cancel at any "
+"time through the Stripe customer portal linked from your account "
+"dashboard; cancellation takes effect at the end of the current billing "
+"period and you retain access for the remainder of that period."
 msgstr ""
 
 msgid "Paid tiers — coming soon"
@@ -370,7 +807,23 @@ msgstr ""
 msgid "Password"
 msgstr ""
 
+msgid ""
+"Password-reset and other account-related emails are delivered through "
+"Zoho Mail ("
+msgstr ""
+
+msgid "Patch policy"
+msgstr ""
+
+msgid ""
+"Payment processing is handled by Stripe Payments Europe Ltd.; Stripe's "
+"terms apply to the processing of your payment details."
+msgstr ""
+
 msgid "Plans"
+msgstr ""
+
+msgid "Price / year"
 msgstr ""
 
 msgid "Pricing"
@@ -394,10 +847,47 @@ msgstr ""
 msgid "Processing…"
 msgstr ""
 
+msgid ""
+"Public authorities, hospitals and law firms often may not process citizen"
+" and client data through public cloud conversion services — the GDPR data"
+" chain and the EVB-IT contract framework set tight limits here. At the "
+"same time, the typical IT department lacks the bandwidth to maintain a "
+"conversion backend on its own."
+msgstr ""
+
+msgid ""
+"Public authority, clinic IT, law firm with a concrete GDPR conversion use"
+" case. We filter for pilot readiness — not every applicant fits."
+msgstr ""
+
+msgid ""
+"Pursuant to § 356 (5) BGB, the right of withdrawal expires when we begin "
+"executing the contract — i.e. when paid-tier API access becomes available"
+" — provided you (a) expressly consented to this and (b) acknowledged that"
+" you lose your right of withdrawal upon full performance. By ticking the "
+"dedicated waiver checkbox on the pricing page before being redirected to "
+"Stripe checkout, you give such consent. Without this acknowledgement, the"
+" standard 14-day withdrawal protection applies. The Community Edition "
+"(free of charge) is not subject to a right of withdrawal because no "
+"contract for paid services is concluded."
+msgstr ""
+
 msgid "Quality"
 msgstr ""
 
 msgid "RFC 9116 · referenced from"
+msgstr ""
+
+msgid "RFC 9116, with response times and scope"
+msgstr ""
+
+msgid "Ready for a 15-minute pilot call?"
+msgstr ""
+
+msgid ""
+"Refunds are not issued for partial billing periods. In the event of a "
+"documented service outage exceeding 24 hours within a single billing "
+"period, you may request a discretionary credit by contacting:"
 msgstr ""
 
 msgid "Register"
@@ -414,7 +904,35 @@ msgid ""
 "of-concept."
 msgstr ""
 
+msgid ""
+"Reproducible builds and air-gap update mechanism are also Year-2 "
+"(required for the KRITIS variant, not critical in the standard tier)."
+msgstr ""
+
+msgid "Request pilot call"
+msgstr ""
+
+msgid "Request pilot call by email"
+msgstr ""
+
 msgid "Reset Password"
+msgstr ""
+
+msgid ""
+"Response-time targets by severity — critical 4 h, high 24 h, medium/low "
+"in the next regular release. Targets apply Mon–Fri 09:00–18:00 CET, "
+"excluding German public holidays."
+msgstr ""
+
+msgid "SHA-256 audit log"
+msgstr ""
+
+msgid ""
+"SHA-256-chained operations log, ISO 27001 A.12.4.1 / BORA §50 / BeurkG "
+"§39a."
+msgstr ""
+
+msgid "STRIDE threat model"
 msgstr ""
 
 msgid "Safe-harbour"
@@ -426,7 +944,13 @@ msgstr ""
 msgid "Scope"
 msgstr ""
 
+msgid "Security Disclosure Policy"
+msgstr ""
+
 msgid "Security disclosure policy"
+msgstr ""
+
+msgid "See"
 msgstr ""
 
 msgid "See all plans →"
@@ -435,12 +959,26 @@ msgstr ""
 msgid "Select one or more files to convert or compress"
 msgstr ""
 
+msgid "Self-hosted (data stays in-house)"
+msgstr ""
+
+msgid ""
+"Self-hosted behind your firewall. AGPLv3 + commercial license. EU vendor "
+"with German imprint, individually drafted DPA template in pilot "
+"conversation, and SBOM in every release."
+msgstr ""
+
 msgid ""
 "Self-hoster-specific deployment misconfiguration that is not caused by "
 "our defaults or documentation."
 msgstr ""
 
 msgid "Send Reset Link"
+msgstr ""
+
+msgid ""
+"Server-volume-based, not per user seat. Binding terms follow the personal"
+" conversation."
 msgstr ""
 
 msgid "Set a new password"
@@ -452,6 +990,12 @@ msgstr ""
 msgid "Sign in"
 msgstr ""
 
+msgid "Signed image + SBOM"
+msgstr ""
+
+msgid "Signed releases + SBOM"
+msgstr ""
+
 msgid "Simple, transparent pricing"
 msgstr ""
 
@@ -461,10 +1005,37 @@ msgstr ""
 msgid "Something went wrong on our end. Please try again in a moment."
 msgstr ""
 
+msgid "Source code"
+msgstr ""
+
+msgid ""
+"Standard tier is enough for most KRITIS requirements (self-hosting, audit"
+" log, signed artefacts). Enterprise becomes relevant once air-gap update "
+"mechanism, reproducible builds or dedicated support SLA are required. We "
+"clarify this in 15 minutes by phone."
+msgstr ""
+
 msgid "Start free. Upgrade when you need more. No hidden fees."
 msgstr ""
 
 msgid "Steps to reproduce, including any required configuration or input files."
+msgstr ""
+
+msgid "Stripe (payments):"
+msgstr ""
+
+msgid ""
+"Stripe may retain records of past transactions independently of our "
+"deletion, to comply with its own legal and tax obligations."
+msgstr ""
+
+msgid "Stripe's privacy policy"
+msgstr ""
+
+msgid "Sub-processor list"
+msgstr ""
+
+msgid "Support SLA"
 msgstr ""
 
 msgid "Supported: HEIC · JPG · PNG · WebP · BMP · TIFF · GIF"
@@ -494,7 +1065,24 @@ msgid ""
 "release a patched version centrally."
 msgstr ""
 
+msgid ""
+"The Compliance Edition is self-hosted. If you can't operate your own "
+"infrastructure, filemorph.io (Cloud Edition) is the right path — "
+"different data class, different contracts, no EVB-IT anchor."
+msgstr ""
+
 msgid "The FileMorph application source code (this repository)."
+msgstr ""
+
+msgid ""
+"The Service is provided \"as is\" without warranty of any kind, express "
+"or implied. We do not guarantee uptime, accuracy of conversion results, "
+"or fitness for a particular purpose."
+msgstr ""
+
+msgid ""
+"The legal information below is provided in German as required by German "
+"law."
 msgstr ""
 
 msgid "The official Docker images and release artifacts."
@@ -504,8 +1092,32 @@ msgid "The page you are looking for does not exist or has been moved."
 msgstr ""
 
 msgid ""
+"The table describes typical characteristics of the named provider "
+"categories and is not a definitive comparison of specific products. "
+"Individual providers may do more or less — please check the current offer"
+" directly with the manufacturer."
+msgstr ""
+
+msgid ""
+"These Terms are governed by the laws of the Federal Republic of Germany. "
+"Place of jurisdiction is Hamburg, Germany."
+msgstr ""
+
+msgid ""
+"These entries fall under the \"strictly necessary\" exemption of Art. "
+"5(3) ePrivacy Directive / § 25 Abs. 2 Nr. 2 TTDSG and therefore do not "
+"require a consent banner. For anonymous usage, nothing is stored in your "
+"browser at all."
+msgstr ""
+
+msgid ""
 "Third-party services we depend on (Stripe, Zoho, Cloudflare, Hetzner) — "
 "please report to those vendors directly."
+msgstr ""
+
+msgid ""
+"This English translation is provided for accessibility. The German "
+"version is the authoritative legal text in case of conflict."
 msgstr ""
 
 msgid "This link is missing a reset token. Request a new one from"
@@ -516,10 +1128,50 @@ msgid ""
 "verification email from your dashboard."
 msgstr ""
 
+msgid ""
+"This service is hosted by Hetzner Online GmbH, Germany (Frankfurt data "
+"centre). Your requests are routed through Cloudflare's network for DDoS "
+"protection and performance. See"
+msgstr ""
+
+msgid ""
+"Three spots. Six months free. Direct influence on the Compliance Edition "
+"roadmap."
+msgstr ""
+
+msgid "Tier"
+msgstr ""
+
+msgid "Tier overview"
+msgstr ""
+
+msgid "To exercise the right of withdrawal, send an unambiguous statement to:"
+msgstr ""
+
+msgid ""
+"To operate FileMorph we rely on the following sub-processors. Each one "
+"receives only the minimum data needed for its task:"
+msgstr ""
+
+msgid ""
+"To the extent permitted by applicable law, the operator of FileMorph "
+"shall not be liable for any direct, indirect, incidental, or "
+"consequential damages arising from your use of the Service."
+msgstr ""
+
 msgid "Toggle menu"
 msgstr ""
 
+msgid "Trust basis before contract"
+msgstr ""
+
 msgid "Type it again"
+msgstr ""
+
+msgid "Typical SaaS converters"
+msgstr ""
+
+msgid "Typical open-source converters"
 msgstr ""
 
 msgid "Up to 100 MB per file"
@@ -540,6 +1192,17 @@ msgstr ""
 msgid "Upgrade to Pro"
 msgstr ""
 
+msgid "Upload files that contain malware, exploits, or illegal content"
+msgstr ""
+
+msgid ""
+"Use the Service for automated large-scale processing without prior "
+"agreement"
+msgstr ""
+
+msgid "Use these to authenticate programmatic API requests."
+msgstr ""
+
 msgid "Using anonymously: up to 20 MB per file."
 msgstr ""
 
@@ -548,13 +1211,111 @@ msgid ""
 "10 requests/minute · no API access"
 msgstr ""
 
+msgid ""
+"We apply a temporary in-memory rate limit (max. 10 requests per minute "
+"per IP address) to protect the service from abuse. IP addresses used by "
+"the rate limiter are processed transiently in memory only and are never "
+"written to disk or logs. Legal basis: Art. 6(1)(f) GDPR — legitimate "
+"interest in service stability and security."
+msgstr ""
+
+msgid ""
+"We may update this policy when the service changes. Accounts and billing "
+"are live as of April 2026; persistent file history (Cloud Edition Phase "
+"2) is planned but not yet implemented. The date at the top indicates the "
+"current version."
+msgstr ""
+
+msgid ""
+"We name it because an RFP reviewer would notice anyway — and because we "
+"prefer to keep the roadmap transparent rather than embellished."
+msgstr ""
+
 msgid "Welcome back to FileMorph"
+msgstr ""
+
+msgid "What does the Edition cost?"
+msgstr ""
+
+msgid "What does the data export look like if we migrate?"
+msgstr ""
+
+msgid "What happens if we cancel?"
 msgstr ""
 
 msgid "What to include in a report"
 msgstr ""
 
+msgid "What we deliver compared to typical alternatives"
+msgstr ""
+
+msgid "What we're transparent about"
+msgstr ""
+
+msgid "What you get"
+msgstr ""
+
+msgid "What you give"
+msgstr ""
+
+msgid "What's in the Compliance Edition"
+msgstr ""
+
+msgid ""
+"When you request a password reset, we generate a single-use token (valid "
+"for 30 minutes) and send it to your registered email address as a reset "
+"link. The outgoing message is delivered from"
+msgstr ""
+
+msgid ""
+"When you start a paid-tier upgrade, you are redirected to Stripe Checkout"
+" on the"
+msgstr ""
+
+msgid ""
+"When you upgrade to a paid tier, we create a Stripe customer record "
+"containing your email address and an internal user identifier, then "
+"redirect you to"
+msgstr ""
+
 msgid "Whether the issue has been disclosed publicly elsewhere."
+msgstr ""
+
+msgid "Who's a fit"
+msgstr ""
+
+msgid "Why a Compliance Edition?"
+msgstr ""
+
+msgid ""
+"You also have the right to lodge a complaint with your local data "
+"protection authority."
+msgstr ""
+
+msgid ""
+"You can fully audit FileMorph before the first conversation. All relevant"
+" security and architecture documents are freely accessible:"
+msgstr ""
+
+msgid ""
+"You have the right to access, rectify, erase, and restrict processing of "
+"your personal data (Art. 15–21 GDPR). To exercise these rights, contact "
+"us at"
+msgstr ""
+
+msgid ""
+"You keep the code (AGPLv3 stays). You lose the commercial license, the "
+"updated DPA, new releases with compliance features, and the support SLA. "
+"Existing installations continue running — no lock-in via forced updates."
+msgstr ""
+
+msgid "You may not use the Service to:"
+msgstr ""
+
+msgid ""
+"You're evaluating conversion software for a public authority, hospital or"
+" law firm? Write to us with your use case — we respond within one "
+"business day."
 msgstr ""
 
 msgid "Your email is now verified."
@@ -563,9 +1324,57 @@ msgstr ""
 msgid "Your password has been updated."
 msgstr ""
 
+msgid "Zoho Mail (transactional email):"
+msgstr ""
+
+msgid "Zoho's privacy policy"
+msgstr ""
+
+msgid ""
+"after a three-field re-confirmation (your password, your email, and the "
+"literal word"
+msgstr ""
+
+msgid "and"
+msgstr ""
+
+msgid "are encrypted with the same key."
+msgstr ""
+
+msgid ""
+"cosign keyless OIDC, cryptographically signed git tags, CycloneDX-JSON "
+"SBOM in every GitHub release."
+msgstr ""
+
+msgid ""
+"cosign-signed Docker image, cryptographically signed git tags, CycloneDX-"
+"JSON SBOM in every release. Aligned with the EVB-IT cloud clause (March "
+"2026)."
+msgstr ""
+
 msgid ""
 "critical issues within 7 days, high severity within 30 days, medium/low "
 "within the next regular release."
+msgstr ""
+
+msgid ""
+"domain, which sets its own cookies. That is outside FileMorph's control "
+"and is governed by"
+msgstr ""
+
+msgid "escalation, post-mortem template ↗"
+msgstr ""
+
+msgid "for full contact details."
+msgstr ""
+
+msgid "for their data processing terms."
+msgstr ""
+
+msgid "from € 24,900"
+msgstr ""
+
+msgid "full GitHub repository ↗"
 msgstr ""
 
 msgid "hint. Large batches are processed sequentially inside the request."
@@ -574,15 +1383,86 @@ msgstr ""
 msgid "min 0.05 MB"
 msgstr ""
 
+msgid "no cookies"
+msgstr ""
+
+msgid "no external resources"
+msgstr ""
+
+msgid "not applicable"
+msgstr ""
+
+msgid "often limited to one area"
+msgstr ""
+
+msgid "often ✓"
+msgstr ""
+
+msgid ""
+"on its own domain and runs no tracking or analytics scripts. A small "
+"number of keys are written to your browser's"
+msgstr ""
+
+msgid "only while you are signed in:"
+msgstr ""
+
+msgid ""
+"optional; remembers the API key shown in your dashboard across reloads so"
+" you don't need to paste it again. Cleared on logout."
+msgstr ""
+
+msgid "or apply directly as design partner →"
+msgstr ""
+
 msgid "or click to browse (multi-file supported)"
 msgstr ""
 
 msgid "per request"
 msgstr ""
 
+msgid "rare"
+msgstr ""
+
+msgid ""
+"role can access an internal cockpit that lists registered email addresses"
+" in plaintext, along with subscription tier, account creation date, and "
+"Stripe subscription status — strictly for service operation, abuse "
+"response, and support. Admin actions (tier changes, role changes, "
+"deactivations) are recorded with the admin's user identifier, the target "
+"user's identifier, and the change performed, to enable internal auditing."
+" Legal basis: Art. 6(1)(f) GDPR."
+msgstr ""
+
+msgid "threat-mitigation anchors per category ↗"
+msgstr ""
+
+msgid ""
+"to complete payment. Stripe handles all card details directly — FileMorph"
+" never sees or stores your card data. After checkout, Stripe returns a "
+"customer identifier which we store to manage your subscription. Stripe is"
+" a US-based company; the transfer is covered by the EU Standard "
+"Contractual Clauses under Stripe's Data Processing Agreement. Legal "
+"basis: Art. 6(1)(b) GDPR. See"
+msgstr ""
+
+msgid "unlimited servers, dedicated onboarding, custom SLA"
+msgstr ""
+
+msgid "varies"
+msgstr ""
+
+msgid "versioning, CVSS bands, signed artefacts ↗"
+msgstr ""
+
+msgid "via our email provider (see § 3a). We do not send marketing emails."
+msgstr ""
+
 msgid ""
 "we publish an advisory once a fixed release is available, and credit "
 "reporters who wish to be named."
+msgstr ""
+
+msgid "when publication obligation applies, when not ↗"
 msgstr ""
 
 msgid "with a"
@@ -598,6 +1478,9 @@ msgid "within 7 days, including a severity assessment."
 msgstr ""
 
 msgid "within 72 hours of receipt."
+msgstr ""
+
+msgid "your JWT session tokens; strictly necessary to keep you signed in."
 msgstr ""
 
 msgid "© 2026 FileMorph — AGPLv3 Open Source"
