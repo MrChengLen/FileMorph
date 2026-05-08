@@ -13,7 +13,7 @@ FAIL=0
 # locale/ catalogs are mechanically extracted from the impressum/privacy/terms templates above —
 # they cannot avoid carrying the same address/email strings. Treating them as public is consistent
 # with the source templates being public.
-ALLOW_RE='^(app/templates/(impressum|privacy|terms)\.html|COMMERCIAL-LICENSE\.md|docs/gdpr-account-deletion-design\.md|docs/api-usage-guide\.md|docs/self-hosting\.md|docs/dpa-template\.md|docs-internal/.*|\.githooks/.*|\.github/workflows/scope-guard\.yml|CHANGELOG\.md|locale/.*\.(po|pot|mo)|\.env\.example)$'
+ALLOW_RE='^(app/templates/(impressum|privacy|terms)\.html|COMMERCIAL-LICENSE\.md|docs/gdpr-account-deletion-design\.md|docs/api-usage-guide\.md|docs/self-hosting\.md|docs/dpa-template\.md|docs/email-setup\.md|docs-internal/.*|\.githooks/.*|\.github/workflows/scope-guard\.yml|CHANGELOG\.md|locale/.*\.(po|pot|mo)|\.env\.example)$'
 
 # Personal/operational identifiers that should never land in public code.
 PATTERNS='lennart\.seidel@icloud\.com|lennart@filemorph\.io|Reetwerder|21029 Hamburg'
@@ -49,7 +49,7 @@ for f in $STAGED_FILES; do
 done
 
 # Block staging of files that should be in docs-internal/.
-INTERNAL_PATHS='^docs/(admin-cockpit|email-setup|open-tasks|filemorph-io-runbook|marketing-plan|seo-strategy|business-case|claims-audit|launch-gate-snapshot|launch-readiness-tracker|seo-audit|user-acquisition-strategy|requirements-v2|sprint-5-multi-file-plan)\.md$'
+INTERNAL_PATHS='^docs/(admin-cockpit|open-tasks|filemorph-io-runbook|marketing-plan|seo-strategy|business-case|claims-audit|launch-gate-snapshot|launch-readiness-tracker|seo-audit|user-acquisition-strategy|requirements-v2|sprint-5-multi-file-plan)\.md$'
 
 # Block staging of files that are ops-only and must never appear in the public repo.
 FORBIDDEN_PATHS='^(compose\.prod\.yml|deploy\.sh|\.env\.production(\..*)?|CLAUDE\.md)$|^runbooks/|^docs-internal/'

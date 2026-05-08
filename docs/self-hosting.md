@@ -347,9 +347,11 @@ All four endpoints write `auth.*` events to the audit-log hash
 chain. Outbound email uses the same `SMTP_*` configuration as
 password-reset; the FROM address, reply-to, and the body's
 "contact us" link are taken from `SMTP_FROM_EMAIL` /
-`SMTP_REPLY_TO`. There are no hardcoded `@filemorph.io` addresses
+`SMTP_REPLY_TO`. There are no hardcoded operator-domain addresses
 in the user-facing copy — self-hosters ship their own support
-identity.
+identity. See [`docs/email-setup.md`](email-setup.md) for the SMTP
+walkthrough (provider options, port/TLS choice, sandbox-mode pitfalls,
+DSGVO sub-processor disclosure).
 
 ### Updating
 
