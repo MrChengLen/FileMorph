@@ -345,7 +345,11 @@ def test_resend_verification_noop_for_already_verified(client, mock_send_email):
 
 
 def test_verify_email_page_renders(client):
-    res = client.get("/verify-email?token=anything")
+    # Hit the /en/ variant so the assertion checks the English heading
+    # deterministically — the unprefixed default route now renders DE
+    # ("Bestätige deine E-Mail-Adresse") because the operator default
+    # is German (LANG_DEFAULT=de).
+    res = client.get("/en/verify-email?token=anything")
     assert res.status_code == 200
     assert "text/html" in res.headers.get("content-type", "")
     # The JS handles the token client-side; we only check the page shell.

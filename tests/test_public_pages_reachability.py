@@ -24,10 +24,14 @@ import pytest
 @pytest.mark.parametrize(
     "path,expected_marker",
     [
+        # /privacy and /terms are still raw English (PR-i18n-2c will handle
+        # them with a DE-as-authoritative legal footer). /impressum is DE
+        # in either prefix — same word in both languages. /security IS
+        # wrapped, so we hit the /en/ variant for the English marker.
         ("/privacy", "Privacy Policy"),
         ("/terms", "Terms of Use"),
         ("/impressum", "Impressum"),
-        ("/security", "Reporting a vulnerability"),
+        ("/en/security", "Reporting a vulnerability"),
     ],
 )
 def test_public_legal_page_reachable(client, path: str, expected_marker: str) -> None:
