@@ -83,7 +83,7 @@ and [`COMMERCIAL-LICENSE.md`](COMMERCIAL-LICENSE.md).
 |---------------|------------------------------------------------------------------|-----------------------------------------------|
 | **Images**    | HEIC, HEIF, JPG, JPEG, PNG, WebP, BMP, TIFF, GIF, ICO           | JPG, PNG, WebP, BMP, TIFF, GIF, ICO           |
 | **Documents** | DOCX, TXT, Markdown (`.md`)                                      | PDF, TXT, HTML                                |
-| **PDF**       | PDF                                                              | TXT, PDF/A-2b                                 |
+| **PDF**       | PDF                                                              | TXT, PDF/A-2b<sup>†</sup>                     |
 | **Spreadsheets** | XLSX, CSV, JSON                                               | CSV, XLSX, JSON                               |
 | **Audio**     | MP3, WAV, FLAC, OGG, M4A, AAC, WMA, Opus                        | MP3, WAV, FLAC, OGG, M4A, AAC, WMA, Opus     |
 | **Video**     | MP4, MOV, AVI, MKV, WebM, FLV, WMV                              | MP4, MOV, AVI, MKV, WebM, FLV, WMV           |
@@ -91,6 +91,14 @@ and [`COMMERCIAL-LICENSE.md`](COMMERCIAL-LICENSE.md).
 **Compression** (quality-based or target-size, no re-encoding format change):
 Images: JPG, PNG, WebP, TIFF · Video: MP4, MOV, AVI, MKV, WebM
 Compress mode supports both *by quality %* and *by target size MB*.
+
+<sup>†</sup> Full PDF/A-2b conformance (passes
+[veraPDF](https://verapdf.org/) validation) requires
+[Ghostscript](https://www.ghostscript.com/) on the host. The Docker
+image bundles it; for local-Python installs see
+[`docs/installation.md`](docs/installation.md). Without Ghostscript,
+`pdf → pdfa` falls back to a markup-only output that veraPDF will
+reject if the source PDF has unembedded fonts.
 
 ---
 
