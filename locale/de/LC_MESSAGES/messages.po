@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-05-07 15:22+0200\n"
+"POT-Creation-Date: 2026-05-08 15:52+0200\n"
 "PO-Revision-Date: 2026-05-08 11:00+0200\n"
 "Last-Translator: FileMorph <hallo@filemorph.io>\n"
 "Language: de\n"
@@ -347,6 +347,9 @@ msgstr "Nur JPEG / WebP."
 msgid "Language"
 msgstr "Sprache"
 
+msgid "MP4 · MOV · AVI · MKV · WebM"
+msgstr "MP4 · MOV · AVI · MKV · WebM"
+
 msgid "MP4 · MOV · AVI · MKV · WebM · MP3 · WAV · FLAC · OGG · M4A"
 msgstr "MP4 · MOV · AVI · MKV · WebM · MP3 · WAV · FLAC · OGG · M4A"
 
@@ -503,6 +506,9 @@ msgstr ""
 
 msgid "Supported: HEIC · JPG · PNG · WebP · BMP · TIFF · GIF"
 msgstr "Unterstützt: HEIC · JPG · PNG · WebP · BMP · TIFF · GIF"
+
+msgid "Supported: JPG · PNG · WebP · TIFF"
+msgstr "Unterstützt: JPG · PNG · WebP · TIFF"
 
 msgid "Switch to English"
 msgstr "Zu Englisch wechseln"
