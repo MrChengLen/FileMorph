@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph 1.0.0\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-05-08 20:50+0200\n"
+"POT-Creation-Date: 2026-05-11 14:44+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -21,6 +21,9 @@ msgid ""
 " — for example: \"I hereby withdraw from the contract concluded on [date]"
 " for the FileMorph [Pro / Business] subscription.\" Including your "
 "registered email address speeds up identification of your account."
+msgstr ""
+
+msgid "(Open the dashboard → \"Manage billing\" → update card.)"
 msgstr ""
 
 msgid "(vs. 20 MB anonymous)"
@@ -216,7 +219,13 @@ msgstr ""
 msgid "Acknowledgement:"
 msgstr ""
 
+msgid "Action needed: your FileMorph payment failed"
+msgstr ""
+
 msgid "Affected version (commit hash or release tag if known)."
+msgstr ""
+
+msgid "All API keys"
 msgstr ""
 
 msgid ""
@@ -229,6 +238,11 @@ msgid "All prices excl. VAT where applicable. Payments processed by Stripe."
 msgstr ""
 
 msgid "Already have an account?"
+msgstr ""
+
+msgid ""
+"Already updated your card? You can ignore this — the next retry will pick"
+" up the new method automatically."
 msgstr ""
 
 msgid ""
@@ -339,10 +353,19 @@ msgstr ""
 msgid "Confirm Password"
 msgstr ""
 
+msgid "Confirm email"
+msgstr ""
+
 msgid "Confirm password"
 msgstr ""
 
+msgid "Confirm your FileMorph email"
+msgstr ""
+
 msgid "Confirm your email"
+msgstr ""
+
+msgid "Confirm your email address"
 msgstr ""
 
 msgid "Confirming email"
@@ -362,6 +385,11 @@ msgid ""
 msgstr ""
 
 msgid "Contact:"
+msgstr ""
+
+msgid ""
+"Conversion-job history — your account ID was stripped; the records are "
+"retained as anonymous aggregate data under DSGVO Art. 4(1)."
 msgstr ""
 
 msgid "Convert"
@@ -622,6 +650,21 @@ msgid ""
 "execution pursuant to §356 (5) BGB."
 msgstr ""
 
+msgid "If the button doesn't work, copy this URL into your browser:"
+msgstr ""
+
+#, python-format
+msgid ""
+"If the next retry still doesn't go through, your account drops to the "
+"<strong>Free</strong> plan and the %(tier_label)s limits no longer apply."
+msgstr ""
+
+#, python-format
+msgid ""
+"If the next retry still doesn't go through, your account drops to the "
+"Free plan and the %(tier_label)s limits no longer apply."
+msgstr ""
+
 msgid "If this email exists, you'll receive a reset link shortly."
 msgstr ""
 
@@ -631,6 +674,16 @@ msgid ""
 "Union, you have the statutory right to withdraw from a paid subscription "
 "within fourteen (14) days of contract conclusion — the date your first "
 "Stripe payment is confirmed — without giving any reason."
+msgstr ""
+
+msgid ""
+"If you did not request this email, you can safely ignore it — your "
+"password will stay unchanged."
+msgstr ""
+
+msgid ""
+"If you didn't sign up for FileMorph, you can safely ignore this email — "
+"no account will be activated until the link is clicked."
 msgstr ""
 
 msgid ""
@@ -714,6 +767,9 @@ msgstr ""
 msgid "Loading…"
 msgstr ""
 
+msgid "Login credentials (your password)"
+msgstr ""
+
 msgid ""
 "Logo mention as pilot customer (optional). Roadmap feedback every four "
 "weeks. Willingness to prioritize feature tickets."
@@ -761,7 +817,15 @@ msgstr ""
 msgid "Open dashboard"
 msgstr ""
 
+msgid ""
+"Open this link to choose a new password (valid for 30 minutes, single-"
+"use):"
+msgstr ""
+
 msgid "Operator staff with the"
+msgstr ""
+
+msgid "Or open the dashboard manually and click \"Manage billing\":"
 msgstr ""
 
 msgid "Our pages load"
@@ -875,6 +939,17 @@ msgstr ""
 msgid "Quality"
 msgstr ""
 
+#, python-format
+msgid "Questions about deletion or your data rights? Contact %(support_email)s."
+msgstr ""
+
+#, python-format
+msgid ""
+"Questions about deletion or your data rights? Contact <a "
+"href=\"mailto:%(support_email)s\" "
+"style=\"color:#818cf8;\">%(support_email)s</a>."
+msgstr ""
+
 msgid "RFC 9116 · referenced from"
 msgstr ""
 
@@ -916,6 +991,15 @@ msgid "Request pilot call by email"
 msgstr ""
 
 msgid "Reset Password"
+msgstr ""
+
+msgid "Reset password"
+msgstr ""
+
+msgid "Reset your FileMorph password"
+msgstr ""
+
+msgid "Reset your password"
 msgstr ""
 
 msgid ""
@@ -1029,6 +1113,21 @@ msgid ""
 "deletion, to comply with its own legal and tax obligations."
 msgstr ""
 
+#, python-format
+msgid ""
+"Stripe will retry automatically around %(next_attempt_date)s. If it still"
+" doesn't go through, your account drops to the Free plan and the "
+"%(tier_label)s limits no longer apply."
+msgstr ""
+
+#, python-format
+msgid ""
+"Stripe will retry automatically around "
+"<strong>%(next_attempt_date)s</strong>. If it still doesn't go through, "
+"your account drops to the <strong>Free</strong> plan and the "
+"%(tier_label)s limits no longer apply."
+msgstr ""
+
 msgid "Stripe's privacy policy"
 msgstr ""
 
@@ -1078,6 +1177,18 @@ msgid ""
 "The Service is provided \"as is\" without warranty of any kind, express "
 "or implied. We do not guarantee uptime, accuracy of conversion results, "
 "or fitness for a particular purpose."
+msgstr ""
+
+#, python-format
+msgid ""
+"The last payment for your FileMorph %(tier_label)s plan (%(email)s) could"
+" not be charged."
+msgstr ""
+
+#, python-format
+msgid ""
+"The last payment for your FileMorph <strong>%(tier_label)s</strong> plan "
+"(<strong>%(email)s</strong>) could not be charged."
 msgstr ""
 
 msgid ""
@@ -1148,6 +1259,9 @@ msgstr ""
 msgid "To exercise the right of withdrawal, send an unambiguous statement to:"
 msgstr ""
 
+msgid "To fix it now, log in and update your payment method:"
+msgstr ""
+
 msgid ""
 "To operate FileMorph we rely on the following sub-processors. Each one "
 "receives only the minimum data needed for its task:"
@@ -1184,6 +1298,9 @@ msgid "Up to 500 MB per file"
 msgstr ""
 
 msgid "Update password"
+msgstr ""
+
+msgid "Update payment method"
 msgstr ""
 
 msgid "Upgrade to Business"
@@ -1231,7 +1348,30 @@ msgid ""
 "prefer to keep the roadmap transparent rather than embellished."
 msgstr ""
 
+#, python-format
+msgid "We received a request to reset the password for %(email)s."
+msgstr ""
+
+#, python-format
+msgid ""
+"We received a request to reset the password for "
+"<strong>%(email)s</strong>. Click the button below to choose a new one. "
+"The link is valid for 30 minutes and can only be used once."
+msgstr ""
+
 msgid "Welcome back to FileMorph"
+msgstr ""
+
+#, python-format
+msgid ""
+"Welcome to FileMorph. Click the button below to confirm that "
+"<strong>%(email)s</strong> belongs to you. The link is valid for 7 days."
+msgstr ""
+
+#, python-format
+msgid ""
+"Welcome to FileMorph. Open this link to confirm that %(email)s belongs to"
+" you (valid for 7 days):"
 msgstr ""
 
 msgid "What does the Edition cost?"
@@ -1244,6 +1384,12 @@ msgid "What happens if we cancel?"
 msgstr ""
 
 msgid "What to include in a report"
+msgstr ""
+
+msgid "What was anonymised"
+msgstr ""
+
+msgid "What was deleted"
 msgstr ""
 
 msgid "What we deliver compared to typical alternatives"
@@ -1298,6 +1444,11 @@ msgid ""
 msgstr ""
 
 msgid ""
+"You can re-register with the same email address at any time. A new "
+"registration creates a fresh account with no link to this one."
+msgstr ""
+
+msgid ""
 "You have the right to access, rectify, erase, and restrict processing of "
 "your personal data (Art. 15–21 GDPR). To exercise these rights, contact "
 "us at"
@@ -1318,10 +1469,32 @@ msgid ""
 "business day."
 msgstr ""
 
+#, python-format
+msgid ""
+"Your FileMorph account %(email)s was deleted on %(deleted_at)s. This is a"
+" confirmation; the deletion is already complete."
+msgstr ""
+
+#, python-format
+msgid ""
+"Your FileMorph account <strong>%(email)s</strong> was deleted on "
+"<strong>%(deleted_at)s</strong>. This is a confirmation; the deletion is "
+"already complete."
+msgstr ""
+
+msgid "Your FileMorph account has been deleted"
+msgstr ""
+
+msgid "Your account has been deleted"
+msgstr ""
+
 msgid "Your email is now verified."
 msgstr ""
 
 msgid "Your password has been updated."
+msgstr ""
+
+msgid "Your payment didn't go through"
 msgstr ""
 
 msgid "Zoho Mail (transactional email):"

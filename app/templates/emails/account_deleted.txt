@@ -1,23 +1,24 @@
-Your FileMorph account has been deleted
-=======================================
+{{ _('Your FileMorph account has been deleted') }}
+==================================================
 
-Your FileMorph account {{ user_email }} was deleted on {{ deleted_at }}.
-This is a confirmation; the deletion is already complete.
+{% trans trimmed email=user_email, deleted_at=deleted_at %}
+Your FileMorph account {{ email }} was deleted on {{ deleted_at }}. This is a confirmation; the deletion is already complete.
+{% endtrans %}
 
-What was deleted
-----------------
-  - Login credentials (your password)
-  - All API keys
+{{ _('What was deleted') }}
+--------------------------
+  - {{ _('Login credentials (your password)') }}
+  - {{ _('All API keys') }}
 
-What was anonymised
--------------------
-  - Conversion-job history — your account ID was stripped; the records
-    are retained as anonymous aggregate data under DSGVO Art. 4(1).
+{{ _('What was anonymised') }}
+------------------------------
+  - {{ _('Conversion-job history — your account ID was stripped; the records are retained as anonymous aggregate data under DSGVO Art. 4(1).') }}
 
-You can re-register with the same email address at any time. A new
-registration creates a fresh account with no link to this one.
+{{ _('You can re-register with the same email address at any time. A new registration creates a fresh account with no link to this one.') }}
 
+{% trans trimmed support_email=support_email %}
 Questions about deletion or your data rights? Contact {{ support_email }}.
+{% endtrans %}
 
 —
 FileMorph · {{ app_base_url }}

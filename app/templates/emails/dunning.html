@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ locale }}">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Your FileMorph payment failed</title>
+  <title>{{ _('Action needed: your FileMorph payment failed') }}</title>
 </head>
 <body style="margin:0; padding:0; background:#0b0f19; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif; color:#e5e7eb;">
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#0b0f19; padding:32px 16px;">
@@ -17,34 +17,36 @@
           </tr>
           <tr>
             <td style="font-size:18px; font-weight:600; color:#ffffff; padding-bottom:12px;">
-              Your payment didn't go through
+              {{ _("Your payment didn't go through") }}
             </td>
           </tr>
           <tr>
             <td style="font-size:14px; line-height:22px; color:#d1d5db; padding-bottom:16px;">
-              The last payment for your FileMorph <strong>{{ tier_label }}</strong> plan
-              (<strong>{{ user_email }}</strong>) could not be charged.
+              {% trans trimmed tier_label=tier_label, email=user_email %}
+              The last payment for your FileMorph <strong>{{ tier_label }}</strong> plan (<strong>{{ email }}</strong>) could not be charged.
+              {% endtrans %}
             </td>
           </tr>
           <tr>
             <td style="font-size:14px; line-height:22px; color:#d1d5db; padding-bottom:24px;">
-              {% if next_attempt_date %}Stripe will retry automatically around
-              <strong>{{ next_attempt_date }}</strong>. {% endif %}If it still
-              doesn't go through, your account drops to the <strong>Free</strong>
-              plan and the {{ tier_label }} limits no longer apply.
+              {% if next_attempt_date %}{% trans trimmed next_attempt_date=next_attempt_date, tier_label=tier_label %}
+              Stripe will retry automatically around <strong>{{ next_attempt_date }}</strong>. If it still doesn't go through, your account drops to the <strong>Free</strong> plan and the {{ tier_label }} limits no longer apply.
+              {% endtrans %}{% else %}{% trans trimmed tier_label=tier_label %}
+              If the next retry still doesn't go through, your account drops to the <strong>Free</strong> plan and the {{ tier_label }} limits no longer apply.
+              {% endtrans %}{% endif %}
             </td>
           </tr>
           <tr>
             <td align="center" style="padding-bottom:24px;">
               <a href="{{ billing_url }}"
                  style="display:inline-block; padding:12px 28px; background:#6366f1; color:#ffffff; text-decoration:none; font-weight:600; font-size:14px; border-radius:10px;">
-                Update payment method
+                {{ _('Update payment method') }}
               </a>
             </td>
           </tr>
           <tr>
             <td style="font-size:12px; line-height:18px; color:#9ca3af; padding-bottom:8px;">
-              Or open the dashboard manually and click "Manage billing":
+              {{ _('Or open the dashboard manually and click "Manage billing":') }}
             </td>
           </tr>
           <tr>
@@ -54,8 +56,7 @@
           </tr>
           <tr>
             <td style="font-size:12px; line-height:18px; color:#6b7280; border-top:1px solid #1f2937; padding-top:16px;">
-              Already updated your card? You can ignore this — the next retry
-              will pick up the new method automatically.
+              {{ _('Already updated your card? You can ignore this — the next retry will pick up the new method automatically.') }}
             </td>
           </tr>
         </table>

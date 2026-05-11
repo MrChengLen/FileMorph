@@ -5,16 +5,15 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
-from jinja2 import Environment, FileSystemLoader, select_autoescape
 from pydantic import BaseModel, EmailStr, Field, field_validator
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.compat import base_dir
 from app.core import email as email_mod
 from app.core.audit import record_event as audit_record
 from app.core.auth import hash_password, verify_password
+from app.core.i18n import get_locale
 from app.core.tokens import (
     create_access_token,
     create_email_verify_token,
@@ -32,13 +31,6 @@ from app.db.base import get_db
 from app.db.models import ApiKey, RoleEnum, User
 
 logger = logging.getLogger(__name__)
-
-_EMAIL_TEMPLATE_DIR = base_dir() / "app" / "templates" / "emails"
-_email_env = Environment(
-    loader=FileSystemLoader(str(_EMAIL_TEMPLATE_DIR)),
-    autoescape=select_autoescape(["html"]),
-    enable_async=False,
-)
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -292,7 +284,17 @@ async def register(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="Email already registered."
         )
-    user = User(email=body.email, password_hash=hash_password(body.password))
+    # PR-i18n-3: seed the user's transactional-email language from the
+    # locale they signed up in (URL prefix / Accept-Language / operator
+    # default — see app/core/i18n.py). They can change it from the
+    # dashboard later; outbound mail with no request context (dunning)
+    # falls back to this column.
+    locale = await get_locale(request)
+    user = User(
+        email=body.email,
+        password_hash=hash_password(body.password),
+        preferred_lang=locale,
+    )
     db.add(user)
     await db.commit()
     await db.refresh(user)
@@ -312,7 +314,7 @@ async def register(
     # SMTP failures are logged but do not block registration. The user
     # gets logged in immediately; any feature that wants verified status
     # later checks ``user.email_verified_at IS NOT NULL``.
-    await _send_verify_email_safe(user)
+    await _send_verify_email_safe(user, locale)
     await audit_record(
         "auth.email_verification.requested",
         actor_user_id=user.id,
@@ -397,15 +399,14 @@ def _build_reset_url(token: str) -> str:
     return f"{base}/reset-password?token={token}"
 
 
-def _render_reset_emails(user_email: str, reset_url: str) -> tuple[str, str]:
-    ctx = {
-        "user_email": user_email,
-        "reset_url": reset_url,
-        "app_base_url": settings.app_base_url.rstrip("/"),
-    }
-    html = _email_env.get_template("password_reset.html").render(**ctx)
-    text = _email_env.get_template("password_reset.txt").render(**ctx)
-    return html, text
+def _render_reset_emails(user_email: str, reset_url: str, locale: str) -> tuple[str, str, str]:
+    return email_mod.render_email(
+        "password_reset",
+        locale=locale,
+        user_email=user_email,
+        reset_url=reset_url,
+        app_base_url=settings.app_base_url.rstrip("/"),
+    )
 
 
 # ── Email-verification helpers (NEU-B.3 slice b) ──────────────────────────────
@@ -416,34 +417,32 @@ def _build_verify_url(token: str) -> str:
     return f"{base}/verify-email?token={token}"
 
 
-def _render_verify_emails(user_email: str, verify_url: str) -> tuple[str, str]:
-    ctx = {
-        "user_email": user_email,
-        "verify_url": verify_url,
-        "app_base_url": settings.app_base_url.rstrip("/"),
-    }
-    html = _email_env.get_template("verify_email.html").render(**ctx)
-    text = _email_env.get_template("verify_email.txt").render(**ctx)
-    return html, text
+def _render_verify_emails(user_email: str, verify_url: str, locale: str) -> tuple[str, str, str]:
+    return email_mod.render_email(
+        "verify_email",
+        locale=locale,
+        user_email=user_email,
+        verify_url=verify_url,
+        app_base_url=settings.app_base_url.rstrip("/"),
+    )
 
 
-async def _send_verify_email_safe(user: User) -> None:
+async def _send_verify_email_safe(user: User, locale: str) -> None:
     """Fire-and-forget verification email — never raises into the caller.
 
     Used from /register (right after the user row is committed) and from
     /resend-verification. SMTP failures are logged but do not roll back
     the underlying state change: a user who never gets the email can
-    request another one via the resend route."""
+    request another one via the resend route. ``locale`` picks the
+    language — the registration locale at /register, or the user's saved
+    ``preferred_lang`` (falling back to the request locale) on resend."""
     token = create_email_verify_token(str(user.id), user.email)
     verify_url = _build_verify_url(token)
-    html, text = _render_verify_emails(user_email=user.email, verify_url=verify_url)
+    subject, html, text = _render_verify_emails(
+        user_email=user.email, verify_url=verify_url, locale=locale
+    )
     try:
-        await email_mod.send_email(
-            to=user.email,
-            subject="Confirm your FileMorph email",
-            html=html,
-            text=text,
-        )
+        await email_mod.send_email(to=user.email, subject=subject, html=html, text=text)
         logger.info("verify_email: dispatched user=%s", user.id)
     except email_mod.EmailSendError:
         logger.exception("verify_email: delivery failed user=%s", user.id)
@@ -481,15 +480,16 @@ async def forgot_password(
     phv = password_hash_version(user.password_hash)
     token = create_password_reset_token(str(user.id), phv)
     reset_url = _build_reset_url(token)
-    html, text = _render_reset_emails(user_email=user.email, reset_url=reset_url)
+    # An explicit account-level email-language preference wins over the
+    # locale of whatever device requested the reset; otherwise match the
+    # request context.
+    locale = user.preferred_lang or await get_locale(request)
+    subject, html, text = _render_reset_emails(
+        user_email=user.email, reset_url=reset_url, locale=locale
+    )
 
     try:
-        await email_mod.send_email(
-            to=user.email,
-            subject="Reset your FileMorph password",
-            html=html,
-            text=text,
-        )
+        await email_mod.send_email(to=user.email, subject=subject, html=html, text=text)
         logger.info("forgot_password: reset email dispatched user=%s", user.id)
     except email_mod.EmailSendError:
         # Already logged inside send_email. Still return 200 so an attacker
@@ -618,7 +618,7 @@ async def resend_verification(request: Request, user: User = Depends(get_current
     state of an arbitrary email to an unauthenticated caller."""
     if user.email_verified_at is not None:
         return {"message": "Email already verified."}
-    await _send_verify_email_safe(user)
+    await _send_verify_email_safe(user, user.preferred_lang or await get_locale(request))
     await audit_record(
         "auth.email_verification.requested",
         actor_user_id=user.id,
@@ -634,30 +634,30 @@ async def resend_verification(request: Request, user: User = Depends(get_current
 _DELETE_GENERIC_400 = "Confirmation did not match."
 
 
-def _render_account_deleted_emails(user_email: str, deleted_at_iso: str) -> tuple[str, str]:
-    ctx = {
-        "user_email": user_email,
-        "deleted_at": deleted_at_iso,
-        "app_base_url": settings.app_base_url.rstrip("/"),
-        "support_email": _support_contact(),
-    }
-    html = _email_env.get_template("account_deleted.html").render(**ctx)
-    text = _email_env.get_template("account_deleted.txt").render(**ctx)
-    return html, text
+def _render_account_deleted_emails(
+    user_email: str, deleted_at_iso: str, locale: str
+) -> tuple[str, str, str]:
+    return email_mod.render_email(
+        "account_deleted",
+        locale=locale,
+        user_email=user_email,
+        deleted_at=deleted_at_iso,
+        app_base_url=settings.app_base_url.rstrip("/"),
+        support_email=_support_contact(),
+    )
 
 
-async def _send_account_deleted_email_safe(user_email: str, deleted_at_iso: str) -> None:
+async def _send_account_deleted_email_safe(
+    user_email: str, deleted_at_iso: str, locale: str
+) -> None:
     """Confirmation email after a successful deletion. Never raises into
     the caller — the deletion is already final, the email is informational.
-    A delivery failure is logged for the operator audit trail."""
-    html, text = _render_account_deleted_emails(user_email, deleted_at_iso)
+    A delivery failure is logged for the operator audit trail. ``locale``
+    is captured from the row before it is deleted (the user's
+    ``preferred_lang``, falling back to the request locale)."""
+    subject, html, text = _render_account_deleted_emails(user_email, deleted_at_iso, locale)
     try:
-        await email_mod.send_email(
-            to=user_email,
-            subject="Your FileMorph account has been deleted",
-            html=html,
-            text=text,
-        )
+        await email_mod.send_email(to=user_email, subject=subject, html=html, text=text)
     except email_mod.EmailSendError:
         logger.exception("account_deletion: confirmation email failed for %s", user_email)
 
@@ -744,6 +744,9 @@ async def delete_account(
     email_domain = user_email.split("@", 1)[1] if "@" in user_email else "unknown"
     had_subscription = bool(user.stripe_customer_id)
     deleted_at_iso = datetime.now(timezone.utc).isoformat()
+    # Capture the email language before the row is gone — the user's saved
+    # preference, falling back to the locale of the deletion request.
+    email_locale = user.preferred_lang or await get_locale(request)
 
     # NEU-B.3: record the *intent* before destroying the row. Once the
     # commit lands, ``actor_user_id`` becomes a dangling FK that the
@@ -792,6 +795,6 @@ async def delete_account(
             "deletion_mode": "free",
         },
     )
-    await _send_account_deleted_email_safe(user_email, deleted_at_iso)
+    await _send_account_deleted_email_safe(user_email, deleted_at_iso, email_locale)
     # 204 No Content — body intentionally empty.
     return None

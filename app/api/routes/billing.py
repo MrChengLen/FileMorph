@@ -2,11 +2,9 @@
 """Stripe billing routes: checkout, customer portal, webhook."""
 
 import logging
-from pathlib import Path
 
 import stripe
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
-from jinja2 import Environment, FileSystemLoader, select_autoescape
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.routes.auth import get_current_user
@@ -307,13 +305,8 @@ async def _handle_payment_failed(invoice: dict, db: AsyncSession) -> None:
 
 # ── Dunning email ─────────────────────────────────────────────────────────────
 
-_DUNNING_EMAIL_ENV = Environment(
-    loader=FileSystemLoader(
-        str(Path(__file__).resolve().parent.parent.parent / "templates" / "emails")
-    ),
-    autoescape=select_autoescape(["html"]),
-)
-
+# Plan-name labels — proper nouns, not translated. Interpolated into the
+# (translated) dunning-email sentences via the {% trans %} blocks.
 _TIER_LABELS = {TierEnum.pro: "Pro", TierEnum.business: "Business"}
 
 
@@ -325,6 +318,11 @@ async def _send_dunning_email(user: User, *, next_attempt_ts: int | None, db: As
     the webhook itself. The dunning email is a courtesy on top of Stripe's
     own dunning emails (if the operator enabled them in the Stripe
     dashboard) — losing it is not data loss.
+
+    Rendered in the user's ``preferred_lang`` — this path has no HTTP
+    request to derive a locale from (it runs from a Stripe webhook), which
+    is exactly why that column exists. ``render_email`` falls back to
+    ``LANG_DEFAULT`` when the column is NULL.
     """
     from datetime import datetime, timezone
 
@@ -336,22 +334,17 @@ async def _send_dunning_email(user: User, *, next_attempt_ts: int | None, db: As
             "%Y-%m-%d"
         )
 
-    ctx = {
-        "user_email": user.email,
-        "tier_label": _TIER_LABELS.get(user.tier, "paid"),
-        "next_attempt_date": next_attempt_date,
-        "billing_url": f"{settings.app_base_url.rstrip('/')}/dashboard",
-        "app_base_url": settings.app_base_url,
-    }
     try:
-        html = _DUNNING_EMAIL_ENV.get_template("dunning.html").render(**ctx)
-        text = _DUNNING_EMAIL_ENV.get_template("dunning.txt").render(**ctx)
-        await email_mod.send_email(
-            to=user.email,
-            subject="Action needed: your FileMorph payment failed",
-            html=html,
-            text=text,
+        subject, html, text = email_mod.render_email(
+            "dunning",
+            locale=user.preferred_lang,
+            user_email=user.email,
+            tier_label=_TIER_LABELS.get(user.tier, "paid"),
+            next_attempt_date=next_attempt_date,
+            billing_url=f"{settings.app_base_url.rstrip('/')}/dashboard",
+            app_base_url=settings.app_base_url.rstrip("/"),
         )
+        await email_mod.send_email(to=user.email, subject=subject, html=html, text=text)
         await record_event(
             event_type="billing.dunning_email_sent",
             actor_user_id=user.id,

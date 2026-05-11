@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ locale }}">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Confirm your FileMorph email</title>
+  <title>{{ _('Confirm your FileMorph email') }}</title>
 </head>
 <body style="margin:0; padding:0; background:#0b0f19; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif; color:#e5e7eb;">
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#0b0f19; padding:32px 16px;">
@@ -17,27 +17,25 @@
           </tr>
           <tr>
             <td style="font-size:18px; font-weight:600; color:#ffffff; padding-bottom:12px;">
-              Confirm your email address
+              {{ _('Confirm your email address') }}
             </td>
           </tr>
           <tr>
             <td style="font-size:14px; line-height:22px; color:#d1d5db; padding-bottom:24px;">
-              Welcome to FileMorph. Click the button below to confirm that
-              <strong>{{ user_email }}</strong> belongs to you. The link is valid for
-              7&nbsp;days.
+              {% trans email=user_email %}Welcome to FileMorph. Click the button below to confirm that <strong>{{ email }}</strong> belongs to you. The link is valid for 7 days.{% endtrans %}
             </td>
           </tr>
           <tr>
             <td align="center" style="padding-bottom:24px;">
               <a href="{{ verify_url }}"
                  style="display:inline-block; padding:12px 28px; background:#6366f1; color:#ffffff; text-decoration:none; font-weight:600; font-size:14px; border-radius:10px;">
-                Confirm email
+                {{ _('Confirm email') }}
               </a>
             </td>
           </tr>
           <tr>
             <td style="font-size:12px; line-height:18px; color:#9ca3af; padding-bottom:12px;">
-              If the button doesn't work, copy this URL into your browser:
+              {{ _("If the button doesn't work, copy this URL into your browser:") }}
             </td>
           </tr>
           <tr>
@@ -47,13 +45,12 @@
           </tr>
           <tr>
             <td style="font-size:12px; line-height:18px; color:#6b7280; border-top:1px solid #1f2937; padding-top:16px;">
-              If you didn't sign up for FileMorph, you can safely ignore this email — no
-              account will be activated until the link is clicked.
+              {{ _("If you didn't sign up for FileMorph, you can safely ignore this email — no account will be activated until the link is clicked.") }}
             </td>
           </tr>
         </table>
         <div style="font-size:11px; color:#4b5563; padding-top:16px;">
-          © FileMorph · <a href="{{ app_base_url }}" style="color:#6b7280; text-decoration:none;">filemorph.io</a>
+          © FileMorph · <a href="{{ app_base_url }}" style="color:#6b7280; text-decoration:none;">{{ app_base_url }}</a>
         </div>
       </td>
     </tr>

@@ -14,9 +14,17 @@ the EN switcher lands on ``/en/...`` and stays there as long as
 in-app links propagate ``current_prefix``. A return visit to an
 unprefixed URL falls through to ``Accept-Language`` and the operator
 default. This keeps the published privacy guarantee ("no cookies")
-intact and makes shared URLs deterministic. Logged-in users get a
-sticky preference via ``User.preferred_lang`` (PR-i18n-3) — server-side,
-device-portable, strictly better than a cookie.
+intact and makes shared URLs deterministic.
+
+``User.preferred_lang`` (PR-i18n-3) is a *separate* axis: it picks the
+language for **outbound transactional email**, which is rendered outside
+any HTTP request and so has no URL / ``Accept-Language`` signal of its
+own. It is seeded from the locale a user registered in and changeable
+from the dashboard. It does **not** currently override the web-UI
+resolution chain above — making it a sticky web-UI preference for
+logged-in users is a tracked follow-up (it would mean teaching the
+locale resolver to do a DB lookup, which the cookie-free design
+deliberately avoided). See :func:`translator_for`.
 
 The resolved locale lands on ``request.state.locale`` via
 :class:`LocaleMiddleware`. Routes that render templates pull it through
@@ -80,6 +88,46 @@ def _load_translations() -> dict[str, Translations | gettext.NullTranslations]:
             t = gettext.NullTranslations()
         _translations[locale] = t
     return _translations
+
+
+def normalize_locale(locale: str | None) -> str:
+    """Coerce an arbitrary string to a supported locale, else the default.
+
+    Used wherever a locale arrives from outside the resolution chain — a
+    persisted ``User.preferred_lang`` value, an API request body — and
+    must be made safe before it indexes into the translation cache.
+    """
+    if locale and locale in SUPPORTED_LOCALES:
+        return locale
+    return _effective_default()
+
+
+def translator_for(locale: str | None) -> Translations | gettext.NullTranslations:
+    """Return the gettext bundle for ``locale`` — no request context needed.
+
+    Outbound email is rendered outside any HTTP request (verification mail
+    fired-and-forgotten at register time, dunning mail fired from a Stripe
+    webhook), so it can't go through :func:`localized_context`. This is the
+    request-free entry point: it normalises the locale first, so an
+    unrecognised ``User.preferred_lang`` degrades to the operator default
+    rather than raising.
+    """
+    return _load_translations().get(normalize_locale(locale)) or gettext.NullTranslations()
+
+
+def gettext_noop(message: str) -> str:
+    """Mark a string for extraction without translating it at call time.
+
+    ``pybabel extract`` picks up ``N_(...)`` calls by default, so this lets
+    a module-level constant (e.g. an email *subject* line, which never
+    passes through a Jinja template) land in the ``.pot`` file. The actual
+    translation happens later via ``translator_for(locale).gettext(...)``.
+    """
+    return message
+
+
+# Conventional alias — babel's default keyword list includes ``N_``.
+N_ = gettext_noop
 
 
 def path_prefix_locale(path: str) -> str | None:

@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ locale }}">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Your FileMorph account has been deleted</title>
+  <title>{{ _('Your FileMorph account has been deleted') }}</title>
 </head>
 <body style="margin:0; padding:0; background:#0b0f19; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif; color:#e5e7eb;">
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#0b0f19; padding:32px 16px;">
@@ -17,47 +17,46 @@
           </tr>
           <tr>
             <td style="font-size:18px; font-weight:600; color:#ffffff; padding-bottom:12px;">
-              Your account has been deleted
+              {{ _('Your account has been deleted') }}
             </td>
           </tr>
           <tr>
             <td style="font-size:14px; line-height:22px; color:#d1d5db; padding-bottom:18px;">
-              Your FileMorph account <strong>{{ user_email }}</strong> was deleted on
-              <strong>{{ deleted_at }}</strong>. This is a confirmation; the deletion is
-              already complete.
+              {% trans trimmed email=user_email, deleted_at=deleted_at %}
+              Your FileMorph account <strong>{{ email }}</strong> was deleted on <strong>{{ deleted_at }}</strong>. This is a confirmation; the deletion is already complete.
+              {% endtrans %}
             </td>
           </tr>
           <tr>
             <td style="font-size:14px; line-height:22px; color:#d1d5db; padding-bottom:18px;">
-              <strong>What was deleted</strong>
+              <strong>{{ _('What was deleted') }}</strong>
               <ul style="padding-left:20px; margin:8px 0;">
-                <li>Login credentials (your password)</li>
-                <li>All API keys</li>
+                <li>{{ _('Login credentials (your password)') }}</li>
+                <li>{{ _('All API keys') }}</li>
               </ul>
-              <strong>What was anonymised</strong>
+              <strong>{{ _('What was anonymised') }}</strong>
               <ul style="padding-left:20px; margin:8px 0;">
                 <li>
-                  Conversion-job history — your account ID was stripped; the records
-                  are retained as anonymous aggregate data under DSGVO Art. 4(1).
+                  {{ _('Conversion-job history — your account ID was stripped; the records are retained as anonymous aggregate data under DSGVO Art. 4(1).') }}
                 </li>
               </ul>
             </td>
           </tr>
           <tr>
             <td style="font-size:14px; line-height:22px; color:#d1d5db; padding-bottom:18px;">
-              You can re-register with the same email address at any time. A new
-              registration creates a fresh account with no link to this one.
+              {{ _('You can re-register with the same email address at any time. A new registration creates a fresh account with no link to this one.') }}
             </td>
           </tr>
           <tr>
             <td style="font-size:12px; line-height:18px; color:#6b7280; border-top:1px solid #1f2937; padding-top:16px;">
-              Questions about deletion or your data rights? Contact
-              <a href="mailto:{{ support_email }}" style="color:#818cf8;">{{ support_email }}</a>.
+              {% trans trimmed support_email=support_email %}
+              Questions about deletion or your data rights? Contact <a href="mailto:{{ support_email }}" style="color:#818cf8;">{{ support_email }}</a>.
+              {% endtrans %}
             </td>
           </tr>
         </table>
         <div style="font-size:11px; color:#4b5563; padding-top:16px;">
-          © FileMorph · <a href="{{ app_base_url }}" style="color:#6b7280; text-decoration:none;">filemorph.io</a>
+          © FileMorph · <a href="{{ app_base_url }}" style="color:#6b7280; text-decoration:none;">{{ app_base_url }}</a>
         </div>
       </td>
     </tr>

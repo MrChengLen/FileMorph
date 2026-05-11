@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-05-08 20:50+0200\n"
+"POT-Creation-Date: 2026-05-11 14:44+0200\n"
 "PO-Revision-Date: 2026-05-08 11:00+0200\n"
 "Last-Translator: FileMorph <hallo@filemorph.io>\n"
 "Language: de\n"
@@ -26,6 +26,9 @@ msgstr ""
 " — zum Beispiel: „Hiermit widerrufe ich den am [Datum] geschlossenen "
 "Vertrag über das FileMorph-[Pro-/Business-]Abonnement.“ Die Angabe deiner"
 " registrierten E-Mail-Adresse beschleunigt die Zuordnung zu deinem Konto."
+
+msgid "(Open the dashboard → \"Manage billing\" → update card.)"
+msgstr "(Dashboard öffnen → „Abrechnung verwalten“ → Karte aktualisieren.)"
 
 msgid "(vs. 20 MB anonymous)"
 msgstr "(vs. 20 MB anonym)"
@@ -239,8 +242,14 @@ msgstr ""
 msgid "Acknowledgement:"
 msgstr "Bestätigung:"
 
+msgid "Action needed: your FileMorph payment failed"
+msgstr "Aktion erforderlich: Deine FileMorph-Zahlung ist fehlgeschlagen"
+
 msgid "Affected version (commit hash or release tag if known)."
 msgstr "Betroffene Version (Commit-Hash oder Release-Tag, falls bekannt)."
+
+msgid "All API keys"
+msgstr "Alle API-Schlüssel"
 
 msgid ""
 "All CSS (including Tailwind), JavaScript, fonts, and images are served "
@@ -256,6 +265,13 @@ msgstr "Alle Preise zzgl. ggf. anfallender USt. Zahlungen via Stripe."
 
 msgid "Already have an account?"
 msgstr "Hast du schon ein Konto?"
+
+msgid ""
+"Already updated your card? You can ignore this — the next retry will pick"
+" up the new method automatically."
+msgstr ""
+"Karte schon aktualisiert? Dann kannst du das hier ignorieren — der "
+"nächste Versuch verwendet automatisch die neue Methode."
 
 msgid ""
 "An orientation about the provider categories common in DACH RFPs. In "
@@ -374,10 +390,19 @@ msgstr "Vertrauliche Anfragen über"
 msgid "Confirm Password"
 msgstr "Passwort bestätigen"
 
+msgid "Confirm email"
+msgstr "E-Mail bestätigen"
+
 msgid "Confirm password"
 msgstr "Passwort bestätigen"
 
+msgid "Confirm your FileMorph email"
+msgstr "Bestätige deine FileMorph-E-Mail-Adresse"
+
 msgid "Confirm your email"
+msgstr "Bestätige deine E-Mail-Adresse"
+
+msgid "Confirm your email address"
 msgstr "Bestätige deine E-Mail-Adresse"
 
 msgid "Confirming email"
@@ -402,6 +427,13 @@ msgstr ""
 
 msgid "Contact:"
 msgstr "Kontakt:"
+
+msgid ""
+"Conversion-job history — your account ID was stripped; the records are "
+"retained as anonymous aggregate data under DSGVO Art. 4(1)."
+msgstr ""
+"Konvertierungsverlauf — deine Konto-ID wurde entfernt; die Datensätze "
+"werden als anonyme Aggregatdaten gemäß Art. 4 Nr. 1 DSGVO aufbewahrt."
 
 msgid "Convert"
 msgstr "Konvertieren"
@@ -709,6 +741,26 @@ msgstr ""
 "Ich verzichte auf mein 14-tägiges Widerrufsrecht und stimme der "
 "sofortigen Vertragsausführung gemäß § 356 Abs. 5 BGB zu."
 
+msgid "If the button doesn't work, copy this URL into your browser:"
+msgstr "Falls der Button nicht funktioniert, kopiere diese URL in deinen Browser:"
+
+#, python-format
+msgid ""
+"If the next retry still doesn't go through, your account drops to the "
+"<strong>Free</strong> plan and the %(tier_label)s limits no longer apply."
+msgstr ""
+"Falls der nächste Versuch ebenfalls fehlschlägt, wird dein Konto auf den "
+"<strong>Free</strong>-Tarif zurückgestuft und die %(tier_label)s-Limits "
+"gelten nicht mehr."
+
+#, python-format
+msgid ""
+"If the next retry still doesn't go through, your account drops to the "
+"Free plan and the %(tier_label)s limits no longer apply."
+msgstr ""
+"Falls der nächste Versuch ebenfalls fehlschlägt, wird dein Konto auf den "
+"Free-Tarif zurückgestuft und die %(tier_label)s-Limits gelten nicht mehr."
+
 msgid "If this email exists, you'll receive a reset link shortly."
 msgstr ""
 "Falls diese E-Mail-Adresse existiert, erhältst du in Kürze einen "
@@ -727,6 +779,21 @@ msgstr ""
 " Recht, ein bezahltes Abonnement innerhalb von vierzehn (14) Tagen ab "
 "Vertragsschluss — dem Tag der Bestätigung deiner ersten Stripe-Zahlung — "
 "ohne Angabe von Gründen zu widerrufen."
+
+msgid ""
+"If you did not request this email, you can safely ignore it — your "
+"password will stay unchanged."
+msgstr ""
+"Falls du diese E-Mail nicht angefordert hast, kannst du sie ignorieren — "
+"dein Passwort bleibt unverändert."
+
+msgid ""
+"If you didn't sign up for FileMorph, you can safely ignore this email — "
+"no account will be activated until the link is clicked."
+msgstr ""
+"Falls du dich nicht bei FileMorph registriert hast, kannst du diese "
+"E-Mail ignorieren — es wird kein Konto aktiviert, solange der Link nicht "
+"angeklickt wird."
 
 msgid ""
 "If you generate an API key (via the dashboard or command-line tool), only"
@@ -833,6 +900,9 @@ msgstr ""
 msgid "Loading…"
 msgstr "Wird geladen…"
 
+msgid "Login credentials (your password)"
+msgstr "Anmeldedaten (dein Passwort)"
+
 msgid ""
 "Logo mention as pilot customer (optional). Roadmap feedback every four "
 "weeks. Willingness to prioritize feature tickets."
@@ -886,8 +956,18 @@ msgstr "Ein Klick und du bist fertig"
 msgid "Open dashboard"
 msgstr "Dashboard öffnen"
 
+msgid ""
+"Open this link to choose a new password (valid for 30 minutes, single-"
+"use):"
+msgstr ""
+"Öffne diesen Link, um ein neues Passwort festzulegen (30 Minuten gültig, "
+"einmalig verwendbar):"
+
 msgid "Operator staff with the"
 msgstr "Betreiber-Mitarbeiter mit der"
+
+msgid "Or open the dashboard manually and click \"Manage billing\":"
+msgstr "Oder öffne das Dashboard manuell und klicke auf „Abrechnung verwalten“:"
 
 msgid "Our pages load"
 msgstr "Unsere Seiten laden"
@@ -1035,6 +1115,22 @@ msgstr ""
 msgid "Quality"
 msgstr "Qualität"
 
+#, python-format
+msgid "Questions about deletion or your data rights? Contact %(support_email)s."
+msgstr ""
+"Fragen zur Löschung oder zu deinen Datenrechten? Kontaktiere "
+"%(support_email)s."
+
+#, python-format
+msgid ""
+"Questions about deletion or your data rights? Contact <a "
+"href=\"mailto:%(support_email)s\" "
+"style=\"color:#818cf8;\">%(support_email)s</a>."
+msgstr ""
+"Fragen zur Löschung oder zu deinen Datenrechten? Kontaktiere <a "
+"href=\"mailto:%(support_email)s\" "
+"style=\"color:#818cf8;\">%(support_email)s</a>."
+
 msgid "RFC 9116 · referenced from"
 msgstr "RFC 9116 · referenziert von"
 
@@ -1085,6 +1181,15 @@ msgstr "Pilotgespräch per E-Mail anfragen"
 
 msgid "Reset Password"
 msgstr "Passwort zurücksetzen"
+
+msgid "Reset password"
+msgstr "Passwort zurücksetzen"
+
+msgid "Reset your FileMorph password"
+msgstr "Setze dein FileMorph-Passwort zurück"
+
+msgid "Reset your password"
+msgstr "Setze dein Passwort zurück"
 
 msgid ""
 "Response-time targets by severity — critical 4 h, high 24 h, medium/low "
@@ -1220,6 +1325,28 @@ msgstr ""
 "unserer Löschung aufbewahren, um eigenen rechtlichen und steuerlichen "
 "Verpflichtungen nachzukommen."
 
+#, python-format
+msgid ""
+"Stripe will retry automatically around %(next_attempt_date)s. If it still"
+" doesn't go through, your account drops to the Free plan and the "
+"%(tier_label)s limits no longer apply."
+msgstr ""
+"Stripe versucht es automatisch erneut um den %(next_attempt_date)s. Falls"
+" es dann immer noch nicht klappt, wird dein Konto auf den Free-Tarif "
+"zurückgestuft und die %(tier_label)s-Limits gelten nicht mehr."
+
+#, python-format
+msgid ""
+"Stripe will retry automatically around "
+"<strong>%(next_attempt_date)s</strong>. If it still doesn't go through, "
+"your account drops to the <strong>Free</strong> plan and the "
+"%(tier_label)s limits no longer apply."
+msgstr ""
+"Stripe versucht es automatisch erneut um den "
+"<strong>%(next_attempt_date)s</strong>. Falls es dann immer noch nicht "
+"klappt, wird dein Konto auf den <strong>Free</strong>-Tarif zurückgestuft"
+" und die %(tier_label)s-Limits gelten nicht mehr."
+
 msgid "Stripe's privacy policy"
 msgstr "Stripes Datenschutzerklärung"
 
@@ -1280,6 +1407,23 @@ msgstr ""
 "Gewährleistung bereitgestellt. Wir garantieren keine Verfügbarkeit, "
 "Konvertierungs-Ergebnis-Genauigkeit oder Eignung für einen bestimmten "
 "Zweck."
+
+#, python-format
+msgid ""
+"The last payment for your FileMorph %(tier_label)s plan (%(email)s) could"
+" not be charged."
+msgstr ""
+"Die letzte Zahlung für deinen FileMorph-%(tier_label)s-Tarif (%(email)s) "
+"konnte nicht abgebucht werden."
+
+#, python-format
+msgid ""
+"The last payment for your FileMorph <strong>%(tier_label)s</strong> plan "
+"(<strong>%(email)s</strong>) could not be charged."
+msgstr ""
+"Die letzte Zahlung für deinen "
+"FileMorph-<strong>%(tier_label)s</strong>-Tarif "
+"(<strong>%(email)s</strong>) konnte nicht abgebucht werden."
 
 msgid ""
 "The legal information below is provided in German as required by German "
@@ -1372,6 +1516,11 @@ msgstr "Tier-Übersicht"
 msgid "To exercise the right of withdrawal, send an unambiguous statement to:"
 msgstr "Um das Widerrufsrecht auszuüben, sende eine eindeutige Erklärung an:"
 
+msgid "To fix it now, log in and update your payment method:"
+msgstr ""
+"Um es jetzt zu beheben, melde dich an und aktualisiere deine "
+"Zahlungsmethode:"
+
 msgid ""
 "To operate FileMorph we rely on the following sub-processors. Each one "
 "receives only the minimum data needed for its task:"
@@ -1414,6 +1563,9 @@ msgstr "Bis zu 500 MB pro Datei"
 
 msgid "Update password"
 msgstr "Passwort aktualisieren"
+
+msgid "Update payment method"
+msgstr "Zahlungsmethode aktualisieren"
 
 msgid "Upgrade to Business"
 msgstr "Auf Business upgraden"
@@ -1476,8 +1628,41 @@ msgstr ""
 "Wir benennen das, weil ein RFP-Reviewer es ohnehin bemerken würde — und "
 "weil wir die Roadmap lieber transparent statt geschönt halten."
 
+#, python-format
+msgid "We received a request to reset the password for %(email)s."
+msgstr ""
+"Wir haben eine Anfrage erhalten, das Passwort für %(email)s "
+"zurückzusetzen."
+
+#, python-format
+msgid ""
+"We received a request to reset the password for "
+"<strong>%(email)s</strong>. Click the button below to choose a new one. "
+"The link is valid for 30 minutes and can only be used once."
+msgstr ""
+"Wir haben eine Anfrage erhalten, das Passwort für "
+"<strong>%(email)s</strong> zurückzusetzen. Klicke auf den Button unten, "
+"um ein neues festzulegen. Der Link ist 30 Minuten gültig und kann nur "
+"einmal verwendet werden."
+
 msgid "Welcome back to FileMorph"
 msgstr "Willkommen zurück bei FileMorph"
+
+#, python-format
+msgid ""
+"Welcome to FileMorph. Click the button below to confirm that "
+"<strong>%(email)s</strong> belongs to you. The link is valid for 7 days."
+msgstr ""
+"Willkommen bei FileMorph. Klicke auf den Button unten, um zu bestätigen, "
+"dass <strong>%(email)s</strong> dir gehört. Der Link ist 7 Tage gültig."
+
+#, python-format
+msgid ""
+"Welcome to FileMorph. Open this link to confirm that %(email)s belongs to"
+" you (valid for 7 days):"
+msgstr ""
+"Willkommen bei FileMorph. Öffne diesen Link, um zu bestätigen, dass "
+"%(email)s dir gehört (7 Tage gültig):"
 
 msgid "What does the Edition cost?"
 msgstr "Was kostet die Edition?"
@@ -1490,6 +1675,12 @@ msgstr "Was passiert, wenn wir kündigen?"
 
 msgid "What to include in a report"
 msgstr "Was ein Bericht enthalten sollte"
+
+msgid "What was anonymised"
+msgstr "Was anonymisiert wurde"
+
+msgid "What was deleted"
+msgstr "Was gelöscht wurde"
 
 msgid "What we deliver compared to typical alternatives"
 msgstr "Was wir gegenüber typischen Alternativen liefern"
@@ -1555,6 +1746,14 @@ msgstr ""
 "relevanten Sicherheits- und Architektur-Dokumente sind frei zugänglich:"
 
 msgid ""
+"You can re-register with the same email address at any time. A new "
+"registration creates a fresh account with no link to this one."
+msgstr ""
+"Du kannst dich jederzeit erneut mit derselben E-Mail-Adresse "
+"registrieren. Eine neue Registrierung erstellt ein frisches Konto ohne "
+"Verbindung zu diesem."
+
+msgid ""
 "You have the right to access, rectify, erase, and restrict processing of "
 "your personal data (Art. 15–21 GDPR). To exercise these rights, contact "
 "us at"
@@ -1585,11 +1784,38 @@ msgstr ""
 "oder eine Kanzlei? Schreiben Sie uns mit Ihrem Use-Case — wir antworten "
 "innerhalb eines Werktages."
 
+#, python-format
+msgid ""
+"Your FileMorph account %(email)s was deleted on %(deleted_at)s. This is a"
+" confirmation; the deletion is already complete."
+msgstr ""
+"Dein FileMorph-Konto %(email)s wurde am %(deleted_at)s gelöscht. Dies ist"
+" eine Bestätigung; die Löschung ist bereits abgeschlossen."
+
+#, python-format
+msgid ""
+"Your FileMorph account <strong>%(email)s</strong> was deleted on "
+"<strong>%(deleted_at)s</strong>. This is a confirmation; the deletion is "
+"already complete."
+msgstr ""
+"Dein FileMorph-Konto <strong>%(email)s</strong> wurde am "
+"<strong>%(deleted_at)s</strong> gelöscht. Dies ist eine Bestätigung; die "
+"Löschung ist bereits abgeschlossen."
+
+msgid "Your FileMorph account has been deleted"
+msgstr "Dein FileMorph-Konto wurde gelöscht"
+
+msgid "Your account has been deleted"
+msgstr "Dein Konto wurde gelöscht"
+
 msgid "Your email is now verified."
 msgstr "Deine E-Mail-Adresse ist jetzt bestätigt."
 
 msgid "Your password has been updated."
 msgstr "Dein Passwort wurde aktualisiert."
+
+msgid "Your payment didn't go through"
+msgstr "Deine Zahlung ist fehlgeschlagen"
 
 msgid "Zoho Mail (transactional email):"
 msgstr "Zoho Mail (Transaktions-E-Mail):"

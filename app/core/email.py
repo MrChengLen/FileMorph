@@ -17,14 +17,83 @@ Design notes
 
 from __future__ import annotations
 
+import functools
 import logging
 from email.message import EmailMessage
+from pathlib import Path
 
 import aiosmtplib
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from app.core.config import settings
+from app.core.i18n import N_, normalize_locale, translator_for
 
 logger = logging.getLogger(__name__)
+
+
+# ── Localised template rendering ──────────────────────────────────────────────
+#
+# Email is rendered outside any HTTP request, so it can't reuse the
+# request-bound translator from ``app.core.i18n.localized_context``. Each
+# supported locale gets its own Jinja ``Environment`` with the matching
+# ``.mo`` installed once at construction — after that the env is immutable
+# and safe to reuse across concurrent sends. Templates use ``{% trans %}``
+# blocks (which the ``jinja2.ext.i18n`` extension wires to that env's
+# gettext) so a sentence with an interpolated value stays one translatable
+# unit regardless of word order.
+#
+# ``autoescape=select_autoescape(["html"])`` escapes ``{{ user_email }}``
+# in the ``.html`` body but leaves the ``.txt`` body verbatim.
+
+_EMAIL_TEMPLATE_DIR = Path(__file__).resolve().parent.parent / "templates" / "emails"
+
+# Subject lines never pass through a Jinja template, so ``N_(...)`` marks
+# them for extraction; :func:`render_email` translates them per-locale.
+EMAIL_SUBJECTS: dict[str, str] = {
+    "verify_email": N_("Confirm your FileMorph email"),
+    "password_reset": N_("Reset your FileMorph password"),
+    "account_deleted": N_("Your FileMorph account has been deleted"),
+    "dunning": N_("Action needed: your FileMorph payment failed"),
+}
+
+
+@functools.lru_cache(maxsize=None)
+def _email_env(locale: str) -> Environment:
+    env = Environment(
+        loader=FileSystemLoader(str(_EMAIL_TEMPLATE_DIR)),
+        autoescape=select_autoescape(["html"]),
+        extensions=["jinja2.ext.i18n"],
+        enable_async=False,
+    )
+    env.install_gettext_translations(translator_for(locale), newstyle=True)
+    # `install_gettext_translations` registers `gettext`/`ngettext` but not
+    # the `_` alias the web templates use — add it so email templates can
+    # write `{{ _('...') }}` the same way.
+    env.globals["_"] = env.globals["gettext"]
+    return env
+
+
+def render_email(template_stem: str, *, locale: str | None, **context) -> tuple[str, str, str]:
+    """Render an email's ``(subject, html, text)`` in the given locale.
+
+    ``template_stem`` is the basename shared by ``<stem>.html`` and
+    ``<stem>.txt`` under ``app/templates/emails/``. ``locale`` is
+    normalised (an unknown value falls back to ``settings.lang_default``).
+    ``locale`` is also injected into the template context so the ``.html``
+    body can set ``<html lang="{{ locale }}">``.
+    """
+    if template_stem not in EMAIL_SUBJECTS:
+        raise KeyError(
+            f"no subject registered for email template {template_stem!r} — "
+            f"add it to app.core.email.EMAIL_SUBJECTS"
+        )
+    loc = normalize_locale(locale)
+    env = _email_env(loc)
+    ctx = {"locale": loc, **context}
+    html = env.get_template(f"{template_stem}.html").render(**ctx)
+    text = env.get_template(f"{template_stem}.txt").render(**ctx)
+    subject = translator_for(loc).gettext(EMAIL_SUBJECTS[template_stem])
+    return subject, html, text
 
 
 class EmailSendError(RuntimeError):

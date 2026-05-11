@@ -322,11 +322,12 @@ def test_delete_account_sends_confirmation_email(client, mock_send_email):
     asyncio.run(_insert_user(email="alice@example.com"))
     token = _login(client, "alice@example.com")
 
+    # Accept-Language pins the confirmation-email locale to EN (default is de).
     res = client.request(
         "DELETE",
         "/api/v1/auth/account",
         json=_delete_body("alice@example.com"),
-        headers={"Authorization": f"Bearer {token}"},
+        headers={"Authorization": f"Bearer {token}", "Accept-Language": "en"},
     )
     assert res.status_code == 204
     mock_send_email.assert_awaited_once()
