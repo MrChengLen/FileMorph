@@ -17,6 +17,11 @@ concurrency:
   group: scope-guard-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/develop' }}
 
+# Least-privilege default for GITHUB_TOKEN (OpenSSF Scorecard Token-Permissions).
+# The job only diffs the checkout; it never writes a comment or status itself.
+permissions:
+  contents: read
+
 jobs:
   scope-check:
     runs-on: ubuntu-latest

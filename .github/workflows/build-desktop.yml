@@ -8,6 +8,11 @@ on:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
+# action-gh-release attaches the built ZIP to the published release, which
+# needs write access to repository contents; nothing else here writes back.
+permissions:
+  contents: write
+
 jobs:
   build-windows:
     runs-on: windows-latest

@@ -36,6 +36,11 @@ concurrency:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
+# Least-privilege default for GITHUB_TOKEN (OpenSSF Scorecard Token-Permissions).
+# upload-artifact uses its own service token, not GITHUB_TOKEN, so read is enough.
+permissions:
+  contents: read
+
 jobs:
   verapdf:
     runs-on: ubuntu-latest
