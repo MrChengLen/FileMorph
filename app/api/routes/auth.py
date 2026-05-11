@@ -13,7 +13,7 @@ from sqlalchemy.orm import selectinload
 from app.core import email as email_mod
 from app.core.audit import record_event as audit_record
 from app.core.auth import hash_password, verify_password
-from app.core.i18n import get_locale
+from app.core.i18n import SUPPORTED_LOCALES, get_locale
 from app.core.tokens import (
     create_access_token,
     create_email_verify_token,
@@ -83,6 +83,21 @@ class UserResponse(BaseModel):
     # surface a "payment issue — update your card" banner when this is
     # ``past_due`` / ``incomplete``. ``None`` = never subscribed.
     subscription_status: str | None = None
+    # PR-i18n-3: the language transactional email is sent in (``de`` /
+    # ``en``). ``None`` = no explicit preference → operator default
+    # (``LANG_DEFAULT``). Set via PUT /auth/account/language.
+    preferred_lang: str | None = None
+
+
+class PreferredLanguageRequest(BaseModel):
+    preferred_lang: str
+
+    @field_validator("preferred_lang")
+    @classmethod
+    def _supported_locale(cls, v: str) -> str:
+        if v not in SUPPORTED_LOCALES:
+            raise ValueError(f"unsupported locale; choose one of {sorted(SUPPORTED_LOCALES)}")
+        return v
 
 
 class ForgotPasswordRequest(BaseModel):
@@ -377,8 +392,7 @@ async def refresh(body: RefreshRequest, db: AsyncSession | None = Depends(get_db
     )
 
 
-@router.get("/me", response_model=UserResponse)
-async def me(user: User = Depends(get_current_user)):
+def _user_response(user: User) -> UserResponse:
     return UserResponse(
         id=str(user.id),
         email=user.email,
@@ -386,7 +400,38 @@ async def me(user: User = Depends(get_current_user)):
         role=user.role.value,
         created_at=user.created_at,
         subscription_status=user.subscription_status,
+        preferred_lang=user.preferred_lang,
     )
+
+
+@router.get("/me", response_model=UserResponse)
+async def me(user: User = Depends(get_current_user)):
+    return _user_response(user)
+
+
+@router.put("/account/language", response_model=UserResponse)
+async def set_preferred_language(
+    body: PreferredLanguageRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession | None = Depends(get_db),
+):
+    """Set the language FileMorph sends this user's transactional email in.
+
+    Persisted on ``users.preferred_lang``. Used wherever email is rendered
+    outside an HTTP request (the dunning mail fired from a Stripe webhook)
+    and as the first choice for request-context mail too (reset / resend /
+    deletion confirmation). It does **not** change the web-UI locale, which
+    stays URL-prefix-driven — see ``app/core/i18n.py``.
+
+    Auth: JWT bearer (``get_current_user``), like ``GET /auth/me``. Body:
+    ``{"preferred_lang": "de" | "en"}`` — an unsupported value is a 422
+    from the Pydantic validator.
+    """
+    db = _db_required(db)
+    user.preferred_lang = body.preferred_lang
+    await db.commit()
+    await db.refresh(user)
+    return _user_response(user)
 
 
 _ENUMERATION_SAFE_RESPONSE = {
