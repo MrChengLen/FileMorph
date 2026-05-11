@@ -110,6 +110,10 @@ def test_pre_commit_and_pre_push_regexes_stay_in_sync(hooks):
         "docs/api-usage-guide.md",
         "docs/self-hosting.md",
         "docs/dpa-template.md",
+        # Public Cloud-Edition email-setup walkthrough — placeholder
+        # .env-style SMTP credential lines would otherwise trip the
+        # SECRET_ASSIGN content scanner.
+        "docs/email-setup.md",
         # Hook scripts and CI workflow self-edits.
         ".githooks/pre-commit",
         ".githooks/pre-push",
@@ -204,7 +208,6 @@ def test_forbidden_paths_does_not_block_public_artifacts(hooks, path):
     "path",
     [
         "docs/admin-cockpit.md",
-        "docs/email-setup.md",
         "docs/open-tasks.md",
         "docs/filemorph-io-runbook.md",
         "docs/marketing-plan.md",
@@ -238,6 +241,9 @@ def test_internal_paths_redirects_business_docs(hooks, path):
         "docs/sub-processors.md",
         "docs/dpa-template.md",
         "docs/gdpr-account-deletion-design.md",
+        # Reclassified from internal → public when the
+        # deployment-agnostic Self-Hoster walkthrough was added.
+        "docs/email-setup.md",
     ],
 )
 def test_internal_paths_keeps_public_docs(hooks, path):
