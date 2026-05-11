@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-05-11 14:44+0200\n"
+"POT-Creation-Date: 2026-05-11 18:00+0200\n"
 "PO-Revision-Date: 2026-05-07 13:43+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -408,6 +408,9 @@ msgstr ""
 msgid "Copy this key now — it will not be shown again."
 msgstr ""
 
+msgid "Could not save — please try again."
+msgstr ""
+
 msgid "Create Account"
 msgstr ""
 
@@ -466,6 +469,9 @@ msgid "Early expiration of the right of withdrawal:"
 msgstr ""
 
 msgid "Email"
+msgstr ""
+
+msgid "Email language"
 msgstr ""
 
 msgid "Engineering proof before contract"
@@ -1023,6 +1029,9 @@ msgstr ""
 msgid "Safe-harbour"
 msgstr ""
 
+msgid "Saved"
+msgstr ""
+
 msgid "Saved API keys & dashboard"
 msgstr ""
 
@@ -1178,6 +1187,11 @@ msgid ""
 "The Service is provided \"as is\" without warranty of any kind, express "
 "or implied. We do not guarantee uptime, accuracy of conversion results, "
 "or fitness for a particular purpose."
+msgstr ""
+
+msgid ""
+"The language we use for account emails — verification, password reset, "
+"billing notices. Separate from the website language."
 msgstr ""
 
 #, python-format

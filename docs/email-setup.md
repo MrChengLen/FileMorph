@@ -18,7 +18,15 @@ needs none of this. If you don't run the user-account features, leave the
 | Email verification | `POST /api/v1/auth/register` and `POST /api/v1/auth/resend-verification` | One-time link binding the verify-token to the user's email-at-issuance. **7-day TTL.** |
 | Password reset | `POST /api/v1/auth/forgot-password` | Single-use reset link. **30-minute TTL**, invalidated by the next password change (hash-version pin). |
 | Account-deletion confirmation | `DELETE /api/v1/auth/account` | Post-commit notification with the user-facing support contact. |
-| Billing receipts | Stripe Customer Portal | Stripe sends these directly via the customer portal — FileMorph itself only sends transactional auth mail. |
+| Dunning / payment-failed | Stripe `invoice.payment_failed` webhook | "Update your card" notice, sent once per dunning cycle while Stripe retries the charge. |
+| Billing receipts | Stripe Customer Portal | Stripe sends these directly via the customer portal — FileMorph itself only sends the transactional mail above. |
+
+**Locale.** All of the above are rendered in the recipient's `preferred_lang`
+(`de` / `en`) — seeded at registration from the locale the user signed up in,
+changeable from the dashboard, and `PUT /api/v1/auth/account/language`. When it
+is unset (NULL) the operator default `LANG_DEFAULT` applies. The dunning mail
+fires from a Stripe webhook with no HTTP request to derive a locale from, which
+is exactly why the column exists.
 
 If `SMTP_HOST` is empty, every feature above degrades gracefully:
 

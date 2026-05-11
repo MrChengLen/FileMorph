@@ -70,10 +70,11 @@ The endpoints in this section only respond when the Cloud overlay is configured 
 
 | Method + Path | Auth | Purpose |
 |---|---|---|
-| `POST /api/v1/auth/register` | none | Create account; returns access + refresh tokens. Sends a verification email (fire-and-forget). |
+| `POST /api/v1/auth/register` | none | Create account; returns access + refresh tokens. Sends a verification email (fire-and-forget) in the request locale, and stores that locale as `preferred_lang`. |
 | `POST /api/v1/auth/login` | none | Exchange email + password for access (15 min) + refresh (30 d) tokens. |
 | `POST /api/v1/auth/refresh` | none (refresh-token in body) | Issue a new access token. |
-| `GET /api/v1/auth/me` | Bearer | Return the currently authenticated user. |
+| `GET /api/v1/auth/me` | Bearer | Return the currently authenticated user (`id`, `email`, `tier`, `role`, `created_at`, `subscription_status`, `preferred_lang`). |
+| `PUT /api/v1/auth/account/language` | Bearer | Set the language for this user's transactional email. Body: `{"preferred_lang": "de"\|"en"}` — an unsupported value is a `422`. Returns the updated user object. This is **email** locale only; the web-UI locale stays URL-prefix driven (no cookie). |
 | `POST /api/v1/auth/forgot-password` | none | Issue a single-use password-reset link via email (30 min TTL). |
 | `POST /api/v1/auth/reset-password` | reset-token in body | Set a new password and invalidate older sessions via password-hash rotation. |
 | `POST /api/v1/auth/verify-email` | verify-token | Mark the user's email as verified. |

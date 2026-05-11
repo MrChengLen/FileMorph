@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-05-11 14:44+0200\n"
+"POT-Creation-Date: 2026-05-11 18:00+0200\n"
 "PO-Revision-Date: 2026-05-08 11:00+0200\n"
 "Last-Translator: FileMorph <hallo@filemorph.io>\n"
 "Language: de\n"
@@ -450,6 +450,9 @@ msgstr "Kopieren"
 msgid "Copy this key now — it will not be shown again."
 msgstr "Kopiere diesen Key jetzt — er wird nicht erneut angezeigt."
 
+msgid "Could not save — please try again."
+msgstr "Konnte nicht gespeichert werden — bitte erneut versuchen."
+
 msgid "Create Account"
 msgstr "Konto erstellen"
 
@@ -512,6 +515,9 @@ msgstr "Vorzeitiges Erlöschen des Widerrufsrechts:"
 
 msgid "Email"
 msgstr "E-Mail"
+
+msgid "Email language"
+msgstr "E-Mail-Sprache"
 
 msgid "Engineering proof before contract"
 msgstr "Engineering-Beweis vor dem Vertrag"
@@ -1216,6 +1222,9 @@ msgstr "STRIDE-Threat-Model"
 msgid "Safe-harbour"
 msgstr "Safe-Harbour"
 
+msgid "Saved"
+msgstr "Gespeichert"
+
 msgid "Saved API keys & dashboard"
 msgstr "Gespeicherte API-Keys & Dashboard"
 
@@ -1407,6 +1416,14 @@ msgstr ""
 "Gewährleistung bereitgestellt. Wir garantieren keine Verfügbarkeit, "
 "Konvertierungs-Ergebnis-Genauigkeit oder Eignung für einen bestimmten "
 "Zweck."
+
+msgid ""
+"The language we use for account emails — verification, password reset, "
+"billing notices. Separate from the website language."
+msgstr ""
+"Die Sprache, in der wir Konto-E-Mails verschicken — Bestätigung, "
+"Passwort-Zurücksetzung, Zahlungshinweise. Unabhängig von der Website-"
+"Sprache."
 
 #, python-format
 msgid ""

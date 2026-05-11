@@ -8,6 +8,28 @@ async function loadUser() {
   document.getElementById('user-tier').textContent = u.tier;
   document.getElementById('user-since').textContent =
     new Date(u.created_at).toLocaleDateString('de-DE', { year: 'numeric', month: 'long', day: 'numeric' });
+  // Email-language preference. NULL on the server means "no explicit
+  // preference, use the operator default" — the upstream default is `de`,
+  // so reflect that in the picker.
+  const langSel = document.getElementById('email-lang');
+  if (langSel) langSel.value = u.preferred_lang || 'de';
+}
+
+async function saveEmailLang(value) {
+  const status = document.getElementById('email-lang-status');
+  if (status) status.textContent = '';
+  const res = await window.FM.authFetch('/api/v1/auth/account/language', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ preferred_lang: value }),
+  });
+  if (!status) return;
+  if (res.ok) {
+    status.textContent = status.dataset.saved;
+    setTimeout(function () { status.textContent = ''; }, 2000);
+  } else {
+    status.textContent = status.dataset.error;
+  }
 }
 
 async function loadKeys() {
@@ -72,4 +94,6 @@ document.addEventListener('DOMContentLoaded', function () {
   loadKeys();
   document.getElementById('create-key-btn').addEventListener('click', createKey);
   document.getElementById('copy-key-btn').addEventListener('click', copyKey);
+  const langSel = document.getElementById('email-lang');
+  if (langSel) langSel.addEventListener('change', function (e) { saveEmailLang(e.target.value); });
 });

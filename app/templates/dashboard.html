@@ -52,6 +52,25 @@
   </div>
   {% endcall %}
 
+  <!-- Email language preference (PR-i18n-3) -->
+  {% call uc.card() %}
+  <div class="space-y-3">
+    <div>
+      <h2 class="font-semibold">{{ _('Email language') }}</h2>
+      <p class="text-xs text-ink-faint mt-0.5">{{ _('The language we use for account emails — verification, password reset, billing notices. Separate from the website language.') }}</p>
+    </div>
+    <div class="flex items-center gap-3">
+      <select id="email-lang" aria-label="{{ _('Email language') }}"
+        class="bg-surface-sunken border border-hairline rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-brand">
+        <option value="de">Deutsch</option>
+        <option value="en">English</option>
+      </select>
+      <span id="email-lang-status" class="text-xs text-ink-faint" aria-live="polite"
+        data-saved="{{ _('Saved') }}" data-error="{{ _('Could not save — please try again.') }}"></span>
+    </div>
+  </div>
+  {% endcall %}
+
 </main>
 <script src="/static/js/dashboard.js"></script>
 {% endblock %}

@@ -123,6 +123,29 @@ off where applicable, and optional at deploy time.
   returns `subscription_status` so the dashboard can surface a
   payment-issue banner.
 
+### Added — Email internationalisation (PR-i18n-3)
+
+- Transactional email (verification, password-reset, account-deleted,
+  the PR-J dunning notice) is now localised. `app/core/email.py` gains
+  `render_email(stem, *, locale, **ctx) -> (subject, html, text)` — one
+  entry point backed by a per-locale Jinja `Environment`; the eight
+  `app/templates/emails/*.{html,txt}` templates use `{% trans %}` blocks
+  and `<html lang="{{ locale }}">`. Subject lines live in `EMAIL_SUBJECTS`
+  marked with `N_(...)` for extraction. German catalog updated; the
+  per-route ad-hoc email Jinja envs are gone.
+- Migration 009 adds `users.preferred_lang` (`de` / `en`; NULL = use
+  `LANG_DEFAULT`). Seeded at `/register` from the locale the user signed
+  up in. `/forgot-password`, `/resend-verification` and the deletion
+  confirmation render in `preferred_lang` if set, otherwise the request
+  locale; the dunning mail (fired from a Stripe webhook with no request
+  context) reads `preferred_lang` directly.
+- `PUT /api/v1/auth/account/language` (Bearer; body
+  `{"preferred_lang": "de"|"en"}`, `422` on anything else) lets a user
+  change it; surfaced as an "Email language" picker on `/dashboard`.
+  `GET /api/v1/auth/me` now returns `preferred_lang`. The web-UI locale
+  is unaffected — it stays URL-prefix driven (no cookie); a sticky
+  web-UI preference for logged-in users is a tracked follow-up.
+
 ### Added — Cloud-Edition pre-launch hardening (NEU-B.3 b/c.1)
 
 - **Email verification** (NEU-B.3 slice b): Migration 006 adds
