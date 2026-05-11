@@ -103,6 +103,26 @@ off where applicable, and optional at deploy time.
   operators behind one identity provider should give each instance a
   distinct `JWT_AUDIENCE`.
 
+### Added — Stripe dunning webhooks (PR-J)
+
+- Migration 008 adds `users.subscription_status` (mirrors Stripe's
+  `Subscription.status`). The billing webhook now handles
+  `invoice.payment_failed` and the full status-transition matrix on
+  `customer.subscription.{created,updated,deleted}`: a failed charge
+  sets `past_due`, fires a "payment failed — update your card" email
+  **once per dunning cycle** (debounced on the status flag), and
+  records `billing.subscription.payment_failed` +
+  `billing.dunning_email_sent` audit events. The paid tier is kept
+  during Stripe's retry window (`past_due` / `incomplete`); recovery
+  back to `active` re-derives the tier and records
+  `billing.subscription.recovered`; a terminal status (`canceled` /
+  `unpaid` / `incomplete_expired`, or the `.deleted` event) drops the
+  tier to Free with `billing.subscription.canceled`. An unknown Stripe
+  status leaves the tier untouched (recorded, not acted on). New
+  `app/templates/emails/dunning.{html,txt}`. `GET /api/v1/auth/me` now
+  returns `subscription_status` so the dashboard can surface a
+  payment-issue banner.
+
 ### Added — Cloud-Edition pre-launch hardening (NEU-B.3 b/c.1)
 
 - **Email verification** (NEU-B.3 slice b): Migration 006 adds
