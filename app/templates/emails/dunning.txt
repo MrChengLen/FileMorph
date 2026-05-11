@@ -1,21 +1,23 @@
-Action needed: your FileMorph payment failed
-=============================================
+{{ _('Action needed: your FileMorph payment failed') }}
+=======================================================
 
-The last payment for your FileMorph {{ tier_label }} plan ({{ user_email }})
-could not be charged.
+{% trans trimmed tier_label=tier_label, email=user_email %}
+The last payment for your FileMorph {{ tier_label }} plan ({{ email }}) could not be charged.
+{% endtrans %}
 
-{% if next_attempt_date %}Stripe will retry automatically around {{ next_attempt_date }}. {% endif -%}
-If it still doesn't go through, your account drops to the Free plan and the
-{{ tier_label }} limits no longer apply.
+{% if next_attempt_date %}{% trans trimmed next_attempt_date=next_attempt_date, tier_label=tier_label %}
+Stripe will retry automatically around {{ next_attempt_date }}. If it still doesn't go through, your account drops to the Free plan and the {{ tier_label }} limits no longer apply.
+{% endtrans %}{% else %}{% trans trimmed tier_label=tier_label %}
+If the next retry still doesn't go through, your account drops to the Free plan and the {{ tier_label }} limits no longer apply.
+{% endtrans %}{% endif %}
 
-To fix it now, log in and update your payment method:
+{{ _('To fix it now, log in and update your payment method:') }}
 
     {{ billing_url }}
 
-(Open the dashboard → "Manage billing" → update card.)
+{{ _('(Open the dashboard → "Manage billing" → update card.)') }}
 
-Already updated your card? You can ignore this — the next retry will pick up
-the new method automatically.
+{{ _('Already updated your card? You can ignore this — the next retry will pick up the new method automatically.') }}
 
 —
 FileMorph · {{ app_base_url }}

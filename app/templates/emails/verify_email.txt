@@ -1,13 +1,13 @@
-Confirm your FileMorph email
-============================
+{{ _('Confirm your FileMorph email') }}
+===========================================
 
-Welcome to FileMorph. Open this link to confirm that {{ user_email }}
-belongs to you (valid for 7 days):
+{% trans trimmed email=user_email %}
+Welcome to FileMorph. Open this link to confirm that {{ email }} belongs to you (valid for 7 days):
+{% endtrans %}
 
     {{ verify_url }}
 
-If you didn't sign up for FileMorph, you can safely ignore this email — no
-account will be activated until the link is clicked.
+{{ _("If you didn't sign up for FileMorph, you can safely ignore this email — no account will be activated until the link is clicked.") }}
 
 —
 FileMorph · {{ app_base_url }}
