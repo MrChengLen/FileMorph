@@ -22,6 +22,7 @@ from app.core.metrics import increment as metric_increment
 from app.core.processing import BLOCKED_MAGIC, actor_id, sha256_file
 from app.core.quotas import _MB, get_quota, tier_for
 from app.core.rate_limit import limiter
+from app.core.usage import enforce_monthly_quota, record_usage
 from app.core.utils import safe_download_name
 from app.db.models import User
 
@@ -85,6 +86,12 @@ async def _do_convert(
         else:
             detail = f"File too large ({limit_mb} MB max for your plan). Upgrade for larger files."
         raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail=detail)
+
+    # PR-M: monthly API-call quota gate. Anonymous + Enterprise tiers
+    # are exempt; everyone else runs against the limit defined in
+    # app/core/quotas.py. Raises HTTPException(429) with Retry-After
+    # set to the next month boundary when the limit is reached.
+    await enforce_monthly_quota(user)
 
     # GDPR: keep original stem only for Content-Disposition, never as a filesystem path
     original_stem = Path(file.filename or "result").stem
@@ -213,6 +220,17 @@ async def _do_convert(
                 ),
             },
         )
+        # PR-M: record one row toward the monthly-quota counter. Anonymous
+        # callers (no user_id) are skipped — there is no caller identity
+        # to attribute the row to. Fire-and-forget; a failed insert logs
+        # at WARNING but never breaks the request.
+        await record_usage(
+            user_id=user.id if user is not None else None,
+            api_key_id=None,
+            endpoint="convert",
+            file_size_bytes=input_size_bytes,
+            duration_ms=round((time.monotonic() - _t0) * 1000),
+        )
     except HTTPException as exc:
         # Track conversion failures separately from infrastructure errors
         # so the cockpit can show a meaningful failure-rate. We swallow the
@@ -305,6 +323,10 @@ async def _do_convert_batch(
                 "were uploaded. One target per file is required."
             ),
         )
+
+    # PR-M: monthly quota gate. One batch counts as one API call (matches the
+    # pricing-page wording). Same gate is also at the top of single /convert.
+    await enforce_monthly_quota(user)
 
     _t0 = time.monotonic()
     results: list[BatchFileResult] = []
@@ -419,6 +441,17 @@ async def _do_convert_batch(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             content=batch_error_response(results, summary),
         )
+
+    # PR-M: one row per HTTP call (not per-file inside the batch) — matches
+    # the pricing-page wording "API calls per month". File-level counts go
+    # into the metrics table for the cockpit.
+    await record_usage(
+        user_id=user.id if user is not None else None,
+        api_key_id=None,
+        endpoint="convert/batch",
+        file_size_bytes=sum(r.size_in for r in results),
+        duration_ms=duration_ms,
+    )
 
     return Response(
         content=zip_bytes,

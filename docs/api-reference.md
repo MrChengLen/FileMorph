@@ -403,6 +403,39 @@ When exceeded, the response is `429 Too Many Requests`. For higher
 limits, self-host your own instance and adjust the decorators in
 `app/api/routes/*.py` (slowapi `@limiter.limit("…/minute")`).
 
+### Monthly call quota (per user)
+
+Authenticated users on a paid tier are also limited per calendar
+month, independently of the per-IP rate limits above:
+
+| Tier | Monthly API calls |
+|---|---|
+| Anonymous | n/a (per-IP rate-limit only) |
+| Free | 500 |
+| Pro | 10 000 |
+| Business | 100 000 |
+| Enterprise | unlimited |
+
+The gate counts every successful `POST /api/v1/convert`,
+`/convert/batch`, `/compress`, and `/compress/batch` as **one**
+call. A batch with 25 files counts as 1 call (matching the
+pricing-page wording "API calls per month"). Failed conversions do
+not count toward the quota.
+
+When the limit is reached, the response is `429 Too Many Requests`
+with a `Retry-After` header in seconds pointing at the start of the
+next calendar month, and a body explaining the limit:
+
+```json
+{
+  "detail": "Monthly API call limit reached (10000 per month for tier 'pro'). Quota resets 2026-06-01T00:00:00+00:00. Upgrade your plan or wait until the reset to continue."
+}
+```
+
+The quota window is **calendar-month UTC** — the counter resets at
+`00:00 UTC` on the 1st of every month. The pricing page advertises
+identical figures; this gate is the runtime side of that promise.
+
 ---
 
 ## Swagger / OpenAPI

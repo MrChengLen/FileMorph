@@ -28,6 +28,7 @@ from app.core.metrics import increment as metric_increment
 from app.core.processing import BLOCKED_MAGIC, actor_id, sha256_file
 from app.core.quotas import _MB, get_quota, tier_for
 from app.core.rate_limit import limiter
+from app.core.usage import enforce_monthly_quota, record_usage
 from app.core.utils import safe_download_name
 from app.db.models import User
 
@@ -93,6 +94,9 @@ async def _do_compress(
         else:
             detail = f"File too large ({limit_mb} MB max for your plan). Upgrade for larger files."
         raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail=detail)
+
+    # PR-M: monthly API-call quota gate. See app/core/usage.py.
+    await enforce_monthly_quota(user)
 
     if target_size_kb is not None:
         if ext not in TARGET_SIZE_FORMATS:
@@ -250,6 +254,16 @@ async def _do_compress(
                 ),
             },
         )
+        # PR-M: count this successful compression toward the user's monthly
+        # API-call quota. Failed attempts do not count (the audit log still
+        # records them; only completed work moves the user toward the limit).
+        await record_usage(
+            user_id=user.id if user is not None else None,
+            api_key_id=None,
+            endpoint="compress",
+            file_size_bytes=input_size_bytes,
+            duration_ms=round((time.monotonic() - _t0) * 1000),
+        )
     except HTTPException as exc:
         # Track compression failures separately from infra so the cockpit
         # has a meaningful failure-rate. The HTTPException still propagates.
@@ -346,6 +360,9 @@ async def _do_compress_batch(
                     "Upgrade your plan for larger outputs."
                 ),
             )
+
+    # PR-M: monthly quota gate before file I/O. One batch = one API call.
+    await enforce_monthly_quota(user)
 
     _t0 = time.monotonic()
     results: list[BatchFileResult] = []
@@ -469,6 +486,15 @@ async def _do_compress_batch(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             content=batch_error_response(results, summary),
         )
+
+    # PR-M: one row per HTTP call (not per-file inside the batch).
+    await record_usage(
+        user_id=user.id if user is not None else None,
+        api_key_id=None,
+        endpoint="compress/batch",
+        file_size_bytes=sum(r.size_in for r in results),
+        duration_ms=duration_ms,
+    )
 
     return Response(
         content=zip_bytes,
