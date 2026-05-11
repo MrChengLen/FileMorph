@@ -28,6 +28,18 @@ _TIER_TO_PRICE: dict[str, str] = {
 _PRICE_TO_TIER: dict[str, TierEnum] = {}  # populated after Stripe prices are set
 
 
+def _app_url(path: str) -> str:
+    """Build an absolute URL on this deployment's public base.
+
+    Stripe Checkout / Customer-Portal sessions need fully-qualified
+    success/cancel/return URLs. They must point at *this* deployment —
+    never a hardcoded ``filemorph.io`` — so a self-hoster's users land
+    back on the self-hoster's own dashboard, not ours. Mirrors the same
+    ``settings.app_base_url`` treatment used for outbound-email links.
+    """
+    return f"{settings.app_base_url.rstrip('/')}{path}"
+
+
 def _stripe_enabled() -> None:
     if not settings.stripe_secret_key:
         raise HTTPException(
@@ -86,8 +98,8 @@ async def create_checkout_session(
         payment_method_types=["card"],
         line_items=[{"price": price_id, "quantity": 1}],
         mode="subscription",
-        success_url="https://filemorph.io/dashboard?upgraded=1",
-        cancel_url="https://filemorph.io/pricing",
+        success_url=_app_url("/dashboard?upgraded=1"),
+        cancel_url=_app_url("/pricing"),
     )
     return {"url": session.url}
 
@@ -103,7 +115,7 @@ async def customer_portal(user: User = Depends(get_current_user)):
     stripe.api_key = settings.stripe_secret_key
     session = stripe.billing_portal.Session.create(
         customer=user.stripe_customer_id,
-        return_url="https://filemorph.io/dashboard",
+        return_url=_app_url("/dashboard"),
     )
     return {"url": session.url}
 

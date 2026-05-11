@@ -30,6 +30,18 @@ The Commercial License removes the AGPL copyleft obligation. You receive
 the right to use, modify, and redistribute FileMorph as part of a proprietary
 product without disclosing your changes.
 
+> **Operator's reservation.** The copyright holder of FileMorph (sole
+> author of all maintainer-written code, plus the commercial-redistribution
+> grant from contributors per *Contributions* below) reserves the right to
+> deploy and operate its own code — including any code that ships in the
+> public repository — under the terms of this Commercial License rather than
+> the AGPL. This makes explicit that the operator's own hosted service
+> (`filemorph.io`) is not bound by AGPL §13 with respect to code it authored,
+> and that the operator may keep maintainer-written extensions proprietary
+> if it later chooses to. It does **not** affect anyone else: a third party
+> who runs a modified network service still owes AGPL §13 to its users
+> unless that third party holds its own Commercial License.
+
 ---
 
 ## What a Commercial License includes

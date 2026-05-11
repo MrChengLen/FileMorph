@@ -201,6 +201,16 @@ def test_checkout_pro_with_acknowledgement_records_audit_event(client):
     assert res.status_code == 200, res.text
     assert res.json()["url"] == "https://checkout.stripe.test/redirect"
 
+    # Deployment-agnostic redirect URLs: the success/cancel URLs handed to
+    # Stripe must point at *this* deployment's APP_BASE_URL (localhost in
+    # tests), never a hardcoded filemorph.io — otherwise a self-hoster's
+    # paying users would land back on our dashboard, not theirs.
+    create_kwargs = billing_module.stripe.checkout.Session.create.call_args.kwargs
+    assert "localhost:8000" in create_kwargs["success_url"]
+    assert "filemorph.io" not in create_kwargs["success_url"]
+    assert "localhost:8000" in create_kwargs["cancel_url"]
+    assert "filemorph.io" not in create_kwargs["cancel_url"]
+
     rows = _events_by_type("billing.checkout.withdrawal_waiver_recorded")
     assert len(rows) == 1
     assert str(rows[0].actor_user_id) == str(user.id)
