@@ -94,7 +94,7 @@ The endpoints in this section only respond when the Cloud overlay is configured 
 |---|---|---|
 | `POST /api/v1/billing/checkout/{tier}` | Bearer | Start a Stripe Checkout for `pro` / `business`. Body MUST include `withdrawal_waiver_acknowledged: true` (BGB §356 (5) consent — see `terms.html` § 9). Returns the Stripe Checkout URL; an `auth.billing.withdrawal_waiver_recorded` audit event is written before the redirect. |
 | `POST /api/v1/billing/portal` | Bearer | Return a Stripe Customer Portal URL so the user can manage card / cancel / re-subscribe. |
-| `POST /api/v1/billing/webhook` | Stripe signature | Stripe → FileMorph webhook receiver. Handles `customer.subscription.{created,updated,deleted}`. Not exposed in OpenAPI. |
+| `POST /api/v1/billing/webhook` | Stripe signature | Stripe → FileMorph webhook receiver. Handles `customer.subscription.{created,updated,deleted}` (tier sync from price + status) and `invoice.payment_failed` (dunning: marks `subscription_status=past_due`, sends a "payment failed — update your card" email once per retry cycle, keeps the paid tier during Stripe's grace window, and downgrades to Free only on a terminal status). Not exposed in OpenAPI. |
 
 For schema details (request bodies, response shapes), open the auto-generated Swagger UI at `/docs` on the live deployment.
 
