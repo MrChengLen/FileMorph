@@ -56,6 +56,8 @@ curl -X POST http://localhost:8000/api/v1/auth/refresh \
 
 Logged-in users can also generate API keys bound to their account at `POST /api/v1/keys`; those keys count against the user's tier quota rather than the anonymous tier.
 
+All tokens (access, refresh, password-reset, email-verify) carry the RFC 7519 `iss` and `aud` claims — `iss=JWT_ISSUER` (default `filemorph`), `aud=JWT_AUDIENCE` (default `filemorph-api`) — and every decode path validates them. A token minted by a different FileMorph deployment, or by anything that shares a leaked `JWT_SECRET` but uses a different audience, is rejected before any business logic runs. Multi-instance operators behind one identity provider should set a distinct `JWT_AUDIENCE` per instance. Changing either value invalidates every in-flight token on the next request.
+
 ---
 
 ## Endpoints

@@ -22,6 +22,20 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:8000"
     jwt_secret: str = "dev-secret-change-me-min-32-chars-long"
 
+    # PR-J: RFC 7519 §4.1.1 (iss) + §4.1.3 (aud) claims. Every token this
+    # deployment mints carries ``iss=jwt_issuer`` and ``aud=jwt_audience``;
+    # every decode path validates them. Defense-in-depth: a token minted by
+    # a *different* FileMorph deployment (or another service that happens to
+    # share a leaked secret) is rejected even if the HMAC checks out,
+    # because the audience/issuer won't match. The defaults are
+    # deployment-agnostic; a multi-tenant operator running several FileMorph
+    # instances behind one identity provider gives each a distinct
+    # ``JWT_AUDIENCE`` so a token scoped to instance A can't be replayed
+    # against instance B. Changing either value invalidates all in-flight
+    # tokens on the next request (same blast radius as rotating JWT_SECRET).
+    jwt_issuer: str = "filemorph"
+    jwt_audience: str = "filemorph-api"
+
     # Stripe (leave empty to disable billing)
     stripe_secret_key: str = ""
     stripe_webhook_secret: str = ""

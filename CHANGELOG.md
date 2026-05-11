@@ -75,6 +75,34 @@ off where applicable, and optional at deploy time.
 - `/pricing` page surfaces the per-tier concurrency + rate-limit
   contract so callers can size their client pools.
 
+### Added — Monthly API-call quota (PR-M)
+
+- The per-tier monthly call limits (`api_calls_per_month` in
+  `app/core/quotas.py` — 500 Free / 10 000 Pro / 100 000 Business)
+  are now **enforced**, not just informational. `app/core/usage.py`
+  records one `UsageRecord` row per successful `/convert`,
+  `/convert/batch`, `/compress`, `/compress/batch` and counts the
+  current calendar month (UTC) before each call. Over the limit →
+  `429 Too Many Requests` + `Retry-After` pointing at the next month
+  boundary. A batch counts as one call. Anonymous tier (per-IP
+  rate-limit only) and Enterprise (unlimited) are exempt. Migration
+  007 adds the `(user_id, timestamp)` index that keeps the gate
+  query sub-millisecond.
+
+### Changed — JWT `iss` / `aud` claims (PR-J)
+
+- **Breaking for in-flight tokens.** Every JWT FileMorph mints
+  (access, refresh, password-reset, email-verify) now carries the
+  RFC 7519 `iss` and `aud` claims from `JWT_ISSUER` (default
+  `filemorph`) / `JWT_AUDIENCE` (default `filemorph-api`), and every
+  decode path validates them. A token minted before this change — or
+  by a different FileMorph deployment, or by another service that
+  shares a leaked secret — is rejected even with a valid HMAC.
+  Existing sessions invalidate on the next request after upgrade
+  (same blast radius as rotating `JWT_SECRET`). Multi-instance
+  operators behind one identity provider should give each instance a
+  distinct `JWT_AUDIENCE`.
+
 ### Added — Cloud-Edition pre-launch hardening (NEU-B.3 b/c.1)
 
 - **Email verification** (NEU-B.3 slice b): Migration 006 adds
