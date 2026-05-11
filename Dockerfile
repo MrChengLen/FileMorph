@@ -1,4 +1,7 @@
-FROM python:3.12-slim
+# Base image pinned by digest (PR-S, supply-chain hygiene). The trailing
+# `# 3.12-slim` comment is what Dependabot's docker ecosystem reads to know
+# which tag this digest maps to, so it can open a bump PR when the tag moves.
+FROM python:3.12-slim@sha256:ec948fa5f90f4f8907e89f4800cfd2d2e91e391a4bce4a6afa77ba265bc3a2fe  # 3.12-slim
 
 # Install system dependencies:
 # - ffmpeg, libheif, cairo/pango: media + WeasyPrint rendering

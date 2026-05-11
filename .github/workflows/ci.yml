@@ -9,6 +9,11 @@ on:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
+# Least-privilege default for GITHUB_TOKEN (OpenSSF Scorecard Token-Permissions).
+# Both jobs only read the checkout; no job here writes back to the repo.
+permissions:
+  contents: read
+
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest

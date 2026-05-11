@@ -92,6 +92,27 @@ off where applicable, and optional at deploy time.
   `privacy@filemorph.io` until the paid-path tax-retention flow
   (slice c.2 — HGB §257, AO §147) ships.
 
+### Added — Supply-chain hygiene (PR-S)
+
+- All GitHub Actions `uses:` references pinned to a full 40-character
+  commit SHA (with the `# vX.Y` comment Dependabot tracks), instead of
+  mutable tags.
+- `.github/dependabot.yml` (NEW): weekly update PRs for three
+  ecosystems — `pip` (grouped minor/patch), `github-actions` (grouped),
+  and `docker` (base-image digest) — so the manual pins stay current
+  without manual chasing.
+- Dockerfile base image pinned by `@sha256:` digest, with the
+  `python:3.12-slim` tag kept in a trailing comment for Dependabot's
+  `docker` updater.
+- Every workflow declares an explicit least-privilege `permissions:`
+  block for `GITHUB_TOKEN` (`contents: read` by default; `contents:
+  write` only where a release-asset upload needs it; `{}` for the
+  cross-repo-dispatch job that uses a separate PAT).
+- `tests/test_supply_chain_hygiene.py` (NEW): regression guards that
+  fail CI if an action pin reverts to a tag, the Dockerfile loses its
+  digest, a workflow ships without a `permissions:` block, or
+  `dependabot.yml` stops covering a pinned ecosystem.
+
 ### Operations
 
 - Docker base image now bundles `ghostscript` so the PDF/A re-render
