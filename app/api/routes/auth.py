@@ -4,6 +4,7 @@ import logging
 import uuid
 from datetime import datetime, timezone
 
+import stripe
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from pydantic import BaseModel, EmailStr, Field, field_validator
 from sqlalchemy import func, select
@@ -11,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core import email as email_mod
+from app.core.account_deletion import deletion_mode_for, perform_account_deletion
 from app.core.audit import record_event as audit_record
 from app.core.auth import hash_password, verify_password
 from app.core.i18n import SUPPORTED_LOCALES, get_locale
@@ -168,7 +170,14 @@ async def get_current_user(
         user_uuid = uuid.UUID(user_id)
     except (ValueError, TypeError):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token.")
-    result = await db.execute(select(User).where(User.id == user_uuid, User.is_active.is_(True)))
+    # ``is_active`` already excludes a tax-retained (paid-path-deleted)
+    # row; ``deleted_at IS NULL`` is defence-in-depth per
+    # ``docs/gdpr-account-deletion-design.md`` § 5.B.
+    result = await db.execute(
+        select(User).where(
+            User.id == user_uuid, User.is_active.is_(True), User.deleted_at.is_(None)
+        )
+    )
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found.")
@@ -285,7 +294,13 @@ async def register(
     request: Request, body: RegisterRequest, db: AsyncSession | None = Depends(get_db)
 ):
     db = _db_required(db)
-    existing = await db.execute(select(User).where(User.email == body.email))
+    # ``deleted_at IS NULL``: a tax-retained (paid-path-deleted) row keeps
+    # its email for the 10-year HGB §257 / AO §147 record, but it must not
+    # block re-registration — the partial unique index ``ix_users_email_active``
+    # lets the new live row coexist with it.
+    existing = await db.execute(
+        select(User).where(User.email == body.email, User.deleted_at.is_(None))
+    )
     if existing.scalar_one_or_none():
         # NEU-B.3: surface the duplicate-email attempt to the audit chain
         # using the hash, not the address — enumeration-pattern visibility
@@ -346,8 +361,15 @@ async def register(
 @limiter.limit("5/minute")
 async def login(request: Request, body: LoginRequest, db: AsyncSession | None = Depends(get_db)):
     db = _db_required(db)
+    # ``is_active`` already excludes a tax-retained row; the explicit
+    # ``deleted_at IS NULL`` is belt-and-suspenders (and the right
+    # predicate if the ``is_active`` filter is ever dropped) — and it
+    # keeps ``scalar_one_or_none`` single-valued if a re-registered row
+    # shares the email with a deleted-but-retained one.
     result = await db.execute(
-        select(User).where(User.email == body.email, User.is_active.is_(True))
+        select(User).where(
+            User.email == body.email, User.is_active.is_(True), User.deleted_at.is_(None)
+        )
     )
     user = result.scalar_one_or_none()
     if not user or not verify_password(body.password, user.password_hash):
@@ -505,7 +527,13 @@ async def forgot_password(
         logger.warning("forgot_password: DB not configured, returning generic 200")
         return _ENUMERATION_SAFE_RESPONSE
 
-    result = await db.execute(select(User).where(User.email.ilike(body.email)))
+    # ``deleted_at IS NULL``: skip a tax-retained row entirely — it's
+    # inactive, and (after a re-registration with the same address) a
+    # bare ``.ilike`` would match two rows and ``scalar_one_or_none``
+    # would raise, breaking this enumeration-safe endpoint.
+    result = await db.execute(
+        select(User).where(User.email.ilike(body.email), User.deleted_at.is_(None))
+    )
     user = result.scalar_one_or_none()
     # NEU-B.3: every reset-request lands in the audit chain — both the
     # match-and-send path and the no-match early-return path — keyed by
@@ -673,34 +701,46 @@ async def resend_verification(request: Request, user: User = Depends(get_current
     return {"message": "Verification email sent."}
 
 
-# ── Account deletion (NEU-B.3 slice c.1, free path only) ──────────────────────
+# ── Account deletion (NEU-B.3 slice c.1 free path + PR-D slice c.2 paid path) ──
+#
+# Execution lives in ``app/core/account_deletion.py`` (free hard-delete vs.
+# tax-retained restricted delete — see ``docs/gdpr-account-deletion-design.md``
+# §§ 4 + 5.B). This route owns the HTTP contract: the three-field
+# re-confirmation gate, the last-admin guard, the audit events, the
+# structured log, and the confirmation email.
 
 
 _DELETE_GENERIC_400 = "Confirmation did not match."
+_DELETE_STRIPE_500 = "Something went wrong on our end. Your account is unchanged."
 
 
 def _render_account_deleted_emails(
-    user_email: str, deleted_at_iso: str, locale: str
+    user_email: str, deleted_at_iso: str, locale: str, deletion_mode: str
 ) -> tuple[str, str, str]:
     return email_mod.render_email(
         "account_deleted",
         locale=locale,
         user_email=user_email,
         deleted_at=deleted_at_iso,
+        deletion_mode=deletion_mode,
         app_base_url=settings.app_base_url.rstrip("/"),
         support_email=_support_contact(),
     )
 
 
 async def _send_account_deleted_email_safe(
-    user_email: str, deleted_at_iso: str, locale: str
+    user_email: str, deleted_at_iso: str, locale: str, deletion_mode: str
 ) -> None:
     """Confirmation email after a successful deletion. Never raises into
     the caller — the deletion is already final, the email is informational.
     A delivery failure is logged for the operator audit trail. ``locale``
-    is captured from the row before it is deleted (the user's
-    ``preferred_lang``, falling back to the request locale)."""
-    subject, html, text = _render_account_deleted_emails(user_email, deleted_at_iso, locale)
+    is captured from the row before it is mutated/deleted (the user's
+    ``preferred_lang``, falling back to the request locale); ``deletion_mode``
+    (``"free"`` / ``"tax_retained"``) picks whether the tax-retention
+    paragraph is included."""
+    subject, html, text = _render_account_deleted_emails(
+        user_email, deleted_at_iso, locale, deletion_mode
+    )
     try:
         await email_mod.send_email(to=user_email, subject=subject, html=html, text=text)
     except email_mod.EmailSendError:
@@ -735,46 +775,44 @@ async def delete_account(
 ):
     """Self-service account deletion (DSGVO Art. 17).
 
-    This is the **free-path** slice of the design in
-    ``docs/gdpr-account-deletion-design.md``. It hard-deletes accounts
-    that have never been linked to Stripe. Accounts with an active or
-    historical Stripe customer record are refused with 409 and pointed
-    at ``privacy@`` until the paid-path tax-retention flow lands
-    (HGB §257, AO §147 — slice c.2).
+    Two paths, decided by ``deletion_mode_for(user)`` in
+    ``app/core/account_deletion.py``:
 
-    Auth: JWT bearer only. ``X-API-Key`` is intentionally rejected
-    because the API key is one of the things being deleted; using the
-    very key whose deletion is requested has chicken-and-egg semantics.
-    The route's ``Depends(get_current_user)`` already enforces JWT-only
-    by reading the ``Authorization`` header and ignoring ``X-API-Key``.
+    * **free / never-paid** — full hard-delete of the ``users`` row;
+      PostgreSQL clears the related rows via the ON DELETE cascades.
+    * **tax-retained** — the account has touched Stripe; German tax law
+      (HGB §257, AO §147) obliges a 10-year retention of the invoice →
+      customer link, permitted by DSGVO Art. 17(3)(b). The ``users`` row
+      is kept in a restricted state — only ``email`` / ``stripe_customer_id``
+      / ``tier`` / ``created_at`` survive; ``api_keys`` are still removed
+      and ``file_jobs`` / ``usage`` still anonymised. Any active Stripe
+      subscription is cancelled first; a Stripe error aborts the whole
+      thing with 500 and the account is unchanged. See
+      ``docs/gdpr-account-deletion-design.md`` § 5.B.
+
+    Auth: JWT bearer only. ``X-API-Key`` is intentionally rejected — the
+    API key is one of the things being deleted, so authenticating its
+    own deletion has chicken-and-egg semantics. ``Depends(get_current_user)``
+    reads only the ``Authorization`` header.
 
     Re-confirmation: three fields must match (``password``,
-    ``confirm_email``, ``confirm_word=='DELETE'``). All three failures
-    return the same generic 400 so a stolen-JWT attacker cannot probe
-    which field is wrong.
+    ``confirm_email``, ``confirm_word == 'DELETE'``). A ``password`` /
+    ``confirm_email`` mismatch returns the same generic 400 so a
+    stolen-JWT attacker cannot probe which one was wrong; a bad
+    ``confirm_word`` is a Pydantic 422 before the body runs.
     """
     db = _db_required(db)
 
-    # Re-confirmation gate — uniform 400 on any mismatch.
+    # 1. Re-confirmation gate — uniform 400 on any mismatch.
     if body.confirm_email.lower() != user.email.lower():
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=_DELETE_GENERIC_400)
     if not verify_password(body.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=_DELETE_GENERIC_400)
     # ``confirm_word`` was validated by the Pydantic field validator.
 
-    # Tax-retention guard: any account that has touched Stripe needs the
-    # paid-path flow that's not implemented yet. Refusing here is the
-    # correct German-law-conformant behaviour until slice c.2 ships.
-    if user.stripe_customer_id is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=(
-                f"Paid accounts must be deleted via {_support_contact()} while we "
-                "complete the tax-retention flow (HGB §257)."
-            ),
-        )
-
-    # Last-admin guard.
+    # 2. Last-admin guard — before any Stripe call or DB write, so a sole
+    #    admin who pays can't have their subscription cancelled and *then*
+    #    be refused with 409.
     if await _is_last_active_admin(db, user):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -784,62 +822,62 @@ async def delete_account(
             ),
         )
 
+    # 3. Snapshot everything we need *before* the row is mutated/deleted.
+    mode = deletion_mode_for(user)
     user_id = user.id
     user_email = user.email
     email_domain = user_email.split("@", 1)[1] if "@" in user_email else "unknown"
+    # ``had_subscription`` is kept for c.1 log-shape compatibility; under
+    # the conservative trigger it equals ``mode == "tax_retained"``.
     had_subscription = bool(user.stripe_customer_id)
-    deleted_at_iso = datetime.now(timezone.utc).isoformat()
-    # Capture the email language before the row is gone — the user's saved
-    # preference, falling back to the locale of the deletion request.
+    # The user's saved email language, falling back to the request locale —
+    # captured now because the tax-retained path nulls ``preferred_lang``.
     email_locale = user.preferred_lang or await get_locale(request)
+    actor_ip = _client_ip(request)
 
-    # NEU-B.3: record the *intent* before destroying the row. Once the
-    # commit lands, ``actor_user_id`` becomes a dangling FK that the
-    # audit-events ``ON DELETE SET NULL`` cascade nulls — but the
-    # event_type + payload + occurred_at survive for the auditor.
+    # 4. Record the intent before the row changes. On the free path the
+    #    ``actor_user_id`` FK becomes dangling and is nulled by the
+    #    audit-events ON DELETE SET NULL cascade — event_type + payload +
+    #    occurred_at survive for the auditor either way.
     await audit_record(
         "auth.account_deletion.requested",
         actor_user_id=user_id,
-        actor_ip=_client_ip(request),
+        actor_ip=actor_ip,
         payload={
             "email_domain": email_domain,
             "had_subscription": had_subscription,
-            "deletion_mode": "free",
+            "deletion_mode": mode,
         },
     )
 
-    # PostgreSQL handles the related-row cascade via the ON DELETE
-    # clauses on api_keys (CASCADE), file_jobs (SET NULL), and
-    # usage (SET NULL) — see app/db/models.py. SQLAlchemy's
-    # ``cascade='all, delete-orphan'`` on User.api_keys would lazy-load
-    # the collection on flush; on the async session that triggers a
-    # MissingGreenlet error if any keys exist. Re-fetch with
-    # ``selectinload`` so the relationship is preloaded before
-    # ``db.delete`` walks the cascade.
-    result = await db.execute(
-        select(User).where(User.id == user_id).options(selectinload(User.api_keys))
-    )
-    user = result.scalar_one()
-    await db.delete(user)
-    await db.commit()
+    # 5. Execute. A Stripe error during the cancel-first pass leaves the
+    #    database untouched → 500, account unchanged (atomicity, § 5.A).
+    try:
+        deleted_at_iso = await perform_account_deletion(db, user, mode)
+    except stripe.error.StripeError:
+        logger.exception("account_deletion: Stripe cancel failed for user=%s", user_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=_DELETE_STRIPE_500
+        )
 
+    # 6. Observability + confirmation email (the deletion is already final).
     logger.info(
         "account_deletion",
         extra={
             "user_id": str(user_id),
             "email_domain": email_domain,
             "had_subscription": had_subscription,
-            "deletion_mode": "free",
+            "deletion_mode": mode,
         },
     )
     await audit_record(
         "auth.account_deletion.completed",
-        actor_ip=_client_ip(request),
+        actor_ip=actor_ip,
         payload={
             "email_domain": email_domain,
-            "deletion_mode": "free",
+            "deletion_mode": mode,
         },
     )
-    await _send_account_deleted_email_safe(user_email, deleted_at_iso, email_locale)
+    await _send_account_deleted_email_safe(user_email, deleted_at_iso, email_locale, mode)
     # 204 No Content — body intentionally empty.
     return None

@@ -195,7 +195,16 @@ async def _user_for_customer(customer_id: str, db: AsyncSession) -> User | None:
 
     if not customer_id:
         return None
-    result = await db.execute(select(User).where(User.stripe_customer_id == customer_id))
+    # ``deleted_at IS NULL``: a tax-retained (paid-path-deleted) row keeps
+    # its ``stripe_customer_id`` for the 10-year HGB §257 record — but a
+    # late webhook (the ``customer.subscription.deleted`` from our own
+    # cancel-first pass, or a stray ``invoice.payment_failed``) must not
+    # mutate that frozen row (set ``tier``/``subscription_status``, email a
+    # dunning notice). Skip it; the handler logs "unknown customer" and
+    # no-ops. See ``docs/gdpr-account-deletion-design.md`` § 5.B.
+    result = await db.execute(
+        select(User).where(User.stripe_customer_id == customer_id, User.deleted_at.is_(None))
+    )
     user = result.scalar_one_or_none()
     if not user:
         logger.warning("Stripe webhook: no user found for customer %s", customer_id)
