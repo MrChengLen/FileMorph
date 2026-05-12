@@ -343,6 +343,18 @@ Health check for monitoring and load balancer probes.
 
 ---
 
+### POST `/api/v1/contact`
+
+Public contact form, linked from the German Impressum as the second, fast-direct contact channel required by DDG §5 (ECJ C-298/07). Anonymous; works on the Community edition too — the message is emailed to the operator (recipient resolved from `CONTACT_FORM_RECIPIENT_EMAIL` → `SMTP_REPLY_TO` → `SMTP_FROM_EMAIL`), with `Reply-To` set to the submitter. **The message is not persisted server-side** — only an audit event with a hashed email + the visitor's locale is recorded.
+
+**Authentication**: Not required · **Rate limit**: 5 / hour per IP
+
+**Request body** (JSON): `email` (required), `message` (required, 20–5000 chars), `name` (optional, ≤120), `subject` (optional, ≤160). Anti-spam: a hidden honeypot field plus the rate limit — automated-looking submissions receive a normal `200` and are silently dropped.
+
+**Responses**: `200 {"detail": "Message sent."}` on success; `422` on validation errors; `429` when rate-limited; `502` if delivery fails (the UI then offers the direct `mailto:` fallback).
+
+---
+
 ## Response Headers
 
 Every successful conversion / compression carries integrity and classification metadata in response headers. CORS-enabled deployments expose these to browser clients (see `expose_headers` in `app/main.py`).
@@ -397,6 +409,7 @@ Per-route limits (per IP address):
 | `GET /api/v1/formats` | 120 / minute |
 | Auth endpoints (`/api/v1/auth/*`) | 3–5 / minute |
 | Billing endpoints (`/api/v1/billing/*`) | 5 / minute |
+| `POST /api/v1/contact` | 5 / hour |
 | Default (other routes) | 60 / minute |
 
 When exceeded, the response is `429 Too Many Requests`. For higher

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph 1.0.0\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-05-08 20:50+0200\n"
+"POT-Creation-Date: 2026-05-12 23:26+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -100,6 +100,9 @@ msgid "2d. Server logs:"
 msgstr ""
 
 msgid "2e. API keys:"
+msgstr ""
+
+msgid "2f. Contact form submissions:"
 msgstr ""
 
 msgid "3 servers, ≤ 2,000 employees"
@@ -198,9 +201,9 @@ msgstr ""
 msgid ""
 "Account creation, paid subscriptions, and transactional emails are "
 "processed on the basis of Art. 6(1)(b) GDPR (performance of a contract). "
-"Server-log processing, rate-limiting, and abuse prevention are based on "
-"our legitimate interest (Art. 6(1)(f) GDPR) in operating a secure and "
-"reliable service."
+"Server-log processing, rate-limiting, abuse prevention, and handling "
+"inquiries you send us are based on our legitimate interest (Art. 6(1)(f) "
+"GDPR) in operating a secure and reliable service."
 msgstr ""
 
 msgid "Account deletion:"
@@ -274,6 +277,11 @@ msgid "Business · €19"
 msgstr ""
 
 msgid "By quality %"
+msgstr ""
+
+msgid ""
+"By sending, you agree we process your message and email address to "
+"respond. See our"
 msgstr ""
 
 msgid "By target size"
@@ -359,6 +367,12 @@ msgstr ""
 msgid ""
 "Conformance secured by veraPDF CI gate against a worst-case source PDF — "
 "for beA attachments, citizen-application archiving, BSI TR-RESISCAN."
+msgstr ""
+
+msgid "Contact"
+msgstr ""
+
+msgid "Contact us"
 msgstr ""
 
 msgid "Contact:"
@@ -614,6 +628,9 @@ msgstr ""
 msgid "Hetzner's privacy policy"
 msgstr ""
 
+msgid "How can we help?"
+msgstr ""
+
 msgid "How does AGPLv3 behave with citizen-portal integrations?"
 msgstr ""
 
@@ -653,13 +670,23 @@ msgid ""
 "account and erased on deletion request (Art. 17 GDPR)."
 msgstr ""
 
+msgid ""
+"If you use the contact form (also linked from our Impressum), we process "
+"your message text, your email address, and an optional name solely to "
+"handle your inquiry. The message is not stored in our database — it is "
+"delivered to the operator by email (via the provider in § 3a) and kept "
+"only as long as needed to deal with your request. Legal basis: Art. "
+"6(1)(f) GDPR (handling inquiries), or Art. 6(1)(b) GDPR where it concerns"
+" an existing contract. We do not use it for marketing."
+msgstr ""
+
 msgid "Images · Documents · Audio · Video · Spreadsheets"
 msgstr ""
 
 msgid "Impressum"
 msgstr ""
 
-msgid "Imprint per German Telemediengesetz §5 (TMG)."
+msgid "Imprint under the German Digitale-Dienste-Gesetz §5 (DDG)."
 msgstr ""
 
 msgid "In scope:"
@@ -700,10 +727,10 @@ msgstr ""
 msgid "Language"
 msgstr ""
 
-msgid "Last updated: 2026-04-23 · Community + Cloud Edition"
+msgid "Last updated: 2026-05-08 · Community + Cloud Edition"
 msgstr ""
 
-msgid "Last updated: 2026-05-08 · Community + Cloud Edition"
+msgid "Last updated: 2026-05-12 · Community + Cloud Edition"
 msgstr ""
 
 msgid ""
@@ -731,6 +758,9 @@ msgstr ""
 msgid "Mermaid diagram and request lifecycle ↗"
 msgstr ""
 
+msgid "Message"
+msgstr ""
+
 msgid "Min. 8 characters."
 msgstr ""
 
@@ -744,6 +774,9 @@ msgid "Most popular"
 msgstr ""
 
 msgid "Multi-format (image + audio + video + sheet)"
+msgstr ""
+
+msgid "Name (optional)"
 msgstr ""
 
 msgid "New password"
@@ -821,6 +854,14 @@ msgid ""
 msgstr ""
 
 msgid "Plans"
+msgstr ""
+
+msgid ""
+"Please check the form: a valid email and a message of at least 20 "
+"characters are required."
+msgstr ""
+
+msgid "Please email us directly at"
 msgstr ""
 
 msgid "Price / year"
@@ -976,6 +1017,12 @@ msgstr ""
 msgid "Send Reset Link"
 msgstr ""
 
+msgid "Send message"
+msgstr ""
+
+msgid "Send us a message and we will get back to you."
+msgstr ""
+
 msgid ""
 "Server-volume-based, not per user seat. Binding terms follow the personal"
 " conversation."
@@ -1003,6 +1050,9 @@ msgid "Smaller file"
 msgstr ""
 
 msgid "Something went wrong on our end. Please try again in a moment."
+msgstr ""
+
+msgid "Sorry, we could not send your message right now."
 msgstr ""
 
 msgid "Source code"
@@ -1035,6 +1085,9 @@ msgstr ""
 msgid "Sub-processor list"
 msgstr ""
 
+msgid "Subject (optional)"
+msgstr ""
+
 msgid "Support SLA"
 msgstr ""
 
@@ -1057,6 +1110,9 @@ msgid "Target file size"
 msgstr ""
 
 msgid "Terms of Use"
+msgstr ""
+
+msgid "Thanks — your message has been sent. We will reply soon."
 msgstr ""
 
 msgid ""
@@ -1162,6 +1218,9 @@ msgstr ""
 msgid "Toggle menu"
 msgstr ""
 
+msgid "Too many attempts. Please try again later."
+msgstr ""
+
 msgid "Trust basis before contract"
 msgstr ""
 
@@ -1243,6 +1302,9 @@ msgstr ""
 msgid "What happens if we cancel?"
 msgstr ""
 
+msgid "What is this about?"
+msgstr ""
+
 msgid "What to include in a report"
 msgstr ""
 
@@ -1292,6 +1354,9 @@ msgid ""
 "protection authority."
 msgstr ""
 
+msgid "You can also email us directly at"
+msgstr ""
+
 msgid ""
 "You can fully audit FileMorph before the first conversation. All relevant"
 " security and architecture documents are freely accessible:"
@@ -1319,6 +1384,9 @@ msgid ""
 msgstr ""
 
 msgid "Your email is now verified."
+msgstr ""
+
+msgid "Your name"
 msgstr ""
 
 msgid "Your password has been updated."

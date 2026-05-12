@@ -10,6 +10,12 @@ Design notes
   other port (e.g. 587) → plain connect + ``STARTTLS``. Hetzner Cloud
   blocks outbound 465 for new accounts by default, so 587 is the path of
   least friction unless you've explicitly opened 465 with Hetzner support.
+* ``reply_to`` defaults to :attr:`Settings.smtp_reply_to`; a caller may
+  override it per-message (the public ``/contact`` form sets it to the
+  submitter's address so the operator can hit "Reply"). A user-supplied
+  override is safe: ``EmailMessage`` rejects ``\r``/``\n`` in header
+  values and the only caller that passes one validates it as an
+  ``EmailStr`` first — header-injection is double-covered.
 * Errors surface as :class:`EmailSendError` with no SMTP details so the
   caller can return a generic response without leaking infrastructure
   hints.
@@ -33,11 +39,17 @@ class EmailSendError(RuntimeError):
     don't want to bubble up to an HTTP response."""
 
 
-async def send_email(*, to: str, subject: str, html: str, text: str) -> None:
+async def send_email(
+    *, to: str, subject: str, html: str, text: str, reply_to: str | None = None
+) -> None:
     """Send a multipart text+html email.
 
     If ``settings.smtp_host`` is empty the function logs a warning and
     returns — this is the local-dev / CI path with no outbound traffic.
+
+    ``reply_to`` overrides :attr:`settings.smtp_reply_to` for this message
+    when given (used by the ``/contact`` form to route replies to the
+    submitter).
     """
     to_domain = to.split("@", 1)[-1] if "@" in to else "unknown"
     if not settings.smtp_host:
@@ -58,8 +70,12 @@ async def send_email(*, to: str, subject: str, html: str, text: str) -> None:
     )
     msg["To"] = to
     msg["Subject"] = subject
-    if settings.smtp_reply_to:
-        msg["Reply-To"] = settings.smtp_reply_to
+    effective_reply_to = reply_to or settings.smtp_reply_to
+    if effective_reply_to:
+        # Header-injection safety: EmailMessage rejects \r/\n in header
+        # values, and the only caller passing a user-supplied reply_to
+        # (the /contact form) validates it as an EmailStr first.
+        msg["Reply-To"] = effective_reply_to
     msg.set_content(text)
     msg.add_alternative(html, subtype="html")
 

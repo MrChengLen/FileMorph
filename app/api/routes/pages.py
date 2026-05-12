@@ -60,6 +60,23 @@ async def security_page(request: Request):
     return _render(request, "security.html")
 
 
+@router.get("/contact")
+async def contact_page(request: Request):
+    # Ungated — the Impressum links here (DDG §5 second contact channel),
+    # and the form is useful for self-hosters who set
+    # CONTACT_FORM_RECIPIENT_EMAIL. When nothing is configured,
+    # ``contact_email`` is "" and the template hides the "email us
+    # directly" line; the form still renders (the POST then no-ops the
+    # email, same as /forgot-password without SMTP).
+    contact_email = (
+        settings.contact_form_recipient_email
+        or settings.smtp_reply_to
+        or settings.smtp_from_email
+        or ""
+    )
+    return _render(request, "contact.html", contact_email=contact_email)
+
+
 @router.get("/login")
 async def login_page(request: Request):
     return _render(request, "login.html")
