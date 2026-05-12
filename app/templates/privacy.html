@@ -53,12 +53,12 @@
 
   <section class="space-y-3">
     <h2 class="text-base font-semibold text-white">{{ _('6. No cookies, no tracking') }}</h2>
-    <p>{{ _('FileMorph sets') }} <strong class="text-gray-200">{{ _('no cookies') }}</strong> {{ _('on its own domain and runs no tracking or analytics scripts. A small number of keys are written to your browser\'s') }} <code class="text-gray-400">localStorage</code> {{ _('only while you are signed in:') }}</p>
+    <p>{{ _('FileMorph sets') }} <strong class="text-gray-200">{{ _('no cookies') }}</strong> {{ _('on its own domain and runs no tracking or analytics scripts. German law (§ 25 TTDSG) treats your browser\'s') }} <code class="text-gray-400">localStorage</code> {{ _('the same as cookies, so the few keys we write there while you are signed in are listed in full:') }}</p>
     <ul class="list-disc list-inside space-y-1 text-gray-400">
       <li><code class="text-gray-300">fm_access_token</code> / <code class="text-gray-300">fm_refresh_token</code> — {{ _('your JWT session tokens; strictly necessary to keep you signed in.') }}</li>
       <li><code class="text-gray-300">filemorph_api_key</code> — {{ _('optional; remembers the API key shown in your dashboard across reloads so you don\'t need to paste it again. Cleared on logout.') }}</li>
     </ul>
-    <p>{{ _('These entries fall under the "strictly necessary" exemption of Art. 5(3) ePrivacy Directive / § 25 Abs. 2 Nr. 2 TTDSG and therefore do not require a consent banner. For anonymous usage, nothing is stored in your browser at all.') }}</p>
+    <p>{{ _('All of them are strictly necessary to provide the signed-in service you requested, so they fall under the exemption in Art. 5(3) ePrivacy Directive / § 25 Abs. 2 Nr. 2 TTDSG — no consent banner is required. If you are not signed in, nothing at all is stored in your browser.') }}</p>
     <p>{{ _('When you start a paid-tier upgrade, you are redirected to Stripe Checkout on the') }} <code class="text-gray-400">stripe.com</code> {{ _('domain, which sets its own cookies. That is outside FileMorph\'s control and is governed by') }} <a href="https://stripe.com/privacy" class="text-brand hover:underline" target="_blank" rel="noopener noreferrer">{{ _('Stripe\'s privacy policy') }}</a>.</p>
     <p>{{ _('Our pages load') }} <strong class="text-gray-200">{{ _('no external resources') }}</strong>. {{ _('All CSS (including Tailwind), JavaScript, fonts, and images are served from the FileMorph domain; your browser never contacts a third-party CDN to render the site.') }}</p>
   </section>
