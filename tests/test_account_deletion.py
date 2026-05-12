@@ -635,3 +635,26 @@ def test_deleted_password_sentinel_is_bcrypt_rejected():
     # bcrypt cannot parse it → verify returns False without raising.
     assert verify_password("anything", s1) is False
     assert verify_password("", s1) is False
+
+
+# ── Dashboard: the "Danger zone" control ──────────────────────────────────────
+
+
+def test_dashboard_renders_danger_zone(client):
+    """The Danger Zone card + the three-field confirm form are in the
+    /dashboard markup. Server-side /dashboard is unauthenticated (the JS
+    does the auth redirect), so a bare GET returns the rendered template.
+    The danger-button recipe is pinned so a macro refactor can't quietly
+    re-style the destructive control."""
+    res = client.get("/dashboard")
+    assert res.status_code == 200
+    text = res.text
+    assert 'id="delete-account-btn"' in text
+    assert 'id="delete-confirm-form"' in text
+    assert 'id="delete-confirm-submit"' in text
+    assert 'id="delete-confirm-email"' in text
+    assert 'id="delete-confirm-password"' in text
+    assert 'id="delete-confirm-word"' in text
+    # The danger variant of the button macro: red outline, no hover.
+    assert 'data-variant="danger"' in text
+    assert "border border-red-900 text-red-400" in text

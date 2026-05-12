@@ -6,6 +6,8 @@
    variant — primary  : solid brand
              secondary: hairline outline
              ghost    : text-only
+             danger   : red outline, no hover — destructive actions
+                        (e.g. the dashboard "Delete account" flow)
    size    — sm | md | lg
    disabled — adds aria-disabled + disabled attribute, mutes colours,
               removes hover. For href variants, the link still
@@ -29,6 +31,8 @@
   {%- set variant_cls = 'border border-hairline text-ink hover:border-brand hover:text-ink' -%}
 {%- elif variant == 'ghost' -%}
   {%- set variant_cls = 'text-ink-muted hover:text-ink' -%}
+{%- elif variant == 'danger' -%}
+  {%- set variant_cls = 'border border-red-900 text-red-400' -%}
 {%- else -%}
   {%- set variant_cls = 'bg-brand text-white hover:bg-brand-dark' -%}
 {%- endif -%}
