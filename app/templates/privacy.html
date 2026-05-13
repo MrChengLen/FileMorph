@@ -6,7 +6,7 @@
   <div>
     <a href="{{ localized_url('/', current_prefix) }}" class="text-sm text-gray-500 hover:text-gray-300 transition-colors">{{ _('← Back') }}</a>
     <h1 class="text-2xl font-bold mt-4 text-white">{{ _('Privacy Policy') }}</h1>
-    <p class="text-xs text-gray-500 mt-1">{{ _('Last updated: 2026-04-23 · Community + Cloud Edition') }}</p>
+    <p class="text-xs text-gray-500 mt-1">{{ _('Last updated: 2026-05-12 · Community + Cloud Edition') }}</p>
   </div>
 
   <section class="space-y-3">
@@ -25,11 +25,12 @@
     <p><strong class="text-gray-200">{{ _('2c. Transactional emails:') }}</strong> {{ _('When you request a password reset, we generate a single-use token (valid for 30 minutes) and send it to your registered email address as a reset link. The outgoing message is delivered from') }} <code class="text-gray-400">no-reply@filemorph.io</code> {{ _('via our email provider (see § 3a). We do not send marketing emails.') }}</p>
     <p><strong class="text-gray-200">{{ _('2d. Server logs:') }}</strong> {{ _('Our web server automatically records standard access log data for each request: IP address, request timestamp, HTTP method, URL path, response status code, and response size. Application-level events (logins, password-reset requests, subscription changes) are logged as structured JSON without plaintext email addresses — only the email domain is kept for debug purposes. Logs are rotated by the hosting infrastructure under standard operational policies (typically up to 30 days) and accessed only for security, abuse-detection, and debugging.') }}</p>
     <p><strong class="text-gray-200">{{ _('2e. API keys:') }}</strong> {{ _('If you generate an API key (via the dashboard or command-line tool), only the SHA-256 hash of your key is stored. The plaintext key is shown to you exactly once at creation time and is never persisted on our servers.') }}</p>
+    <p><strong class="text-gray-200">{{ _('2f. Contact form submissions:') }}</strong> {{ _('If you use the contact form (also linked from our Impressum), we process your message text, your email address, and an optional name solely to handle your inquiry. The message is not stored in our database — it is delivered to the operator by email (via the provider in § 3a) and kept only as long as needed to deal with your request. Legal basis: Art. 6(1)(f) GDPR (handling inquiries), or Art. 6(1)(b) GDPR where it concerns an existing contract. We do not use it for marketing.') }}</p>
   </section>
 
   <section class="space-y-3">
     <h2 class="text-base font-semibold text-white">{{ _('3. Legal basis (GDPR Art. 6)') }}</h2>
-    <p>{{ _('Account creation, paid subscriptions, and transactional emails are processed on the basis of Art. 6(1)(b) GDPR (performance of a contract). Server-log processing, rate-limiting, and abuse prevention are based on our legitimate interest (Art. 6(1)(f) GDPR) in operating a secure and reliable service.') }}</p>
+    <p>{{ _('Account creation, paid subscriptions, and transactional emails are processed on the basis of Art. 6(1)(b) GDPR (performance of a contract). Server-log processing, rate-limiting, abuse prevention, and handling inquiries you send us are based on our legitimate interest (Art. 6(1)(f) GDPR) in operating a secure and reliable service.') }}</p>
   </section>
 
   <section class="space-y-3">

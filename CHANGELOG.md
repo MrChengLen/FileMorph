@@ -15,6 +15,26 @@ and Anwaltskanzleien expect. None of this changes the existing public
 API behaviour for casual callers — every change is additive, defaulted
 off where applicable, and optional at deploy time.
 
+### Added — Public contact form (German Impressum, DDG §5)
+
+- `/contact` page with a contact form (de / en / x-default). Submissions
+  are emailed to the operator with `Reply-To` set to the sender so a
+  reply goes straight back; **the message is not persisted** — only a
+  hashed-email audit event (`contact.message.received`) is recorded.
+  Anti-spam: a hidden honeypot field + a `5/hour` per-IP rate limit; no
+  external captcha (keeps the "no external resources" privacy promise).
+  New `app/api/routes/contact.py`, `app/templates/contact.html`,
+  `app/static/js/contact.js`, `app/templates/_components/textarea.html`.
+- The Impressum now lists the contact form as a second, fast-direct
+  contact channel alongside the email address (German DDG §5 + ECJ
+  C-298/07) and cites the current statute (`§ 5 DDG`) instead of the
+  repealed `§ 5 TMG`. The footer gained a "Contact" link.
+- Privacy policy: new § 2f documents the contact-form data flow
+  (Art. 6(1)(f) GDPR, not persisted); § 3 extended accordingly.
+- New env var `CONTACT_FORM_RECIPIENT_EMAIL` (optional; falls back to
+  `SMTP_REPLY_TO` → `SMTP_FROM_EMAIL`). `app.core.email.send_email()`
+  gained an optional `reply_to` parameter. `/contact` is in the sitemap.
+
 ### Added — Trust foundation (NEU-A)
 
 - `security.txt` (RFC 9116) under `/.well-known/security.txt` plus a

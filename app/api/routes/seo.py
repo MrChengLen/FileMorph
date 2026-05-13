@@ -27,6 +27,7 @@ _BASE_ROUTES: list[tuple[str, str]] = [
     ("/privacy", "0.3"),
     ("/terms", "0.3"),
     ("/impressum", "0.3"),
+    ("/contact", "0.3"),
 ]
 
 
