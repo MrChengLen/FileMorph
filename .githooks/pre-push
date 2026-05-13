@@ -15,7 +15,7 @@ set -e
 ZERO=0000000000000000000000000000000000000000
 
 # Same patterns as pre-commit — keep in sync.
-ALLOW_RE='^(app/templates/(impressum|privacy|terms)\.html|COMMERCIAL-LICENSE\.md|docs/gdpr-account-deletion-design\.md|docs/api-usage-guide\.md|docs/self-hosting\.md|docs/dpa-template\.md|docs/email-setup\.md|docs-internal/.*|\.githooks/.*|\.github/workflows/scope-guard\.yml|CHANGELOG\.md|locale/.*\.(po|pot|mo)|\.env\.example)$'
+ALLOW_RE='^(app/templates/(impressum|privacy|terms)\.html|COMMERCIAL-LICENSE\.md|docs/gdpr-account-deletion-design\.md|docs/api-usage-guide\.md|docs/self-hosting\.md|docs/dpa-template\.md|docs/email-setup\.md|docs-internal/.*|\.githooks/.*|\.github/workflows/scope-guard\.yml|\.github/workflows/notify-ops\.yml|CHANGELOG\.md|locale/.*\.(po|pot|mo)|\.env\.example)$'
 PATTERNS='lennart\.seidel@icloud\.com|lennart@filemorph\.io|Reetwerder|21029 Hamburg'
 OPS_PATTERNS='/opt/filemorph(/|$|[[:space:]])|/var/log/filemorph|/home/deploy([[:space:]]|/)|Hetzner CX|HETZNER_HOST|HETZNER_SSH_USER|HETZNER_SSH_KEY|OPS_REPO_DISPATCH_PAT|GHCR_PAT|appleboy/ssh-action'
 SECRET_ASSIGN='(JWT_SECRET|SMTP_PASSWORD|STRIPE_SECRET_KEY|STRIPE_WEBHOOK_SECRET|DATABASE_URL|API_KEY|POSTGRES_PASSWORD|GHCR_PAT|OPS_REPO_DISPATCH_PAT|HETZNER_SSH_KEY)[[:space:]]*=[[:space:]]*[^[:space:]$]'

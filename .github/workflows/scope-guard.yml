@@ -68,6 +68,7 @@ jobs:
             ':!.githooks/pre-commit' \
             ':!.githooks/pre-push' \
             ':!.github/workflows/scope-guard.yml' \
+            ':!.github/workflows/notify-ops.yml' \
             | grep -E "^\+" | grep -Ev "^\+\+\+" || true)
           PATTERN='/opt/filemorph(/|$|[[:space:]])|/var/log/filemorph|/home/deploy([[:space:]]|/)|Hetzner CX|HETZNER_HOST|HETZNER_SSH_USER|HETZNER_SSH_KEY|OPS_REPO_DISPATCH_PAT|GHCR_PAT|appleboy/ssh-action|lennart\.seidel@icloud\.com|lennart@filemorph\.io'
           MATCHES=$(echo "$ADDED" | grep -E "$PATTERN" || true)
