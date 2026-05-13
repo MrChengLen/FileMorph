@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 import asyncio
 import glob
 import logging
@@ -347,7 +348,7 @@ async def limit_upload_size(request: Request, call_next):
         content_length = request.headers.get("content-length")
         if content_length and int(content_length) > settings.max_upload_size_bytes:
             return JSONResponse(
-                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                status_code=status.HTTP_413_CONTENT_TOO_LARGE,
                 content={
                     "detail": f"File too large. Maximum size: {settings.max_upload_size_mb} MB"
                 },

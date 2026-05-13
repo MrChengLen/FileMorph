@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 import asyncio
 import logging
 import shutil
@@ -75,7 +76,7 @@ async def _do_compress(
 
     if ext not in IMAGE_FMTS and ext not in VIDEO_FMTS:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"Compression not supported for '.{ext}'. Supported: {IMAGE_FMTS + VIDEO_FMTS}",
         )
 
@@ -93,7 +94,7 @@ async def _do_compress(
             )
         else:
             detail = f"File too large ({limit_mb} MB max for your plan). Upgrade for larger files."
-        raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail=detail)
+        raise HTTPException(status_code=status.HTTP_413_CONTENT_TOO_LARGE, detail=detail)
 
     # PR-M: monthly API-call quota gate. See app/core/usage.py.
     await enforce_monthly_quota(user)
@@ -111,7 +112,7 @@ async def _do_compress(
         if target_bytes > quota.output_cap_bytes:
             cap_kb = quota.output_cap_bytes // 1024
             raise HTTPException(
-                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                status_code=status.HTTP_413_CONTENT_TOO_LARGE,
                 detail=(
                     f"Target size {target_size_kb} KB exceeds tier output cap of {cap_kb} KB. "
                     "Upgrade your plan for larger outputs."
@@ -192,7 +193,7 @@ async def _do_compress(
                 },
             )
             raise HTTPException(
-                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                status_code=status.HTTP_413_CONTENT_TOO_LARGE,
                 detail=(
                     f"Output too large ({out_mb} MB > {cap_mb} MB cap). "
                     "Lower the quality or upgrade your plan."
@@ -354,7 +355,7 @@ async def _do_compress_batch(
         if target_bytes > quota.output_cap_bytes:
             cap_kb = quota.output_cap_bytes // 1024
             raise HTTPException(
-                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                status_code=status.HTTP_413_CONTENT_TOO_LARGE,
                 detail=(
                     f"Target size {target_size_kb} KB exceeds tier output cap of {cap_kb} KB. "
                     "Upgrade your plan for larger outputs."
@@ -483,7 +484,7 @@ async def _do_compress_batch(
 
     if summary["succeeded"] == 0:
         return JSONResponse(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             content=batch_error_response(results, summary),
         )
 
