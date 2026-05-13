@@ -1,10 +1,12 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 from pydantic import BaseModel
 
 
 class HealthResponse(BaseModel):
+    # Liveness only — no version or codec info on this unauthenticated
+    # endpoint (PT-011). /ready carries operational state; the running
+    # version is the deployed image tag.
     status: str
-    version: str
-    ffmpeg_available: bool
 
 
 class ReadinessResponse(BaseModel):
