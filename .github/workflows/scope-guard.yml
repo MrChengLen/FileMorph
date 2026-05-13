@@ -65,6 +65,10 @@ jobs:
             ':!COMMERCIAL-LICENSE.md' \
             ':!docs/gdpr-account-deletion-design.md' \
             ':!docs/api-usage-guide.md' \
+            ':!docs/dpa-template.md' \
+            ':!docs/dpa-tom-annex.md' \
+            ':!docs/records-of-processing-template.md' \
+            ':!docs/commercial-license-agreement-template.md' \
             ':!.githooks/pre-commit' \
             ':!.githooks/pre-push' \
             ':!.github/workflows/scope-guard.yml' \
