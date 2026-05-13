@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 from fastapi import Header, HTTPException, status
 
 from app.core.security import validate_api_key

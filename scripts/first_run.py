@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Called by entrypoint.sh on first run.
 Generates an API key and prints ONLY the key to stdout.
 All other output must go to stderr to avoid corrupting the captured value.

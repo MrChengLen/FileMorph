@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Security regression tests — covers A-1, A-3, A-4, A-5, A-7 and v1.0.2 fixes."""
 
 import re

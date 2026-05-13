@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Unit tests for core security, utilities, and quota definitions."""
 
 import inspect

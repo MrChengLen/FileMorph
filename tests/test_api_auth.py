@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 def test_health_no_auth(client):
     """Health endpoint is public (no auth required)."""
     res = client.get("/api/v1/health")

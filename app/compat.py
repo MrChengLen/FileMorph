@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """
 Runtime compatibility layer for PyInstaller frozen builds vs. normal Python execution.
 
