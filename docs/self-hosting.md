@@ -30,7 +30,6 @@ Edit `.env` for production:
 APP_HOST=0.0.0.0
 APP_PORT=8000
 APP_DEBUG=false
-APP_VERSION=1.0.0
 
 API_KEYS_FILE=data/api_keys.json
 
