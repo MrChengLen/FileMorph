@@ -45,6 +45,13 @@ vulnerability reports as public GitHub issues.
 We publish an advisory once a fixed release is available and credit the
 reporter unless they request otherwise.
 
+These targets apply to **vulnerability reports from anyone**, paid or not.
+Compliance Edition licensees can additionally contract a **support SLA** for
+non-security issues (deployment, configuration, defects) — the framework is in
+[`docs/support-sla.md`](docs/support-sla.md), the figures are set per agreement.
+A paid SLA buys priority *attention*; it does not change the security-fix clock
+above, which applies to everyone.
+
 ## Scope
 
 **In scope:**

@@ -220,7 +220,10 @@ serious dunning behaviour can be implemented.
 Because FileMorph is AGPLv3 with a commercial-relicensing option,
 the license of every direct dependency matters. The table below
 captures what's currently in the tree; if you add a new dependency,
-update this row in the same PR.
+update this row in the same PR. The procurement-facing version of
+this — the commercial-grant implications, the native-layer (FFmpeg /
+libheif) caveats, and the machine-readable SBOM — is in
+[`third-party-licenses.md`](./third-party-licenses.md).
 
 | Library | License | Notes |
 |---|---|---|
@@ -228,14 +231,16 @@ update this row in the same PR.
 | Uvicorn, python-multipart | BSD-3-Clause | Permissive. |
 | Jinja2, MarkupSafe | BSD-3-Clause | Permissive. |
 | Pillow | HPND (BSD-style) | Permissive. |
-| pillow-heif | Apache-2.0 (wrapper) over LGPL `libheif` | Wrapper is Apache-2.0; the underlying `libheif` is LGPL — separate-wheel install keeps the boundary clean. |
+| pillow-heif | wheel metadata: GPLv2 (bundled native HEVC stack) | The distributed wheels bundle `libheif`/`libde265` (LGPL-3.0) **+ `x265` (GPL-2.0+)**, and the metadata reflects the most-restrictive component. FileMorph uses it for HEIC *decode* only (the `libde265` path); `x265` is present but never invoked. An automated scan **will** flag this — explanation and the GPL-free build option in [`third-party-licenses.md`](./third-party-licenses.md). |
+| mammoth | BSD-2-Clause | Permissive (.docx → HTML for the conversion path). |
 | python-docx | MIT | Permissive. |
 | pypdf | BSD-3-Clause | Permissive (clean fork from PyPDF2's BSD heritage). |
 | reportlab | BSD-3-Clause (Open Source Edition) | Commercial Plus edition exists but we use OSE. |
+| pikepdf | MPL-2.0 (wheels bundle `qpdf`, Apache-2.0) | File-level (weak) copyleft — fine for closed-source embedding; shipped unmodified. Used for PDF/A-2b output. |
 | WeasyPrint | BSD-3-Clause | Permissive. |
 | markdown | BSD-3-Clause | Permissive. |
 | openpyxl | MIT | Permissive. |
-| ffmpeg-python | Apache-2.0 (wrapper) over FFmpeg (LGPL/GPL depending on build) | The Python wrapper is Apache-2.0; the FFmpeg binary itself can be built LGPL or GPL — use the LGPL build to keep AGPLv3-compatibility maximally clean. |
+| ffmpeg-python | Apache-2.0 (wrapper) over FFmpeg | Wrapper is Apache-2.0; the Docker image ships Debian's **GPL** FFmpeg build, invoked as a *separate program* (does not infect FileMorph's own license). An LGPL-only FFmpeg build is the option for a GPL-free artifact — see [`third-party-licenses.md`](./third-party-licenses.md). |
 | pydub | MIT | Permissive. |
 | python-dotenv | BSD-3-Clause | Permissive. |
 | slowapi | MIT | Permissive. |
@@ -246,11 +251,21 @@ update this row in the same PR.
 | email-validator | The Unlicense / CC0 | Public-domain-equivalent. |
 | aiosmtplib | MIT | Permissive. |
 | stripe | MIT | Permissive. |
+| Babel | BSD-3-Clause | Permissive (i18n message catalogs). |
 
-Everything in the current tree is either permissive (MIT, BSD,
-Apache-2.0) or LGPL via a wrapper boundary. There is no GPLv3-only
-or AGPLv3 dependency that would constrain downstream users. If a
-future PR brings one in, this table is the place to flag it.
+Everything in the current runtime tree is permissive (MIT, BSD,
+Apache-2.0, ISC, Unlicense/CC0, PSF, MIT-CMU) or weak/file-level
+copyleft (MPL-2.0: `pikepdf`, `certifi`). There is no GPL/AGPL
+strong-copyleft Python dependency that would constrain downstream
+users. The copyleft that exists is at the edges and documented in
+[`third-party-licenses.md`](./third-party-licenses.md): `pillow-heif`'s
+wheel bundles a GPL-2.0+ HEVC encoder it never invokes (HEIC decode
+only), the Docker image's FFmpeg is Debian's GPL build (a separate
+program, not linked in), and `pyinstaller` (GPLv2 + bundling
+exception) is a desktop-build tool that ships in neither the image
+nor the server requirements. None of these constrains FileMorph's
+dual-license offering. If a future PR brings in a GPL/AGPL Python
+dependency, this table and that doc are the place to flag it.
 
 ---
 

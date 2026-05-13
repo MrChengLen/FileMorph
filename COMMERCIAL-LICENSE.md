@@ -38,11 +38,12 @@ product without disclosing your changes.
 - Right to integrate FileMorph source or binaries into a proprietary product
 - Right to offer FileMorph-as-a-Service without publishing modifications
 - Priority response on security advisories
-- Support SLA tier per the commercial agreement
+- Support SLA per the commercial agreement — response windows, coverage hours, and escalation are set individually; see [`docs/support-sla.md`](docs/support-sla.md) for the framework (severity model, what an agreement covers)
 
 ## What a Commercial License does *not* remove
 
 - Copyright attribution to FileMorph contributors must be preserved in source files
+- Third-party open-source components keep their own licenses — see [`docs/third-party-licenses.md`](docs/third-party-licenses.md) (all permissive or MPL-2.0; the commercial licence does not, and need not, relicense them; two native-layer caveats are noted there for anyone redistributing the Docker image)
 - Warranty disclaimer and liability limitation apply as in any commercial software contract
 - You may not redistribute the commercial-licensed build as AGPL or open source
 
@@ -65,12 +66,19 @@ for a back-end file-conversion service.
 | **Compliance Enterprise** | unlimited servers, dedicated onboarding, custom SLA | from € 24.900 |
 | **OEM / white-label** | Embed + redistribute inside your own product | Case-by-case |
 
+What "dedicated onboarding" (and the lighter onboarding at the other
+tiers) includes — kickoff call, deployment-architecture review, DPA +
+"Annex II — TOM" finalisation, security-questionnaire answers, and a
+tailored deployment-readiness checklist plus post-go-live check-ins at
+the Enterprise tier — is defined in [`docs/onboarding.md`](docs/onboarding.md).
+
 KRITIS- and air-gap-deployment variants are negotiated case-by-case and
 include offline-update tooling, dedicated 4-hour reaction-time SLA, and
 patch-backports onto a fixed version line. These tiers are not generally
 quoted before an external pen-test report is on file — see
 [`docs/patch-policy.md`](docs/patch-policy.md) for the release-line and
-patching cadence.
+patching cadence, and [`docs/support-sla.md`](docs/support-sla.md) for the
+support framework (the SLA itself is set per agreement, not published).
 
 > Note: the SaaS plans on [filemorph.io/pricing](https://filemorph.io/pricing) (Pro / Business)
 > are a separate offering — usage of the hosted API. The tiers above license the
@@ -88,7 +96,10 @@ deployment scope to:
 **licensing@filemorph.io**
 
 A commercial agreement, invoice, and activation details are provided within
-two business days.
+two business days. The signature-ready agreement template — the structure of
+that "commercial agreement", with the Schedules filled in per deal — is
+[`docs/commercial-license-agreement-template.md`](docs/commercial-license-agreement-template.md),
+published for procurement review (have it reviewed by counsel before signing).
 
 ---
 
