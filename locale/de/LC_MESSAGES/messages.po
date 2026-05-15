@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-05-15 10:34+0200\n"
+"POT-Creation-Date: 2026-05-15 13:15+0200\n"
 "PO-Revision-Date: 2026-05-08 11:00+0200\n"
 "Last-Translator: FileMorph <hallo@filemorph.io>\n"
 "Language: de\n"
@@ -212,6 +212,9 @@ msgstr "API-Key-Verwaltung"
 msgid "API key — "
 msgstr "API-Key — "
 
+msgid "Account active"
+msgstr "Konto aktiv"
+
 #, fuzzy
 msgid ""
 "Account creation, paid subscriptions, and transactional emails are "
@@ -243,8 +246,23 @@ msgstr ""
 msgid "Acknowledgement:"
 msgstr "Bestätigung:"
 
+msgid "Actions"
+msgstr "Aktionen"
+
+msgid "Active"
+msgstr "Aktiv"
+
+msgid "Admin Cockpit"
+msgstr "Admin-Cockpit"
+
+msgid "Admin access required."
+msgstr "Admin-Berechtigung erforderlich."
+
 msgid "Affected version (commit hash or release tag if known)."
 msgstr "Betroffene Version (Commit-Hash oder Release-Tag, falls bekannt)."
+
+msgid "Aggregated counters — no personal data, no cookies."
+msgstr "Aggregierte Zähler — keine personenbezogenen Daten, keine Cookies."
 
 msgid ""
 "All CSS (including Tailwind), JavaScript, fonts, and images are served "
@@ -288,6 +306,21 @@ msgstr ""
 "Eine Orientierung über die in DACH-RFPs gängigen Anbieter-Kategorien. Im "
 "Einzelfall kann ein konkretes Produkt mehr leisten — bitte individuell "
 "prüfen."
+
+msgid "Analytics time range"
+msgstr "Analytics-Zeitraum"
+
+msgid "Anonymous analytics"
+msgstr "Anonyme Analytics"
+
+msgid "Any role"
+msgstr "Alle Rollen"
+
+msgid "Any status"
+msgstr "Alle Status"
+
+msgid "Any tier"
+msgstr "Alle Tiers"
 
 msgid "Apply as design partner"
 msgstr "Als Design-Partner bewerben"
@@ -344,6 +377,9 @@ msgid ""
 msgstr ""
 "Mit der Nutzung von FileMorph (dem „Dienst“) stimmst du diesen "
 "Nutzungsbedingungen zu. Falls du nicht zustimmst, nutze den Dienst nicht."
+
+msgid "Cancel"
+msgstr "Abbrechen"
 
 msgid "Choose a password you haven't used before"
 msgstr "Wähle ein Passwort, das du vorher noch nicht verwendet hast"
@@ -462,6 +498,13 @@ msgstr "Kopieren"
 msgid "Copy this key now — it will not be shown again."
 msgstr "Kopiere diesen Key jetzt — er wird nicht erneut angezeigt."
 
+msgid ""
+"Could not load analytics — check server logs. The metrics pipeline may be"
+" misconfigured."
+msgstr ""
+"Analytics konnten nicht geladen werden — Server-Logs prüfen. Die Metrics-"
+"Pipeline ist möglicherweise falsch konfiguriert."
+
 msgid "Create Account"
 msgstr "Konto erstellen"
 
@@ -488,6 +531,9 @@ msgstr "Dashboard"
 
 msgid "Data Processing Agreement (DPA)"
 msgstr "Auftragsverarbeitungs-Vertrag (AVV)"
+
+msgid "Deactivated"
+msgstr "Deaktiviert"
 
 msgid "Dedicated onboarding"
 msgstr "Dediziertes Onboarding"
@@ -525,6 +571,9 @@ msgstr "EU-Vendor mit deutschem Impressum"
 msgid "Early expiration of the right of withdrawal:"
 msgstr "Vorzeitiges Erlöschen des Widerrufsrechts:"
 
+msgid "Edit user"
+msgstr "Nutzer bearbeiten"
+
 msgid "Editorial responsibility"
 msgstr "Inhaltlich Verantwortlicher"
 
@@ -561,6 +610,9 @@ msgstr ""
 "Externe ISO 27001-Zertifizierung und externer Pen-Test sind als Year-2"
 "-Roadmap-Items eingeplant — beide werden umgesetzt, sobald der erste "
 "zahlende Pilot den Aufwand betriebswirtschaftlich rechtfertigt."
+
+msgid "Failure rate (today)"
+msgstr "Fehlerrate (heute)"
 
 msgid "File Converter & Compressor"
 msgstr "Datei-Konverter & -Kompressor"
@@ -888,6 +940,9 @@ msgstr ""
 msgid "JPEG / WebP only."
 msgstr "Nur JPEG / WebP."
 
+msgid "Joined"
+msgstr "Beigetreten"
+
 msgid ""
 "KRITIS and air-gap variants on request. All tiers include commercial "
 "license, DPA template, signed Docker image and support SLA."
@@ -966,6 +1021,9 @@ msgstr "Name (optional)"
 msgid "New password"
 msgstr "Neues Passwort"
 
+msgid "Next →"
+msgstr "Weiter →"
+
 msgid "No account?"
 msgstr "Kein Konto?"
 
@@ -1011,6 +1069,9 @@ msgstr ""
 
 msgid "Out of scope:"
 msgstr "Nicht im Geltungsbereich:"
+
+msgid "Overview"
+msgstr "Übersicht"
 
 msgid "PDF/A-2b output"
 msgstr "PDF/A-2b-Output"
@@ -1206,6 +1267,12 @@ msgstr ""
 msgid "Responsible party"
 msgstr "Verantwortlich"
 
+msgid "Return to home"
+msgstr "Zurück zur Startseite"
+
+msgid "Role"
+msgstr "Rolle"
+
 msgid "SHA-256 audit log"
 msgstr "SHA-256-Audit-Log"
 
@@ -1222,11 +1289,17 @@ msgstr "STRIDE-Threat-Model"
 msgid "Safe-harbour"
 msgstr "Safe-Harbour"
 
+msgid "Save"
+msgstr "Speichern"
+
 msgid "Saved API keys & dashboard"
 msgstr "Gespeicherte API-Keys & Dashboard"
 
 msgid "Scope"
 msgstr "Geltungsbereich"
+
+msgid "Search email…"
+msgstr "E-Mail suchen …"
 
 msgid "Security Disclosure Policy"
 msgstr "Security-Disclosure-Policy"
@@ -1281,6 +1354,15 @@ msgstr ""
 msgid "Set a new password"
 msgstr "Neues Passwort festlegen"
 
+msgid "Show last 30 days"
+msgstr "Letzte 30 Tage anzeigen"
+
+msgid "Show last 7 days"
+msgstr "Letzte 7 Tage anzeigen"
+
+msgid "Show last 90 days"
+msgstr "Letzte 90 Tage anzeigen"
+
 msgid "Sign In"
 msgstr "Anmelden"
 
@@ -1292,6 +1374,9 @@ msgstr "Signiertes Image + SBOM"
 
 msgid "Signed releases + SBOM"
 msgstr "Signierte Releases + SBOM"
+
+msgid "Signups over time"
+msgstr "Registrierungen über Zeit"
 
 msgid "Simple, transparent pricing"
 msgstr "Einfache, transparente Preise"
@@ -1512,6 +1597,12 @@ msgstr "Menü umschalten"
 msgid "Too many attempts. Please try again later."
 msgstr "Zu viele Versuche. Bitte versuche es später erneut."
 
+msgid "Top conversion pairs (transforms only)"
+msgstr "Top-Format-Paare (nur Transforms)"
+
+msgid "Tracking disabled — set"
+msgstr "Tracking deaktiviert — setze"
+
 msgid "Trust basis before contract"
 msgstr "Vertrauensbasis vor dem Vertrag"
 
@@ -1555,6 +1646,9 @@ msgstr ""
 msgid "Use these to authenticate programmatic API requests."
 msgstr "Verwende diese zur Authentifizierung programmatischer API-Anfragen."
 
+msgid "Users"
+msgstr "Nutzer"
+
 msgid "Using anonymously: up to 20 MB per file."
 msgstr "Anonyme Nutzung: bis zu 20 MB pro Datei."
 
@@ -1564,6 +1658,9 @@ msgid ""
 msgstr ""
 "Ohne Konto verwenden: bis zu 20 MB pro Datei · einzelne Dateien · 10 "
 "Anfragen/Minute · kein API-Zugriff"
+
+msgid "Verifying admin access…"
+msgstr "Prüfe Admin-Berechtigung …"
 
 msgid ""
 "We apply a temporary in-memory rate limit (max. 10 requests per minute "
@@ -1718,6 +1815,9 @@ msgstr ""
 "Sie evaluieren Konvertierungs-Software für eine Behörde, ein Krankenhaus "
 "oder eine Kanzlei? Schreiben Sie uns mit Ihrem Use-Case — wir antworten "
 "innerhalb eines Werktages."
+
+msgid "Your account does not have the admin role."
+msgstr "Dieses Konto hat keine Admin-Rolle."
 
 msgid "Your email is now verified."
 msgstr "Deine E-Mail-Adresse ist jetzt bestätigt."
@@ -1889,6 +1989,9 @@ msgstr ""
 " Stripes Auftragsverarbeitungsvertrag gedeckt. Rechtsgrundlage: Art. "
 "6(1)(b) DSGVO. Siehe"
 
+msgid "to enable."
+msgstr "zum Aktivieren."
+
 msgid "unlimited servers, dedicated onboarding, custom SLA"
 msgstr "unbegrenzte Server, dediziertes Onboarding, Custom-SLA"
 
@@ -1944,6 +2047,12 @@ msgid "— select a file first —"
 msgstr "— erst eine Datei wählen —"
 
 msgid "← Back"
+msgstr "← Zurück"
+
+msgid "← Back to FileMorph"
+msgstr "← Zurück zu FileMorph"
+
+msgid "← Prev"
 msgstr "← Zurück"
 
 #~ msgid ""

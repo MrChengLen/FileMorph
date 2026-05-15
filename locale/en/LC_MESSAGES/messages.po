@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-05-15 10:34+0200\n"
+"POT-Creation-Date: 2026-05-15 13:15+0200\n"
 "PO-Revision-Date: 2026-05-07 13:43+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -199,6 +199,9 @@ msgstr ""
 msgid "API key — "
 msgstr ""
 
+msgid "Account active"
+msgstr ""
+
 msgid ""
 "Account creation, paid subscriptions, and transactional emails are "
 "processed on the basis of Art. 6(1)(b) GDPR (performance of a contract). "
@@ -220,7 +223,22 @@ msgstr ""
 msgid "Acknowledgement:"
 msgstr ""
 
+msgid "Actions"
+msgstr ""
+
+msgid "Active"
+msgstr ""
+
+msgid "Admin Cockpit"
+msgstr ""
+
+msgid "Admin access required."
+msgstr ""
+
 msgid "Affected version (commit hash or release tag if known)."
+msgstr ""
+
+msgid "Aggregated counters — no personal data, no cookies."
 msgstr ""
 
 msgid ""
@@ -251,6 +269,21 @@ msgid ""
 "An orientation about the provider categories common in DACH RFPs. In "
 "individual cases, a specific product may do more — please check "
 "individually."
+msgstr ""
+
+msgid "Analytics time range"
+msgstr ""
+
+msgid "Anonymous analytics"
+msgstr ""
+
+msgid "Any role"
+msgstr ""
+
+msgid "Any status"
+msgstr ""
+
+msgid "Any tier"
 msgstr ""
 
 msgid "Apply as design partner"
@@ -303,6 +336,9 @@ msgstr ""
 msgid ""
 "By using FileMorph (the \"Service\"), you agree to these Terms of Use. If"
 " you do not agree, do not use the Service."
+msgstr ""
+
+msgid "Cancel"
 msgstr ""
 
 msgid "Choose a password you haven't used before"
@@ -412,6 +448,11 @@ msgstr ""
 msgid "Copy this key now — it will not be shown again."
 msgstr ""
 
+msgid ""
+"Could not load analytics — check server logs. The metrics pipeline may be"
+" misconfigured."
+msgstr ""
+
 msgid "Create Account"
 msgstr ""
 
@@ -434,6 +475,9 @@ msgid "Dashboard"
 msgstr ""
 
 msgid "Data Processing Agreement (DPA)"
+msgstr ""
+
+msgid "Deactivated"
 msgstr ""
 
 msgid "Dedicated onboarding"
@@ -472,6 +516,9 @@ msgstr ""
 msgid "Early expiration of the right of withdrawal:"
 msgstr ""
 
+msgid "Edit user"
+msgstr ""
+
 msgid "Editorial responsibility"
 msgstr ""
 
@@ -502,6 +549,9 @@ msgid ""
 "External ISO 27001 certification and external pen test are planned as "
 "Year-2 roadmap items — both will be implemented as soon as the first "
 "paying pilot economically justifies the effort."
+msgstr ""
+
+msgid "Failure rate (today)"
 msgstr ""
 
 msgid "File Converter & Compressor"
@@ -750,6 +800,9 @@ msgstr ""
 msgid "JPEG / WebP only."
 msgstr ""
 
+msgid "Joined"
+msgstr ""
+
 msgid ""
 "KRITIS and air-gap variants on request. All tiers include commercial "
 "license, DPA template, signed Docker image and support SLA."
@@ -816,6 +869,9 @@ msgstr ""
 msgid "New password"
 msgstr ""
 
+msgid "Next →"
+msgstr ""
+
 msgid "No account?"
 msgstr ""
 
@@ -852,6 +908,9 @@ msgid ""
 msgstr ""
 
 msgid "Out of scope:"
+msgstr ""
+
+msgid "Overview"
 msgstr ""
 
 msgid "PDF/A-2b output"
@@ -1008,6 +1067,12 @@ msgstr ""
 msgid "Responsible party"
 msgstr ""
 
+msgid "Return to home"
+msgstr ""
+
+msgid "Role"
+msgstr ""
+
 msgid "SHA-256 audit log"
 msgstr ""
 
@@ -1022,10 +1087,16 @@ msgstr ""
 msgid "Safe-harbour"
 msgstr ""
 
+msgid "Save"
+msgstr ""
+
 msgid "Saved API keys & dashboard"
 msgstr ""
 
 msgid "Scope"
+msgstr ""
+
+msgid "Search email…"
 msgstr ""
 
 msgid "Security Disclosure Policy"
@@ -1074,6 +1145,15 @@ msgstr ""
 msgid "Set a new password"
 msgstr ""
 
+msgid "Show last 30 days"
+msgstr ""
+
+msgid "Show last 7 days"
+msgstr ""
+
+msgid "Show last 90 days"
+msgstr ""
+
 msgid "Sign In"
 msgstr ""
 
@@ -1084,6 +1164,9 @@ msgid "Signed image + SBOM"
 msgstr ""
 
 msgid "Signed releases + SBOM"
+msgstr ""
+
+msgid "Signups over time"
 msgstr ""
 
 msgid "Simple, transparent pricing"
@@ -1260,6 +1343,12 @@ msgstr ""
 msgid "Too many attempts. Please try again later."
 msgstr ""
 
+msgid "Top conversion pairs (transforms only)"
+msgstr ""
+
+msgid "Tracking disabled — set"
+msgstr ""
+
 msgid "Trust basis before contract"
 msgstr ""
 
@@ -1301,12 +1390,18 @@ msgstr ""
 msgid "Use these to authenticate programmatic API requests."
 msgstr ""
 
+msgid "Users"
+msgstr ""
+
 msgid "Using anonymously: up to 20 MB per file."
 msgstr ""
 
 msgid ""
 "Using without an account: up to 20 MB per file · single file at a time · "
 "10 requests/minute · no API access"
+msgstr ""
+
+msgid "Verifying admin access…"
 msgstr ""
 
 msgid ""
@@ -1425,6 +1520,9 @@ msgid ""
 "You're evaluating conversion software for a public authority, hospital or"
 " law firm? Write to us with your use case — we respond within one "
 "business day."
+msgstr ""
+
+msgid "Your account does not have the admin role."
 msgstr ""
 
 msgid "Your email is now verified."
@@ -1562,6 +1660,9 @@ msgid ""
 "basis: Art. 6(1)(b) GDPR. See"
 msgstr ""
 
+msgid "to enable."
+msgstr ""
+
 msgid "unlimited servers, dedicated onboarding, custom SLA"
 msgstr ""
 
@@ -1610,6 +1711,12 @@ msgid "— select a file first —"
 msgstr ""
 
 msgid "← Back"
+msgstr ""
+
+msgid "← Back to FileMorph"
+msgstr ""
+
+msgid "← Prev"
 msgstr ""
 
 #~ msgid ""

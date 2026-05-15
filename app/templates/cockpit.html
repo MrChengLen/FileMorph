@@ -1,29 +1,29 @@
 {% extends "base.html" %}
 {% import "_components/card.html" as uc %}
-{% block title %}Admin Cockpit — FileMorph{% endblock %}
+{% block title %}{{ _('Admin Cockpit') }} — FileMorph{% endblock %}
 {% block content %}
 <main class="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-8">
 
   <div class="flex items-center justify-between">
     <div>
-      <h1 class="text-h-sect text-ink">Admin Cockpit</h1>
+      <h1 class="text-h-sect text-ink">{{ _('Admin Cockpit') }}</h1>
       <p id="ck-admin-email" class="text-xs text-ink-faint mt-1"></p>
     </div>
-    <a href="/" class="text-xs text-ink-faint hover:text-gray-300">← Back to FileMorph</a>
+    <a href="{{ localized_url('/', current_prefix) }}" class="text-xs text-ink-faint hover:text-gray-300">{{ _('← Back to FileMorph') }}</a>
   </div>
 
   <!-- Loading / not-admin states -->
   {% call uc.card(id='ck-loading', padded='lg') %}
   <div class="text-center text-sm text-ink-faint">
-    Verifying admin access…
+    {{ _('Verifying admin access…') }}
   </div>
   {% endcall %}
 
   <div id="ck-forbidden" class="hidden bg-surface-raised border border-red-800 rounded-card p-8 text-center shadow-card">
-    <p class="text-red-400 font-semibold">Admin access required.</p>
-    <p class="text-xs text-ink-faint mt-2">Your account does not have the admin role.</p>
-    <a href="/" class="inline-block mt-4 px-4 py-2 rounded-lg bg-brand hover:bg-brand-dark text-white text-sm font-semibold">
-      Return to home
+    <p class="text-red-400 font-semibold">{{ _('Admin access required.') }}</p>
+    <p class="text-xs text-ink-faint mt-2">{{ _('Your account does not have the admin role.') }}</p>
+    <a href="{{ localized_url('/', current_prefix) }}" class="inline-block mt-4 px-4 py-2 rounded-lg bg-brand hover:bg-brand-dark text-white text-sm font-semibold">
+      {{ _('Return to home') }}
     </a>
   </div>
 
@@ -32,7 +32,7 @@
 
     <!-- Stats grid -->
     <section>
-      <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Overview</h2>
+      <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">{{ _('Overview') }}</h2>
       <div id="stats-grid" class="grid grid-cols-2 md:grid-cols-5 gap-4"></div>
     </section>
 
@@ -40,7 +40,7 @@
     {% call uc.card() %}
     <section>
       <div class="flex items-center justify-between mb-4">
-        <h2 class="text-sm font-semibold">Signups over time</h2>
+        <h2 class="text-sm font-semibold">{{ _('Signups over time') }}</h2>
         <div class="flex gap-2 text-xs">
           <button class="ck-range px-3 py-1 rounded-lg border border-hairline hover:border-brand" data-days="7">7 d</button>
           <button class="ck-range px-3 py-1 rounded-lg border border-hairline hover:border-brand" data-days="30">30 d</button>
@@ -58,22 +58,22 @@
     <section>
       <div class="flex items-center justify-between mb-4">
         <div>
-          <h2 class="text-sm font-semibold">Anonymous analytics</h2>
-          <p class="text-xs text-gray-500 mt-1">Aggregated counters — no personal data, no cookies.</p>
+          <h2 class="text-sm font-semibold">{{ _('Anonymous analytics') }}</h2>
+          <p class="text-xs text-gray-500 mt-1">{{ _('Aggregated counters — no personal data, no cookies.') }}</p>
         </div>
-        <div class="flex gap-2 text-xs" role="group" aria-label="Analytics time range">
-          <button class="ck-mrange px-3 py-1 rounded-lg border border-gray-700 hover:border-brand" data-days="7" aria-pressed="true" aria-label="Show last 7 days">7 d</button>
-          <button class="ck-mrange px-3 py-1 rounded-lg border border-gray-700 hover:border-brand" data-days="30" aria-pressed="false" aria-label="Show last 30 days">30 d</button>
-          <button class="ck-mrange px-3 py-1 rounded-lg border border-gray-700 hover:border-brand" data-days="90" aria-pressed="false" aria-label="Show last 90 days">90 d</button>
+        <div class="flex gap-2 text-xs" role="group" aria-label="{{ _('Analytics time range') }}">
+          <button class="ck-mrange px-3 py-1 rounded-lg border border-gray-700 hover:border-brand" data-days="7" aria-pressed="true" aria-label="{{ _('Show last 7 days') }}">7 d</button>
+          <button class="ck-mrange px-3 py-1 rounded-lg border border-gray-700 hover:border-brand" data-days="30" aria-pressed="false" aria-label="{{ _('Show last 30 days') }}">30 d</button>
+          <button class="ck-mrange px-3 py-1 rounded-lg border border-gray-700 hover:border-brand" data-days="90" aria-pressed="false" aria-label="{{ _('Show last 90 days') }}">90 d</button>
         </div>
       </div>
 
       <div id="metrics-disabled" class="hidden bg-gray-800/40 border border-gray-700 rounded-xl p-4 text-xs text-gray-400 mb-4" role="status" aria-live="polite">
-        Tracking disabled — set <code class="bg-gray-800 px-1.5 py-0.5 rounded">METRICS_ENABLED=true</code> to enable.
+        {{ _('Tracking disabled — set') }} <code class="bg-gray-800 px-1.5 py-0.5 rounded">METRICS_ENABLED=true</code> {{ _('to enable.') }}
       </div>
 
       <div id="metrics-error" class="hidden bg-red-950/40 border border-red-900 rounded-xl p-4 text-xs text-red-300 mb-4" role="alert" aria-live="polite">
-        Could not load analytics — check server logs. The metrics pipeline may be misconfigured.
+        {{ _('Could not load analytics — check server logs. The metrics pipeline may be misconfigured.') }}
       </div>
 
       <div id="metrics-grid" class="grid grid-cols-1 md:grid-cols-3 gap-4" aria-busy="true">
@@ -99,11 +99,11 @@
 
       <div id="metrics-extras" class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
         <div class="bg-surface-sunken border border-hairline rounded-xl p-4">
-          <p class="text-xs text-ink-faint uppercase tracking-wider mb-3">Top conversion pairs (transforms only)</p>
+          <p class="text-xs text-ink-faint uppercase tracking-wider mb-3">{{ _('Top conversion pairs (transforms only)') }}</p>
           <ol id="metrics-pairs" class="space-y-1.5 text-sm"></ol>
         </div>
         <div class="bg-surface-sunken border border-hairline rounded-xl p-4">
-          <p class="text-xs text-ink-faint uppercase tracking-wider mb-3">Failure rate (today)</p>
+          <p class="text-xs text-ink-faint uppercase tracking-wider mb-3">{{ _('Failure rate (today)') }}</p>
           <p id="metrics-failure-rate" class="text-3xl font-bold mt-1 text-gray-300" aria-live="polite">—</p>
           <p id="metrics-failure-hint" class="text-xs text-ink-faint mt-1"></p>
         </div>
@@ -114,13 +114,13 @@
     <!-- Users table -->
     <section class="bg-surface-raised border border-hairline rounded-card overflow-hidden shadow-card">
       <div class="px-6 py-4 border-b border-hairline flex flex-col md:flex-row md:items-center gap-3 md:justify-between">
-        <h2 class="font-semibold text-sm">Users <span id="user-count" class="text-ink-faint font-normal"></span></h2>
+        <h2 class="font-semibold text-sm">{{ _('Users') }} <span id="user-count" class="text-ink-faint font-normal"></span></h2>
         <div class="flex flex-wrap gap-2">
-          <input id="users-q" type="search" placeholder="Search email…"
+          <input id="users-q" type="search" placeholder="{{ _('Search email…') }}"
             class="bg-surface-sunken border border-hairline rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-brand" />
           <select id="users-tier"
             class="bg-surface-sunken border border-hairline rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-brand">
-            <option value="">Any tier</option>
+            <option value="">{{ _('Any tier') }}</option>
             <option value="free">Free</option>
             <option value="pro">Pro</option>
             <option value="business">Business</option>
@@ -128,15 +128,15 @@
           </select>
           <select id="users-role"
             class="bg-surface-sunken border border-hairline rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-brand">
-            <option value="">Any role</option>
+            <option value="">{{ _('Any role') }}</option>
             <option value="user">User</option>
             <option value="admin">Admin</option>
           </select>
           <select id="users-active"
             class="bg-surface-sunken border border-hairline rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-brand">
-            <option value="">Any status</option>
-            <option value="true">Active</option>
-            <option value="false">Deactivated</option>
+            <option value="">{{ _('Any status') }}</option>
+            <option value="true">{{ _('Active') }}</option>
+            <option value="false">{{ _('Deactivated') }}</option>
           </select>
         </div>
       </div>
@@ -144,12 +144,12 @@
         <table class="w-full text-sm">
           <thead>
             <tr class="border-b border-hairline text-ink-faint text-xs uppercase tracking-wider">
-              <th class="px-6 py-3 text-left">Email</th>
-              <th class="px-6 py-3 text-left">Tier</th>
-              <th class="px-6 py-3 text-left">Role</th>
-              <th class="px-6 py-3 text-left">Active</th>
-              <th class="px-6 py-3 text-left">Joined</th>
-              <th class="px-6 py-3 text-right">Actions</th>
+              <th class="px-6 py-3 text-left">{{ _('Email') }}</th>
+              <th class="px-6 py-3 text-left">{{ _('Tier') }}</th>
+              <th class="px-6 py-3 text-left">{{ _('Role') }}</th>
+              <th class="px-6 py-3 text-left">{{ _('Active') }}</th>
+              <th class="px-6 py-3 text-left">{{ _('Joined') }}</th>
+              <th class="px-6 py-3 text-right">{{ _('Actions') }}</th>
             </tr>
           </thead>
           <tbody id="users-tbody" class="divide-y divide-gray-800"></tbody>
@@ -158,8 +158,8 @@
       <div class="px-6 py-3 border-t border-hairline flex items-center justify-between text-xs text-ink-faint">
         <span id="users-range"></span>
         <div class="flex gap-2">
-          <button id="users-prev" class="px-3 py-1 rounded border border-hairline hover:border-brand disabled:opacity-40" disabled>← Prev</button>
-          <button id="users-next" class="px-3 py-1 rounded border border-hairline hover:border-brand disabled:opacity-40" disabled>Next →</button>
+          <button id="users-prev" class="px-3 py-1 rounded border border-hairline hover:border-brand disabled:opacity-40" disabled>{{ _('← Prev') }}</button>
+          <button id="users-next" class="px-3 py-1 rounded border border-hairline hover:border-brand disabled:opacity-40" disabled>{{ _('Next →') }}</button>
         </div>
       </div>
     </section>
@@ -171,13 +171,13 @@
     class="hidden fixed inset-0 bg-black/70 z-40 flex items-center justify-center p-4">
     <div class="bg-surface-raised border border-hairline rounded-card w-full max-w-md p-6 space-y-5 shadow-card">
       <div>
-        <h3 class="font-semibold">Edit user</h3>
+        <h3 class="font-semibold">{{ _('Edit user') }}</h3>
         <p id="edit-email" class="text-xs text-gray-500 mt-1 font-mono"></p>
       </div>
       <p id="edit-error" class="hidden text-red-400 text-xs"></p>
       <div class="space-y-3 text-sm">
         <label class="block">
-          <span class="text-xs text-gray-500 uppercase tracking-wider">Tier</span>
+          <span class="text-xs text-gray-500 uppercase tracking-wider">{{ _('Tier') }}</span>
           <select id="edit-tier" class="mt-1 w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm">
             <option value="free">Free</option>
             <option value="pro">Pro</option>
@@ -186,7 +186,7 @@
           </select>
         </label>
         <label class="block">
-          <span class="text-xs text-gray-500 uppercase tracking-wider">Role</span>
+          <span class="text-xs text-gray-500 uppercase tracking-wider">{{ _('Role') }}</span>
           <select id="edit-role" class="mt-1 w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm">
             <option value="user">User</option>
             <option value="admin">Admin</option>
@@ -194,12 +194,12 @@
         </label>
         <label class="flex items-center gap-3">
           <input id="edit-active" type="checkbox" class="h-4 w-4 rounded border-gray-700 bg-gray-800">
-          <span class="text-sm">Account active</span>
+          <span class="text-sm">{{ _('Account active') }}</span>
         </label>
       </div>
       <div class="flex justify-end gap-2">
-        <button id="edit-cancel" class="px-4 py-2 rounded-lg border border-gray-700 text-sm hover:border-brand">Cancel</button>
-        <button id="edit-save" class="px-4 py-2 rounded-lg bg-brand hover:bg-brand-dark text-white text-sm font-semibold">Save</button>
+        <button id="edit-cancel" class="px-4 py-2 rounded-lg border border-gray-700 text-sm hover:border-brand">{{ _('Cancel') }}</button>
+        <button id="edit-save" class="px-4 py-2 rounded-lg bg-brand hover:bg-brand-dark text-white text-sm font-semibold">{{ _('Save') }}</button>
       </div>
     </div>
   </div>
