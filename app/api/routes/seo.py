@@ -18,11 +18,15 @@ from fastapi import APIRouter
 from fastapi.responses import PlainTextResponse, Response
 
 from app.core.config import settings
+from app.core.i18n import SUPPORTED_LOCALES, localized_url
 
 router = APIRouter()
 
 
-# Routes that every deployment serves.
+# Routes that every deployment serves. Each base path becomes three URLs
+# in the sitemap (x-default + one per supported locale) with hreflang
+# alternates wired up — Google then treats them as language variants of
+# the same page rather than duplicates.
 _BASE_ROUTES: list[tuple[str, str]] = [
     ("/", "1.0"),
     ("/privacy", "0.3"),
@@ -49,6 +53,41 @@ def _sitemap_routes() -> list[tuple[str, str]]:
     return routes
 
 
+def _alternate_links(base: str, abs_base: str) -> str:
+    """Build the ``<xhtml:link rel="alternate" hreflang="...">`` entries
+    for a base path. The same set of alternates is emitted on every URL
+    variant of the route — Google's sitemap-hreflang protocol requires
+    each ``<url>`` to declare its full siblings list, not just point at
+    a canonical.
+
+    Uses ``localized_url`` so the impressum/imprint locale-alias map in
+    ``app/core/i18n.py`` is honoured automatically (the EN alternate of
+    ``/impressum`` is ``/en/imprint``, not ``/en/impressum``).
+    """
+    parts = [
+        f'    <xhtml:link rel="alternate" hreflang="x-default" '
+        f'href="{abs_base}{localized_url(base, None)}"/>'
+    ]
+    for loc in SUPPORTED_LOCALES:
+        parts.append(
+            f'    <xhtml:link rel="alternate" hreflang="{loc}" '
+            f'href="{abs_base}{localized_url(base, loc)}"/>'
+        )
+    return "\n".join(parts)
+
+
+def _url_entry(loc_url: str, base: str, prio: str, abs_base: str) -> str:
+    """Single ``<url>`` block with its full hreflang alternates."""
+    alternates = _alternate_links(base, abs_base)
+    return (
+        "  <url>\n"
+        f"    <loc>{loc_url}</loc>\n"
+        f"{alternates}\n"
+        f"    <priority>{prio}</priority>\n"
+        "  </url>"
+    )
+
+
 @router.get("/robots.txt", response_class=PlainTextResponse, include_in_schema=False)
 async def robots_txt() -> str:
     base = settings.app_base_url.rstrip("/")
@@ -58,15 +97,20 @@ async def robots_txt() -> str:
 @router.get("/sitemap.xml", include_in_schema=False)
 async def sitemap_xml() -> Response:
     base = settings.app_base_url.rstrip("/")
-    urls = "\n".join(
-        f"  <url><loc>{base}{path}</loc><priority>{prio}</priority></url>"
-        for path, prio in _sitemap_routes()
-    )
+    entries: list[str] = []
+    for path, prio in _sitemap_routes():
+        # x-default URL (unprefixed canonical)
+        entries.append(_url_entry(f"{base}{localized_url(path, None)}", path, prio, base))
+        # Each supported locale (de, en) gets its own entry with the same
+        # alternates list — Google treats them as siblings, not duplicates.
+        for loc in SUPPORTED_LOCALES:
+            entries.append(_url_entry(f"{base}{localized_url(path, loc)}", path, prio, base))
     body = (
         '<?xml version="1.0" encoding="UTF-8"?>\n'
-        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
-        f"{urls}\n"
-        "</urlset>\n"
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"\n'
+        '        xmlns:xhtml="http://www.w3.org/1999/xhtml">\n'
+        + "\n".join(entries)
+        + "\n</urlset>\n"
     )
     return Response(content=body, media_type="application/xml")
 
