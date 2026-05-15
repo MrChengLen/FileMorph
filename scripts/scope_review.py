@@ -177,13 +177,21 @@ def _staged_added_lines() -> list[tuple[str, int, str]]:
     headers to track the current file + line number. Skips '+++' file-header
     lines and binary-file diffs.
     """
+    # text=True alone defaults to the locale codec on Windows (cp1252), which
+    # raises UnicodeDecodeError on any UTF-8 continuation byte git emits for
+    # em-dashes, smart quotes, or non-Latin-1 content in the staged diff —
+    # which makes the hook crash with stdout=None on a perfectly valid
+    # commit. Pin utf-8 explicitly and replace on undecodable bytes so the
+    # advisory layer keeps running rather than blowing up.
     proc = subprocess.run(
         ["git", "diff", "--cached", "-U0", "--no-color", "--diff-filter=ACM"],
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         check=False,
     )
-    if proc.returncode != 0:
+    if proc.returncode != 0 or proc.stdout is None:
         return []
 
     out: list[tuple[str, int, str]] = []
