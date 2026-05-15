@@ -177,10 +177,9 @@ off where applicable, and optional at deploy time.
 
 ### Test coverage
 
-`tests/` grew from ~260 to **555 passed + 15 skipped** (the 15 are
-the PDF/A test modules that skip on Windows — see test_pdfa.py
-docstring for the qpdf DLL-load conflict; Linux CI + production
-are unaffected).
+`tests/` grew from ~260 to **588 collected** (the 15 Windows-skipped
+ones are the PDF/A test modules — see test_pdfa.py docstring for the
+qpdf DLL-load conflict; Linux CI + production are unaffected).
 
 ---
 

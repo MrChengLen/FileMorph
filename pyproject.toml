@@ -1,6 +1,6 @@
 [project]
 name = "filemorph"
-version = "1.0.0"
+version = "1.1.0.dev0"
 description = "File conversion and compression tool with REST API"
 requires-python = ">=3.11"
 readme = "README.md"

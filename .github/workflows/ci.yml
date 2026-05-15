@@ -6,6 +6,14 @@ on:
   pull_request:
     branches: ["main"]
 
+# A newer push on the same ref cancels older queued / running runs.
+# Saves Actions quota and reduces queue pressure when iterating on a PR.
+# main / develop are excluded by ref-pattern so post-merge gates always
+# get to complete.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/develop' }}
+
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
