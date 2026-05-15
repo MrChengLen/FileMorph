@@ -104,17 +104,19 @@ function setMode(mode) {
     btnConvert.classList.remove('text-gray-400');
     btnCompress.classList.remove('bg-brand', 'text-white');
     btnCompress.classList.add('text-gray-400');
-    convertBtn.textContent = 'Convert';
+    convertBtn.textContent = (window.FM_I18N && window.FM_I18N.convert) || 'Convert';
   } else {
     btnCompress.classList.add('bg-brand', 'text-white');
     btnCompress.classList.remove('text-gray-400');
     btnConvert.classList.remove('bg-brand', 'text-white');
     btnConvert.classList.add('text-gray-400');
-    convertBtn.textContent = 'Compress';
+    convertBtn.textContent = (window.FM_I18N && window.FM_I18N.compress) || 'Compress';
   }
 
   const qHeading = document.getElementById('quality-heading');
-  if (qHeading) qHeading.textContent = mode === 'compress' ? 'Compression' : 'Quality';
+  if (qHeading) qHeading.textContent = mode === 'compress'
+    ? ((window.FM_I18N && window.FM_I18N.compression) || 'Compression')
+    : ((window.FM_I18N && window.FM_I18N.quality) || 'Quality');
 
   if (mode !== 'compress') {
     compressMode = 'quality';
@@ -355,7 +357,8 @@ function updateTargetFormats(filename) {
 
   const targets = supportedConversions[ext] || [];
   if (targets.length === 0) {
-    select.innerHTML = '<option value="">No conversions available for this format</option>';
+    const noConvLabel = (window.FM_I18N && window.FM_I18N.noConversionsAvailable) || 'No conversions available for this format';
+    select.innerHTML = '<option value="">' + noConvLabel + '</option>';
     updateFormatWarning();
     return;
   }
@@ -460,7 +463,8 @@ function updateQualityVisibility() {
 // ── Submit ────────────────────────────────────────────────────────────────────
 
 async function submitForm() {
-  if (selectedFiles.length === 0) { alert('Please select at least one file.'); return; }
+  const I18N = window.FM_I18N || {};
+  if (selectedFiles.length === 0) { alert(I18N.alertNoFiles || 'Please select at least one file.'); return; }
 
   const isBatch = selectedFiles.length > 1;
   const base = currentMode === 'convert' ? '/api/v1/convert' : '/api/v1/compress';
@@ -478,7 +482,7 @@ async function submitForm() {
   if (useTargetSize) {
     const mb = parseFloat(document.getElementById('target-size-input').value || '0');
     if (!isFinite(mb) || mb <= 0) {
-      alert('Please enter a target size in MB.');
+      alert(I18N.alertNoTargetSize || 'Please enter a target size in MB.');
       return;
     }
     formData.append('target_size_kb', String(Math.max(5, Math.round(mb * 1024))));
@@ -493,19 +497,19 @@ async function submitForm() {
       // here so the user doesn't waste an upload round-trip on a typo.
       const rows = document.querySelectorAll('.per-row-target');
       if (rows.length !== selectedFiles.length) {
-        alert('Target format selection is inconsistent — please reselect your files.');
+        alert(I18N.alertInconsistentTarget || 'Target format selection is inconsistent — please reselect your files.');
         return;
       }
       for (const sel of rows) {
         if (!sel.value) {
-          alert('One of the files has no target format available. Remove it to proceed.');
+          alert(I18N.alertNoTargetAvailable || 'One of the files has no target format available. Remove it to proceed.');
           return;
         }
         formData.append('target_formats', sel.value);
       }
     } else {
       const target = document.getElementById('target-format').value;
-      if (!target) { alert('Please select a target format.'); return; }
+      if (!target) { alert(I18N.alertNoTargetFormat || 'Please select a target format.'); return; }
       formData.append('target_format', target);
     }
   }

@@ -167,11 +167,12 @@
       btn.addEventListener('click', async (e) => {
         const row = e.currentTarget.closest('tr');
         const uid = row.dataset.uid;
-        if (!confirm('Soft-delete this user (sets is_active=false)?')) return;
+        const _i = window.FM_I18N || {};
+        if (!confirm(_i.softDeleteConfirm || 'Soft-delete this user (sets is_active=false)?')) return;
         const res = await window.FM.authFetch(`/api/v1/cockpit/users/${uid}`, { method: 'DELETE' });
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
-          alert(body.detail || 'Delete failed.');
+          alert(body.detail || _i.deleteFailed || 'Delete failed.');
           return;
         }
         loadUsers();
@@ -221,7 +222,7 @@
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      err.textContent = data.detail || 'Save failed.';
+      err.textContent = data.detail || (window.FM_I18N && window.FM_I18N.saveFailed) || 'Save failed.';
       err.classList.remove('hidden');
       return;
     }

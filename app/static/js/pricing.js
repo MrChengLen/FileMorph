@@ -31,9 +31,13 @@ async function upgrade(tier) {
     // anyway in case the markup or DOM is altered.
     return;
   }
+  const I18N = window.FM_I18N || {};
+  const labelForTier = (t) => (t === 'pro'
+    ? (I18N.upgradeToPro || 'Upgrade to Pro')
+    : (I18N.upgradeToBusiness || 'Upgrade to Business'));
   const btn = document.getElementById(tier + '-btn');
   btn.disabled = true;
-  btn.textContent = 'Redirecting…';
+  btn.textContent = I18N.redirecting || 'Redirecting…';
   try {
     const res = await window.FM.authFetch('/api/v1/billing/checkout/' + tier, {
       method: 'POST',
@@ -42,14 +46,14 @@ async function upgrade(tier) {
     });
     if (res.status === 503) {
       btn.disabled = false;
-      btn.textContent = tier === 'pro' ? 'Upgrade to Pro' : 'Upgrade to Business';
-      alert('Payments are not yet active. Please check back soon.');
+      btn.textContent = labelForTier(tier);
+      alert(I18N.paymentsNotActive || 'Payments are not yet active. Please check back soon.');
       return;
     }
     const data = await res.json();
     if (data.url) window.location.href = data.url;
   } catch (e) {
     btn.disabled = false;
-    btn.textContent = tier === 'pro' ? 'Upgrade to Pro' : 'Upgrade to Business';
+    btn.textContent = labelForTier(tier);
   }
 }

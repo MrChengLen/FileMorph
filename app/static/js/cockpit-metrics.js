@@ -70,7 +70,8 @@
 
   function renderPairs(pairs) {
     if (!pairs || pairs.length === 0) {
-      $('metrics-pairs').innerHTML = '<li class="text-xs text-gray-500">No conversions yet.</li>';
+      const label = (window.FM_I18N && window.FM_I18N.noConversionsYet) || 'No conversions yet.';
+      $('metrics-pairs').innerHTML = '<li class="text-xs text-gray-500">' + label + '</li>';
       return;
     }
     $('metrics-pairs').innerHTML = pairs
@@ -97,7 +98,7 @@
       if (sampleSize && sampleSize > 0) {
         hint.textContent = `Only ${sampleSize} outcome${sampleSize === 1 ? '' : 's'} today — too few to compute a rate.`;
       } else {
-        hint.textContent = 'No conversion or compression jobs today yet.';
+        hint.textContent = (window.FM_I18N && window.FM_I18N.noJobsToday) || 'No conversion or compression jobs today yet.';
       }
       return;
     }

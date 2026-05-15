@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-05-15 13:15+0200\n"
+"POT-Creation-Date: 2026-05-15 14:27+0200\n"
 "PO-Revision-Date: 2026-05-08 11:00+0200\n"
 "Last-Translator: FileMorph <hallo@filemorph.io>\n"
 "Language: de\n"
@@ -431,6 +431,9 @@ msgstr ""
 msgid "Compress"
 msgstr "Komprimieren"
 
+msgid "Compression"
+msgstr "Komprimierung"
+
 msgid "Compression mode"
 msgstr "Kompressions-Modus"
 
@@ -492,6 +495,9 @@ msgstr "Dateien konvertieren & komprimieren"
 msgid "Coordinated disclosure:"
 msgstr "Koordinierte Offenlegung:"
 
+msgid "Copied!"
+msgstr "Kopiert!"
+
 msgid "Copy"
 msgstr "Kopieren"
 
@@ -510,6 +516,15 @@ msgstr "Konto erstellen"
 
 msgid "Create one"
 msgstr "Jetzt erstellen"
+
+msgid "Created"
+msgstr "Erstellt"
+
+msgid "Creating account…"
+msgstr "Erstelle Konto …"
+
+msgid "Creating…"
+msgstr "Erstelle …"
 
 msgid "Criterion"
 msgstr "Kriterium"
@@ -537,6 +552,9 @@ msgstr "Deaktiviert"
 
 msgid "Dedicated onboarding"
 msgstr "Dediziertes Onboarding"
+
+msgid "Delete failed."
+msgstr "Löschen fehlgeschlagen."
 
 msgid "Design Partner Programme"
 msgstr "Design-Partner-Programm"
@@ -961,6 +979,9 @@ msgstr "Stand: 08.05.2026 · Community + Cloud Edition"
 msgid "Last updated: 2026-05-12 · Community + Cloud Edition"
 msgstr "Stand: 08.05.2026 · Community + Cloud Edition"
 
+msgid "Last used"
+msgstr "Zuletzt verwendet"
+
 msgid "Legal notice pursuant to § 5 DDG (Germany)."
 msgstr "Angaben gemäß § 5 DDG."
 
@@ -973,6 +994,9 @@ msgstr ""
 
 msgid "Loading…"
 msgstr "Wird geladen…"
+
+msgid "Login failed."
+msgstr "Anmeldung fehlgeschlagen."
 
 msgid ""
 "Logo mention as pilot customer (optional). Roadmap feedback every four "
@@ -1018,14 +1042,29 @@ msgstr "Multi-Format (Bild + Audio + Video + Sheet)"
 msgid "Name (optional)"
 msgstr "Name (optional)"
 
+msgid "Never used"
+msgstr "Noch nicht verwendet"
+
 msgid "New password"
 msgstr "Neues Passwort"
 
 msgid "Next →"
 msgstr "Weiter →"
 
+msgid "No API keys yet. Create one above."
+msgstr "Noch keine API-Keys. Erstelle oben einen."
+
 msgid "No account?"
 msgstr "Kein Konto?"
+
+msgid "No conversion or compression jobs today yet."
+msgstr "Heute noch keine Konvertierungs- oder Komprimierungsjobs."
+
+msgid "No conversions available for this format"
+msgstr "Keine Konvertierungen für dieses Format verfügbar"
+
+msgid "No conversions yet."
+msgstr "Noch keine Konvertierungen."
 
 msgid "No credit card required"
 msgstr "Keine Kreditkarte erforderlich"
@@ -1035,6 +1074,11 @@ msgstr "Hinweis"
 
 msgid "One click and you're done"
 msgstr "Ein Klick und du bist fertig"
+
+msgid "One of the files has no target format available. Remove it to proceed."
+msgstr ""
+"Für eine Datei ist kein Zielformat verfügbar. Bitte entfernen und erneut "
+"versuchen."
 
 msgid "Open dashboard"
 msgstr "Dashboard öffnen"
@@ -1102,12 +1146,18 @@ msgstr "Bezahlte Tarife — demnächst verfügbar"
 msgid "Password"
 msgstr "Passwort"
 
+msgid "Password must be at least 8 characters."
+msgstr "Passwort muss mindestens 8 Zeichen lang sein."
+
 msgid ""
 "Password-reset and other account-related emails are delivered through "
 "Zoho Mail ("
 msgstr ""
 "Passwort-Reset- und andere konto-bezogene E-Mails werden über Zoho Mail "
 "zugestellt ("
+
+msgid "Passwords do not match."
+msgstr "Passwörter stimmen nicht überein."
 
 msgid "Patch policy"
 msgstr "Patch-Policy"
@@ -1118,6 +1168,9 @@ msgid ""
 msgstr ""
 "Die Zahlungsabwicklung erfolgt durch Stripe Payments Europe Ltd.; die AGB"
 " von Stripe gelten für die Verarbeitung deiner Zahlungsdaten."
+
+msgid "Payments are not yet active. Please check back soon."
+msgstr "Zahlungen sind noch nicht aktiviert. Bitte später wieder vorbeischauen."
 
 msgid "Per § 18 (2) MStV: Lennart Seidel, Reetwerder 25b, 21029 Hamburg."
 msgstr "Gemäß § 18 Abs. 2 MStV: Lennart Seidel, Reetwerder 25b, 21029 Hamburg."
@@ -1134,6 +1187,15 @@ msgstr ""
 
 msgid "Please email us directly at"
 msgstr "Bitte schreib uns direkt an"
+
+msgid "Please enter a target size in MB."
+msgstr "Bitte eine Zielgröße in MB eingeben."
+
+msgid "Please select a target format."
+msgstr "Bitte ein Zielformat wählen."
+
+msgid "Please select at least one file."
+msgstr "Bitte mindestens eine Datei wählen."
 
 msgid "Price / year"
 msgstr "Preis / Jahr"
@@ -1213,6 +1275,9 @@ msgstr "RFC 9116, mit Reaktionszeiten und Scope"
 msgid "Ready for a 15-minute pilot call?"
 msgstr "Bereit für ein 15-Minuten-Pilotgespräch?"
 
+msgid "Redirecting…"
+msgstr "Weiterleitung …"
+
 msgid ""
 "Refunds are not issued for partial billing periods. In the event of a "
 "documented service outage exceeding 24 hours within a single billing "
@@ -1228,6 +1293,9 @@ msgstr "Registrieren"
 
 msgid "Register free for 50 MB & API access →"
 msgstr "Kostenlos registrieren für 50 MB & API-Zugriff →"
+
+msgid "Registration failed."
+msgstr "Registrierung fehlgeschlagen."
 
 msgid "Reporting a vulnerability"
 msgstr "Eine Sicherheitslücke melden"
@@ -1270,6 +1338,12 @@ msgstr "Verantwortlich"
 msgid "Return to home"
 msgstr "Zurück zur Startseite"
 
+msgid "Revoke"
+msgstr "Widerrufen"
+
+msgid "Revoke this API key? This cannot be undone."
+msgstr "Diesen API-Key widerrufen? Das kann nicht rückgängig gemacht werden."
+
 msgid "Role"
 msgstr "Rolle"
 
@@ -1291,6 +1365,9 @@ msgstr "Safe-Harbour"
 
 msgid "Save"
 msgstr "Speichern"
+
+msgid "Save failed."
+msgstr "Speichern fehlgeschlagen."
 
 msgid "Saved API keys & dashboard"
 msgstr "Gespeicherte API-Keys & Dashboard"
@@ -1344,6 +1421,9 @@ msgstr "Nachricht senden"
 msgid "Send us a message and we will get back to you."
 msgstr "Schreib uns — wir melden uns bei dir."
 
+msgid "Sending…"
+msgstr "Sende …"
+
 msgid ""
 "Server-volume-based, not per user seat. Binding terms follow the personal"
 " conversation."
@@ -1366,6 +1446,9 @@ msgstr "Letzte 90 Tage anzeigen"
 msgid "Sign In"
 msgstr "Anmelden"
 
+msgid "Sign Out"
+msgstr "Abmelden"
+
 msgid "Sign in"
 msgstr "Anmelden"
 
@@ -1374,6 +1457,9 @@ msgstr "Signiertes Image + SBOM"
 
 msgid "Signed releases + SBOM"
 msgstr "Signierte Releases + SBOM"
+
+msgid "Signing in…"
+msgstr "Anmeldung …"
 
 msgid "Signups over time"
 msgstr "Registrierungen über Zeit"
@@ -1390,6 +1476,9 @@ msgstr ""
 
 msgid "Smaller file"
 msgstr "Kleinere Datei"
+
+msgid "Soft-delete this user (sets is_active=false)?"
+msgstr "Nutzer soft-löschen (setzt is_active=false)?"
 
 msgid "Something went wrong on our end. Please try again in a moment."
 msgstr ""
@@ -1461,6 +1550,9 @@ msgstr "Zielformat"
 
 msgid "Target file size"
 msgstr "Ziel-Dateigröße"
+
+msgid "Target format selection is inconsistent — please reselect your files."
+msgstr "Zielformat-Auswahl inkonsistent — bitte Dateien neu auswählen."
 
 msgid "Tax status"
 msgstr "Steuerliche Angaben"

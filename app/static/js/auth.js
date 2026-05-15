@@ -60,6 +60,22 @@
     const mobile = document.getElementById('nav-auth-mobile');
     if (!desktop) return;
 
+    const I18N = window.FM_I18N || {};
+    const lDashboard = I18N.dashboard || 'Dashboard';
+    const lSignOut = I18N.signOut || 'Sign Out';
+    const lSignIn = I18N.signIn || 'Sign In';
+    const lRegister = I18N.register || 'Register';
+    // Keep dynamic nav links in the user's currently-active locale namespace
+    // (matches the server-side ``localized_url(..., current_prefix)`` rule
+    // in base.html — clicking from /de/x stays in /de/, from /en/x stays
+    // in /en/, from no-prefix stays no-prefix).
+    const htmlLang = document.documentElement.lang || '';
+    const localePrefix = htmlLang.startsWith('en')
+      ? '/en'
+      : htmlLang.startsWith('de')
+        ? '/de'
+        : '';
+
     if (user) {
       const initial = user.email[0].toUpperCase();
       desktop.innerHTML = `
@@ -70,25 +86,25 @@
               <p class="text-xs text-gray-400 truncate">${user.email}</p>
               <p class="text-xs text-brand capitalize">${user.tier}</p>
             </div>
-            <a href="/dashboard" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white">Dashboard</a>
-            <button data-action="signout" class="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-gray-800">Sign Out</button>
+            <a href="${localePrefix}/dashboard" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white">${lDashboard}</a>
+            <button data-action="signout" class="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-gray-800">${lSignOut}</button>
           </div>
         </div>`;
       desktop.querySelector('[data-action="signout"]').addEventListener('click', () => window.FM.logout());
       if (mobile) {
         mobile.innerHTML = `
-          <a href="/dashboard" class="block text-gray-400 hover:text-white transition-colors py-1">Dashboard</a>
-          <button data-action="signout-mobile" class="block text-red-400 hover:text-white py-1 text-left">Sign Out</button>`;
+          <a href="${localePrefix}/dashboard" class="block text-gray-400 hover:text-white transition-colors py-1">${lDashboard}</a>
+          <button data-action="signout-mobile" class="block text-red-400 hover:text-white py-1 text-left">${lSignOut}</button>`;
         mobile.querySelector('[data-action="signout-mobile"]').addEventListener('click', () => window.FM.logout());
       }
     } else {
       desktop.innerHTML = `
-        <a href="/login" class="text-sm text-gray-300 hover:text-white transition-colors">Sign In</a>
-        <a href="/register" class="text-sm px-4 py-1.5 rounded-lg bg-brand hover:bg-brand-dark text-white font-semibold transition-colors">Register</a>`;
+        <a href="${localePrefix}/login" class="text-sm text-gray-300 hover:text-white transition-colors">${lSignIn}</a>
+        <a href="${localePrefix}/register" class="text-sm px-4 py-1.5 rounded-lg bg-brand hover:bg-brand-dark text-white font-semibold transition-colors">${lRegister}</a>`;
       if (mobile) {
         mobile.innerHTML = `
-          <a href="/login" class="block text-gray-400 hover:text-white transition-colors py-1">Sign In</a>
-          <a href="/register" class="block text-brand hover:text-white py-1">Register</a>`;
+          <a href="${localePrefix}/login" class="block text-gray-400 hover:text-white transition-colors py-1">${lSignIn}</a>
+          <a href="${localePrefix}/register" class="block text-brand hover:text-white py-1">${lRegister}</a>`;
       }
     }
   }

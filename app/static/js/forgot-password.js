@@ -8,7 +8,7 @@ async function doReset() {
   const btn = document.getElementById('send-btn');
   const email = document.getElementById('email').value.trim();
   btn.disabled = true;
-  btn.textContent = 'Sending\u2026';
+  btn.textContent = (window.FM_I18N && window.FM_I18N.sending) || 'Sending\u2026';
   await fetch('/api/v1/auth/forgot-password', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
