@@ -56,6 +56,28 @@ jobs:
             exit 1
           fi
 
+      - name: Block strategic / business-internal docs
+        run: |
+          set -e
+          BASE="${{ steps.range.outputs.BASE }}"
+          HEAD="${{ steps.range.outputs.HEAD }}"
+          CHANGED=$(git diff --name-only "$BASE".."$HEAD" --diff-filter=ACM)
+          # Keep in sync with .githooks/pre-commit::INTERNAL_PATHS and
+          # .githooks/pre-push::INTERNAL_PATHS. The hard-coded names cover
+          # the historical 13 docs that triggered this rule; the *-strategy
+          # / *-plan / marketing-* / sprint-* / persona-* / competitive-* /
+          # engineering-pm-* / business-case-* / launch-*-tracker patterns
+          # are the deny-by-default expansion (post-audit hardening — a
+          # future ``docs/foo-strategy.md`` would otherwise slip past the
+          # blocklist by virtue of having a fresh filename).
+          INTERNAL_RE='^docs/(admin-cockpit|open-tasks|filemorph-io-runbook|marketing-plan|seo-strategy|business-case|claims-audit|launch-gate-snapshot|launch-readiness-tracker|seo-audit|user-acquisition-strategy|requirements-v2|sprint-5-multi-file-plan|.*-strategy|.*-plan|.*-roadmap|.*-internal|.*-runbook|marketing-.*|persona-.*|competitive-.*|engineering-pm-.*|business-case-.*|sprint-.*|launch-.*-tracker|launch-.*-snapshot|launch-.*-readiness)\.md$'
+          BAD=$(echo "$CHANGED" | grep -E "$INTERNAL_RE" || true)
+          if [ -n "$BAD" ]; then
+            echo "::error::Strategic/internal docs in public repo (move to docs-internal/ — gitignored):"
+            echo "$BAD"
+            exit 1
+          fi
+
       - name: Block ops-content patterns
         run: |
           set -e
