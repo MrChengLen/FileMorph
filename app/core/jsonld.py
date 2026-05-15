@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Site-wide JSON-LD structured data + their CSP source-hashes.
 
 The server emits JSON-LD inline in ``base.html``. Strict CSP (`script-src 'self'`)

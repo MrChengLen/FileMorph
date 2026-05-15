@@ -92,9 +92,13 @@ entry contains:
 - Event type, timestamp, actor identifier, actor IP, payload digest
 - Hash of the previous event (chain integrity)
 
-The audit log is the controller's record of processing activities under
-Article 30 GDPR. The retention period defaults to `[RETENTION DAYS]`
-and is configurable via the `AUDIT_RETENTION_DAYS` environment variable.
+The audit log is a tamper-evident record of processing *operations* on
+the controller's behalf — useful evidence for, but distinct from, the
+controller's Article 30 *Verzeichnis von Verarbeitungstätigkeiten*
+(Records of Processing Activities), for which see
+[`docs/records-of-processing-template.md`](records-of-processing-template.md).
+The audit-log retention period defaults to `[RETENTION DAYS]` and is
+configurable via the `AUDIT_RETENTION_DAYS` environment variable.
 
 Each converted output carries an `X-Output-SHA256` response header so
 the controller can independently verify integrity.
@@ -115,6 +119,8 @@ service agreement.
 ## 7. Technical and organisational measures (TOM)
 
 The processor implements the measures documented in:
+- [`docs/dpa-tom-annex.md`](dpa-tom-annex.md) — the structured TOM list
+  (this is the template for "Annex II" referenced below)
 - [`docs/security-overview.md`](security-overview.md)
 - [`docs/threat-model.md`](threat-model.md)
 - [`docs/patch-policy.md`](patch-policy.md)
@@ -126,11 +132,13 @@ persistent file storage by design), access control (timing-safe API key
 validation, JWT-bound roles, admin role with database recheck per
 request), key management, software-supply-chain hardening (cosign-signed
 images, signed Git tags, CycloneDX SBOM), and incident-response
-timelines.
+timelines — structured along the Article 32 GDPR categories
+(confidentiality / integrity / availability & resilience / regular
+review) in [`docs/dpa-tom-annex.md`](dpa-tom-annex.md).
 
-A summary of the measures is appended at finalisation as
-"Annex II — Technical and Organisational Measures" tailored to the
-specific deployment.
+At finalisation, [`docs/dpa-tom-annex.md`](dpa-tom-annex.md) is attached
+as "Annex II — Technical and Organisational Measures" with its
+`[operator: …]` placeholders filled in for the specific deployment.
 
 ## 8. Controller's instructions and rights
 
@@ -195,9 +203,11 @@ Place of jurisdiction is Hamburg, Germany.
 1. Review the bracketed placeholders in §1 and §2 and fill them with
    the deployment context.
 2. Replace `[RETENTION DAYS]` in §5 with the configured value.
-3. Append "Annex II — Technical and Organisational Measures" with the
-   measures specific to the deployment (instance location, network
-   segmentation, on-call, penetration-test status).
+3. Start from the [`docs/dpa-tom-annex.md`](dpa-tom-annex.md) template,
+   fill its `[operator: …]` placeholders with the measures specific to
+   the deployment (instance location, network segmentation, on-call,
+   penetration-test status), and append it as "Annex II — Technical and
+   Organisational Measures".
 4. Both parties counter-sign a printed PDF or qualified-electronic
    signature; the FileMorph operator counter-signature is provided
    from `legal@filemorph.io` after the pilot conversation closes.

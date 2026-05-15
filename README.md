@@ -223,6 +223,23 @@ open http://localhost:8000/docs
 | [Development](docs/development.md) | Add converters, run tests, project structure |
 | [Contributing](CONTRIBUTING.md) | How to contribute to FileMorph |
 
+For **procurement reviewers and DPOs** evaluating the Compliance Edition:
+[`COMMERCIAL-LICENSE.md`](COMMERCIAL-LICENSE.md) (dual-license model, tiers,
+licensing-vs-AGPL boundary) and
+[`docs/dpa-template.md`](docs/dpa-template.md) (Article 28 GDPR DPA
+skeleton) are the canonical entry points — both link out to the supporting
+artefacts: [`docs/dpa-tom-annex.md`](docs/dpa-tom-annex.md) (Art. 32 TOMs),
+[`docs/records-of-processing-template.md`](docs/records-of-processing-template.md)
+(Art. 30 RoPA), [`docs/sub-processors.md`](docs/sub-processors.md),
+[`docs/threat-model.md`](docs/threat-model.md),
+[`docs/patch-policy.md`](docs/patch-policy.md),
+[`docs/incident-response.md`](docs/incident-response.md),
+[`docs/support-sla.md`](docs/support-sla.md),
+[`docs/onboarding.md`](docs/onboarding.md),
+[`docs/third-party-licenses.md`](docs/third-party-licenses.md), and the
+signature-ready
+[`docs/commercial-license-agreement-template.md`](docs/commercial-license-agreement-template.md).
+
 ---
 
 ## Use Cases

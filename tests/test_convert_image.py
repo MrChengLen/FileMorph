@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 def test_jpg_to_png(client, auth_headers, sample_jpg):
     with sample_jpg.open("rb") as f:
         res = client.post(

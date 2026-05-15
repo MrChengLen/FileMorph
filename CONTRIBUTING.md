@@ -106,7 +106,7 @@ docs: add PHP integration example to API reference
 ## Reporting bugs
 
 Please include:
-1. FileMorph version (`GET /api/v1/health`)
+1. FileMorph version (the release tag or image tag you deployed)
 2. Operating system and Python version
 3. The file type / conversion you attempted
 4. The error message or unexpected behavior

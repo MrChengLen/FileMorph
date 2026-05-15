@@ -9,12 +9,12 @@ from unittest.mock import MagicMock
 
 def test_health_stays_cheap_and_simple(client):
     """/health is liveness: no dependency checks, never a false-negative
-    that would cause an orchestrator to restart a healthy pod."""
+    that would cause an orchestrator to restart a healthy pod — and it
+    leaks nothing (no version, no codec availability) on this
+    unauthenticated endpoint (PT-011)."""
     r = client.get("/api/v1/health")
     assert r.status_code == 200
-    body = r.json()
-    assert body["status"] == "ok"
-    assert "version" in body
+    assert r.json() == {"status": "ok"}
 
 
 def test_ready_returns_ok_when_no_db_configured(client):

@@ -42,6 +42,51 @@ off where applicable, and optional at deploy time.
 - Architecture overview, sub-processor list, STRIDE threat model,
   patch policy, incident-response playbook, AGPLv3 explainer for
   German Behörden — all under `docs/`.
+- `docs/support-sla.md` — the security-fix timeline (applies to every
+  deployment, free or paid) and the Compliance-Edition support
+  framework (set per agreement; no standing SLA during the
+  design-partner phase), kept explicitly distinct.
+- `docs/dpa-tom-annex.md` — "Annex II — Technical and Organisational
+  Measures" template for the Article 28 DPA: structured along the
+  Article 32 GDPR categories, with the application-level measures filled
+  in (each with a code anchor) and the deployment-level measures as
+  `[operator: …]` placeholders. Referenced from `docs/dpa-template.md` §7
+  and its finalisation checklist.
+- `docs/records-of-processing-template.md` — an Article 30 GDPR
+  "Verzeichnis von Verarbeitungstätigkeiten" (Records of Processing
+  Activities) template: an identification block, six controller
+  activities (A1–A6) and one processor activity (B1), each with the
+  Art. 30 fields (purpose, data subjects, data categories, recipients,
+  transfers, retention, TOM reference), `[operator: …]` placeholders,
+  and a prune-down note for Community-Edition deployments.
+  `docs/dpa-template.md` §5 now distinguishes the audit log (a record of
+  processing *operations*) from this register.
+- `docs/onboarding.md` — defines the Compliance-Edition onboarding scope
+  ("dedicated onboarding" at the Enterprise tier, lighter at the others):
+  per-tier inclusion table, the contract-signed-to-go-live sequence,
+  timeframe, and what is out of scope. Referenced from
+  `COMMERCIAL-LICENSE.md`.
+- `docs/commercial-license-agreement-template.md` — a signature-ready
+  Commercial License Agreement skeleton (licence grant, term / renewal,
+  fees, warranties, liability cap, third-party-IP indemnity,
+  confidentiality, German law / Hamburg jurisdiction) with Schedules
+  A–D wiring in the tier and fees, the Support SLA, the DPA + TOM annex,
+  and the onboarding scope. Published for procurement review; flagged
+  "not legal advice — have counsel review and tailor it before signing."
+- `docs/third-party-licenses.md` — OSS-license posture for the
+  dual-license model: the runtime dependency tree is permissive or
+  MPL-2.0 throughout; the only GPL pieces are in the native layer
+  (`x265` bundled-but-never-invoked in the `pillow-heif` wheel; Debian's
+  GPL FFmpeg, driven as a separate program), neither affecting
+  FileMorph's own licensing; GPL-free builds are offered per Compliance
+  agreement; everything verifiable against the release CycloneDX SBOM.
+  The `License Map` in `docs/tech-stack-rationale.md` was refreshed to
+  match (pikepdf MPL-2.0, mammoth, Babel; corrected `pillow-heif` /
+  FFmpeg rows).
+- `docs/security-pentest-report.md` gained a status banner and a
+  per-finding (PT-001 … PT-013) resolution table marking it as a
+  historical April-2026 self-assessment (not an external pen test)
+  superseded by `docs/security-overview.md`.
 - CycloneDX SBOM generation in CI (`.github/workflows/sbom.yml`),
   attached to every GitHub release.
 - `/enterprise` Compliance-Edition landing page.
@@ -64,7 +109,10 @@ off where applicable, and optional at deploy time.
 - `cosign` keyless OIDC signing of every container image push
   (`.github/workflows/docker.yml`) plus GPG-signed git tags via
   `.github/workflows/release.yml` and a maintainer key list at
-  `docs/release-signing.md`.
+  `docs/release-signing.md` — the maintainer Ed25519 signing key
+  (`security@filemorph.io`) is now registered there, so `release.yml`
+  can publish signed releases; the doc also gained a "First-time setup"
+  walkthrough for generating / rotating the key.
 
 ### Added — Use-case openers (NEU-C)
 
@@ -112,6 +160,14 @@ off where applicable, and optional at deploy time.
   `privacy@filemorph.io` until the paid-path tax-retention flow
   (slice c.2 — HGB §257, AO §147) ships.
 
+### Security
+
+- `/api/v1/health` now returns only `{"status": "ok"}` — the app
+  version and the codec-availability flag are no longer exposed on this
+  unauthenticated liveness probe (pentest finding PT-011).
+  `/api/v1/ready` still reports operational state (db / tempdir
+  reachable) without version info.
+
 ### Operations
 
 - Docker base image now bundles `ghostscript` so the PDF/A re-render
@@ -121,7 +177,7 @@ off where applicable, and optional at deploy time.
 
 ### Test coverage
 
-`tests/` grew from ~260 to **370 passed + 12 skipped** (the 12 are
+`tests/` grew from ~260 to **555 passed + 15 skipped** (the 15 are
 the PDF/A test modules that skip on Windows — see test_pdfa.py
 docstring for the qpdf DLL-load conflict; Linux CI + production
 are unaffected).

@@ -60,6 +60,62 @@ A successful verification prints the signing certificate (issuer
 `https://github.com/MrChengLen/FileMorph/.github/workflows/docker.yml@refs/tags/...`),
 plus a Rekor transparency-log inclusion proof.
 
+## First-time setup — generating the maintainer signing key
+
+The recurring flow in the next section assumes you already have a GPG
+signing key configured and its public block listed under "Maintainer
+public keys". If this is the project's first signed release, do this
+once (on your own machine — the *secret* key never leaves it):
+
+```bash
+# 0. Confirm GPG is installed.
+gpg --version
+
+# 1. Generate the key. In the prompts: choose "ECC (sign only)" →
+#    Curve 25519 (or "RSA" → 4096 if you want maximum verifier
+#    compatibility); set a 2–3 year expiry (renewable); pick a strong
+#    passphrase. For the user ID use a PROJECT address you control —
+#    it is baked into the public block forever — not a personal mailbox:
+#       Real name: Lennart Seidel (FileMorph release signing)
+#       Email:     releases@filemorph.io
+gpg --full-generate-key
+
+# 2. Note the fingerprint (the 40-hex string after "sec ...").
+gpg --list-secret-keys --keyid-format=long
+
+# 3. Export the PUBLIC block.
+gpg --armor --export <FINGERPRINT>
+#    Paste the entire -----BEGIN ... END PGP PUBLIC KEY BLOCK----- into
+#    the "Maintainer public keys" section of this file, under your name,
+#    and open a PR with that change.
+
+# 4. Back up the SECRET key to encrypted offline media. Do NOT commit
+#    it, do NOT put it in .env, do NOT paste it anywhere online — a
+#    leaked signing key lets anyone forge a "trusted" release tag.
+gpg --armor --export-secret-keys <FINGERPRINT> > filemorph-signing-secret.asc
+#    Move filemorph-signing-secret.asc to an offline encrypted drive,
+#    then securely delete the local copy.
+
+# 5. (Optional) publish the public key so others can fetch it without
+#    cloning the repo (keys.openpgp.org will email you to verify the UID).
+gpg --keyserver hkps://keys.openpgp.org --send-keys <FINGERPRINT>
+
+# 6. Tell git to sign tags with this key.
+git config --global user.signingkey <FINGERPRINT>
+git config --global tag.gpgsign true     # optional: sign every tag
+
+# 7. Smoke-test before relying on it.
+git tag -s v0.0.0-signing-test -m "signing test"
+git verify-tag v0.0.0-signing-test       # must print "Good signature"
+git tag -d v0.0.0-signing-test
+```
+
+Once the PR from step 3 merges, `release.yml`'s `git verify-tag` step
+accepts tags signed with this key and the next `git tag -s vX.Y.Z`
+produces a published release. Until at least one key block is present,
+no release publishes — that fail-closed behaviour is intentional, not a
+bug.
+
 ## Maintainer responsibilities
 
 When cutting a release:
@@ -94,13 +150,32 @@ If no key blocks are present below, releases will not publish until
 at least one is added. Until the project transitions out of solo
 development, this section may carry just one block.
 
-<!-- Maintainer key blocks begin here. Each block is a complete
-     `-----BEGIN PGP PUBLIC KEY BLOCK-----` … `-----END PGP PUBLIC KEY BLOCK-----`
-     section, exported with:
-       gpg --armor --export <FINGERPRINT>
--->
+<!-- Maintainer key blocks follow below. Each block is a complete
+     ASCII-armored PGP PUBLIC KEY BLOCK, exported with
+     `gpg --armor --export <FINGERPRINT>`. The literal BEGIN/END armor
+     lines are deliberately not written out in this comment, so the
+     release workflow's block extraction only ever matches the real
+     key block(s) below. -->
 
-<!-- TODO: insert maintainer key here on first signed release. -->
+### Lennart Seidel — `security@filemorph.io`
+
+Ed25519 signing key. Added 2026-05-12; expires 2028-05-11. Fingerprint
+`7D8D E1FE 7B8E 4F8E F75E B81C 3536 2AA5 F3C3 2EC2`. After importing this
+block, `git verify-tag vX.Y.Z` on a release tag prints `Good signature`.
+
+```
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+
+mDMEagNiaRYJKwYBBAHaRw8BAQdAwJjgpeCS8wAu/M26EfIizocxWYw5RYX0dz5h
+4nUM4oC0Jkxlbm5hcnQgU2VpZGVsIDxzZWN1cml0eUBmaWxlbW9ycGguaW8+iJkE
+ExYKAEEWIQR9jeH+e45PjvdeuBw1Niql88MuwgUCagNiaQIbAwUJA8JnAAULCQgH
+AgIiAgYVCgkICwIEFgIDAQIeBwIXgAAKCRA1Niql88Muwq+IAP9ORNtE7d2xjh/W
+AB4OjtmDXSYZZg8ia4wdB5q9+VLVngEAw7/Q7pPK919nqtKK0zT+s55AfRN9kuKI
+LWx1Q6p9TQ0=
+=a6YT
+-----END PGP PUBLIC KEY BLOCK-----
+```
+
 
 ## Key rotation
 

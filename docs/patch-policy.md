@@ -127,6 +127,9 @@ pre-evaluate a release before it hits production.
 ## See also
 
 - [`SECURITY.md`](../SECURITY.md) — vulnerability disclosure policy.
+- [`support-sla.md`](./support-sla.md) — the Compliance Edition support
+  framework (set per agreement) and the security-fix timeline (all users), kept
+  distinct.
 - [`incident-response.md`](./incident-response.md) — what happens after a
   vulnerability is confirmed.
 - [`security-overview.md`](./security-overview.md) — the controls each

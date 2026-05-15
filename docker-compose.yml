@@ -24,6 +24,22 @@ services:
       - path: .env
         required: false
     restart: unless-stopped
+    # Hardening — defence in depth on top of the non-root ``appuser`` in the
+    # Dockerfile. ``no-new-privileges`` blocks setuid-style privilege
+    # escalation inside the container; ``cap_drop: [ALL]`` removes every
+    # Linux capability — the app neither binds a privileged port (8000 is
+    # unprivileged) nor needs ``CAP_NET_RAW``/``CAP_DAC_OVERRIDE`` for any
+    # converter. Adding ``read_only: true`` would need a writable ``/tmp``
+    # tmpfs for Python's ``tempfile.mkdtemp`` (the fm_* scratch dirs); we
+    # leave that to operators who want the stronger guarantee — uncomment
+    # the two lines below and pair them with adequate tmpfs sizing.
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # read_only: true
+    # tmpfs:
+    #   - /tmp:size=512m
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
       interval: 10s

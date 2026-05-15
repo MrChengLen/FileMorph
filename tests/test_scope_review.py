@@ -125,3 +125,57 @@ def test_main_returns_zero_even_with_findings(monkeypatch):
 
     monkeypatch.setattr(scope_review, "_staged_added_lines", fake_lines)
     assert scope_review.main() == 0
+
+
+# ── Encoding guard — git diff stdout must decode UTF-8, not the Windows locale ──
+
+
+def test_staged_added_lines_decodes_git_output_as_utf8(monkeypatch):
+    """On Windows ``text=True`` alone falls back to cp1252, which raises
+    ``UnicodeDecodeError`` on any UTF-8 continuation byte (em-dash, smart
+    quotes, non-Latin-1 source). The fix pins ``encoding="utf-8"`` and
+    ``errors="replace"``. Pin both kwargs so a future regression can't
+    silently re-introduce the crash."""
+    import subprocess as _subprocess
+
+    captured: dict = {}
+
+    class _FakeProc:
+        returncode = 0
+        stdout = "+++ b/x.py\n@@ -0,0 +1 @@\n+x = 1\n"
+
+    def fake_run(*args, **kwargs):
+        captured["args"] = args
+        captured["kwargs"] = kwargs
+        return _FakeProc()
+
+    monkeypatch.setattr(_subprocess, "run", fake_run)
+    # Drive the function through one call.
+    scope_review._staged_added_lines()
+
+    assert captured["kwargs"].get("encoding") == "utf-8"
+    assert captured["kwargs"].get("errors") == "replace"
+    assert captured["kwargs"].get("text") is True
+
+
+def test_staged_added_lines_parses_utf8_em_dash_without_crashing(monkeypatch):
+    """End-to-end: a diff with an em-dash must parse to a single '+' line
+    rather than raising. Today's regression manifested as ``stdout=None``
+    after a UnicodeDecodeError on byte 0x8f; the fix returns parsed lines
+    even when git emits multi-byte UTF-8."""
+    import subprocess as _subprocess
+
+    class _FakeProc:
+        returncode = 0
+        # The trailing line is the real diff-add — note the em-dash.
+        stdout = "+++ b/docs/x.md\n@@ -0,0 +1 @@\n+title — subtitle\n"
+
+    def fake_run(*args, **kwargs):
+        return _FakeProc()
+
+    monkeypatch.setattr(_subprocess, "run", fake_run)
+    lines = scope_review._staged_added_lines()
+    assert len(lines) == 1
+    file, _, content = lines[0]
+    assert file == "docs/x.md"
+    assert "—" in content

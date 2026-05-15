@@ -51,11 +51,13 @@ Every conversion or compression request follows the same path:
    `Referrer-Policy` of `strict-origin-when-cross-origin`.
 3. **Upload-size guard** rejects any POST with a `Content-Length` above
    `MAX_UPLOAD_SIZE_MB` (default 2000) before the body is read.
-4. **Authentication.** API requests go through `validate_api_key()` in
-   `app/core/security.py` — a SHA-256 + `hmac.compare_digest` constant-time
-   check against the `api_keys.json` file (Community Edition) or the
-   `api_keys` table (Cloud Edition). Web-UI flows use JWT cookies issued by
-   the auth router.
+4. **Authentication.** API requests carry an `X-API-Key` header validated by
+   `validate_api_key()` in `app/core/security.py` — a SHA-256 +
+   `hmac.compare_digest` constant-time check against the `api_keys.json` file
+   (Community Edition) or the `api_keys` table (Cloud Edition). Web-UI flows
+   use JWT bearer tokens issued by the auth router and carried in the
+   `Authorization: Bearer` header; the browser keeps them in `localStorage`,
+   not a cookie — FileMorph sets **no cookies** (see `privacy.html` §6).
 5. **Rate limiting** via `slowapi` — 10 requests per minute per IP for the
    convert and compress endpoints; the limiter state is in-memory and
    resets on restart.

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """SEO + well-known foundation endpoints: ``/robots.txt``, ``/sitemap.xml``,
 and ``/.well-known/security.txt``.
 

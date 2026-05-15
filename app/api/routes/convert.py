@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 import asyncio
 import logging
 import shutil
@@ -68,7 +69,7 @@ async def _do_convert(
     try:
         converter = get_converter(src_ext, tgt_ext)
     except UnsupportedConversionError as e:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(e))
 
     # Tier-based file size enforcement (anonymous: 20 MB, free: 50, pro: 100, business: 500)
     # ``tier`` is passed in from the wrapper that already acquired the
@@ -85,7 +86,7 @@ async def _do_convert(
             )
         else:
             detail = f"File too large ({limit_mb} MB max for your plan). Upgrade for larger files."
-        raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail=detail)
+        raise HTTPException(status_code=status.HTTP_413_CONTENT_TOO_LARGE, detail=detail)
 
     # PR-M: monthly API-call quota gate. Anonymous + Enterprise tiers
     # are exempt; everyone else runs against the limit defined in
@@ -157,7 +158,7 @@ async def _do_convert(
                 },
             )
             raise HTTPException(
-                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                status_code=status.HTTP_413_CONTENT_TOO_LARGE,
                 detail=f"Output too large ({out_mb} MB > {cap_mb} MB cap). {hint}",
             )
 
@@ -317,7 +318,7 @@ async def _do_convert_batch(
     # is a client bug — reject before we touch disk.
     if len(target_formats) != len(files):
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
                 f"target_formats has {len(target_formats)} entries but {len(files)} files "
                 "were uploaded. One target per file is required."
@@ -438,7 +439,7 @@ async def _do_convert_batch(
 
     if summary["succeeded"] == 0:
         return JSONResponse(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             content=batch_error_response(results, summary),
         )
 

@@ -227,15 +227,13 @@ curl http://localhost:8000/api/v1/health
 
 Expected response:
 ```json
-{
-  "status": "ok",
-  "version": "1.0.0",
-  "ffmpeg_available": true
-}
+{"status": "ok"}
 ```
 
-If `ffmpeg_available` is `false`, ffmpeg is not on your PATH — video and audio conversion
-will not work, but all other formats are unaffected.
+`/api/v1/health` is the unauthenticated liveness probe — minimal by design so it
+discloses no version or codec details. To verify ffmpeg is on PATH (needed for video
+and audio), call `GET /api/v1/ready`, which reports operational state without leaking
+it to the public internet.
 
 ---
 

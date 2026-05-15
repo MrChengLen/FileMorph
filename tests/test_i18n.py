@@ -7,11 +7,12 @@ Accept-Language → operator default), the unknown-locale fallback, the
 hreflang presence on every page, the ``<html lang>`` / ``og:locale``
 propagation, and the **no-cookie** regression-guard.
 
-The app intentionally writes no client-side locale cookie — the
-published privacy policy (``app/templates/privacy.html`` §6) commits to
-"no cookies on its own domain", and the URL is the single source of
-truth for locale. ``test_no_locale_cookie_set_on_any_route`` is the
-programmatic guard against accidental reintroduction.
+The app sets no cookies at all — the published privacy policy
+(``app/templates/privacy.html`` §6) commits to "no cookies on its own
+domain"; auth uses ``localStorage`` + bearer/``X-API-Key`` headers and
+locale is in the URL path, so there is nothing a cookie would carry.
+``test_no_cookie_set_on_any_route`` is the programmatic guard against
+accidental reintroduction of *any* ``Set-Cookie``.
 
 These tests do not depend on any DE translations existing — PR-i18n-1
 ships infrastructure with empty .po files, so all rendered text stays
@@ -175,19 +176,26 @@ def test_url_prefix_beats_query_param(client):
         "/en/contact",
     ],
 )
-def test_no_locale_cookie_set_on_any_route(client, url):
+def test_no_cookie_set_on_any_route(client, url):
     """The app commits to "no cookies on its own domain" (privacy.html §6).
 
-    This is the programmatic gate against accidental reintroduction of a
-    locale cookie. Hits the URL space that PR-i18n-1 originally wired the
-    cookie to (root, prefixed, query-param, and a non-trivial page) and
-    asserts the response carries no ``fm_lang`` Set-Cookie.
+    Programmatic gate against *any* accidental ``Set-Cookie`` — not just the
+    ``fm_lang`` locale cookie that PR-i18n-1 once wired up and PR-i18n-1b
+    removed. FileMorph is wholly cookie-free: JWT/API-key live in
+    ``localStorage`` + ``Authorization``/``X-API-Key`` headers, locale is in
+    the URL path, there is no server-side session. So *no* response from any
+    route may carry a ``Set-Cookie`` header. Hits root, locale-prefixed,
+    query-param, and a non-trivial page.
     """
     r = client.get(url, headers={"accept-language": ""})
     assert r.status_code == 200
-    set_cookie = r.headers.get("set-cookie", "")
-    assert "fm_lang" not in set_cookie, (
-        f"locale cookie regression on {url!r} — Set-Cookie was: {set_cookie!r}"
+    assert "set-cookie" not in r.headers, (
+        f"FileMorph set a cookie on {url!r} — Set-Cookie was: "
+        f"{r.headers.get('set-cookie')!r}. The app commits to 'no cookies' "
+        f"(privacy.html §6); auth uses localStorage + bearer headers, locale "
+        f"uses the URL path. If a strictly-necessary cookie is ever genuinely "
+        f"required, that's a deliberate decision — update privacy.html and "
+        f"this guard together."
     )
 
 

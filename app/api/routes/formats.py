@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 from fastapi import APIRouter, Request
 
 from app.compressors.image import _SUPPORTED_FORMATS as IMAGE_COMPRESS_FMTS

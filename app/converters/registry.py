@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 from app.converters.base import BaseConverter, UnsupportedConversionError
 
 # Maps (src_format, tgt_format) → converter class

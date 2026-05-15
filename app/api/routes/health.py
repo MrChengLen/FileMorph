@@ -1,6 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 import logging
 import os
-import shutil
 import tempfile
 import uuid
 from pathlib import Path
@@ -9,7 +9,6 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
-from app.core.config import settings
 from app.core.rate_limit import limiter
 from app.db.base import engine
 from app.models.schemas import HealthResponse, ReadinessResponse
@@ -24,12 +23,13 @@ router = APIRouter()
 async def health_check(request: Request) -> HealthResponse:
     """Liveness probe — the process is up and the framework is responding.
     Deliberately cheap: no DB or disk I/O, no dependency checks. Use /ready
-    for the full dependency check."""
-    return HealthResponse(
-        status="ok",
-        version=settings.app_version,
-        ffmpeg_available=shutil.which("ffmpeg") is not None,
-    )
+    for the full dependency check.
+
+    Returns only ``{"status": "ok"}``. The app version and codec
+    availability are intentionally not exposed on this unauthenticated
+    endpoint (pentest finding PT-011); operators read the running version
+    from the deployed image tag / release."""
+    return HealthResponse(status="ok")
 
 
 @router.get("/ready", tags=["System"])

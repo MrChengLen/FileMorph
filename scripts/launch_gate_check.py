@@ -36,7 +36,7 @@ import statistics
 import sys
 import time
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import requests
@@ -136,7 +136,7 @@ def perf_gate_local(base_url: str, api_key: str | None) -> GateResult:
 
 def parse_log_file(path: Path, days: int = 7) -> tuple[list[dict], dict]:
     """Read JSON-lines log, return (matching records, summary)."""
-    cutoff = datetime.utcnow() - timedelta(days=days)
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
     convert_records: list[dict] = []
     compress_records: list[dict] = []
     parse_errors = 0
@@ -156,7 +156,9 @@ def parse_log_file(path: Path, days: int = 7) -> tuple[list[dict], dict]:
                 continue
             ts_str = rec.get("time") or rec.get("timestamp") or ""
             try:
-                ts = datetime.strptime(ts_str.split(",")[0], "%Y-%m-%d %H:%M:%S")
+                ts = datetime.strptime(ts_str.split(",")[0], "%Y-%m-%d %H:%M:%S").replace(
+                    tzinfo=timezone.utc
+                )
             except ValueError:
                 continue
             if ts < cutoff:

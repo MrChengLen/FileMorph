@@ -348,6 +348,7 @@ The privacy policy at `https://filemorph.io/privacy` must cover the following se
 - Files are permanently deleted after the retention period expires.
 
 ### 6. Cookies and Browser Storage
+> **Superseded — see `app/templates/privacy.html` §6 for the authoritative, current text.** That section is more complete than this 2026-04-20 draft: it lists every `localStorage` key (`fm_access_token`, `fm_refresh_token`, `filemorph_api_key`), states when each is written and cleared, and cites the § 25 Abs. 2 Nr. 2 TTDSG / Art. 5(3) ePrivacy "strictly necessary" exemption (so no consent banner). The "localStorage stores `filemorph_api_key` without disclosure" finding in the compliance table above is therefore **closed**: the keys are fully disclosed in the live policy. FileMorph still sets **no HTTP cookies** of its own.
 - We do not set cookies for tracking or analytics.
 - The web interface stores your API key in browser localStorage for convenience. This data never leaves your browser and is not transmitted to our servers (except as the API key in request headers when you initiate a conversion).
 

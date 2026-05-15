@@ -332,14 +332,13 @@ Health check for monitoring and load balancer probes.
 **Response**: `200 OK` — JSON
 
 ```json
-{
-  "status": "ok",
-  "version": "1.0.0",
-  "ffmpeg_available": true
-}
+{"status": "ok"}
 ```
 
-`ffmpeg_available: false` means video and audio operations will fail — check your system setup.
+`/api/v1/health` is the unauthenticated liveness probe — it stays deliberately minimal
+(no version or codec flags) so a public hit does not disclose deployment internals
+(pentest finding PT-011). For operational state (database / temp-dir reachability,
+ffmpeg-on-PATH), use `GET /api/v1/ready`.
 
 ---
 
