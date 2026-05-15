@@ -171,6 +171,9 @@ def test_url_prefix_beats_query_param(client):
         "/login",
         "/de/login",
         "/en/login",
+        "/contact",
+        "/de/contact",
+        "/en/contact",
     ],
 )
 def test_no_cookie_set_on_any_route(client, url):
@@ -335,6 +338,7 @@ def test_supported_locale_renders_each_page(client, locale):
         "/privacy",
         "/terms",
         "/impressum",
+        "/contact",
         "/verify-email",
     ]
     for page in pages:
@@ -369,6 +373,7 @@ def test_supported_locale_renders_each_page(client, locale):
         ("/de/terms", "Nutzungsbedingungen"),
         ("/de/impressum", "Verantwortlich"),
         ("/de/security", "Sicherheit"),
+        ("/de/contact", "Nachricht senden"),
     ],
 )
 def test_de_page_renders_german_content(client, path, de_marker):

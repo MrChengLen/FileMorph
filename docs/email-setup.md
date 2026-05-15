@@ -19,6 +19,7 @@ needs none of this. If you don't run the user-account features, leave the
 | Password reset | `POST /api/v1/auth/forgot-password` | Single-use reset link. **30-minute TTL**, invalidated by the next password change (hash-version pin). |
 | Account-deletion confirmation | `DELETE /api/v1/auth/account` | Post-commit notification with the user-facing support contact. |
 | Billing receipts | Stripe Customer Portal | Stripe sends these directly via the customer portal — FileMorph itself only sends transactional auth mail. |
+| Contact form | `POST /api/v1/contact` | Operator notification carrying the visitor's message; `Reply-To` is set to the visitor so the operator can answer directly. |
 
 If `SMTP_HOST` is empty, every feature above degrades gracefully:
 
@@ -28,6 +29,9 @@ If `SMTP_HOST` is empty, every feature above degrades gracefully:
   The user can request a fresh link via `/resend-verification` once SMTP is wired.
 - `/auth/account` deletes the user even if the confirmation email cannot be sent;
   the deletion itself is the legally-binding action.
+- `/contact` still returns `200` — the operator-notification email is fire-and-forget,
+  so on an SMTP-less deployment the submission is logged and dropped (same behaviour
+  as `/register`'s verification mail). Set SMTP for the contact form to actually work.
 
 ---
 
@@ -43,6 +47,7 @@ SMTP_PASSWORD=...                    # provider-issued app password / SMTP secre
 SMTP_FROM_EMAIL=no-reply@example.com # user-visible FROM address
 SMTP_FROM_NAME=YourBrand             # display name in the From: header
 SMTP_REPLY_TO=hallo@example.com      # optional; where users hit "reply"
+CONTACT_FORM_RECIPIENT_EMAIL=hallo@example.com  # optional; /contact recipient — falls back to SMTP_REPLY_TO, then SMTP_FROM_EMAIL
 
 APP_BASE_URL=https://your-domain.example.com  # used to build link URLs
 ```

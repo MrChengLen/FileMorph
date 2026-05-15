@@ -113,6 +113,13 @@ class Settings(BaseSettings):
     smtp_from_name: str = "FileMorph"
     smtp_reply_to: str = ""
 
+    # Recipient inbox for the public /contact form. Falls back at the
+    # use-site to smtp_reply_to, then smtp_from_email. Empty everywhere →
+    # the form still renders but submissions are logged and dropped (same
+    # no-op-when-unconfigured behaviour as transactional email when
+    # smtp_host is empty).
+    contact_form_recipient_email: str = ""
+
     # Public base URL used when building links in outbound emails.
     app_base_url: str = "http://localhost:8000"
 

@@ -19,7 +19,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from starlette.middleware.gzip import GZipMiddleware
 
-from app.api.routes import compress, convert, formats, health, pages, seo
+from app.api.routes import compress, contact, convert, formats, health, pages, seo
 from app.api.routes import auth as auth_route
 from app.api.routes import billing as billing_route
 from app.api.routes import cockpit as cockpit_route
@@ -452,6 +452,7 @@ app.include_router(health.router, prefix="/api/v1")
 app.include_router(formats.router, prefix="/api/v1")
 app.include_router(convert.router, prefix="/api/v1")
 app.include_router(compress.router, prefix="/api/v1")
+app.include_router(contact.router, prefix="/api/v1")  # POST /api/v1/contact
 app.include_router(auth_route.router, prefix="/api/v1")
 app.include_router(keys_route.router, prefix="/api/v1")
 app.include_router(billing_route.router, prefix="/api/v1")
@@ -460,7 +461,7 @@ app.include_router(cockpit_route.router, prefix="/api/v1")
 
 # ── Web UI ────────────────────────────────────────────────────────────────────
 #
-# The pages router defines all 14 user-facing HTML routes once. We mount
+# The pages router defines all 15 user-facing HTML routes once. We mount
 # it three times so the same handler serves the unprefixed path
 # (``x-default`` for SEO, defaults to the operator's ``LANG_DEFAULT``)
 # AND the explicit ``/de/...`` + ``/en/...`` prefixes. ``LocaleMiddleware``

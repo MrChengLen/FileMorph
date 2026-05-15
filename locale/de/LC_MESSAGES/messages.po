@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-05-11 21:42+0200\n"
+"POT-Creation-Date: 2026-05-15 09:37+0200\n"
 "PO-Revision-Date: 2026-05-08 11:00+0200\n"
 "Last-Translator: FileMorph <hallo@filemorph.io>\n"
 "Language: de\n"
@@ -114,6 +114,9 @@ msgstr "2d. Server-Logs:"
 msgid "2e. API keys:"
 msgstr "2e. API-Keys:"
 
+msgid "2f. Contact form submissions:"
+msgstr "2f. Nachrichten über das Kontaktformular:"
+
 msgid "3 servers, ≤ 2,000 employees"
 msgstr "3 Server, ≤ 2.000 Mitarbeitende"
 
@@ -209,12 +212,13 @@ msgstr "API-Key-Verwaltung"
 msgid "API key — "
 msgstr "API-Key — "
 
+#, fuzzy
 msgid ""
 "Account creation, paid subscriptions, and transactional emails are "
 "processed on the basis of Art. 6(1)(b) GDPR (performance of a contract). "
-"Server-log processing, rate-limiting, and abuse prevention are based on "
-"our legitimate interest (Art. 6(1)(f) GDPR) in operating a secure and "
-"reliable service."
+"Server-log processing, rate-limiting, abuse prevention, and handling "
+"inquiries you send us are based on our legitimate interest (Art. 6(1)(f) "
+"GDPR) in operating a secure and reliable service."
 msgstr ""
 "Konto-Erstellung, bezahlte Abonnements und Transaktions-E-Mails werden "
 "auf Grundlage von Art. 6(1)(b) DSGVO (Vertragserfüllung) verarbeitet. "
@@ -317,6 +321,13 @@ msgstr "Business · 19 €"
 msgid "By quality %"
 msgstr "Nach Qualität %"
 
+msgid ""
+"By sending, you agree we process your message and email address to "
+"respond. See our"
+msgstr ""
+"Mit dem Absenden stimmst du zu, dass wir deine Nachricht und E-Mail-"
+"Adresse zur Beantwortung verarbeiten. Siehe unsere"
+
 msgid "By target size"
 msgstr "Nach Zielgröße"
 
@@ -411,6 +422,14 @@ msgid ""
 msgstr ""
 "Konformität abgesichert durch veraPDF-CI-Gate gegen ein Worst-Case-Quell-"
 "PDF — für beA-Anhänge, Bürgerantrags-Archivierung, BSI TR-RESISCAN."
+
+#, fuzzy
+msgid "Contact"
+msgstr "Kontakt:"
+
+#, fuzzy
+msgid "Contact us"
+msgstr "Kontakt:"
 
 msgid "Contact:"
 msgstr "Kontakt:"
@@ -711,6 +730,9 @@ msgstr ""
 msgid "Hetzner's privacy policy"
 msgstr "Hetzners Datenschutzerklärung"
 
+msgid "How can we help?"
+msgstr "Wie können wir helfen?"
+
 msgid "How does AGPLv3 behave with citizen-portal integrations?"
 msgstr "Wie verhält sich AGPLv3 bei Bürgerportal-Integrationen?"
 
@@ -773,13 +795,33 @@ msgstr ""
 " für die Lebensdauer deines Kontos persistiert und auf Löschanfrage "
 "entfernt (Art. 17 DSGVO)."
 
+msgid ""
+"If you use the contact form (also linked from our Impressum), we process "
+"your message text, your email address, and an optional name solely to "
+"handle your inquiry. The message is not stored in our database — it is "
+"delivered to the operator by email (via the provider in § 3a) and kept "
+"only as long as needed to deal with your request. Legal basis: Art. "
+"6(1)(f) GDPR (handling inquiries), or Art. 6(1)(b) GDPR where it concerns"
+" an existing contract. We do not use it for marketing."
+msgstr ""
+"Wenn du das Kontaktformular nutzt (auch im Impressum verlinkt), "
+"verarbeiten wir deinen Nachrichtentext, deine E-Mail-Adresse und einen "
+"optionalen Namen ausschließlich zur Bearbeitung deiner Anfrage. Die "
+"Nachricht wird nicht in unserer Datenbank gespeichert — sie wird per "
+"E-Mail an den Betreiber zugestellt (über den Anbieter in § 3a) und nur so"
+" lange aufbewahrt, wie es zur Bearbeitung deines Anliegens nötig ist. "
+"Rechtsgrundlage: Art. 6(1)(f) DSGVO (Bearbeitung von Anfragen) oder Art. "
+"6(1)(b) DSGVO, soweit es einen bestehenden Vertrag betrifft. Wir nutzen "
+"sie nicht für Marketing."
+
 msgid "Images · Documents · Audio · Video · Spreadsheets"
 msgstr "Bilder · Dokumente · Audio · Video · Tabellen"
 
 msgid "Impressum"
 msgstr "Impressum"
 
-msgid "Imprint per German Telemediengesetz §5 (TMG)."
+#, fuzzy
+msgid "Imprint under the German Digitale-Dienste-Gesetz §5 (DDG)."
 msgstr "Impressum gemäß § 5 Telemediengesetz (TMG)."
 
 msgid "In scope:"
@@ -829,10 +871,11 @@ msgstr ""
 msgid "Language"
 msgstr "Sprache"
 
-msgid "Last updated: 2026-04-23 · Community + Cloud Edition"
-msgstr "Zuletzt aktualisiert: 2026-04-23 · Community + Cloud Edition"
-
 msgid "Last updated: 2026-05-08 · Community + Cloud Edition"
+msgstr "Stand: 08.05.2026 · Community + Cloud Edition"
+
+#, fuzzy
+msgid "Last updated: 2026-05-12 · Community + Cloud Edition"
 msgstr "Stand: 08.05.2026 · Community + Cloud Edition"
 
 msgid ""
@@ -864,6 +907,9 @@ msgstr "Mitglied seit"
 msgid "Mermaid diagram and request lifecycle ↗"
 msgstr "Mermaid-Diagramm und Request-Lifecycle ↗"
 
+msgid "Message"
+msgstr "Nachricht"
+
 msgid "Min. 8 characters."
 msgstr "Min. 8 Zeichen."
 
@@ -882,6 +928,9 @@ msgstr "Am beliebtesten"
 
 msgid "Multi-format (image + audio + video + sheet)"
 msgstr "Multi-Format (Bild + Audio + Video + Sheet)"
+
+msgid "Name (optional)"
+msgstr "Name (optional)"
 
 msgid "New password"
 msgstr "Neues Passwort"
@@ -977,6 +1026,16 @@ msgstr ""
 
 msgid "Plans"
 msgstr "Tarife"
+
+msgid ""
+"Please check the form: a valid email and a message of at least 20 "
+"characters are required."
+msgstr ""
+"Bitte prüfe das Formular: eine gültige E-Mail-Adresse und eine Nachricht "
+"mit mindestens 20 Zeichen sind erforderlich."
+
+msgid "Please email us directly at"
+msgstr "Bitte schreib uns direkt an"
 
 msgid "Price / year"
 msgstr "Preis / Jahr"
@@ -1166,6 +1225,12 @@ msgstr ""
 msgid "Send Reset Link"
 msgstr "Link senden"
 
+msgid "Send message"
+msgstr "Nachricht senden"
+
+msgid "Send us a message and we will get back to you."
+msgstr "Schreib uns — wir melden uns bei dir."
+
 msgid ""
 "Server-volume-based, not per user seat. Binding terms follow the personal"
 " conversation."
@@ -1198,6 +1263,9 @@ msgid "Something went wrong on our end. Please try again in a moment."
 msgstr ""
 "Auf unserer Seite ist etwas schiefgelaufen. Bitte versuche es gleich noch"
 " einmal."
+
+msgid "Sorry, we could not send your message right now."
+msgstr "Entschuldigung, deine Nachricht konnte gerade nicht gesendet werden."
 
 msgid "Source code"
 msgstr "Quellcode"
@@ -1238,6 +1306,9 @@ msgstr "Stripes Datenschutzerklärung"
 msgid "Sub-processor list"
 msgstr "Sub-Processor-Liste"
 
+msgid "Subject (optional)"
+msgstr "Betreff (optional)"
+
 msgid "Support SLA"
 msgstr "Support-SLA"
 
@@ -1261,6 +1332,9 @@ msgstr "Ziel-Dateigröße"
 
 msgid "Terms of Use"
 msgstr "Nutzungsbedingungen"
+
+msgid "Thanks — your message has been sent. We will reply soon."
+msgstr "Danke — deine Nachricht wurde gesendet. Wir antworten in Kürze."
 
 msgid ""
 "That channel is preferred for issues that affect every self-hosted "
@@ -1392,6 +1466,9 @@ msgstr ""
 msgid "Toggle menu"
 msgstr "Menü umschalten"
 
+msgid "Too many attempts. Please try again later."
+msgstr "Zu viele Versuche. Bitte versuche es später erneut."
+
 msgid "Trust basis before contract"
 msgstr "Vertrauensbasis vor dem Vertrag"
 
@@ -1489,6 +1566,9 @@ msgstr "Wie sieht der Datenexport aus, wenn wir migrieren?"
 msgid "What happens if we cancel?"
 msgstr "Was passiert, wenn wir kündigen?"
 
+msgid "What is this about?"
+msgstr "Worum geht es?"
+
 msgid "What to include in a report"
 msgstr "Was ein Bericht enthalten sollte"
 
@@ -1548,6 +1628,9 @@ msgstr ""
 "Du hast außerdem das Recht, Beschwerde bei deiner lokalen "
 "Datenschutzbehörde einzureichen."
 
+msgid "You can also email us directly at"
+msgstr "Du kannst uns auch direkt schreiben an"
+
 msgid ""
 "You can fully audit FileMorph before the first conversation. All relevant"
 " security and architecture documents are freely accessible:"
@@ -1588,6 +1671,9 @@ msgstr ""
 
 msgid "Your email is now verified."
 msgstr "Deine E-Mail-Adresse ist jetzt bestätigt."
+
+msgid "Your name"
+msgstr "Dein Name"
 
 msgid "Your password has been updated."
 msgstr "Dein Passwort wurde aktualisiert."
@@ -1820,6 +1906,9 @@ msgstr "← Zurück"
 
 #~ msgid "Free forever — no credit card required"
 #~ msgstr "Für immer kostenlos — keine Kreditkarte erforderlich"
+
+#~ msgid "Last updated: 2026-04-23 · Community + Cloud Edition"
+#~ msgstr "Zuletzt aktualisiert: 2026-04-23 · Community + Cloud Edition"
 
 #~ msgid "only while you are signed in:"
 #~ msgstr "deines Browsers gespeichert, während du angemeldet bist:"

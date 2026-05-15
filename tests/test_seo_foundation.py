@@ -39,6 +39,11 @@ def test_sitemap_xml_serves_valid_with_url_entries(client):
     assert any(loc.endswith("/") for loc in locs), (
         f"sitemap must include the homepage; got {locs!r}"
     )
+    # /contact is the public companion to the Impressum's second contact
+    # channel — it must stay in the sitemap (it is ungated, unlike /pricing).
+    assert any(loc.endswith("/contact") for loc in locs), (
+        f"sitemap must include /contact; got {locs!r}"
+    )
 
 
 # ── AT-03..05 — Title / description / viewport / canonical ───────────────────

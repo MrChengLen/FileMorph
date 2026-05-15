@@ -1,0 +1,30 @@
+{# textarea(name, label=None, placeholder='', autocomplete=None, required=False, rows=6, id=None, help=None)
+
+   Multi-line input — the textarea sibling of text_input.html. Reuses the
+   same single-source recipe (bg-surface-sunken border border-hairline
+   rounded-control px-3 py-2.5 …) so a future restyle touches one place.
+   <textarea> has no `value` attribute (initial content goes between the
+   tags, which we leave empty); `rows` is a real HTML attribute — no
+   min-h-* fakery, the recipe classes give the frame. `resize-y` lets the
+   user grow it vertically only.
+
+   help — optional muted help-text shown below the field.
+#}
+{% macro textarea(name, label=None, placeholder='', autocomplete=None, required=False, rows=6, id=None, help=None) %}
+{%- set input_id = id or name -%}
+<div class="space-y-1" data-component="textarea">
+  {% if label %}
+  <label for="{{ input_id }}" class="block text-sm font-medium text-ink-muted">{{ label }}</label>
+  {% endif %}
+  <textarea id="{{ input_id }}"
+            name="{{ name }}"
+            rows="{{ rows }}"
+            {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}
+            {% if autocomplete %}autocomplete="{{ autocomplete }}"{% endif %}
+            {% if required %}required{% endif %}
+            class="block w-full bg-surface-sunken border border-hairline rounded-control px-3 py-2.5 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition-colors resize-y"></textarea>
+  {% if help %}
+  <p class="text-xs text-ink-faint">{{ help }}</p>
+  {% endif %}
+</div>
+{% endmacro %}
