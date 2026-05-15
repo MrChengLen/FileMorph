@@ -36,6 +36,7 @@ async def index(request: Request):
 
 
 @router.get("/impressum")
+@router.get("/imprint")  # EN-locale URL alias; same handler, same template
 async def impressum(request: Request):
     return _render(request, "impressum.html")
 

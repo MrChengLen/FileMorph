@@ -26,12 +26,15 @@ import pytest
     [
         # /privacy and /terms are now i18n-wrapped (PR-i18n-2c) — DE is the
         # legal-authoritative version with EN footer. Default route renders DE
-        # so we hit /en/ for the EN marker. /impressum stays raw German (TMG-
-        # bound legal text); the word "Impressum" appears in both locales.
-        # /security was wrapped earlier and uses the same /en/ rule.
+        # so we hit /en/ for the EN marker.
         ("/en/privacy", "Privacy Policy"),
         ("/en/terms", "Terms of Use"),
+        # /impressum is fully translated; /en/impressum and /en/imprint
+        # are the two reachable EN URLs (the EN-locale alias, see
+        # ``_PATH_ALIASES`` in app/core/i18n.py).
         ("/impressum", "Impressum"),
+        ("/en/impressum", "Imprint"),
+        ("/en/imprint", "Imprint"),
         ("/en/security", "Reporting a vulnerability"),
     ],
 )
@@ -158,24 +161,71 @@ def test_enterprise_en_renders_english_with_disclaimer(client, monkeypatch) -> N
     )
 
 
-def test_impressum_en_has_preamble_then_german(client) -> None:
-    """PR-i18n-2c: /en/impressum prepends an EN preamble explaining why
-    the legal body below stays in German (TMG § 5 Pflichtangaben).
+def test_impressum_en_locale_translates_section_headings(client) -> None:
+    """Impressum body is now fully i18n'd — /en/impressum (and its EN URL
+    alias /en/imprint) render with English section headings while keeping
+    the legally-anchoring German § references intact.
 
-    M7 hardening: pin the *order* — preamble before the German body.
-    A template inversion (DE block above the EN explanation) would still
-    pass a presence-only check but break the document's purpose
-    (English speakers must see the preamble first to understand why the
-    rest is in German).
+    Pin section markers (H2 headings) rather than the H1 so a future
+    title-copy tweak doesn't trip the test. The DE versions
+    (``Verantwortlich``, ``Steuerliche Angaben``, ``Hinweis``) must NOT
+    appear in the EN render — that would mean the i18n wrappers were
+    removed or the translator failed to resolve.
     """
-    res = client.get("/en/impressum")
-    assert res.status_code == 200
-    text = res.text
-    preamble_marker = "as required by German law"
-    body_marker = "Verantwortlich"
-    assert preamble_marker in text, "/en/impressum missing EN preamble explaining DE legal text"
-    assert body_marker in text, "/en/impressum missing the raw DE TMG section"
-    # Order pin: EN preamble must precede the DE body.
-    assert text.index(preamble_marker) < text.index(body_marker), (
-        "/en/impressum has DE legal body before the EN preamble — template inverted?"
-    )
+    for path in ("/en/impressum", "/en/imprint"):
+        res = client.get(path)
+        assert res.status_code == 200, f"{path} -> {res.status_code}"
+        text = res.text
+        # Positive: English section headings present
+        for marker in (
+            "Responsible party",
+            "Contact",
+            "Tax status",
+            "Editorial responsibility",
+            "Consumer dispute resolution",
+            "Notice",
+        ):
+            assert marker in text, f"{path} missing EN heading '{marker}'"
+        # Negative: corresponding German headings absent
+        for marker in (
+            "Verantwortlich",
+            "Steuerliche Angaben",
+            "Inhaltlich Verantwortlicher",
+            "Verbraucherstreitbeilegung",
+        ):
+            assert marker not in text, f"{path} still has DE heading '{marker}' — i18n leak"
+        # Legally-binding German § references stay even in EN render.
+        assert "§ 5 DDG" in text, f"{path} missing § 5 DDG anchor"
+        assert "§ 19 UStG" in text, f"{path} missing § 19 UStG anchor"
+
+
+def test_imprint_alias_routes_to_impressum_handler(client) -> None:
+    """``/imprint`` is the EN-locale URL alias for ``/impressum`` —
+    same Python handler, same template, no separate page. The route
+    must be reachable both unprefixed (x-default) and under /en/.
+    """
+    canonical = client.get("/impressum")
+    alias = client.get("/imprint")
+    assert canonical.status_code == 200
+    assert alias.status_code == 200
+    # Same handler renders the same Impressum body — a structural check
+    # (one of the locale-binding § references) is enough to assert that.
+    assert "§ 5 DDG" in alias.text
+
+
+def test_localized_url_maps_impressum_to_imprint_for_en() -> None:
+    """The footer link + language switcher rely on ``localized_url`` to
+    pick the right URL spelling per locale. /impressum is canonical (DE);
+    /imprint is the EN alias. Pin both forward + reverse mapping so a
+    change to ``_PATH_ALIASES`` can't silently break the navigation."""
+    from app.core.i18n import localized_url
+
+    # Forward: canonical → locale alias.
+    assert localized_url("/impressum", "de") == "/de/impressum"
+    assert localized_url("/impressum", "en") == "/en/imprint"
+    assert localized_url("/impressum", None) == "/impressum"
+    # Reverse: language-switcher starts from /en/imprint, stripped to
+    # /imprint, and asks for the DE equivalent — must normalise back
+    # to the canonical /de/impressum spelling.
+    assert localized_url("/imprint", "de") == "/de/impressum"
+    assert localized_url("/imprint", "en") == "/en/imprint"

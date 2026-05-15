@@ -6,9 +6,9 @@
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: FileMorph 1.0.0\n"
+"Project-Id-Version: FileMorph 1.1.0.dev0\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-05-15 09:37+0200\n"
+"POT-Creation-Date: 2026-05-15 10:34+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -242,6 +242,11 @@ msgid "Already have an account?"
 msgstr ""
 
 msgid ""
+"An Economic Identification Number (Wirtschafts-Identifikationsnummer, § "
+"139c AO) will be added once issued by the Bundeszentralamt für Steuern."
+msgstr ""
+
+msgid ""
 "An orientation about the provider categories common in DACH RFPs. In "
 "individual cases, a specific product may do more — please check "
 "individually."
@@ -376,7 +381,13 @@ msgid ""
 "for beA attachments, citizen-application archiving, BSI TR-RESISCAN."
 msgstr ""
 
+msgid "Consumer dispute resolution"
+msgstr ""
+
 msgid "Contact"
+msgstr ""
+
+msgid "Contact form"
 msgstr ""
 
 msgid "Contact us"
@@ -451,10 +462,16 @@ msgstr ""
 msgid "E-mail support"
 msgstr ""
 
+msgid "EU Online Dispute Resolution:"
+msgstr ""
+
 msgid "EU vendor with German imprint"
 msgstr ""
 
 msgid "Early expiration of the right of withdrawal:"
+msgstr ""
+
+msgid "Editorial responsibility"
 msgstr ""
 
 msgid "Email"
@@ -512,6 +529,12 @@ msgid ""
 "FileMorph is a file conversion and compression service. The Community "
 "Edition is provided free of charge, without warranty, and without SLA "
 "commitments."
+msgstr ""
+
+msgid ""
+"FileMorph is an open-source project (AGPLv3). Use of the Community "
+"Edition is without warranty and at the user's own risk. Self-hosted "
+"instances are subject to the operator's local jurisdiction."
 msgstr ""
 
 msgid ""
@@ -613,6 +636,9 @@ msgstr ""
 msgid "GDPR-aligned file engine for regulated administration."
 msgstr ""
 
+msgid "Germany"
+msgstr ""
+
 msgid "Get API Key →"
 msgstr ""
 
@@ -693,9 +719,6 @@ msgstr ""
 msgid "Impressum"
 msgstr ""
 
-msgid "Imprint under the German Digitale-Dienste-Gesetz §5 (DDG)."
-msgstr ""
-
 msgid "In scope:"
 msgstr ""
 
@@ -738,6 +761,9 @@ msgid "Last updated: 2026-05-08 · Community + Cloud Edition"
 msgstr ""
 
 msgid "Last updated: 2026-05-12 · Community + Cloud Edition"
+msgstr ""
+
+msgid "Legal notice pursuant to § 5 DDG (Germany)."
 msgstr ""
 
 msgid ""
@@ -793,6 +819,9 @@ msgid "No account?"
 msgstr ""
 
 msgid "No credit card required"
+msgstr ""
+
+msgid "Notice"
 msgstr ""
 
 msgid "One click and you're done"
@@ -858,6 +887,9 @@ msgstr ""
 msgid ""
 "Payment processing is handled by Stripe Payments Europe Ltd.; Stripe's "
 "terms apply to the processing of your payment details."
+msgstr ""
+
+msgid "Per § 18 (2) MStV: Lennart Seidel, Reetwerder 25b, 21029 Hamburg."
 msgstr ""
 
 msgid "Plans"
@@ -972,6 +1004,9 @@ msgid ""
 "excluding German public holidays."
 msgstr ""
 
+msgid "Responsible party"
+msgstr ""
+
 msgid "SHA-256 audit log"
 msgstr ""
 
@@ -1053,6 +1088,11 @@ msgstr ""
 msgid "Simple, transparent pricing"
 msgstr ""
 
+msgid ""
+"Small-business status under § 19 UStG — no VAT is charged and no USt-"
+"IdNr. is held."
+msgstr ""
+
 msgid "Smaller file"
 msgstr ""
 
@@ -1116,6 +1156,9 @@ msgstr ""
 msgid "Target file size"
 msgstr ""
 
+msgid "Tax status"
+msgstr ""
+
 msgid "Terms of Use"
 msgstr ""
 
@@ -1141,11 +1184,6 @@ msgid ""
 "The Service is provided \"as is\" without warranty of any kind, express "
 "or implied. We do not guarantee uptime, accuracy of conversion results, "
 "or fitness for a particular purpose."
-msgstr ""
-
-msgid ""
-"The legal information below is provided in German as required by German "
-"law."
 msgstr ""
 
 msgid "The official Docker images and release artifacts."
@@ -1276,6 +1314,11 @@ msgid ""
 "the rate limiter are processed transiently in memory only and are never "
 "written to disk or logs. Legal basis: Art. 6(1)(f) GDPR — legitimate "
 "interest in service stability and security."
+msgstr ""
+
+msgid ""
+"We are neither willing nor obliged to participate in dispute-resolution "
+"proceedings before a consumer arbitration body (§ 36 VSBG)."
 msgstr ""
 
 msgid ""
@@ -1431,6 +1474,9 @@ msgid ""
 msgstr ""
 
 msgid "escalation, post-mortem template ↗"
+msgstr ""
+
+msgid "for a fast direct line"
 msgstr ""
 
 msgid "for full contact details."

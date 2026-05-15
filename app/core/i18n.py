@@ -98,20 +98,54 @@ def base_path(path: str) -> str:
     return path
 
 
+# Some pages have a locale-specific URL spelling — typically when the
+# canonical German URL is a German word that English readers don't
+# recognise. The map is keyed by the canonical (German-side) path; each
+# value maps a target locale to the alias path for that locale. The
+# unprefixed/x-default URL always uses the canonical key.
+_PATH_ALIASES: dict[str, dict[str, str]] = {
+    "/impressum": {"en": "/imprint"},
+}
+# Reverse map (any alias → canonical) lets ``localized_url`` accept a
+# URL in either spelling and route it correctly. Computed once at import.
+_PATH_ALIASES_REVERSE: dict[str, str] = {
+    alias: canonical
+    for canonical, by_locale in _PATH_ALIASES.items()
+    for alias in by_locale.values()
+}
+
+
 def localized_url(base: str, locale: str | None) -> str:
     """Build a URL for a given base path and locale.
 
-    ``locale=None`` returns the unprefixed (x-default) URL. Used by
-    hreflang tags + the language switcher.
+    ``locale=None`` returns the unprefixed (x-default) URL on the
+    canonical spelling. For locales that have an alias in ``_PATH_ALIASES``
+    the locale-specific spelling is used (e.g. ``/impressum`` → ``/en/imprint``).
+
+    The language switcher in ``base.html`` passes the current request's
+    ``base_path`` here, which may already be in alias form (``/imprint``
+    when the user is on ``/en/imprint``). We normalise to the canonical
+    key first via ``_PATH_ALIASES_REVERSE`` so a 'switch to DE' link from
+    ``/en/imprint`` correctly produces ``/de/impressum``.
     """
     base = base or "/"
     if not base.startswith("/"):
         base = "/" + base
+    # Step 1: if the input is already an alias (e.g. /imprint),
+    # collapse it to the canonical (e.g. /impressum) so the rest of
+    # the logic operates on a single key.
+    canonical = _PATH_ALIASES_REVERSE.get(base, base)
+    # Step 2: if the target locale has an alias for this canonical,
+    # use it (e.g. /impressum + en → /imprint).
+    if locale is not None and canonical in _PATH_ALIASES:
+        target = _PATH_ALIASES[canonical].get(locale, canonical)
+    else:
+        target = canonical
     if locale is None:
-        return base
-    if base == "/":
+        return target
+    if target == "/":
         return f"/{locale}/"
-    return f"/{locale}{base}"
+    return f"/{locale}{target}"
 
 
 def _accept_language_locale(header: str | None) -> str | None:

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-05-15 09:37+0200\n"
+"POT-Creation-Date: 2026-05-15 10:34+0200\n"
 "PO-Revision-Date: 2026-05-08 11:00+0200\n"
 "Last-Translator: FileMorph <hallo@filemorph.io>\n"
 "Language: de\n"
@@ -274,6 +274,13 @@ msgid "Already have an account?"
 msgstr "Hast du schon ein Konto?"
 
 msgid ""
+"An Economic Identification Number (Wirtschafts-Identifikationsnummer, § "
+"139c AO) will be added once issued by the Bundeszentralamt für Steuern."
+msgstr ""
+"Eine Wirtschafts-Identifikationsnummer (§ 139c AO) wird nach Zuteilung "
+"durch das Bundeszentralamt für Steuern ergänzt."
+
+msgid ""
 "An orientation about the provider categories common in DACH RFPs. In "
 "individual cases, a specific product may do more — please check "
 "individually."
@@ -423,9 +430,15 @@ msgstr ""
 "Konformität abgesichert durch veraPDF-CI-Gate gegen ein Worst-Case-Quell-"
 "PDF — für beA-Anhänge, Bürgerantrags-Archivierung, BSI TR-RESISCAN."
 
+msgid "Consumer dispute resolution"
+msgstr "Verbraucherstreitbeilegung"
+
 #, fuzzy
 msgid "Contact"
 msgstr "Kontakt:"
+
+msgid "Contact form"
+msgstr "Kontaktformular"
 
 #, fuzzy
 msgid "Contact us"
@@ -503,11 +516,17 @@ msgstr "Dateien hier ablegen oder klicken zum Auswählen"
 msgid "E-mail support"
 msgstr "E-Mail-Support"
 
+msgid "EU Online Dispute Resolution:"
+msgstr "Online-Streitbeilegung der EU-Kommission:"
+
 msgid "EU vendor with German imprint"
 msgstr "EU-Vendor mit deutschem Impressum"
 
 msgid "Early expiration of the right of withdrawal:"
 msgstr "Vorzeitiges Erlöschen des Widerrufsrechts:"
+
+msgid "Editorial responsibility"
+msgstr "Inhaltlich Verantwortlicher"
 
 msgid "Email"
 msgstr "E-Mail"
@@ -578,6 +597,16 @@ msgstr ""
 "FileMorph ist ein Datei-Konvertierungs- und Kompressions-Dienst. Die "
 "Community Edition wird kostenfrei, ohne Garantie und ohne SLA-"
 "Verpflichtungen bereitgestellt."
+
+msgid ""
+"FileMorph is an open-source project (AGPLv3). Use of the Community "
+"Edition is without warranty and at the user's own risk. Self-hosted "
+"instances are subject to the operator's local jurisdiction."
+msgstr ""
+"FileMorph ist ein Open-Source-Projekt (AGPLv3). Die Nutzung der Community"
+" Edition erfolgt ohne Garantie und auf eigene Verantwortung. Für den "
+"Betrieb eigener Instanzen gelten die jeweiligen lokalen Gesetze des "
+"Betreibers."
 
 msgid ""
 "FileMorph is open source software licensed under the GNU Affero General "
@@ -704,6 +733,9 @@ msgstr "DSGVO-AVV-Vorlage in deutscher Form"
 msgid "GDPR-aligned file engine for regulated administration."
 msgstr "DSGVO-konforme File-Engine für regulierte Verwaltung."
 
+msgid "Germany"
+msgstr "Deutschland"
+
 msgid "Get API Key →"
 msgstr "API-Key holen →"
 
@@ -820,9 +852,6 @@ msgstr "Bilder · Dokumente · Audio · Video · Tabellen"
 msgid "Impressum"
 msgstr "Impressum"
 
-msgid "Imprint under the German Digitale-Dienste-Gesetz §5 (DDG)."
-msgstr "Impressum gemäß § 5 Digitale-Dienste-Gesetz (DDG)."
-
 msgid "In scope:"
 msgstr "Im Geltungsbereich:"
 
@@ -876,6 +905,9 @@ msgstr "Stand: 08.05.2026 · Community + Cloud Edition"
 #, fuzzy
 msgid "Last updated: 2026-05-12 · Community + Cloud Edition"
 msgstr "Stand: 08.05.2026 · Community + Cloud Edition"
+
+msgid "Legal notice pursuant to § 5 DDG (Germany)."
+msgstr "Angaben gemäß § 5 DDG."
 
 msgid ""
 "Lifts the AGPLv3 publication obligation for internal in-house "
@@ -939,6 +971,9 @@ msgstr "Kein Konto?"
 
 msgid "No credit card required"
 msgstr "Keine Kreditkarte erforderlich"
+
+msgid "Notice"
+msgstr "Hinweis"
 
 msgid "One click and you're done"
 msgstr "Ein Klick und du bist fertig"
@@ -1022,6 +1057,9 @@ msgid ""
 msgstr ""
 "Die Zahlungsabwicklung erfolgt durch Stripe Payments Europe Ltd.; die AGB"
 " von Stripe gelten für die Verarbeitung deiner Zahlungsdaten."
+
+msgid "Per § 18 (2) MStV: Lennart Seidel, Reetwerder 25b, 21029 Hamburg."
+msgstr "Gemäß § 18 Abs. 2 MStV: Lennart Seidel, Reetwerder 25b, 21029 Hamburg."
 
 msgid "Plans"
 msgstr "Tarife"
@@ -1165,6 +1203,9 @@ msgstr ""
 "mittel/niedrig im nächsten regulären Release. Die Zielwerte gelten Mo–Fr "
 "09:00–18:00 MEZ, ausgenommen gesetzliche Feiertage in Deutschland."
 
+msgid "Responsible party"
+msgstr "Verantwortlich"
+
 msgid "SHA-256 audit log"
 msgstr "SHA-256-Audit-Log"
 
@@ -1255,6 +1296,13 @@ msgstr "Signierte Releases + SBOM"
 msgid "Simple, transparent pricing"
 msgstr "Einfache, transparente Preise"
 
+msgid ""
+"Small-business status under § 19 UStG — no VAT is charged and no USt-"
+"IdNr. is held."
+msgstr ""
+"Kleinunternehmer gemäß § 19 UStG — Umsatzsteuer wird nicht ausgewiesen. "
+"Eine USt-IdNr. wird daher nicht geführt."
+
 msgid "Smaller file"
 msgstr "Kleinere Datei"
 
@@ -1329,6 +1377,9 @@ msgstr "Zielformat"
 msgid "Target file size"
 msgstr "Ziel-Dateigröße"
 
+msgid "Tax status"
+msgstr "Steuerliche Angaben"
+
 msgid "Terms of Use"
 msgstr "Nutzungsbedingungen"
 
@@ -1365,13 +1416,6 @@ msgstr ""
 "Gewährleistung bereitgestellt. Wir garantieren keine Verfügbarkeit, "
 "Konvertierungs-Ergebnis-Genauigkeit oder Eignung für einen bestimmten "
 "Zweck."
-
-msgid ""
-"The legal information below is provided in German as required by German "
-"law."
-msgstr ""
-"Die nachfolgenden rechtlichen Angaben sind aus rechtlichen Gründen auf "
-"Deutsch verfasst."
 
 msgid "The official Docker images and release artifacts."
 msgstr "Die offiziellen Docker-Images und Release-Artefakte."
@@ -1534,6 +1578,13 @@ msgstr ""
 "verarbeitet und niemals auf Disk oder in Logs geschrieben. "
 "Rechtsgrundlage: Art. 6(1)(f) DSGVO — berechtigtes Interesse an Dienst-"
 "Stabilität und Sicherheit."
+
+msgid ""
+"We are neither willing nor obliged to participate in dispute-resolution "
+"proceedings before a consumer arbitration body (§ 36 VSBG)."
+msgstr ""
+"Wir sind nicht bereit oder verpflichtet, an Streitbeilegungsverfahren vor"
+" einer Verbraucherschlichtungsstelle teilzunehmen (§ 36 VSBG)."
 
 msgid ""
 "We may update this policy when the service changes. Accounts and billing "
@@ -1729,6 +1780,9 @@ msgstr ""
 msgid "escalation, post-mortem template ↗"
 msgstr "Eskalation, Post-Mortem-Vorlage ↗"
 
+msgid "for a fast direct line"
+msgstr "für eine schnelle, direkte Kontaktaufnahme"
+
 msgid "for full contact details."
 msgstr "für vollständige Kontaktdaten."
 
@@ -1906,8 +1960,20 @@ msgstr "← Zurück"
 #~ msgid "Free forever — no credit card required"
 #~ msgstr "Für immer kostenlos — keine Kreditkarte erforderlich"
 
+#~ msgid "Imprint under the German Digitale-Dienste-Gesetz §5 (DDG)."
+#~ msgstr "Impressum gemäß § 5 Digitale-Dienste-Gesetz (DDG)."
+
 #~ msgid "Last updated: 2026-04-23 · Community + Cloud Edition"
 #~ msgstr "Zuletzt aktualisiert: 2026-04-23 · Community + Cloud Edition"
+
+#~ msgid ""
+#~ "The legal information below is provided"
+#~ " in German as required by German "
+#~ "law."
+#~ msgstr ""
+#~ "Die nachfolgenden rechtlichen Angaben sind "
+#~ "aus rechtlichen Gründen auf Deutsch "
+#~ "verfasst."
 
 #~ msgid "only while you are signed in:"
 #~ msgstr "deines Browsers gespeichert, während du angemeldet bist:"
