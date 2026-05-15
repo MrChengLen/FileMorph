@@ -76,16 +76,21 @@ def test_security_txt_contact_is_email_or_https(client) -> None:
 
 
 def test_impressum_credits_responsible_party(client) -> None:
-    """§ 5 TMG requires a named natural person at a real address. Pin
-    a presence-check so a future template refactor can't accidentally
-    remove the Verantwortlicher block."""
+    """§ 5 DDG (formerly §5 TMG) requires a named natural person at a real
+    address. Pin a presence-check so a future template refactor can't
+    accidentally remove the Verantwortlicher block."""
     res = client.get("/impressum")
     assert res.status_code == 200
     text = res.text
     # Don't pin a specific name (the operator may change), but pin the
     # legal-anchor sections that must always be present.
-    assert "Verantwortlich" in text, "Impressum missing Verantwortlich section (§ 5 TMG)"
-    assert "Kontakt" in text, "Impressum missing Kontakt section (§ 5 TMG)"
+    assert "Verantwortlich" in text, "Impressum missing Verantwortlich section (§ 5 DDG)"
+    assert "Kontakt" in text, "Impressum missing Kontakt section (§ 5 DDG)"
+    assert "§ 19 UStG" in text, "Impressum missing Kleinunternehmer status (§ 19 UStG)"
+    assert "Steuernummer" not in text, (
+        "Impressum should not display the raw Steuernummer (privacy / "
+        "abuse risk per IT-Recht-Kanzlei / PRO-DSGVO recommendation)"
+    )
 
 
 def test_privacy_policy_mentions_gdpr_erasure_right(client) -> None:

@@ -820,9 +820,8 @@ msgstr "Bilder · Dokumente · Audio · Video · Tabellen"
 msgid "Impressum"
 msgstr "Impressum"
 
-#, fuzzy
 msgid "Imprint under the German Digitale-Dienste-Gesetz §5 (DDG)."
-msgstr "Impressum gemäß § 5 Telemediengesetz (TMG)."
+msgstr "Impressum gemäß § 5 Digitale-Dienste-Gesetz (DDG)."
 
 msgid "In scope:"
 msgstr "Im Geltungsbereich:"
