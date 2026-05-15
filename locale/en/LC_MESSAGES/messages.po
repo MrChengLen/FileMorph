@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-05-15 09:37+0200\n"
+"POT-Creation-Date: 2026-05-15 14:27+0200\n"
 "PO-Revision-Date: 2026-05-07 13:43+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -199,6 +199,9 @@ msgstr ""
 msgid "API key — "
 msgstr ""
 
+msgid "Account active"
+msgstr ""
+
 msgid ""
 "Account creation, paid subscriptions, and transactional emails are "
 "processed on the basis of Art. 6(1)(b) GDPR (performance of a contract). "
@@ -220,7 +223,22 @@ msgstr ""
 msgid "Acknowledgement:"
 msgstr ""
 
+msgid "Actions"
+msgstr ""
+
+msgid "Active"
+msgstr ""
+
+msgid "Admin Cockpit"
+msgstr ""
+
+msgid "Admin access required."
+msgstr ""
+
 msgid "Affected version (commit hash or release tag if known)."
+msgstr ""
+
+msgid "Aggregated counters — no personal data, no cookies."
 msgstr ""
 
 msgid ""
@@ -243,9 +261,29 @@ msgid "Already have an account?"
 msgstr ""
 
 msgid ""
+"An Economic Identification Number (Wirtschafts-Identifikationsnummer, § "
+"139c AO) will be added once issued by the Bundeszentralamt für Steuern."
+msgstr ""
+
+msgid ""
 "An orientation about the provider categories common in DACH RFPs. In "
 "individual cases, a specific product may do more — please check "
 "individually."
+msgstr ""
+
+msgid "Analytics time range"
+msgstr ""
+
+msgid "Anonymous analytics"
+msgstr ""
+
+msgid "Any role"
+msgstr ""
+
+msgid "Any status"
+msgstr ""
+
+msgid "Any tier"
 msgstr ""
 
 msgid "Apply as design partner"
@@ -300,6 +338,9 @@ msgid ""
 " you do not agree, do not use the Service."
 msgstr ""
 
+msgid "Cancel"
+msgstr ""
+
 msgid "Choose a password you haven't used before"
 msgstr ""
 
@@ -346,6 +387,10 @@ msgstr ""
 msgid "Compress"
 msgstr ""
 
+#, fuzzy
+msgid "Compression"
+msgstr "Imprint"
+
 msgid "Compression mode"
 msgstr ""
 
@@ -377,7 +422,13 @@ msgid ""
 "for beA attachments, citizen-application archiving, BSI TR-RESISCAN."
 msgstr ""
 
+msgid "Consumer dispute resolution"
+msgstr ""
+
 msgid "Contact"
+msgstr ""
+
+msgid "Contact form"
 msgstr ""
 
 msgid "Contact us"
@@ -395,16 +446,33 @@ msgstr ""
 msgid "Coordinated disclosure:"
 msgstr ""
 
+msgid "Copied!"
+msgstr ""
+
 msgid "Copy"
 msgstr ""
 
 msgid "Copy this key now — it will not be shown again."
 msgstr ""
 
+msgid ""
+"Could not load analytics — check server logs. The metrics pipeline may be"
+" misconfigured."
+msgstr ""
+
 msgid "Create Account"
 msgstr ""
 
 msgid "Create one"
+msgstr ""
+
+msgid "Created"
+msgstr ""
+
+msgid "Creating account…"
+msgstr ""
+
+msgid "Creating…"
 msgstr ""
 
 msgid "Criterion"
@@ -425,7 +493,13 @@ msgstr ""
 msgid "Data Processing Agreement (DPA)"
 msgstr ""
 
+msgid "Deactivated"
+msgstr ""
+
 msgid "Dedicated onboarding"
+msgstr ""
+
+msgid "Delete failed."
 msgstr ""
 
 msgid "Design Partner Programme"
@@ -452,10 +526,19 @@ msgstr ""
 msgid "E-mail support"
 msgstr ""
 
+msgid "EU Online Dispute Resolution:"
+msgstr ""
+
 msgid "EU vendor with German imprint"
 msgstr ""
 
 msgid "Early expiration of the right of withdrawal:"
+msgstr ""
+
+msgid "Edit user"
+msgstr ""
+
+msgid "Editorial responsibility"
 msgstr ""
 
 msgid "Email"
@@ -487,6 +570,9 @@ msgid ""
 "paying pilot economically justifies the effort."
 msgstr ""
 
+msgid "Failure rate (today)"
+msgstr ""
+
 msgid "File Converter & Compressor"
 msgstr ""
 
@@ -513,6 +599,12 @@ msgid ""
 "FileMorph is a file conversion and compression service. The Community "
 "Edition is provided free of charge, without warranty, and without SLA "
 "commitments."
+msgstr ""
+
+msgid ""
+"FileMorph is an open-source project (AGPLv3). Use of the Community "
+"Edition is without warranty and at the user's own risk. Self-hosted "
+"instances are subject to the operator's local jurisdiction."
 msgstr ""
 
 msgid ""
@@ -614,6 +706,9 @@ msgstr ""
 msgid "GDPR-aligned file engine for regulated administration."
 msgstr ""
 
+msgid "Germany"
+msgstr ""
+
 msgid "Get API Key →"
 msgstr ""
 
@@ -692,10 +787,7 @@ msgid "Images · Documents · Audio · Video · Spreadsheets"
 msgstr ""
 
 msgid "Impressum"
-msgstr ""
-
-msgid "Imprint under the German Digitale-Dienste-Gesetz §5 (DDG)."
-msgstr ""
+msgstr "Imprint"
 
 msgid "In scope:"
 msgstr ""
@@ -727,6 +819,9 @@ msgstr ""
 msgid "JPEG / WebP only."
 msgstr ""
 
+msgid "Joined"
+msgstr ""
+
 msgid ""
 "KRITIS and air-gap variants on request. All tiers include commercial "
 "license, DPA template, signed Docker image and support SLA."
@@ -741,12 +836,21 @@ msgstr ""
 msgid "Last updated: 2026-05-12 · Community + Cloud Edition"
 msgstr ""
 
+msgid "Last used"
+msgstr ""
+
+msgid "Legal notice pursuant to § 5 DDG (Germany)."
+msgstr ""
+
 msgid ""
 "Lifts the AGPLv3 publication obligation for internal in-house "
 "developments + public citizen-portal integrations."
 msgstr ""
 
 msgid "Loading…"
+msgstr ""
+
+msgid "Login failed."
 msgstr ""
 
 msgid ""
@@ -787,16 +891,40 @@ msgstr ""
 msgid "Name (optional)"
 msgstr ""
 
+msgid "Never used"
+msgstr ""
+
 msgid "New password"
+msgstr ""
+
+msgid "Next →"
+msgstr ""
+
+msgid "No API keys yet. Create one above."
 msgstr ""
 
 msgid "No account?"
 msgstr ""
 
+msgid "No conversion or compression jobs today yet."
+msgstr ""
+
+msgid "No conversions available for this format"
+msgstr ""
+
+msgid "No conversions yet."
+msgstr ""
+
 msgid "No credit card required"
 msgstr ""
 
+msgid "Notice"
+msgstr ""
+
 msgid "One click and you're done"
+msgstr ""
+
+msgid "One of the files has no target format available. Remove it to proceed."
 msgstr ""
 
 msgid "Open dashboard"
@@ -825,6 +953,9 @@ msgstr ""
 msgid "Out of scope:"
 msgstr ""
 
+msgid "Overview"
+msgstr ""
+
 msgid "PDF/A-2b output"
 msgstr ""
 
@@ -848,9 +979,15 @@ msgstr ""
 msgid "Password"
 msgstr ""
 
+msgid "Password must be at least 8 characters."
+msgstr ""
+
 msgid ""
 "Password-reset and other account-related emails are delivered through "
 "Zoho Mail ("
+msgstr ""
+
+msgid "Passwords do not match."
 msgstr ""
 
 msgid "Patch policy"
@@ -859,6 +996,12 @@ msgstr ""
 msgid ""
 "Payment processing is handled by Stripe Payments Europe Ltd.; Stripe's "
 "terms apply to the processing of your payment details."
+msgstr ""
+
+msgid "Payments are not yet active. Please check back soon."
+msgstr ""
+
+msgid "Per § 18 (2) MStV: Lennart Seidel, Reetwerder 25b, 21029 Hamburg."
 msgstr ""
 
 msgid "Plans"
@@ -870,6 +1013,15 @@ msgid ""
 msgstr ""
 
 msgid "Please email us directly at"
+msgstr ""
+
+msgid "Please enter a target size in MB."
+msgstr ""
+
+msgid "Please select a target format."
+msgstr ""
+
+msgid "Please select at least one file."
 msgstr ""
 
 msgid "Price / year"
@@ -933,6 +1085,9 @@ msgstr ""
 msgid "Ready for a 15-minute pilot call?"
 msgstr ""
 
+msgid "Redirecting…"
+msgstr ""
+
 msgid ""
 "Refunds are not issued for partial billing periods. In the event of a "
 "documented service outage exceeding 24 hours within a single billing "
@@ -943,6 +1098,9 @@ msgid "Register"
 msgstr ""
 
 msgid "Register free for 50 MB & API access →"
+msgstr ""
+
+msgid "Registration failed."
 msgstr ""
 
 msgid "Reporting a vulnerability"
@@ -973,6 +1131,21 @@ msgid ""
 "excluding German public holidays."
 msgstr ""
 
+msgid "Responsible party"
+msgstr ""
+
+msgid "Return to home"
+msgstr ""
+
+msgid "Revoke"
+msgstr ""
+
+msgid "Revoke this API key? This cannot be undone."
+msgstr ""
+
+msgid "Role"
+msgstr ""
+
 msgid "SHA-256 audit log"
 msgstr ""
 
@@ -987,10 +1160,19 @@ msgstr ""
 msgid "Safe-harbour"
 msgstr ""
 
+msgid "Save"
+msgstr ""
+
+msgid "Save failed."
+msgstr ""
+
 msgid "Saved API keys & dashboard"
 msgstr ""
 
 msgid "Scope"
+msgstr ""
+
+msgid "Search email…"
 msgstr ""
 
 msgid "Security Disclosure Policy"
@@ -1031,6 +1213,9 @@ msgstr ""
 msgid "Send us a message and we will get back to you."
 msgstr ""
 
+msgid "Sending…"
+msgstr ""
+
 msgid ""
 "Server-volume-based, not per user seat. Binding terms follow the personal"
 " conversation."
@@ -1039,7 +1224,19 @@ msgstr ""
 msgid "Set a new password"
 msgstr ""
 
+msgid "Show last 30 days"
+msgstr ""
+
+msgid "Show last 7 days"
+msgstr ""
+
+msgid "Show last 90 days"
+msgstr ""
+
 msgid "Sign In"
+msgstr ""
+
+msgid "Sign Out"
 msgstr ""
 
 msgid "Sign in"
@@ -1051,10 +1248,24 @@ msgstr ""
 msgid "Signed releases + SBOM"
 msgstr ""
 
+msgid "Signing in…"
+msgstr ""
+
+msgid "Signups over time"
+msgstr ""
+
 msgid "Simple, transparent pricing"
 msgstr ""
 
+msgid ""
+"Small-business status under § 19 UStG — no VAT is charged and no USt-"
+"IdNr. is held."
+msgstr ""
+
 msgid "Smaller file"
+msgstr ""
+
+msgid "Soft-delete this user (sets is_active=false)?"
 msgstr ""
 
 msgid "Something went wrong on our end. Please try again in a moment."
@@ -1117,6 +1328,12 @@ msgstr ""
 msgid "Target file size"
 msgstr ""
 
+msgid "Target format selection is inconsistent — please reselect your files."
+msgstr ""
+
+msgid "Tax status"
+msgstr ""
+
 msgid "Terms of Use"
 msgstr ""
 
@@ -1142,11 +1359,6 @@ msgid ""
 "The Service is provided \"as is\" without warranty of any kind, express "
 "or implied. We do not guarantee uptime, accuracy of conversion results, "
 "or fitness for a particular purpose."
-msgstr ""
-
-msgid ""
-"The legal information below is provided in German as required by German "
-"law."
 msgstr ""
 
 msgid "The official Docker images and release artifacts."
@@ -1222,6 +1434,12 @@ msgstr ""
 msgid "Too many attempts. Please try again later."
 msgstr ""
 
+msgid "Top conversion pairs (transforms only)"
+msgstr ""
+
+msgid "Tracking disabled — set"
+msgstr ""
+
 msgid "Trust basis before contract"
 msgstr ""
 
@@ -1263,6 +1481,9 @@ msgstr ""
 msgid "Use these to authenticate programmatic API requests."
 msgstr ""
 
+msgid "Users"
+msgstr ""
+
 msgid "Using anonymously: up to 20 MB per file."
 msgstr ""
 
@@ -1271,12 +1492,20 @@ msgid ""
 "10 requests/minute · no API access"
 msgstr ""
 
+msgid "Verifying admin access…"
+msgstr ""
+
 msgid ""
 "We apply a temporary in-memory rate limit (max. 10 requests per minute "
 "per IP address) to protect the service from abuse. IP addresses used by "
 "the rate limiter are processed transiently in memory only and are never "
 "written to disk or logs. Legal basis: Art. 6(1)(f) GDPR — legitimate "
 "interest in service stability and security."
+msgstr ""
+
+msgid ""
+"We are neither willing nor obliged to participate in dispute-resolution "
+"proceedings before a consumer arbitration body (§ 36 VSBG)."
 msgstr ""
 
 msgid ""
@@ -1384,6 +1613,9 @@ msgid ""
 "business day."
 msgstr ""
 
+msgid "Your account does not have the admin role."
+msgstr ""
+
 msgid "Your email is now verified."
 msgstr ""
 
@@ -1432,6 +1664,9 @@ msgid ""
 msgstr ""
 
 msgid "escalation, post-mortem template ↗"
+msgstr ""
+
+msgid "for a fast direct line"
 msgstr ""
 
 msgid "for full contact details."
@@ -1516,6 +1751,9 @@ msgid ""
 "basis: Art. 6(1)(b) GDPR. See"
 msgstr ""
 
+msgid "to enable."
+msgstr ""
+
 msgid "unlimited servers, dedicated onboarding, custom SLA"
 msgstr ""
 
@@ -1566,6 +1804,12 @@ msgstr ""
 msgid "← Back"
 msgstr ""
 
+msgid "← Back to FileMorph"
+msgstr ""
+
+msgid "← Prev"
+msgstr ""
+
 #~ msgid ""
 #~ "Account creation, paid subscriptions, and "
 #~ "transactional emails are processed on "
@@ -1590,7 +1834,16 @@ msgstr ""
 #~ msgid "Imprint per German Telemediengesetz §5 (TMG)."
 #~ msgstr ""
 
+#~ msgid "Imprint under the German Digitale-Dienste-Gesetz §5 (DDG)."
+#~ msgstr ""
+
 #~ msgid "Last updated: 2026-04-23 · Community + Cloud Edition"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "The legal information below is provided"
+#~ " in German as required by German "
+#~ "law."
 #~ msgstr ""
 
 #~ msgid ""

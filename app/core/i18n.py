@@ -98,20 +98,54 @@ def base_path(path: str) -> str:
     return path
 
 
+# Some pages have a locale-specific URL spelling — typically when the
+# canonical German URL is a German word that English readers don't
+# recognise. The map is keyed by the canonical (German-side) path; each
+# value maps a target locale to the alias path for that locale. The
+# unprefixed/x-default URL always uses the canonical key.
+_PATH_ALIASES: dict[str, dict[str, str]] = {
+    "/impressum": {"en": "/imprint"},
+}
+# Reverse map (any alias → canonical) lets ``localized_url`` accept a
+# URL in either spelling and route it correctly. Computed once at import.
+_PATH_ALIASES_REVERSE: dict[str, str] = {
+    alias: canonical
+    for canonical, by_locale in _PATH_ALIASES.items()
+    for alias in by_locale.values()
+}
+
+
 def localized_url(base: str, locale: str | None) -> str:
     """Build a URL for a given base path and locale.
 
-    ``locale=None`` returns the unprefixed (x-default) URL. Used by
-    hreflang tags + the language switcher.
+    ``locale=None`` returns the unprefixed (x-default) URL on the
+    canonical spelling. For locales that have an alias in ``_PATH_ALIASES``
+    the locale-specific spelling is used (e.g. ``/impressum`` → ``/en/imprint``).
+
+    The language switcher in ``base.html`` passes the current request's
+    ``base_path`` here, which may already be in alias form (``/imprint``
+    when the user is on ``/en/imprint``). We normalise to the canonical
+    key first via ``_PATH_ALIASES_REVERSE`` so a 'switch to DE' link from
+    ``/en/imprint`` correctly produces ``/de/impressum``.
     """
     base = base or "/"
     if not base.startswith("/"):
         base = "/" + base
+    # Step 1: if the input is already an alias (e.g. /imprint),
+    # collapse it to the canonical (e.g. /impressum) so the rest of
+    # the logic operates on a single key.
+    canonical = _PATH_ALIASES_REVERSE.get(base, base)
+    # Step 2: if the target locale has an alias for this canonical,
+    # use it (e.g. /impressum + en → /imprint).
+    if locale is not None and canonical in _PATH_ALIASES:
+        target = _PATH_ALIASES[canonical].get(locale, canonical)
+    else:
+        target = canonical
     if locale is None:
-        return base
-    if base == "/":
+        return target
+    if target == "/":
         return f"/{locale}/"
-    return f"/{locale}{base}"
+    return f"/{locale}{target}"
 
 
 def _accept_language_locale(header: str | None) -> str | None:
@@ -158,6 +192,78 @@ async def get_locale(request: Request) -> str:
     return getattr(request.state, "locale", None) or resolve_locale(request)
 
 
+def _js_i18n_strings(_: gettext.GNUTranslations.gettext) -> dict[str, str]:
+    """Catalogue of strings the front-end JS files need at runtime.
+
+    Server-rendered as a JSON blob in ``base.html`` and exposed as
+    ``window.FM_I18N`` to every page. JS files reference these instead of
+    hardcoding English literals (e.g. ``alert(window.FM_I18N.alertNoFiles)``
+    instead of ``alert('Please select at least one file.')``).
+
+    Adding a string here:
+      1. add the ``"key": _('English source string')`` line below,
+      2. use ``window.FM_I18N.key`` from the JS file,
+      3. run ``python scripts/i18n.py extract && update`` and translate
+         the new msgid in ``locale/de/LC_MESSAGES/messages.po``.
+
+    Sorted alphabetically per-section so a future ``git diff`` stays
+    review-friendly.
+    """
+    return {
+        # app.js — convert/compress UI
+        "alertInconsistentTarget": _(
+            "Target format selection is inconsistent — please reselect your files."
+        ),
+        "alertNoFiles": _("Please select at least one file."),
+        "alertNoTargetAvailable": _(
+            "One of the files has no target format available. Remove it to proceed."
+        ),
+        "alertNoTargetFormat": _("Please select a target format."),
+        "alertNoTargetSize": _("Please enter a target size in MB."),
+        "compress": _("Compress"),
+        "compression": _("Compression"),
+        "convert": _("Convert"),
+        "noConversionsAvailable": _("No conversions available for this format"),
+        "quality": _("Quality"),
+        # dashboard.js — API-key management
+        "copied": _("Copied!"),
+        "copy": _("Copy"),
+        "created": _("Created"),
+        "creating": _("Creating…"),
+        "lastUsed": _("Last used"),
+        "neverUsed": _("Never used"),
+        "newKey": _("+ New Key"),
+        "noApiKeys": _("No API keys yet. Create one above."),
+        "revoke": _("Revoke"),
+        "revokeConfirm": _("Revoke this API key? This cannot be undone."),
+        # cockpit.js / cockpit-metrics.js — admin tool
+        "deleteFailed": _("Delete failed."),
+        "noConversionsYet": _("No conversions yet."),
+        "noJobsToday": _("No conversion or compression jobs today yet."),
+        "saveFailed": _("Save failed."),
+        "softDeleteConfirm": _("Soft-delete this user (sets is_active=false)?"),
+        # forgot-password.js / login.js / register.js — auth flows
+        "createAccount": _("Create Account"),
+        "creatingAccount": _("Creating account…"),
+        "loginFailed": _("Login failed."),
+        "passwordTooShort": _("Password must be at least 8 characters."),
+        "passwordsDontMatch": _("Passwords do not match."),
+        "registrationFailed": _("Registration failed."),
+        "sending": _("Sending…"),
+        "signIn": _("Sign In"),
+        "signingIn": _("Signing in…"),
+        # pricing.js — Stripe upgrade buttons
+        "paymentsNotActive": _("Payments are not yet active. Please check back soon."),
+        "redirecting": _("Redirecting…"),
+        "upgradeToBusiness": _("Upgrade to Business"),
+        "upgradeToPro": _("Upgrade to Pro"),
+        # auth.js — dynamic nav after login
+        "dashboard": _("Dashboard"),
+        "register": _("Register"),
+        "signOut": _("Sign Out"),
+    }
+
+
 def localized_context(request: Request, **extra) -> dict:
     """Build a context dict carrying the per-request translator + locale.
 
@@ -171,7 +277,13 @@ def localized_context(request: Request, **extra) -> dict:
     keep the user in their currently-prefixed namespace — clicking
     ``Pricing`` from ``/de/login`` lands on ``/de/pricing``, from
     ``/login`` (no prefix) lands on ``/pricing``.
+
+    ``js_i18n_json`` is the JS-side string catalogue, JSON-encoded so
+    ``base.html`` can drop it into a ``<script type="application/json">``
+    block without quote-escape hazards. See ``_js_i18n_strings``.
     """
+    import json
+
     locale = getattr(request.state, "locale", None) or resolve_locale(request)
     translator = _load_translations().get(locale) or gettext.NullTranslations()
     current_prefix = path_prefix_locale(request.url.path)
@@ -183,6 +295,7 @@ def localized_context(request: Request, **extra) -> dict:
         "current_prefix": current_prefix,
         "base_path": base_path(request.url.path),
         "localized_url": localized_url,
+        "js_i18n_json": json.dumps(_js_i18n_strings(translator.gettext), ensure_ascii=False),
     }
     ctx.update(extra)
     return ctx

@@ -46,6 +46,57 @@ def test_sitemap_xml_serves_valid_with_url_entries(client):
     )
 
 
+def test_sitemap_includes_hreflang_alternates_per_url(client):
+    """Each ``<url>`` block must carry ``<xhtml:link rel="alternate">``
+    tags for x-default, de, and en — without these Google treats
+    /de/impressum and /en/imprint as duplicate content rather than
+    language variants of the same page (Search Console penalty risk).
+
+    Also pins that the impressum/imprint locale-alias map is honoured
+    end-to-end in the sitemap: the EN alternate of ``/impressum`` is
+    ``/en/imprint``, not ``/en/impressum``.
+    """
+    import xml.etree.ElementTree as ET
+
+    r = client.get("/sitemap.xml")
+    assert r.status_code == 200
+    # xhtml namespace must be declared on the root element so xmllint and
+    # search engines can resolve the link tags.
+    assert "xmlns:xhtml=" in r.text, "sitemap missing xhtml namespace declaration"
+
+    root = ET.fromstring(r.text)
+    ns = {
+        "sm": "http://www.sitemaps.org/schemas/sitemap/0.9",
+        "xhtml": "http://www.w3.org/1999/xhtml",
+    }
+    urls = root.findall("sm:url", ns)
+    # 5 default routes × 3 variants (x-default + de + en) = 15. /pricing
+    # and /enterprise are gated off by default so they don't appear here.
+    assert len(urls) >= 15, f"expected ≥15 url entries (5 routes × 3 locales); got {len(urls)}"
+
+    # Each URL block must carry exactly 3 alternates (x-default, de, en).
+    for u in urls:
+        alternates = u.findall("xhtml:link", ns)
+        hreflangs = {a.attrib.get("hreflang") for a in alternates}
+        assert hreflangs == {"x-default", "de", "en"}, (
+            f"url {u.find('sm:loc', ns).text!r} has hreflangs {hreflangs!r}; "
+            "expected exactly {x-default, de, en}"
+        )
+
+    # Impressum-alias contract: somewhere in the sitemap, an EN alternate
+    # of /impressum points at /en/imprint (not /en/impressum).
+    all_alt_hrefs = [
+        a.attrib.get("href", "")
+        for u in urls
+        for a in u.findall("xhtml:link", ns)
+        if a.attrib.get("hreflang") == "en"
+    ]
+    assert any(h.endswith("/en/imprint") for h in all_alt_hrefs), (
+        "sitemap EN alternates must include /en/imprint (the EN URL spelling "
+        "of /impressum, per _PATH_ALIASES in app/core/i18n.py)"
+    )
+
+
 # ── AT-03..05 — Title / description / viewport / canonical ───────────────────
 
 

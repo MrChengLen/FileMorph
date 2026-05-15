@@ -26,6 +26,13 @@ on:
   pull_request:
     branches: ["main"]
 
+# veraPDF is the most expensive workflow (Java + Docker pull). Cancel
+# superseded PR runs to avoid burning quota on each iterative push;
+# main runs always complete (continuous post-merge guard).
+concurrency:
+  group: verapdf-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 

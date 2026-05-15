@@ -11,6 +11,12 @@ on:
   pull_request:
     branches: ["main", "develop"]
 
+# Cancel superseded runs on the same PR / feature branch; let
+# main / develop runs finish (they are the gate for branch protection).
+concurrency:
+  group: scope-guard-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/develop' }}
+
 jobs:
   scope-check:
     runs-on: ubuntu-latest

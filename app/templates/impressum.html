@@ -1,62 +1,51 @@
 {% extends "base.html" %}
-{% block title %}Impressum — FileMorph{% endblock %}
+{% block title %}{{ _('Impressum') }} — FileMorph{% endblock %}
 {% block content %}
 <main class="max-w-2xl mx-auto px-6 py-12 space-y-8 text-gray-300">
 
-  {% if locale == 'en' %}
-  <div class="border-l-4 border-brand bg-brand/5 px-4 py-3 text-sm rounded-r-lg">
-    <p class="text-white font-semibold">{{ _('Imprint under the German Digitale-Dienste-Gesetz §5 (DDG).') }}</p>
-    <p class="text-gray-300 mt-1">{{ _('The legal information below is provided in German as required by German law.') }}</p>
-  </div>
-  {% endif %}
-
   <div>
     <a href="{{ localized_url('/', current_prefix) }}" class="text-sm text-gray-500 hover:text-gray-300 transition-colors">{{ _('← Back') }}</a>
-    <h1 class="text-2xl font-bold mt-4 text-white">Impressum</h1>
-    <p class="text-xs text-gray-500 mt-1">Angaben gemäß § 5 DDG</p>
+    <h1 class="text-2xl font-bold mt-4 text-white">{{ _('Impressum') }}</h1>
+    <p class="text-xs text-gray-500 mt-1">{{ _('Legal notice pursuant to § 5 DDG (Germany).') }}</p>
   </div>
 
   <section class="space-y-1">
-    <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500">Verantwortlich</h2>
+    <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500">{{ _('Responsible party') }}</h2>
     <p>Lennart Seidel</p>
     <p>Reetwerder 25b</p>
     <p>21029 Hamburg</p>
-    <p>Deutschland</p>
+    <p>{{ _('Germany') }}</p>
   </section>
 
   <section class="space-y-1">
-    <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500">Kontakt</h2>
-    <p>E-Mail: <a href="mailto:legal@filemorph.io" class="text-brand hover:underline">legal@filemorph.io</a></p>
-    <p><a href="{{ localized_url('/contact', current_prefix) }}" class="text-brand hover:underline">Kontaktformular</a> <span class="text-gray-500 text-xs">— für eine schnelle, direkte Kontaktaufnahme</span></p>
+    <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500">{{ _('Contact') }}</h2>
+    <p>{{ _('Email') }}: <a href="mailto:legal@filemorph.io" class="text-brand hover:underline">legal@filemorph.io</a></p>
+    <p><a href="{{ localized_url('/contact', current_prefix) }}" class="text-brand hover:underline">{{ _('Contact form') }}</a> <span class="text-gray-500 text-xs">— {{ _('for a fast direct line') }}</span></p>
   </section>
 
   <section class="space-y-2">
-    <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500">Steuerliche Angaben</h2>
-    <p class="text-sm text-gray-400">Kleinunternehmer gemäß § 19 UStG — Umsatzsteuer wird nicht ausgewiesen. Eine USt-IdNr. wird daher nicht geführt.</p>
-    <p class="text-gray-500 text-xs">Eine Wirtschafts-Identifikationsnummer (§ 139c AO) wird nach Zuteilung durch das Bundeszentralamt für Steuern ergänzt.</p>
+    <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500">{{ _('Tax status') }}</h2>
+    <p class="text-sm text-gray-400">{{ _('Small-business status under § 19 UStG — no VAT is charged and no USt-IdNr. is held.') }}</p>
+    <p class="text-gray-500 text-xs">{{ _('An Economic Identification Number (Wirtschafts-Identifikationsnummer, § 139c AO) will be added once issued by the Bundeszentralamt für Steuern.') }}</p>
   </section>
 
   <section class="space-y-2 text-sm text-gray-400">
-    <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500">Inhaltlich Verantwortlicher</h2>
-    <p>Gemäß § 18 Abs. 2 MStV: Lennart Seidel, Reetwerder 25b, 21029 Hamburg</p>
+    <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500">{{ _('Editorial responsibility') }}</h2>
+    <p>{{ _('Per § 18 (2) MStV: Lennart Seidel, Reetwerder 25b, 21029 Hamburg.') }}</p>
   </section>
 
   <section class="space-y-2 text-sm text-gray-400">
-    <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500">Verbraucherstreitbeilegung</h2>
-    <p>Wir sind nicht bereit oder verpflichtet, an Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle teilzunehmen (§ 36 VSBG).</p>
-    <p>Online-Streitbeilegung der EU-Kommission:
+    <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500">{{ _('Consumer dispute resolution') }}</h2>
+    <p>{{ _('We are neither willing nor obliged to participate in dispute-resolution proceedings before a consumer arbitration body (§ 36 VSBG).') }}</p>
+    <p>{{ _('EU Online Dispute Resolution:') }}
       <a href="https://ec.europa.eu/consumers/odr" target="_blank" rel="noopener noreferrer"
          class="text-brand hover:underline">ec.europa.eu/consumers/odr</a>
     </p>
   </section>
 
   <section class="space-y-2 text-sm text-gray-400">
-    <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500">Hinweis</h2>
-    <p>
-      FileMorph ist ein Open-Source-Projekt (AGPLv3). Die Nutzung der Community Edition
-      erfolgt ohne Garantie und auf eigene Verantwortung. Für den Betrieb eigener
-      Instanzen gelten die jeweiligen lokalen Gesetze des Betreibers.
-    </p>
+    <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500">{{ _('Notice') }}</h2>
+    <p>{{ _('FileMorph is an open-source project (AGPLv3). Use of the Community Edition is without warranty and at the user\'s own risk. Self-hosted instances are subject to the operator\'s local jurisdiction.') }}</p>
   </section>
 
 </main>

@@ -1,4 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+function _t(key, fallback) {
+  return (window.FM_I18N && window.FM_I18N[key]) || fallback;
+}
+
 async function doLogin() {
   const btn = document.getElementById('login-btn');
   const err = document.getElementById('error-msg');
@@ -6,7 +10,7 @@ async function doLogin() {
   const password = document.getElementById('password').value;
   err.classList.add('hidden');
   btn.disabled = true;
-  btn.textContent = 'Signing in\u2026';
+  btn.textContent = _t('signingIn', 'Signing in\u2026');
   try {
     const res = await fetch('/api/v1/auth/login', {
       method: 'POST',
@@ -14,7 +18,7 @@ async function doLogin() {
       body: JSON.stringify({ email, password }),
     });
     const data = await res.json();
-    if (!res.ok) { throw new Error(data.detail || 'Login failed.'); }
+    if (!res.ok) { throw new Error(data.detail || _t('loginFailed', 'Login failed.')); }
     localStorage.setItem('fm_access_token', data.access_token);
     localStorage.setItem('fm_refresh_token', data.refresh_token);
     window.location.href = '/dashboard';
@@ -22,7 +26,7 @@ async function doLogin() {
     err.textContent = e.message;
     err.classList.remove('hidden');
     btn.disabled = false;
-    btn.textContent = 'Sign In';
+    btn.textContent = _t('signIn', 'Sign In');
   }
 }
 
