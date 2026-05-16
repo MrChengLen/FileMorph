@@ -3,8 +3,7 @@
 """Hard-Launch-Gate readiness check for FileMorph.
 
 Verifies the launch-readiness criteria (run --help for the gates checked)
-are green before a public launch (Show HN, AlternativeTo listing, social
-campaign, etc.).
+are green before any public release.
 
 Two modes:
     --local  (default): runs against `http://localhost:8000`. Performs a
