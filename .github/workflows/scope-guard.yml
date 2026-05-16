@@ -84,7 +84,17 @@ jobs:
           BASE="${{ steps.range.outputs.BASE }}"
           HEAD="${{ steps.range.outputs.HEAD }}"
           # Excluded paths use these strings legitimately (Self-Hoster-Doku,
-          # Impressum/Privacy/Terms, GDPR-Design, COMMERCIAL-LICENSE).
+          # Impressum/Privacy/Terms, GDPR-Design, COMMERCIAL-LICENSE, the
+          # hooks that *define* the patterns, the workflows that reference
+          # the secret *names*, .env.example which carries SMTP/STRIPE
+          # placeholder var names, the locale catalogues which mirror the
+          # impressum/privacy address strings, and CHANGELOG.md which
+          # documents the very rules being enforced here).
+          #
+          # Keep this list in sync with ALLOW_RE in .githooks/pre-commit
+          # and .githooks/pre-push — drift between client- and server-side
+          # exclusions causes the exact failure mode we hit on 2026-05-16
+          # (local commit succeeded, server CI failed).
           ADDED=$(git diff "$BASE".."$HEAD" -- \
             ':!docs/self-hosting.md' \
             ':!app/templates/privacy.html' \
@@ -97,6 +107,14 @@ jobs:
             ':!docs/dpa-tom-annex.md' \
             ':!docs/records-of-processing-template.md' \
             ':!docs/commercial-license-agreement-template.md' \
+            ':!docs/email-setup.md' \
+            ':!CHANGELOG.md' \
+            ':!.env.example' \
+            ':!locale/messages.pot' \
+            ':!locale/de/LC_MESSAGES/messages.po' \
+            ':!locale/de/LC_MESSAGES/messages.mo' \
+            ':!locale/en/LC_MESSAGES/messages.po' \
+            ':!locale/en/LC_MESSAGES/messages.mo' \
             ':!.githooks/pre-commit' \
             ':!.githooks/pre-push' \
             ':!.github/workflows/scope-guard.yml' \
