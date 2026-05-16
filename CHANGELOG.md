@@ -160,13 +160,106 @@ off where applicable, and optional at deploy time.
   `privacy@filemorph.io` until the paid-path tax-retention flow
   (slice c.2 — HGB §257, AO §147) ships.
 
-### Security
+### Added — Internationalisation completeness (post-pivot polish)
 
-- `/api/v1/health` now returns only `{"status": "ok"}` — the app
-  version and the codec-availability flag are no longer exposed on this
-  unauthenticated liveness probe (pentest finding PT-011).
-  `/api/v1/ready` still reports operational state (db / tempdir
-  reachable) without version info.
+- **Impressum fully translated.** `app/templates/impressum.html` was
+  previously German-only with a small EN preamble explaining why the
+  body stayed German. Now every section heading + prose paragraph
+  flows through `{{ _('…') }}`; only the legally-binding § references
+  (§ 5 DDG, § 19 UStG, § 139c AO, § 18 (2) MStV, § 36 VSBG) and the
+  operator's name + address stay verbatim. The Imprint is reachable
+  in English at `/en/imprint` (the locale alias for `/impressum`,
+  resolved via `_PATH_ALIASES` in `app/core/i18n.py`); footer + language
+  switcher route through `localized_url`, which collapses `/imprint`
+  back to the canonical `/impressum` on a DE-locale switch.
+- **Admin Cockpit fully i18n'd.** `app/templates/cockpit.html` carried
+  0 of 213 lines through `_()` — every heading, dropdown label, table
+  header, and modal chrome string is now wrapped, with 35 new German
+  translations.
+- **JS-side i18n catalogue.** `app/core/i18n.py::_js_i18n_strings` is
+  the new single source of truth for runtime strings the front-end
+  needs (`Convert` / `Compress` button labels, validation alerts, the
+  dynamic logged-in nav `Dashboard / Sign Out`, …). Translated per
+  request and JSON-encoded into `window.FM_I18N` via a
+  `<script type="application/json" id="fm-i18n-strings">` block in
+  `base.html`. Eight JS files (`app.js`, `auth.js`, `dashboard.js`,
+  `login.js`, `register.js`, `forgot-password.js`, `pricing.js`,
+  `cockpit.js`, `cockpit-metrics.js`) read from there instead of
+  hardcoding English literals. `auth.js` also derives the active
+  locale prefix from `<html lang>` so dynamic nav links keep the
+  user in their currently-active locale namespace.
+- **Sitemap hreflang.** `/sitemap.xml` now emits one `<url>` block per
+  (route × locale) combination — five base routes × three variants
+  (x-default + de + en) = 15 entries on a Community deployment — each
+  carrying its full `<xhtml:link rel="alternate" hreflang="…">` siblings
+  list. The impressum/imprint alias is honoured end-to-end (the EN
+  alternate of `/impressum` is `/en/imprint`, matching the footer +
+  language-switcher behaviour). Without this, Google indexed locale
+  variants as duplicate content; with it, they're declared siblings.
+
+### Hardened — Scope-guard deny-by-default + 4-layer parity
+
+- **Strategic-doc filename patterns now deny-by-default.**
+  `.githooks/pre-commit::INTERNAL_PATHS` was a literal blocklist of
+  13 specific filenames; a future `docs/foo-strategy.md` or
+  `docs/q3-roadmap.md` with a fresh name would have slipped past the
+  hard gate. The rule is widened to a pattern set: `*-strategy.md`,
+  `*-plan.md`, `*-roadmap.md`, `*-internal.md`, `*-runbook.md`,
+  `marketing-*.md`, `persona-*.md`, `competitive-*.md`,
+  `engineering-pm-*.md`, `business-case-*.md`, `sprint-*.md`,
+  `launch-*-tracker.md`, `launch-*-snapshot.md`,
+  `launch-*-readiness.md`. Synced into `.githooks/pre-push` and into a
+  new "Block strategic / business-internal docs" step in
+  `.github/workflows/scope-guard.yml` so a `--no-verify`-bypassed
+  commit still fails the server-side gate.
+- **Notify-Ops + Article 28/30 compliance templates whitelisted.**
+  `.github/workflows/notify-ops.yml` legitimately references
+  `OPS_REPO_DISPATCH_PAT` (the secret name; value lives in GitHub
+  Secrets); the three compliance templates `dpa-tom-annex.md`,
+  `records-of-processing-template.md`, and
+  `commercial-license-agreement-template.md` legitimately carry the
+  operator's legal address as part of the Art. 28 processor identity.
+  Both groups are now in the `ALLOW_RE` allowlist so future edits
+  don't trip the hook (see commits `147d1a4` + `4e33249`).
+
+### Added — Project hygiene (Kleinkram-cleanup sprint)
+
+- **Deprecated stdlib / Starlette / Stripe APIs replaced.** Eliminates
+  the 14 DeprecationWarnings emitted on every test run:
+  `HTTP_413_REQUEST_ENTITY_TOO_LARGE → HTTP_413_CONTENT_TOO_LARGE`,
+  `HTTP_422_UNPROCESSABLE_ENTITY → HTTP_422_UNPROCESSABLE_CONTENT`
+  (Starlette 0.40 rename), `stripe.error.SignatureVerificationError →
+  stripe.SignatureVerificationError` (stripe-python 12.x flat
+  namespace), `datetime.utcnow() → datetime.now(timezone.utc)` in
+  `scripts/launch_gate_check.py` (PEP 668).
+- **SPDX license header on every .py file.** Project convention from
+  CLAUDE.md applied to the 41 source files still missing the
+  `# SPDX-License-Identifier: AGPL-3.0-or-later` line. Helps SBOM
+  tooling (CycloneDX, Scancode) attribute licence at file granularity.
+- **Container hardening — defence in depth on the existing non-root
+  user.** `docker-compose.yml` adds `security_opt:
+  [no-new-privileges:true]` (blocks setuid-style escalation inside the
+  container) and `cap_drop: [ALL]` (the app needs no Linux
+  capabilities — port 8000 is unprivileged, no `CAP_NET_RAW` or
+  `CAP_DAC_OVERRIDE` required by any converter). `read_only: true` +
+  `tmpfs /tmp` is staged as commented opt-in for operators who want
+  the stronger guarantee.
+- **`.env.example` env-var discoverability.** Three missing knobs
+  (`LANG_DEFAULT`, `SECURITY_CONTACT_EMAIL`, `SMTP_FROM_NAME`,
+  `SMTP_REPLY_TO`) added; `SMTP_USER`/`SMTP_FROM` renamed to
+  `SMTP_USERNAME`/`SMTP_FROM_EMAIL` to match the pydantic-settings
+  attribute stems. `CORS_ORIGINS` default flipped from `*` to
+  `http://localhost:8000` (the middleware refuses to combine `*` with
+  `allow_credentials=true` anyway). `app.app_version` bumped to PEP 440
+  dev marker `1.1.0.dev0`; `pyproject.toml::version` kept in sync.
+- **CI / scope-guard workflows: concurrency groups.** `ci.yml`,
+  `scope-guard.yml`, `verapdf.yml` now declare `concurrency:
+  cancel-in-progress: true` on non-main / non-develop refs. A new push
+  on the same PR branch cancels superseded queued runs; main /
+  develop runs always complete (branch-protection gates).
+- **PT-011 hardened.** `/api/v1/health` strips down to `{"status":
+  "ok"}` — no version, no `ffmpeg_available` flag (see Security
+  section above). `/api/v1/ready` carries the operational state.
 
 ### Operations
 
@@ -177,9 +270,14 @@ off where applicable, and optional at deploy time.
 
 ### Test coverage
 
-`tests/` grew from ~260 to **588 collected** (the 15 Windows-skipped
-ones are the PDF/A test modules — see test_pdfa.py docstring for the
-qpdf DLL-load conflict; Linux CI + production are unaffected).
+`tests/` grew from ~260 to **627 collected** (15 Windows-skipped —
+the PDF/A test modules; see test_pdfa.py docstring for the qpdf
+DLL-load conflict; Linux CI + production are unaffected). The 32
+post-trust-foundation additions cover the i18n catalogue end-to-end
+(FM_I18N JSON blob present + locale-resolved per request), the
+impressum/imprint locale-alias mapping (forward + reverse), the
+sitemap hreflang invariants, and the expanded scope-guard regex
+positives + public-doc negatives.
 
 ---
 
