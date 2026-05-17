@@ -207,6 +207,7 @@ def test_forbidden_paths_does_not_block_public_artifacts(hooks, path):
 @pytest.mark.parametrize(
     "path",
     [
+        # Historical / explicit names — the 13 originally enumerated.
         "docs/admin-cockpit.md",
         "docs/open-tasks.md",
         "docs/filemorph-io-runbook.md",
@@ -232,15 +233,69 @@ def test_internal_paths_redirects_business_docs(hooks, path):
 @pytest.mark.parametrize(
     "path",
     [
-        # Public docs the self-hoster needs.
+        # Deny-by-default pattern expansion (post-audit hardening 2026-05-15) —
+        # any future docs/* with one of these strategic / planning / internal
+        # naming patterns must be blocked even though it wasn't explicitly
+        # listed at the time the hook was last updated. Catches the gap that
+        # would otherwise let docs/foo-strategy.md or docs/engineering-pm-
+        # assessment-v2.md slip past the blocklist on the next sprint.
+        "docs/foo-strategy.md",
+        "docs/q3-2027-plan.md",
+        "docs/2028-roadmap.md",
+        "docs/operator-internal.md",
+        "docs/deploy-runbook.md",
+        "docs/marketing-deck-q4.md",
+        "docs/persona-developer.md",
+        "docs/persona-procurement.md",
+        "docs/competitive-cloudconvert.md",
+        "docs/engineering-pm-assessment-v2.md",
+        "docs/business-case-pilot-2027.md",
+        "docs/sprint-12-cloud.md",
+        "docs/launch-q3-tracker.md",
+        "docs/launch-prelaunch-snapshot.md",
+        "docs/launch-go-readiness.md",
+    ],
+)
+def test_internal_paths_deny_by_default_patterns(hooks, path):
+    pattern = re.compile(hooks["pre-commit"]["INTERNAL_PATHS"])
+    assert pattern.match(path), (
+        f"{path} should match INTERNAL_PATHS via the deny-by-default pattern "
+        "expansion — keep this and the hook regex in sync."
+    )
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        # Public docs the self-hoster needs — must stay clear of every
+        # INTERNAL pattern variant. If one starts matching, a copy edit to
+        # the hook regex is too greedy and just locked the developer out
+        # of their own GDPR doc edits.
         "docs/self-hosting.md",
         "docs/api-reference.md",
         "docs/api-usage-guide.md",
         "docs/threat-model.md",
         "docs/security-overview.md",
+        "docs/security-pentest-report.md",
         "docs/sub-processors.md",
         "docs/dpa-template.md",
+        "docs/dpa-tom-annex.md",
+        "docs/records-of-processing-template.md",
+        "docs/commercial-license-agreement-template.md",
+        "docs/third-party-licenses.md",
+        "docs/support-sla.md",
+        "docs/onboarding.md",
+        "docs/patch-policy.md",
+        "docs/release-signing.md",
+        "docs/incident-response.md",
+        "docs/architecture.md",
+        "docs/agpl-fuer-behoerden.md",
+        "docs/tech-stack-rationale.md",
+        "docs/gdpr-privacy-analysis.md",
         "docs/gdpr-account-deletion-design.md",
+        "docs/installation.md",
+        "docs/formats.md",
+        "docs/development.md",
         # Reclassified from internal → public when the
         # deployment-agnostic Self-Hoster walkthrough was added.
         "docs/email-setup.md",
