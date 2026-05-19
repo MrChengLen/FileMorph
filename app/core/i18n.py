@@ -225,6 +225,51 @@ def _js_i18n_strings(_: gettext.GNUTranslations.gettext) -> dict[str, str]:
         "convert": _("Convert"),
         "noConversionsAvailable": _("No conversions available for this format"),
         "quality": _("Quality"),
+        # docx→pdf engine routing — pre-upload notice + post-convert warnings.
+        # Surface fidelity-affecting decisions in the UI instead of stuffing
+        # them into the PDF artefact (which the user forwards to recipients).
+        "docxPdfEngineNotice": _(
+            "Complex Word features (footnotes, headers/footers, "
+            "table-of-contents, multi-section layout, multi-level lists) "
+            "auto-route to the high-fidelity engine when the office image "
+            "is deployed. The slim image uses a fallback pipeline that "
+            "simplifies these features."
+        ),
+        "docxPdfEngineLearnMore": _("Engine details ↗"),
+        "conversionWarningTitle": _("Conversion completed with notes"),
+        "warningEngineFallback": _(
+            "The high-fidelity LibreOffice engine wasn't available on "
+            "this deployment — output uses the pure-Python fallback "
+            "pipeline, which simplifies complex Word features."
+        ),
+        "warningSimplifiedFootnotes": _("Footnotes were simplified"),
+        "warningSimplifiedEndnotes": _("Endnotes were simplified"),
+        "warningSimplifiedHeaders": _("Page headers were simplified"),
+        "warningSimplifiedFooters": _("Page footers were simplified"),
+        "warningSimplifiedOle": _(
+            "Embedded objects (Excel charts, Visio diagrams) were simplified"
+        ),
+        "warningSimplifiedSections": _("Multi-section page layout was simplified"),
+        "warningSimplifiedEquations": _("Equations were simplified"),
+        "warningSimplifiedMultilevel": _("Multi-level numbered lists were flattened"),
+        "warningFidelityReduced": _(
+            "Some document elements were simplified during conversion"
+        ),
+        # 413 disambiguation — distinguishes "your upload was too big"
+        # (before any work) from "the rendered output exceeded the cap"
+        # (after conversion). Same status code; very different remediation.
+        "errorInputTooLarge": _(
+            "File too large for your plan. Upgrade or use a smaller file."
+        ),
+        "errorOutputCapExceeded": _(
+            "Conversion succeeded but the rendered output exceeded your "
+            "plan's output cap. Try a more efficient target format, lower "
+            "quality, or upgrade for a larger output cap."
+        ),
+        "errorTargetSizeExceedsCap": _(
+            "Target size exceeds your plan's output cap. Lower the target "
+            "size or upgrade your plan."
+        ),
         # dashboard.js — API-key management
         "copied": _("Copied!"),
         "copy": _("Copy"),

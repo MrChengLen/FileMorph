@@ -90,6 +90,18 @@
               <button id="format-warning-suggest" type="button"
                 class="underline hover:text-amber-300 font-semibold ml-1"></button>
             </p>
+            <!-- Engine-fidelity notice — currently only fires for docx→pdf,
+                 where the slim image's mammoth+WeasyPrint fallback drops
+                 footnotes / headers / footers / sections / TOC. The
+                 office image auto-routes complex docs to LibreOffice.
+                 Text set from app.js + window.FM_I18N. -->
+            <p id="engine-notice"
+              class="hidden text-xs text-sky-300 bg-sky-950/40 border border-sky-900/50 rounded-lg px-3 py-2 leading-relaxed">
+              <span id="engine-notice-text"></span>
+              <a id="engine-notice-link" href="https://github.com/MrChengLen/FileMorph/blob/main/docs/formats.md#notes-on-docx--pdf"
+                target="_blank" rel="noopener"
+                class="underline hover:text-sky-200 font-semibold ml-1"></a>
+            </p>
           </div>
         </div>
 
@@ -148,7 +160,17 @@
           </div>
         </div>
 
-        <div id="result-section" class="hidden">
+        <div id="result-section" class="hidden space-y-2">
+          <!-- Conversion-warning toast — shown above the download button when
+               the server reports fidelity-affecting decisions via the
+               X-FileMorph-Warnings response header. Lives OUTSIDE the
+               downloaded PDF so the user's recipients don't see our
+               internal notice. Populated by app.js. -->
+          <div id="conversion-warnings"
+            class="hidden text-xs text-sky-200 bg-sky-950/50 border border-sky-900/60 rounded-lg px-3 py-2 leading-relaxed">
+            <p class="font-semibold mb-1" id="conversion-warnings-title"></p>
+            <ul id="conversion-warnings-list" class="list-disc list-inside space-y-0.5 text-sky-300"></ul>
+          </div>
           <a id="download-link" href="#" download
             class="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-semibold text-white transition-colors text-sm">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

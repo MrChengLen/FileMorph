@@ -378,18 +378,24 @@ function updateFormatWarning() {
   const textEl = document.getElementById('format-warning-text');
   const suggestBtn = document.getElementById('format-warning-suggest');
 
-  // Warning is tied to the standalone dropdown. In batch mode that dropdown
-  // is hidden (each row carries its own target), so the banner doesn't apply.
+  // Warnings are tied to the standalone dropdown. In batch mode the dropdown
+  // is hidden (each row carries its own target), so neither banner applies.
   const isBatch = selectedFiles.length > 1;
-  if (selectedFiles.length === 0 || currentMode !== 'convert' || isBatch) {
+  const hideAll = selectedFiles.length === 0 || currentMode !== 'convert' || isBatch;
+  if (hideAll) {
     warnEl.classList.add('hidden');
+    hideEngineNotice();
     return;
   }
 
   const ext = getExtension(selectedFiles[0].name);
   const target = document.getElementById('target-format').value;
-  const match = (AMPLIFIERS[ext] || {})[target];
 
+  // Engine-fidelity notice for docx→pdf — independent of the bandwidth
+  // amplification banner; both can show together (different colour bands).
+  updateEngineNotice(ext, target);
+
+  const match = (AMPLIFIERS[ext] || {})[target];
   if (!match) {
     warnEl.classList.add('hidden');
     return;
@@ -407,6 +413,110 @@ function updateFormatWarning() {
   suggestBtn.textContent = `Use ${match.suggest.toUpperCase()} instead →`;
   suggestBtn.dataset.target = match.suggest;
   warnEl.classList.remove('hidden');
+}
+
+function updateEngineNotice(ext, target) {
+  const el = document.getElementById('engine-notice');
+  if (!el) return;
+  // Currently only docx→pdf triggers the engine notice — the routing
+  // (mammoth fallback vs LibreOffice high-fidelity) only applies to
+  // that one format pair. Extending to other office-format pairs
+  // (xlsx→pdf, pptx→pdf if/when added) goes here.
+  if (ext !== 'docx' || target !== 'pdf') {
+    el.classList.add('hidden');
+    return;
+  }
+  const textEl = document.getElementById('engine-notice-text');
+  const linkEl = document.getElementById('engine-notice-link');
+  const i18n = window.FM_I18N || {};
+  if (textEl) textEl.textContent = i18n.docxPdfEngineNotice
+    || 'Complex Word features may be simplified by the slim image fallback engine.';
+  if (linkEl) linkEl.textContent = i18n.docxPdfEngineLearnMore || 'Engine details ↗';
+  el.classList.remove('hidden');
+}
+
+function hideEngineNotice() {
+  const el = document.getElementById('engine-notice');
+  if (el) el.classList.add('hidden');
+}
+
+// ── X-FileMorph-Warnings parsing ─────────────────────────────────────────────
+// Token map: ``simplified=<feature>`` → human-readable i18n key.
+// Tokens not in this map are surfaced raw under "fidelityReduced" so a
+// future backend addition doesn't disappear silently if the JS catalogue
+// lags behind a server release.
+const WARNING_FEATURE_LABELS = {
+  footnotes: 'warningSimplifiedFootnotes',
+  endnotes: 'warningSimplifiedEndnotes',
+  headers: 'warningSimplifiedHeaders',
+  footers: 'warningSimplifiedFooters',
+  ole_objects: 'warningSimplifiedOle',
+  multi_section_layout: 'warningSimplifiedSections',
+  equations: 'warningSimplifiedEquations',
+  multilevel_lists: 'warningSimplifiedMultilevel',
+};
+
+function parseWarningsHeader(raw) {
+  // Header is comma-joined ``key=value`` tokens; whitespace tolerated.
+  // Returns an ordered array of {key, value, label} for the UI to render.
+  if (!raw) return [];
+  const i18n = window.FM_I18N || {};
+  const items = [];
+  let engineFallback = false;
+  let fidelityReduced = false;
+  for (const rawToken of raw.split(',')) {
+    const token = rawToken.trim();
+    if (!token) continue;
+    const eq = token.indexOf('=');
+    if (eq === -1) continue;
+    const key = token.slice(0, eq).trim();
+    const value = token.slice(eq + 1).trim();
+    if (key === 'engine' && value === 'mammoth_fallback') {
+      engineFallback = true;
+    } else if (key === 'simplified') {
+      const i18nKey = WARNING_FEATURE_LABELS[value];
+      items.push({ label: (i18nKey && i18n[i18nKey]) || `Simplified: ${value}` });
+    } else if (key === 'fidelity' && value === 'reduced') {
+      fidelityReduced = true;
+    }
+    // ``reason=…`` tokens (soffice_unavailable, soffice_runtime_error)
+    // are diagnostic context for the engine-fallback message — surfaced
+    // via the engineFallback branch above rather than as standalone items.
+  }
+  if (engineFallback) {
+    items.unshift({ label: i18n.warningEngineFallback || 'High-fidelity engine unavailable; fallback used.' });
+  }
+  if (fidelityReduced && items.length === 0) {
+    items.push({ label: i18n.warningFidelityReduced || 'Some elements were simplified during conversion.' });
+  }
+  return items;
+}
+
+function showConversionWarnings(rawHeader) {
+  const box = document.getElementById('conversion-warnings');
+  const list = document.getElementById('conversion-warnings-list');
+  const titleEl = document.getElementById('conversion-warnings-title');
+  if (!box || !list || !titleEl) return;
+  const items = parseWarningsHeader(rawHeader);
+  if (items.length === 0) {
+    box.classList.add('hidden');
+    list.innerHTML = '';
+    return;
+  }
+  const i18n = window.FM_I18N || {};
+  titleEl.textContent = i18n.conversionWarningTitle || 'Conversion completed with notes';
+  list.innerHTML = '';
+  for (const item of items) {
+    const li = document.createElement('li');
+    li.textContent = item.label;
+    list.appendChild(li);
+  }
+  box.classList.remove('hidden');
+}
+
+function hideConversionWarnings() {
+  const box = document.getElementById('conversion-warnings');
+  if (box) box.classList.add('hidden');
 }
 
 function updateQualityVisibility() {
@@ -546,7 +656,23 @@ async function submitForm() {
       } else if (res.status === 401) {
         showError('Invalid API key. Check your key and try again.');
       } else if (res.status === 413) {
-        showError(data.detail || 'File too large for your plan.');
+        // PR-uxfix-413: branch on the structured error code so the
+        // remediation hint matches the actual failure. Falls back to
+        // the raw ``detail`` string when the header is missing (older
+        // server build or a non-FileMorph proxy in front).
+        const errCode = res.headers.get('X-FileMorph-Error-Code');
+        const i18n = window.FM_I18N || {};
+        let msg;
+        if (errCode === 'output_cap_exceeded') {
+          msg = i18n.errorOutputCapExceeded || data.detail;
+        } else if (errCode === 'target_size_exceeds_cap') {
+          msg = i18n.errorTargetSizeExceedsCap || data.detail;
+        } else if (errCode === 'input_too_large') {
+          msg = i18n.errorInputTooLarge || data.detail;
+        } else {
+          msg = data.detail || 'File too large for your plan.';
+        }
+        showError(msg);
       } else if (res.status === 429) {
         showError('Too many requests. Please wait a moment and try again.');
       } else {
@@ -572,6 +698,13 @@ async function submitForm() {
     const link = document.getElementById('download-link');
     link.href = url;
     link.download = filename;
+
+    // PR-uxfix-warnings: surface server-reported fidelity-affecting
+    // decisions (e.g. ``engine=mammoth_fallback`` when LibreOffice was
+    // missing and we degraded gracefully). The toast lives *outside*
+    // the downloaded PDF so the user's recipients don't see the
+    // notice in the artefact they receive.
+    showConversionWarnings(res.headers.get('X-FileMorph-Warnings'));
 
     const label = document.getElementById('download-link-label');
     if (label) {
@@ -599,6 +732,9 @@ function showProgress(text) {
   document.getElementById('progress-section').classList.remove('hidden');
   document.getElementById('result-section').classList.add('hidden');
   document.getElementById('error-section').classList.add('hidden');
+  // Clear any toast left over from a previous conversion so a re-run
+  // doesn't display stale warnings while the new request is in flight.
+  hideConversionWarnings();
   document.getElementById('convert-btn').disabled = true;
 }
 

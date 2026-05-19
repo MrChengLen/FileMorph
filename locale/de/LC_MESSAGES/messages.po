@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-05-15 14:27+0200\n"
+"POT-Creation-Date: 2026-05-19 11:44+0200\n"
 "PO-Revision-Date: 2026-05-08 11:00+0200\n"
 "Last-Translator: FileMorph <hallo@filemorph.io>\n"
 "Language: de\n"
@@ -399,6 +399,17 @@ msgstr "Kommerzielle Lizenz"
 msgid "Commercial license on AGPL code"
 msgstr "Kommerzielle Lizenz auf AGPL-Code"
 
+msgid ""
+"Complex Word features (footnotes, headers/footers, table-of-contents, "
+"multi-section layout, multi-level lists) auto-route to the high-fidelity "
+"engine when the office image is deployed. The slim image uses a fallback "
+"pipeline that simplifies these features."
+msgstr ""
+"Komplexe Word-Funktionen (Fußnoten, Kopf-/Fußzeilen, Inhaltsverzeichnis, "
+"Mehrfach-Sektionen, mehrstufige Listen) werden automatisch auf die "
+"High-Fidelity-Engine geroutet, wenn das office-Image deployt ist. Das "
+"slim-Image nutzt eine Fallback-Pipeline, die diese Funktionen vereinfacht."
+
 msgid "Compliance"
 msgstr "Compliance"
 
@@ -485,6 +496,19 @@ msgstr "Kontakt:"
 
 msgid "Contact:"
 msgstr "Kontakt:"
+
+msgid "Conversion completed with notes"
+msgstr "Konvertierung mit Hinweisen abgeschlossen"
+
+msgid ""
+"Conversion succeeded but the rendered output exceeded your plan's output "
+"cap. Try a more efficient target format, lower quality, or upgrade for a "
+"larger output cap."
+msgstr ""
+"Konvertierung erfolgreich, aber das gerenderte Ergebnis hat das "
+"Output-Limit Ihres Plans überschritten. Versuchen Sie ein effizienteres "
+"Zielformat, niedrigere Qualität oder ein Upgrade für ein größeres "
+"Output-Limit."
 
 msgid "Convert"
 msgstr "Konvertieren"
@@ -598,6 +622,15 @@ msgstr "Inhaltlich Verantwortlicher"
 msgid "Email"
 msgstr "E-Mail"
 
+msgid "Embedded objects (Excel charts, Visio diagrams) were simplified"
+msgstr "Eingebettete Objekte (Excel-Charts, Visio-Diagramme) wurden vereinfacht"
+
+msgid "Endnotes were simplified"
+msgstr "Endnoten wurden vereinfacht"
+
+msgid "Engine details ↗"
+msgstr "Engine-Details ↗"
+
 msgid "Engineering proof before contract"
 msgstr "Engineering-Beweis vor dem Vertrag"
 
@@ -612,6 +645,9 @@ msgstr "Enterprise & Self-Hosted:"
 
 msgid "Enterprise / Compliance"
 msgstr "Enterprise / Compliance"
+
+msgid "Equations were simplified"
+msgstr "Formeln wurden vereinfacht"
 
 msgid ""
 "Every operation in a continuous hash chain. Tampering with an old row "
@@ -643,6 +679,9 @@ msgstr "Datei-Konvertierung und -Kompression — Open Source, selbst hostbar."
 
 msgid "File conversion mode"
 msgstr "Datei-Konvertierungs-Modus"
+
+msgid "File too large for your plan. Upgrade or use a smaller file."
+msgstr "Datei zu groß für Ihren Plan. Upgrade oder kleinere Datei verwenden."
 
 msgid "FileMorph Compliance Edition"
 msgstr "FileMorph Compliance Edition"
@@ -734,6 +773,9 @@ msgstr ""
 
 msgid "Fix timeline:"
 msgstr "Behebungs-Zeitplan:"
+
+msgid "Footnotes were simplified"
+msgstr "Fußnoten wurden vereinfacht"
 
 msgid "For Developers"
 msgstr "Für Entwickler"
@@ -1039,6 +1081,12 @@ msgstr "Am beliebtesten"
 msgid "Multi-format (image + audio + video + sheet)"
 msgstr "Multi-Format (Bild + Audio + Video + Sheet)"
 
+msgid "Multi-level numbered lists were flattened"
+msgstr "Mehrstufige nummerierte Listen wurden geglättet"
+
+msgid "Multi-section page layout was simplified"
+msgstr "Mehrfach-Sektions-Seitenlayout wurde vereinfacht"
+
 msgid "Name (optional)"
 msgstr "Name (optional)"
 
@@ -1122,6 +1170,12 @@ msgstr "PDF/A-2b-Output"
 
 msgid "PDF/A-2b veraPDF-validated"
 msgstr "PDF/A-2b veraPDF-validiert"
+
+msgid "Page footers were simplified"
+msgstr "Fußzeilen wurden vereinfacht"
+
+msgid "Page headers were simplified"
+msgstr "Kopfzeilen wurden vereinfacht"
 
 msgid "Page not found"
 msgstr "Seite nicht gefunden"
@@ -1480,6 +1534,9 @@ msgstr "Kleinere Datei"
 msgid "Soft-delete this user (sets is_active=false)?"
 msgstr "Nutzer soft-löschen (setzt is_active=false)?"
 
+msgid "Some document elements were simplified during conversion"
+msgstr "Einige Dokumentelemente wurden während der Konvertierung vereinfacht"
+
 msgid "Something went wrong on our end. Please try again in a moment."
 msgstr ""
 "Auf unserer Seite ist etwas schiefgelaufen. Bitte versuche es gleich noch"
@@ -1554,6 +1611,13 @@ msgstr "Ziel-Dateigröße"
 msgid "Target format selection is inconsistent — please reselect your files."
 msgstr "Zielformat-Auswahl inkonsistent — bitte Dateien neu auswählen."
 
+msgid ""
+"Target size exceeds your plan's output cap. Lower the target size or "
+"upgrade your plan."
+msgstr ""
+"Zielgröße überschreitet das Output-Limit Ihres Plans. Senken Sie die "
+"Zielgröße oder upgraden Sie Ihren Plan."
+
 msgid "Tax status"
 msgstr "Steuerliche Angaben"
 
@@ -1593,6 +1657,15 @@ msgstr ""
 "Gewährleistung bereitgestellt. Wir garantieren keine Verfügbarkeit, "
 "Konvertierungs-Ergebnis-Genauigkeit oder Eignung für einen bestimmten "
 "Zweck."
+
+msgid ""
+"The high-fidelity LibreOffice engine wasn't available on this deployment "
+"— output uses the pure-Python fallback pipeline, which simplifies complex"
+" Word features."
+msgstr ""
+"Die High-Fidelity-LibreOffice-Engine war auf diesem Deployment nicht "
+"verfügbar — das Ergebnis nutzt die pure-Python-Fallback-Pipeline, die "
+"komplexe Word-Funktionen vereinfacht."
 
 msgid "The official Docker images and release artifacts."
 msgstr "Die offiziellen Docker-Images und Release-Artefakte."
