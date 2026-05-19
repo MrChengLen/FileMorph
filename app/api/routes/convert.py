@@ -86,7 +86,17 @@ async def _do_convert(
             )
         else:
             detail = f"File too large ({limit_mb} MB max for your plan). Upgrade for larger files."
-        raise HTTPException(status_code=status.HTTP_413_CONTENT_TOO_LARGE, detail=detail)
+        # Structured code in a response header lets the UI distinguish
+        # "your upload was too big" (this site) from
+        # "the rendered output exceeded the cap" (further down, after
+        # conversion completed). Both currently return 413; without the
+        # disambiguator the client cannot tell whether to apologise for
+        # the user's input or to suggest the LibreOffice/upgrade path.
+        raise HTTPException(
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+            detail=detail,
+            headers={"X-FileMorph-Error-Code": "input_too_large"},
+        )
 
     # PR-M: monthly API-call quota gate. Anonymous + Enterprise tiers
     # are exempt; everyone else runs against the limit defined in
@@ -160,6 +170,7 @@ async def _do_convert(
             raise HTTPException(
                 status_code=status.HTTP_413_CONTENT_TOO_LARGE,
                 detail=f"Output too large ({out_mb} MB > {cap_mb} MB cap). {hint}",
+                headers={"X-FileMorph-Error-Code": "output_cap_exceeded"},
             )
 
         # S3: stream the output from disk instead of buffering into RAM. The

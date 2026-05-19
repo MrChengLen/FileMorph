@@ -219,6 +219,7 @@ app.add_middleware(
     expose_headers=[
         "Content-Disposition",
         "X-FileMorph-Achieved-Bytes",
+        "X-FileMorph-Error-Code",
         "X-FileMorph-Final-Quality",
         "X-FileMorph-Warnings",
         "X-Output-SHA256",

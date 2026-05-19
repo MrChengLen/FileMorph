@@ -83,6 +83,10 @@ def test_convert_rejects_output_over_cap(client, auth_headers, tiny_anonymous_ou
     assert r.status_code == 413
     detail = r.json()["detail"]
     assert "Output too large" in detail
+    # PR-uxfix-413: structured error code lets the UI distinguish
+    # "your upload was too big" from "we converted it and the OUTPUT is
+    # over your tier cap" — same 413 status, very different remediation.
+    assert r.headers.get("X-FileMorph-Error-Code") == "output_cap_exceeded"
 
 
 def test_convert_passes_under_cap(client, auth_headers):
@@ -107,6 +111,7 @@ def test_compress_rejects_output_over_cap(client, auth_headers, tiny_anonymous_o
     )
     assert r.status_code == 413
     assert "Output too large" in r.json()["detail"]
+    assert r.headers.get("X-FileMorph-Error-Code") == "output_cap_exceeded"
 
 
 def test_batch_convert_over_cap_file_marked_failed(
