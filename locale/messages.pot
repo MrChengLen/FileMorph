@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph 1.1.0.dev0\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-05-15 14:27+0200\n"
+"POT-Creation-Date: 2026-05-19 11:44+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -358,6 +358,13 @@ msgstr ""
 msgid "Commercial license on AGPL code"
 msgstr ""
 
+msgid ""
+"Complex Word features (footnotes, headers/footers, table-of-contents, "
+"multi-section layout, multi-level lists) auto-route to the high-fidelity "
+"engine when the office image is deployed. The slim image uses a fallback "
+"pipeline that simplifies these features."
+msgstr ""
+
 msgid "Compliance"
 msgstr ""
 
@@ -433,6 +440,15 @@ msgid "Contact us"
 msgstr ""
 
 msgid "Contact:"
+msgstr ""
+
+msgid "Conversion completed with notes"
+msgstr ""
+
+msgid ""
+"Conversion succeeded but the rendered output exceeded your plan's output "
+"cap. Try a more efficient target format, lower quality, or upgrade for a "
+"larger output cap."
 msgstr ""
 
 msgid "Convert"
@@ -542,6 +558,15 @@ msgstr ""
 msgid "Email"
 msgstr ""
 
+msgid "Embedded objects (Excel charts, Visio diagrams) were simplified"
+msgstr ""
+
+msgid "Endnotes were simplified"
+msgstr ""
+
+msgid "Engine details ↗"
+msgstr ""
+
 msgid "Engineering proof before contract"
 msgstr ""
 
@@ -555,6 +580,9 @@ msgid "Enterprise & self-hosted:"
 msgstr ""
 
 msgid "Enterprise / Compliance"
+msgstr ""
+
+msgid "Equations were simplified"
 msgstr ""
 
 msgid ""
@@ -581,6 +609,9 @@ msgid "File conversion and compression — open source, self-hostable."
 msgstr ""
 
 msgid "File conversion mode"
+msgstr ""
+
+msgid "File too large for your plan. Upgrade or use a smaller file."
 msgstr ""
 
 msgid "FileMorph Compliance Edition"
@@ -644,6 +675,9 @@ msgid ""
 msgstr ""
 
 msgid "Fix timeline:"
+msgstr ""
+
+msgid "Footnotes were simplified"
 msgstr ""
 
 msgid "For Developers"
@@ -886,6 +920,12 @@ msgstr ""
 msgid "Multi-format (image + audio + video + sheet)"
 msgstr ""
 
+msgid "Multi-level numbered lists were flattened"
+msgstr ""
+
+msgid "Multi-section page layout was simplified"
+msgstr ""
+
 msgid "Name (optional)"
 msgstr ""
 
@@ -958,6 +998,12 @@ msgid "PDF/A-2b output"
 msgstr ""
 
 msgid "PDF/A-2b veraPDF-validated"
+msgstr ""
+
+msgid "Page footers were simplified"
+msgstr ""
+
+msgid "Page headers were simplified"
 msgstr ""
 
 msgid "Page not found"
@@ -1266,6 +1312,9 @@ msgstr ""
 msgid "Soft-delete this user (sets is_active=false)?"
 msgstr ""
 
+msgid "Some document elements were simplified during conversion"
+msgstr ""
+
 msgid "Something went wrong on our end. Please try again in a moment."
 msgstr ""
 
@@ -1329,6 +1378,11 @@ msgstr ""
 msgid "Target format selection is inconsistent — please reselect your files."
 msgstr ""
 
+msgid ""
+"Target size exceeds your plan's output cap. Lower the target size or "
+"upgrade your plan."
+msgstr ""
+
 msgid "Tax status"
 msgstr ""
 
@@ -1357,6 +1411,12 @@ msgid ""
 "The Service is provided \"as is\" without warranty of any kind, express "
 "or implied. We do not guarantee uptime, accuracy of conversion results, "
 "or fitness for a particular purpose."
+msgstr ""
+
+msgid ""
+"The high-fidelity LibreOffice engine wasn't available on this deployment "
+"— output uses the pure-Python fallback pipeline, which simplifies complex"
+" Word features."
 msgstr ""
 
 msgid "The official Docker images and release artifacts."

@@ -82,3 +82,46 @@ if [ "$FAIL" = "1" ]; then
   echo "Bypass only with explicit reason: git push --no-verify" >&2
   exit 1
 fi
+
+# ── CI-gate mirror (ruff lint + format) ──────────────────────────────────────
+# Catches the failure mode we hit on 2026-05-19: an Edit changed a
+# multi-line dict in app/core/i18n.py without re-running ``ruff format``;
+# scope-guard passed, scope-review passed, commit + push went through,
+# and GitHub Actions' ``ruff format --check .`` was the one to surface
+# the drift — at the cost of a red CI run.
+#
+# Both checks are cheap (~1 s on a clean tree) and additive: pytest
+# (~40 s) stays in CI to keep push latency bearable; the dev who wants
+# the full mirror runs ``pytest -q`` themselves before a big push.
+#
+# Bypass with PRECOMMIT_SKIP_RUFF=1 git push (e.g. when the only change
+# is a binary asset that ruff doesn't care about). Skipping in CI is
+# not possible — that's where the safety net is supposed to live.
+if [ "${PRECOMMIT_SKIP_RUFF:-0}" != "1" ]; then
+  if [ -x ".venv/Scripts/python.exe" ]; then
+    PYBIN=".venv/Scripts/python.exe"
+  elif [ -x ".venv/bin/python" ]; then
+    PYBIN=".venv/bin/python"
+  elif command -v python >/dev/null 2>&1; then
+    PYBIN="python"
+  else
+    PYBIN=""
+  fi
+  if [ -n "$PYBIN" ]; then
+    echo "[pre-push] ruff check" >&2
+    "$PYBIN" -m ruff check . || {
+      echo "" >&2
+      echo "Push blocked. \`ruff check .\` failed — fix the lint errors above." >&2
+      echo "Bypass with PRECOMMIT_SKIP_RUFF=1 git push (not recommended)." >&2
+      exit 1
+    }
+    echo "[pre-push] ruff format --check" >&2
+    "$PYBIN" -m ruff format --check . || {
+      echo "" >&2
+      echo "Push blocked. \`ruff format --check .\` reports drift. Run:" >&2
+      echo "    $PYBIN -m ruff format ." >&2
+      echo "and re-stage the changes before pushing." >&2
+      exit 1
+    }
+  fi
+fi

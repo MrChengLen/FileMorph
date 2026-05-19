@@ -94,7 +94,11 @@ async def _do_compress(
             )
         else:
             detail = f"File too large ({limit_mb} MB max for your plan). Upgrade for larger files."
-        raise HTTPException(status_code=status.HTTP_413_CONTENT_TOO_LARGE, detail=detail)
+        raise HTTPException(
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+            detail=detail,
+            headers={"X-FileMorph-Error-Code": "input_too_large"},
+        )
 
     # PR-M: monthly API-call quota gate. See app/core/usage.py.
     await enforce_monthly_quota(user)
@@ -117,6 +121,7 @@ async def _do_compress(
                     f"Target size {target_size_kb} KB exceeds tier output cap of {cap_kb} KB. "
                     "Upgrade your plan for larger outputs."
                 ),
+                headers={"X-FileMorph-Error-Code": "target_size_exceeds_cap"},
             )
 
     # GDPR: keep original stem only for Content-Disposition, never as a filesystem path
@@ -198,6 +203,7 @@ async def _do_compress(
                     f"Output too large ({out_mb} MB > {cap_mb} MB cap). "
                     "Lower the quality or upgrade your plan."
                 ),
+                headers={"X-FileMorph-Error-Code": "output_cap_exceeded"},
             )
 
         # S3: stream the output from disk instead of buffering into RAM. The
@@ -360,6 +366,7 @@ async def _do_compress_batch(
                     f"Target size {target_size_kb} KB exceeds tier output cap of {cap_kb} KB. "
                     "Upgrade your plan for larger outputs."
                 ),
+                headers={"X-FileMorph-Error-Code": "target_size_exceeds_cap"},
             )
 
     # PR-M: monthly quota gate before file I/O. One batch = one API call.

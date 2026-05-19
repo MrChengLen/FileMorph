@@ -18,6 +18,10 @@ def test_anonymous_upload_over_20mb_rejected(client, auth_headers):
     body = res.json()
     assert "20 MB" in body["detail"]
     assert "anonymous" in body["detail"].lower()
+    # PR-uxfix-413: structured error code distinguishes "your upload was
+    # too big" (input gate) from "the rendered output is over cap"
+    # (after conversion). Both 413; the UI branches on the header.
+    assert res.headers.get("X-FileMorph-Error-Code") == "input_too_large"
 
 
 def test_anonymous_upload_under_20mb_not_size_rejected(client, auth_headers, sample_jpg):
@@ -44,3 +48,4 @@ def test_anonymous_compress_over_20mb_rejected(client, auth_headers):
     )
     assert res.status_code == 413
     assert "20 MB" in res.json()["detail"]
+    assert res.headers.get("X-FileMorph-Error-Code") == "input_too_large"
