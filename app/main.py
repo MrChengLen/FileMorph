@@ -220,6 +220,7 @@ app.add_middleware(
         "Content-Disposition",
         "X-FileMorph-Achieved-Bytes",
         "X-FileMorph-Final-Quality",
+        "X-FileMorph-Warnings",
         "X-Output-SHA256",
         "X-Data-Classification",
     ],
