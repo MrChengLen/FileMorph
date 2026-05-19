@@ -252,15 +252,11 @@ def _js_i18n_strings(_: gettext.GNUTranslations.gettext) -> dict[str, str]:
         "warningSimplifiedSections": _("Multi-section page layout was simplified"),
         "warningSimplifiedEquations": _("Equations were simplified"),
         "warningSimplifiedMultilevel": _("Multi-level numbered lists were flattened"),
-        "warningFidelityReduced": _(
-            "Some document elements were simplified during conversion"
-        ),
+        "warningFidelityReduced": _("Some document elements were simplified during conversion"),
         # 413 disambiguation — distinguishes "your upload was too big"
         # (before any work) from "the rendered output exceeded the cap"
         # (after conversion). Same status code; very different remediation.
-        "errorInputTooLarge": _(
-            "File too large for your plan. Upgrade or use a smaller file."
-        ),
+        "errorInputTooLarge": _("File too large for your plan. Upgrade or use a smaller file."),
         "errorOutputCapExceeded": _(
             "Conversion succeeded but the rendered output exceeded your "
             "plan's output cap. Try a more efficient target format, lower "
