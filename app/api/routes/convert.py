@@ -259,11 +259,23 @@ async def _do_convert(
         shutil.rmtree(tmp_dir, ignore_errors=True)
         raise
 
+    response_headers = {"X-Output-SHA256": output_hash}
+    # Converters that need to flag fidelity-relevant decisions (e.g. the
+    # DOCX→PDF complexity router falling back from LibreOffice to mammoth
+    # when soffice is absent) write a list of label tokens to
+    # ``converter.warnings``. We surface them on a structured response
+    # header so the client UI can render an out-of-PDF notice — the
+    # in-document yellow banner is reserved for anonymous-tier callers.
+    converter_warnings = getattr(converter, "warnings", None)
+    if converter_warnings:
+        # Tokens are comma-joined; each is ``key=value`` (see the
+        # _COMPLEXITY_FEATURE_TO_LABEL map in app/converters/document.py).
+        response_headers["X-FileMorph-Warnings"] = ",".join(converter_warnings)
     return FileResponse(
         output_path,
         media_type="application/octet-stream",
         filename=download_name,
-        headers={"X-Output-SHA256": output_hash},
+        headers=response_headers,
         background=BackgroundTask(shutil.rmtree, tmp_dir, ignore_errors=True),
     )
 

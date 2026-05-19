@@ -107,6 +107,7 @@ jobs:
             ':!docs/dpa-tom-annex.md' \
             ':!docs/records-of-processing-template.md' \
             ':!docs/commercial-license-agreement-template.md' \
+            ':!docs/vendor-security-questionnaire.md' \
             ':!docs/email-setup.md' \
             ':!CHANGELOG.md' \
             ':!.env.example' \

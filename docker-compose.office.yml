@@ -1,0 +1,38 @@
+# FileMorph — Office overlay (high-fidelity docx→pdf)
+#
+# Adds LibreOffice headless + OFL Calibri/Arial-metric fonts on top of
+# the slim base image. Use it when your deployment converts Word docs
+# with footnotes, headers/footers, multi-section page-setup, TOC,
+# multi-level numbered lists, OLE objects, or equations — anything
+# mammoth+WeasyPrint would silently simplify.
+#
+# Recommended for the Compliance Edition deployment. Layered on top of
+# the default compose file:
+#
+#     docker compose -f docker-compose.yml -f docker-compose.office.yml up -d
+#
+# Or with the Cloud overlay too:
+#
+#     docker compose \
+#       -f docker-compose.yml \
+#       -f docker-compose.cloud.yml \
+#       -f docker-compose.office.yml \
+#       up -d
+#
+# The pre-built image is also available at
+# ``ghcr.io/mrchenglen/filemorph:office`` — point the ``image:`` directive
+# at it instead of building locally if you don't need a custom build.
+
+services:
+  filemorph:
+    build:
+      # Override the slim ``target: base`` from the parent compose file.
+      target: office
+    environment:
+      # ``auto`` (default) routes only complex DOCX to LibreOffice; simple
+      # docs still take the fast pure-Python path. Set ``libreoffice`` to
+      # force every conversion through soffice (slower but predictable
+      # high-fidelity); ``mammoth`` falls back to the pure-Python path even
+      # though LibreOffice is installed (useful for A/B comparing the two
+      # engines on the same image).
+      - FILEMORPH_OFFICE_ENGINE=auto

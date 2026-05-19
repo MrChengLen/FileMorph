@@ -12,6 +12,19 @@ env:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    strategy:
+      # Build slim + office in parallel; fail-fast off because the two
+      # variants are independent — a Pango regression in slim shouldn't
+      # mask an upstream LibreOffice break in office (or vice versa).
+      fail-fast: false
+      matrix:
+        include:
+          - target: base
+            suffix: ""
+            description: "Slim image (mammoth+WeasyPrint docx→pdf path)"
+          - target: office
+            suffix: "-office"
+            description: "Office image (adds LibreOffice for high-fidelity docx→pdf)"
     permissions:
       contents: read
       packages: write
@@ -38,20 +51,32 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          # The office variant gets the same tag set as slim but with a
+          # ``-office`` suffix so a consumer can pick either by tag —
+          # filemorph:1.1.0 vs filemorph:1.1.0-office. The slim image
+          # keeps ``:latest`` (default for naive pulls); the office image
+          # gets ``:office`` for the matching shorthand.
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest
-            type=sha,format=short,prefix=sha-
+            type=semver,pattern={{version}},suffix=${{ matrix.suffix }}
+            type=semver,pattern={{major}}.{{minor}},suffix=${{ matrix.suffix }}
+            type=raw,value=${{ matrix.target == 'base' && 'latest' || 'office' }}
+            type=sha,format=short,prefix=sha-,suffix=${{ matrix.suffix }}
 
-      - name: Build and push Docker image
+      - name: Build and push Docker image (${{ matrix.target }})
         id: build
         uses: docker/build-push-action@v5
         with:
           context: .
+          target: ${{ matrix.target }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # GHA-cache lets the office stage reuse every layer the base
+          # stage already produced — without it the office build redoes
+          # ffmpeg, ghostscript, pip install. Scope is per-target so the
+          # two matrix legs don't trample each other's cache.
+          cache-from: type=gha,scope=${{ matrix.target }}
+          cache-to: type=gha,scope=${{ matrix.target }},mode=max
 
       - name: Install cosign
         uses: sigstore/cosign-installer@v3

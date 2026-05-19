@@ -146,6 +146,34 @@ class Settings(BaseSettings):
     # billing) stay same-origin regardless.
     api_base_url: str = ""
 
+    # DOCX → PDF engine selection. The pure-Python pipeline
+    # (mammoth + WeasyPrint) is fast and ships in every image but cannot
+    # round-trip footnotes, headers/footers, multi-level numbering, TOC
+    # fields, section page-setup, or OLE objects — exactly the elements
+    # Behörden / Kanzleien / Klinik-Word-Docs depend on. The high-fidelity
+    # path delegates to LibreOffice (``soffice --headless --convert-to pdf``)
+    # which preserves all of those.
+    #
+    # Values:
+    #   - ``auto`` (default): probe each DOCX for complex features
+    #     (footnotes, headers/footers, multi-section, OLE); simple docs
+    #     stay on mammoth+WeasyPrint, complex docs route to LibreOffice
+    #     *if* ``soffice`` is on PATH, else fall back to mammoth and emit
+    #     ``X-FileMorph-Warnings: engine=mammoth_fallback,…``.
+    #   - ``libreoffice``: always use LibreOffice (errors at convert time
+    #     if ``soffice`` is not on PATH). Recommended setting in the
+    #     ``filemorph:office`` image variant.
+    #   - ``mammoth``: always use the pure-Python path; never invoke
+    #     LibreOffice. Recommended for self-hosters who run the slim image
+    #     and explicitly accept the fidelity ceiling for predictability.
+    office_engine: str = "auto"
+
+    # Hard upper bound on how long a single ``soffice --convert-to`` call
+    # may run before we kill it. 60 s is comfortable for a 100-page Word
+    # report on a 4 GB host; raise on bigger boxes if you regularly
+    # convert long forms. Ignored when ``office_engine=mammoth``.
+    office_subprocess_timeout_seconds: int = 60
+
     def model_post_init(self, __context) -> None:
         if not self.api_keys_file:
             self.api_keys_file = _default_keys_file()

@@ -15,7 +15,15 @@
 
 services:
   filemorph:
-    build: .
+    build:
+      # ``base`` is the slim variant — the historical default. Docker
+      # would otherwise build the last stage in the multi-stage Dockerfile
+      # (``office``), which adds ~280 MB of LibreOffice and metric-compat
+      # fonts. Self-hosters who need Word-grade docx→pdf fidelity layer
+      # ``docker-compose.office.yml`` on top of this file — see that
+      # file's header for the one-liner.
+      context: .
+      target: base
     ports:
       - "8000:8000"
     volumes:
