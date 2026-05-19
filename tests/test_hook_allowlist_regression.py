@@ -110,6 +110,10 @@ def test_pre_commit_and_pre_push_regexes_stay_in_sync(hooks):
         "docs/api-usage-guide.md",
         "docs/self-hosting.md",
         "docs/dpa-template.md",
+        "docs/dpa-tom-annex.md",
+        "docs/records-of-processing-template.md",
+        "docs/commercial-license-agreement-template.md",
+        "docs/vendor-security-questionnaire.md",
         # Public Cloud-Edition email-setup walkthrough — placeholder
         # .env-style SMTP credential lines would otherwise trip the
         # SECRET_ASSIGN content scanner.
@@ -282,6 +286,7 @@ def test_internal_paths_deny_by_default_patterns(hooks, path):
         "docs/dpa-tom-annex.md",
         "docs/records-of-processing-template.md",
         "docs/commercial-license-agreement-template.md",
+        "docs/vendor-security-questionnaire.md",
         "docs/third-party-licenses.md",
         "docs/support-sla.md",
         "docs/onboarding.md",

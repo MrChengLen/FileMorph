@@ -73,6 +73,20 @@ off where applicable, and optional at deploy time.
   A–D wiring in the tier and fees, the Support SLA, the DPA + TOM annex,
   and the onboarding scope. Published for procurement review; flagged
   "not legal advice — have counsel review and tailor it before signing."
+- `docs/vendor-security-questionnaire.md` — standing answers to the
+  recurring questions in vendor security questionnaires (VSA, SIG / SIG
+  Lite, CAIQ, BSI Grundschutz-style reviews, KRITIS / B3S supplier
+  checklists, ad-hoc DPO worksheets). 16 sections — vendor ID, product
+  overview, hosting / data residency, GDPR Art. 28 readiness, encryption,
+  authN/authZ, application security (OWASP Top 10 walk), audit logging,
+  vulnerability management, incident response, BCP/DR, source / supply
+  chain / SBOM, certifications, support tiers, exit / portability,
+  personnel, public artefacts index — each section cites the canonical
+  source (DPA template, TOM annex, RoPA, support framework, pentest
+  report, threat model). Lets a prospect's reviewer clear an internal
+  threshold before any sales contact, and lets the operator hand a
+  single PDF in response to a questionnaire instead of re-deriving the
+  answers each time.
 - `docs/third-party-licenses.md` — OSS-license posture for the
   dual-license model: the runtime dependency tree is permissive or
   MPL-2.0 throughout; the only GPL pieces are in the native layer
