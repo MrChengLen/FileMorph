@@ -19,6 +19,10 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from starlette.middleware.gzip import GZipMiddleware
 
+# Import-time hardening: flip Pillow's DecompressionBombWarning to a hard
+# error before any route module pulls in a converter that calls
+# Image.open(). See module docstring for the rationale.
+import app.core.image_hardening  # noqa: F401  — side-effect import
 from app.api.routes import compress, contact, convert, formats, health, pages, seo
 from app.api.routes import auth as auth_route
 from app.api.routes import billing as billing_route
