@@ -15,6 +15,34 @@ and Anwaltskanzleien expect. None of this changes the existing public
 API behaviour for casual callers — every change is additive, defaulted
 off where applicable, and optional at deploy time.
 
+### Hardened — Multi-stage Dockerfile builder / runtime split (P3-8)
+
+- `Dockerfile` now has three stages: `builder` (compilers + dev
+  headers), `base` (runtime libs only — published as
+  `filemorph:latest`), and `office` (base + LibreOffice + OFL fonts
+  — published as `filemorph:office`). The `builder` stage installs
+  `build-essential`, `libheif-dev`, `libffi-dev`, `libssl-dev` —
+  the four packages needed *only* at Python-wheel-install time for
+  the rare cases where a manylinux prebuild isn't available — and
+  pip-installs the requirements into a venv at `/opt/venv`. The
+  `base` stage copies just `/opt/venv` from the builder and installs
+  only runtime libs (`ffmpeg`, `ghostscript`, `libheif1`, Cairo /
+  Pango, curl).
+- Effect on the running container: no gcc / ld / make / dev-headers
+  on disk; smaller attack surface for any post-exploit probe; image
+  size drops by the weight of those four apt sets
+  (build-essential alone is ~120 MB extracted on bookworm).
+  Pre-built wheels behave identically — only the install path
+  changes, not the runtime ABI.
+- `docs/third-party-licenses.md` updated: the libheif row points at
+  the runtime `libheif1` package rather than the build-time
+  `libheif-dev` headers.
+- Pre-flight disk check in `filemorph-ops/deploy.sh` (the
+  `MIN_FREE_GB=2` gate, commit `a30615e` in the ops-repo) keeps the
+  same threshold — the office image still adds ~280 MB on top of
+  the slim base; the savings stack on the *base* side, not on the
+  LibreOffice apt set.
+
 ### Hardened — Pillow decompression-bomb hard-reject (P3-4)
 
 - `app/core/image_hardening.py` (new) promotes Pillow's
