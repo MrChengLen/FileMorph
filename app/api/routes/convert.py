@@ -17,7 +17,12 @@ from app.api.routes.auth import get_optional_user
 from app.converters.base import UnsupportedConversionError
 from app.converters.registry import _ensure_loaded, get_converter
 from app.core.audit import record_event as audit_record
-from app.core.batch import BatchFileResult, batch_error_response, build_batch_zip
+from app.core.batch import (
+    BatchFileResult,
+    batch_error_response,
+    batch_summary_headers,
+    build_batch_zip,
+)
 from app.core.concurrency import acquire_slot
 from app.core.data_classification import DEFAULT_CLASSIFICATION as DATA_CLASSIFICATION_DEFAULT
 from app.core.metrics import increment as metric_increment
@@ -494,8 +499,14 @@ async def _do_convert_batch(
         duration_ms=duration_ms,
     )
 
+    response_headers = {"Content-Disposition": 'attachment; filename="filemorph-batch.zip"'}
+    # P2-1: structured batch summary on the response so the UI can render
+    # per-file results without parsing the ZIP. The manifest.json inside
+    # the ZIP remains the source of truth for callers who want the full
+    # detail; these headers cover the common interactive flow.
+    response_headers.update(batch_summary_headers(results, summary))
     return Response(
         content=zip_bytes,
         media_type="application/zip",
-        headers={"Content-Disposition": 'attachment; filename="filemorph-batch.zip"'},
+        headers=response_headers,
     )

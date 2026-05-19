@@ -15,6 +15,89 @@ and Anwaltskanzleien expect. None of this changes the existing public
 API behaviour for casual callers — every change is additive, defaulted
 off where applicable, and optional at deploy time.
 
+### Polished — Mobile-UX touch-target sweep (P1-5)
+
+Structural audit of every template at the 375 px viewport flagged a
+handful of touch targets below the W3C/Apple-HIG 44 px minimum and
+one grid that didn't stack on narrow screens. Concrete fixes:
+
+- `app/templates/index.html` — Tier-teaser grid `grid-cols-3` →
+  `grid-cols-1 sm:grid-cols-3`. On phones the three plan badges now
+  stack instead of crushing into ~114 px wide cards.
+- `app/templates/base.html` — Mobile drawer nav links bumped from
+  `py-1` (~28 px) to `py-2.5` (~40 px). Seven links + auth-mobile
+  pair touched.
+- `app/templates/cockpit.html` — Six chart range-buttons + four
+  filter controls (search input + 3 selects) + two pagination
+  buttons lifted from `py-1` / `py-1.5 text-xs` to `py-2 text-sm`.
+  Admin-only UI but the operator runs the cockpit from a phone
+  during incident response.
+- `app/templates/dashboard.html` — API-key Copy button consistency:
+  `py-2 text-xs` → `py-2.5 text-sm`.
+
+Total: 4 files, 14 line-level edits. No new components, no JS
+changes, no layout rework. The audit's "verify on a real device"
+list (native iOS picker behaviour, keyboard-pop coverage of submit
+buttons, modal scroll-lock on iOS Safari bounce-scroll) remains
+open as a `device-only` validation pass for a manual browser
+session.
+
+### Added — Per-file batch result summary (P2-1)
+
+- `/api/v1/convert/batch` and `/api/v1/compress/batch` now emit four
+  structured response headers alongside the ZIP body:
+  `X-FileMorph-Batch-Total`, `X-FileMorph-Batch-Succeeded`,
+  `X-FileMorph-Batch-Failed`, and (only when at least one file
+  errored) `X-FileMorph-Batch-Failures` — a semicolon-joined list
+  of URL-encoded `<name>|<reason>` pairs, capped at 4 KB to stay
+  under typical proxy limits with a `...` sentinel signalling
+  truncation. The `manifest.json` inside the ZIP remains the full
+  source of truth for callers who want the complete detail.
+- Web UI reads the headers after a successful batch response and
+  renders a per-file summary block above the green download button —
+  emerald tone when 0 failures, amber tone otherwise, with each
+  failed filename rendered as `<code>` next to its server-reported
+  reason. The user no longer has to unzip the ZIP just to see which
+  file failed and why.
+- CORS `expose_headers` extended in `app/main.py` so cross-origin
+  clients can read the new headers.
+- Tests: existing `test_batch_partial_failure_continues` extended
+  to pin the headers on partial-failure; new
+  `test_batch_all_success_omits_failures_header` pins the
+  all-success contract (no `Failures` header when nothing failed).
+- New i18n key `batchSummaryCounts` carries the
+  `{succeeded} of {total} files succeeded ({failed} failed)`
+  template; German translation applied. Locale catalogue compiled
+  + drift-check passes.
+
+### Hardened — Multi-stage Dockerfile builder / runtime split (P3-8)
+
+- `Dockerfile` now has three stages: `builder` (compilers + dev
+  headers), `base` (runtime libs only — published as
+  `filemorph:latest`), and `office` (base + LibreOffice + OFL fonts
+  — published as `filemorph:office`). The `builder` stage installs
+  `build-essential`, `libheif-dev`, `libffi-dev`, `libssl-dev` —
+  the four packages needed *only* at Python-wheel-install time for
+  the rare cases where a manylinux prebuild isn't available — and
+  pip-installs the requirements into a venv at `/opt/venv`. The
+  `base` stage copies just `/opt/venv` from the builder and installs
+  only runtime libs (`ffmpeg`, `ghostscript`, `libheif1`, Cairo /
+  Pango, curl).
+- Effect on the running container: no gcc / ld / make / dev-headers
+  on disk; smaller attack surface for any post-exploit probe; image
+  size drops by the weight of those four apt sets
+  (build-essential alone is ~120 MB extracted on bookworm).
+  Pre-built wheels behave identically — only the install path
+  changes, not the runtime ABI.
+- `docs/third-party-licenses.md` updated: the libheif row points at
+  the runtime `libheif1` package rather than the build-time
+  `libheif-dev` headers.
+- Pre-flight disk check in `filemorph-ops/deploy.sh` (the
+  `MIN_FREE_GB=2` gate, commit `a30615e` in the ops-repo) keeps the
+  same threshold — the office image still adds ~280 MB on top of
+  the slim base; the savings stack on the *base* side, not on the
+  LibreOffice apt set.
+
 ### Hardened — Pillow decompression-bomb hard-reject (P3-4)
 
 - `app/core/image_hardening.py` (new) promotes Pillow's

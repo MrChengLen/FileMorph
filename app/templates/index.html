@@ -171,6 +171,17 @@
             <p class="font-semibold mb-1" id="conversion-warnings-title"></p>
             <ul id="conversion-warnings-list" class="list-disc list-inside space-y-0.5 text-sky-300"></ul>
           </div>
+          <!-- P2-1: per-file batch summary. Populated from the
+               X-FileMorph-Batch-* response headers after a /batch call.
+               Shown only for batch (N > 1) responses. The colour tone is
+               toggled by app.js — emerald when 0 failures, amber when any
+               file errored, so the visual signal matches the outcome. -->
+          <div id="batch-summary"
+            class="hidden text-xs border rounded-lg px-3 py-2 leading-relaxed">
+            <p class="font-semibold mb-1" id="batch-summary-counts"></p>
+            <ul id="batch-summary-failures"
+              class="hidden list-disc list-inside space-y-0.5 mt-1"></ul>
+          </div>
           <a id="download-link" href="#" download
             class="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-semibold text-white transition-colors text-sm">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -202,7 +213,7 @@
           <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">{{ _('Plans') }}</p>
           <a href="{{ localized_url('/pricing', current_prefix) }}" class="text-xs text-brand hover:underline">{{ _('See all plans →') }}</a>
         </div>
-        <div class="grid grid-cols-3 gap-2 text-center text-xs">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-center text-xs">
           <div class="bg-gray-800 rounded-lg px-2 py-2.5">
             <p class="font-semibold text-gray-300">{{ _('Free') }}</p>
             <p class="text-gray-500 mt-0.5">{{ _('50 MB · API key') }}</p>

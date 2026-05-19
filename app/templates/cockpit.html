@@ -42,9 +42,9 @@
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-sm font-semibold">{{ _('Signups over time') }}</h2>
         <div class="flex gap-2 text-xs">
-          <button class="ck-range px-3 py-1 rounded-lg border border-hairline hover:border-brand" data-days="7">7 d</button>
-          <button class="ck-range px-3 py-1 rounded-lg border border-hairline hover:border-brand" data-days="30">30 d</button>
-          <button class="ck-range px-3 py-1 rounded-lg border border-hairline hover:border-brand" data-days="90">90 d</button>
+          <button class="ck-range px-3 py-2 rounded-lg border border-hairline hover:border-brand" data-days="7">7 d</button>
+          <button class="ck-range px-3 py-2 rounded-lg border border-hairline hover:border-brand" data-days="30">30 d</button>
+          <button class="ck-range px-3 py-2 rounded-lg border border-hairline hover:border-brand" data-days="90">90 d</button>
         </div>
       </div>
       <div class="relative h-64">
@@ -62,9 +62,9 @@
           <p class="text-xs text-gray-500 mt-1">{{ _('Aggregated counters — no personal data, no cookies.') }}</p>
         </div>
         <div class="flex gap-2 text-xs" role="group" aria-label="{{ _('Analytics time range') }}">
-          <button class="ck-mrange px-3 py-1 rounded-lg border border-gray-700 hover:border-brand" data-days="7" aria-pressed="true" aria-label="{{ _('Show last 7 days') }}">7 d</button>
-          <button class="ck-mrange px-3 py-1 rounded-lg border border-gray-700 hover:border-brand" data-days="30" aria-pressed="false" aria-label="{{ _('Show last 30 days') }}">30 d</button>
-          <button class="ck-mrange px-3 py-1 rounded-lg border border-gray-700 hover:border-brand" data-days="90" aria-pressed="false" aria-label="{{ _('Show last 90 days') }}">90 d</button>
+          <button class="ck-mrange px-3 py-2 rounded-lg border border-gray-700 hover:border-brand" data-days="7" aria-pressed="true" aria-label="{{ _('Show last 7 days') }}">7 d</button>
+          <button class="ck-mrange px-3 py-2 rounded-lg border border-gray-700 hover:border-brand" data-days="30" aria-pressed="false" aria-label="{{ _('Show last 30 days') }}">30 d</button>
+          <button class="ck-mrange px-3 py-2 rounded-lg border border-gray-700 hover:border-brand" data-days="90" aria-pressed="false" aria-label="{{ _('Show last 90 days') }}">90 d</button>
         </div>
       </div>
 
@@ -117,9 +117,9 @@
         <h2 class="font-semibold text-sm">{{ _('Users') }} <span id="user-count" class="text-ink-faint font-normal"></span></h2>
         <div class="flex flex-wrap gap-2">
           <input id="users-q" type="search" placeholder="{{ _('Search email…') }}"
-            class="bg-surface-sunken border border-hairline rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-brand" />
+            class="bg-surface-sunken border border-hairline rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand" />
           <select id="users-tier"
-            class="bg-surface-sunken border border-hairline rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-brand">
+            class="bg-surface-sunken border border-hairline rounded-lg px-2 py-2 text-sm focus:outline-none focus:border-brand">
             <option value="">{{ _('Any tier') }}</option>
             <option value="free">Free</option>
             <option value="pro">Pro</option>
@@ -127,13 +127,13 @@
             <option value="enterprise">Enterprise</option>
           </select>
           <select id="users-role"
-            class="bg-surface-sunken border border-hairline rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-brand">
+            class="bg-surface-sunken border border-hairline rounded-lg px-2 py-2 text-sm focus:outline-none focus:border-brand">
             <option value="">{{ _('Any role') }}</option>
             <option value="user">User</option>
             <option value="admin">Admin</option>
           </select>
           <select id="users-active"
-            class="bg-surface-sunken border border-hairline rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-brand">
+            class="bg-surface-sunken border border-hairline rounded-lg px-2 py-2 text-sm focus:outline-none focus:border-brand">
             <option value="">{{ _('Any status') }}</option>
             <option value="true">{{ _('Active') }}</option>
             <option value="false">{{ _('Deactivated') }}</option>
@@ -158,8 +158,8 @@
       <div class="px-6 py-3 border-t border-hairline flex items-center justify-between text-xs text-ink-faint">
         <span id="users-range"></span>
         <div class="flex gap-2">
-          <button id="users-prev" class="px-3 py-1 rounded border border-hairline hover:border-brand disabled:opacity-40" disabled>{{ _('← Prev') }}</button>
-          <button id="users-next" class="px-3 py-1 rounded border border-hairline hover:border-brand disabled:opacity-40" disabled>{{ _('Next →') }}</button>
+          <button id="users-prev" class="px-3 py-2 rounded border border-hairline hover:border-brand disabled:opacity-40" disabled>{{ _('← Prev') }}</button>
+          <button id="users-next" class="px-3 py-2 rounded border border-hairline hover:border-brand disabled:opacity-40" disabled>{{ _('Next →') }}</button>
         </div>
       </div>
     </section>

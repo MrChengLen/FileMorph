@@ -125,6 +125,31 @@ def test_batch_partial_failure_continues(client, auth_headers, override_free_use
     manifest = json.loads(zf.read("manifest.json"))
     assert manifest["summary"]["succeeded"] == 2
     assert manifest["summary"]["failed"] == 1
+    # P2-1: structured batch summary in response headers so the UI can
+    # render per-file results without unzipping. Counts always present;
+    # ``Failures`` carries URL-encoded ``<name>|<reason>`` pairs joined
+    # by ``;``.
+    assert r.headers.get("X-FileMorph-Batch-Total") == "3"
+    assert r.headers.get("X-FileMorph-Batch-Succeeded") == "2"
+    assert r.headers.get("X-FileMorph-Batch-Failed") == "1"
+    assert "evil.png" in r.headers.get("X-FileMorph-Batch-Failures", "")
+
+
+def test_batch_all_success_omits_failures_header(client, auth_headers, override_free_user):
+    """All-success batch carries the count headers but no Failures header —
+    nothing to enumerate, and the absence is itself a signal to the UI."""
+    files = [("files", (f"img{i}.jpg", _jpg_bytes(), "image/jpeg")) for i in range(3)]
+    r = client.post(
+        "/api/v1/convert/batch",
+        headers=auth_headers,
+        data=_targets("png", 3),
+        files=files,
+    )
+    assert r.status_code == 200
+    assert r.headers.get("X-FileMorph-Batch-Total") == "3"
+    assert r.headers.get("X-FileMorph-Batch-Succeeded") == "3"
+    assert r.headers.get("X-FileMorph-Batch-Failed") == "0"
+    assert "X-FileMorph-Batch-Failures" not in r.headers
 
 
 def test_batch_all_failed_returns_422(client, auth_headers, override_free_user):
