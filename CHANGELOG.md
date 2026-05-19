@@ -15,6 +15,34 @@ and Anwaltskanzleien expect. None of this changes the existing public
 API behaviour for casual callers — every change is additive, defaulted
 off where applicable, and optional at deploy time.
 
+### Added — Per-file batch result summary (P2-1)
+
+- `/api/v1/convert/batch` and `/api/v1/compress/batch` now emit four
+  structured response headers alongside the ZIP body:
+  `X-FileMorph-Batch-Total`, `X-FileMorph-Batch-Succeeded`,
+  `X-FileMorph-Batch-Failed`, and (only when at least one file
+  errored) `X-FileMorph-Batch-Failures` — a semicolon-joined list
+  of URL-encoded `<name>|<reason>` pairs, capped at 4 KB to stay
+  under typical proxy limits with a `...` sentinel signalling
+  truncation. The `manifest.json` inside the ZIP remains the full
+  source of truth for callers who want the complete detail.
+- Web UI reads the headers after a successful batch response and
+  renders a per-file summary block above the green download button —
+  emerald tone when 0 failures, amber tone otherwise, with each
+  failed filename rendered as `<code>` next to its server-reported
+  reason. The user no longer has to unzip the ZIP just to see which
+  file failed and why.
+- CORS `expose_headers` extended in `app/main.py` so cross-origin
+  clients can read the new headers.
+- Tests: existing `test_batch_partial_failure_continues` extended
+  to pin the headers on partial-failure; new
+  `test_batch_all_success_omits_failures_header` pins the
+  all-success contract (no `Failures` header when nothing failed).
+- New i18n key `batchSummaryCounts` carries the
+  `{succeeded} of {total} files succeeded ({failed} failed)`
+  template; German translation applied. Locale catalogue compiled
+  + drift-check passes.
+
 ### Hardened — Multi-stage Dockerfile builder / runtime split (P3-8)
 
 - `Dockerfile` now has three stages: `builder` (compilers + dev

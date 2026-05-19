@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph 1.1.0.dev0\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-05-19 11:44+0200\n"
+"POT-Creation-Date: 2026-05-19 15:03+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1848,6 +1848,10 @@ msgid "within 72 hours of receipt."
 msgstr ""
 
 msgid "your JWT session tokens; strictly necessary to keep you signed in."
+msgstr ""
+
+#, python-brace-format
+msgid "{succeeded} of {total} files succeeded ({failed} failed)"
 msgstr ""
 
 msgid "© 2026 FileMorph — AGPLv3 Open Source"

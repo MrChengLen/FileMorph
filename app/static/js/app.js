@@ -519,6 +519,92 @@ function hideConversionWarnings() {
   if (box) box.classList.add('hidden');
 }
 
+// ── Batch summary (P2-1) ─────────────────────────────────────────────────────
+// Server emits four headers per /batch response:
+//   X-FileMorph-Batch-Total      — total files in the request
+//   X-FileMorph-Batch-Succeeded  — files that converted/compressed OK
+//   X-FileMorph-Batch-Failed     — files that errored
+//   X-FileMorph-Batch-Failures   — semicolon-joined URL-encoded
+//                                  "<name>|<reason>" pairs; absent on
+//                                  all-success runs
+// (See app/core/batch.py::batch_summary_headers for the producer.)
+
+function parseBatchFailures(rawHeader) {
+  if (!rawHeader) return [];
+  const items = [];
+  for (const entry of rawHeader.split(';')) {
+    const e = entry.trim();
+    if (!e || e === '...') {
+      if (e === '...') items.push({ name: '…', reason: '(more — see manifest.json inside the ZIP)' });
+      continue;
+    }
+    const pipe = e.indexOf('|');
+    if (pipe === -1) {
+      items.push({ name: '(unknown)', reason: decodeURIComponent(e) });
+      continue;
+    }
+    try {
+      const name = decodeURIComponent(e.slice(0, pipe));
+      const reason = decodeURIComponent(e.slice(pipe + 1));
+      items.push({ name, reason });
+    } catch (_) {
+      items.push({ name: '(unparseable)', reason: e });
+    }
+  }
+  return items;
+}
+
+function showBatchSummary({ total, succeeded, failed, failures }) {
+  const box = document.getElementById('batch-summary');
+  if (!box) return;
+  const t = parseInt(total || '0', 10);
+  const s = parseInt(succeeded || '0', 10);
+  const f = parseInt(failed || '0', 10);
+  const countsEl = document.getElementById('batch-summary-counts');
+  const failuresList = document.getElementById('batch-summary-failures');
+  const i18n = window.FM_I18N || {};
+
+  if (countsEl) {
+    const tmpl = i18n.batchSummaryCounts || '{succeeded} of {total} succeeded';
+    countsEl.textContent = tmpl
+      .replace('{succeeded}', String(s))
+      .replace('{failed}', String(f))
+      .replace('{total}', String(t));
+  }
+
+  if (failuresList) {
+    failuresList.innerHTML = '';
+    const parsed = parseBatchFailures(failures);
+    if (parsed.length === 0) {
+      failuresList.classList.add('hidden');
+    } else {
+      failuresList.classList.remove('hidden');
+      for (const item of parsed) {
+        const li = document.createElement('li');
+        const code = document.createElement('code');
+        code.textContent = item.name;
+        code.className = 'font-mono text-amber-200';
+        li.appendChild(code);
+        li.appendChild(document.createTextNode(' — ' + item.reason));
+        failuresList.appendChild(li);
+      }
+    }
+  }
+  // Visual tone: emerald-green if all succeeded; amber if any failed.
+  box.classList.remove('hidden');
+  box.classList.toggle('border-emerald-900/50', f === 0);
+  box.classList.toggle('bg-emerald-950/40', f === 0);
+  box.classList.toggle('text-emerald-200', f === 0);
+  box.classList.toggle('border-amber-900/50', f > 0);
+  box.classList.toggle('bg-amber-950/40', f > 0);
+  box.classList.toggle('text-amber-200', f > 0);
+}
+
+function hideBatchSummary() {
+  const box = document.getElementById('batch-summary');
+  if (box) box.classList.add('hidden');
+}
+
 function updateQualityVisibility() {
   const section = document.getElementById('quality-section');
   const cmodeToggle = document.getElementById('compress-mode-toggle');
@@ -706,6 +792,20 @@ async function submitForm() {
     // notice in the artefact they receive.
     showConversionWarnings(res.headers.get('X-FileMorph-Warnings'));
 
+    // P2-1: per-file batch summary lives in response headers (the
+    // manifest.json inside the ZIP is the structured source of truth;
+    // headers carry the same data so the UI can render without unzipping).
+    if (isBatch) {
+      showBatchSummary({
+        total: res.headers.get('X-FileMorph-Batch-Total'),
+        succeeded: res.headers.get('X-FileMorph-Batch-Succeeded'),
+        failed: res.headers.get('X-FileMorph-Batch-Failed'),
+        failures: res.headers.get('X-FileMorph-Batch-Failures'),
+      });
+    } else {
+      hideBatchSummary();
+    }
+
     const label = document.getElementById('download-link-label');
     if (label) {
       const achieved = res.headers.get('X-FileMorph-Achieved-Bytes');
@@ -735,6 +835,7 @@ function showProgress(text) {
   // Clear any toast left over from a previous conversion so a re-run
   // doesn't display stale warnings while the new request is in flight.
   hideConversionWarnings();
+  hideBatchSummary();
   document.getElementById('convert-btn').disabled = true;
 }
 

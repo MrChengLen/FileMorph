@@ -23,7 +23,12 @@ from app.compressors.image import (
 from app.compressors.video import _SUPPORTED_FORMATS as VIDEO_FMTS
 from app.compressors.video import compress_video
 from app.core.audit import record_event as audit_record
-from app.core.batch import BatchFileResult, batch_error_response, build_batch_zip
+from app.core.batch import (
+    BatchFileResult,
+    batch_error_response,
+    batch_summary_headers,
+    build_batch_zip,
+)
 from app.core.concurrency import acquire_slot
 from app.core.data_classification import DEFAULT_CLASSIFICATION as DATA_CLASSIFICATION_DEFAULT
 from app.core.metrics import increment as metric_increment
@@ -517,8 +522,12 @@ async def _do_compress_batch(
         duration_ms=duration_ms,
     )
 
+    response_headers = {"Content-Disposition": 'attachment; filename="filemorph-batch.zip"'}
+    # P2-1: see app/api/routes/convert.py — same structured batch summary
+    # so the UI can render per-file results without unzipping.
+    response_headers.update(batch_summary_headers(results, summary))
     return Response(
         content=zip_bytes,
         media_type="application/zip",
-        headers={"Content-Disposition": 'attachment; filename="filemorph-batch.zip"'},
+        headers=response_headers,
     )

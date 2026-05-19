@@ -266,6 +266,10 @@ def _js_i18n_strings(_: gettext.GNUTranslations.gettext) -> dict[str, str]:
             "Target size exceeds your plan's output cap. Lower the target "
             "size or upgrade your plan."
         ),
+        # P2-1 — batch result summary on /batch responses. The template
+        # placeholders are kept stable across translations so the JS can
+        # do a token substitution without per-locale parsing.
+        "batchSummaryCounts": _("{succeeded} of {total} files succeeded ({failed} failed)"),
         # dashboard.js — API-key management
         "copied": _("Copied!"),
         "copy": _("Copy"),
