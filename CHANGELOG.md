@@ -15,6 +15,36 @@ and Anwaltskanzleien expect. None of this changes the existing public
 API behaviour for casual callers — every change is additive, defaulted
 off where applicable, and optional at deploy time.
 
+### Hardened — Pillow decompression-bomb hard-reject (P3-4)
+
+- `app/core/image_hardening.py` (new) promotes Pillow's
+  `DecompressionBombWarning` to a synchronously raised
+  `DecompressionBombError` at startup. The stock warn-but-continue
+  behaviour between the configured `MAX_IMAGE_PIXELS` threshold and
+  2× the threshold was a denial-of-service vector for a conversion
+  service: a 200 kB PNG with an IHDR claiming 60 000 × 60 000 pixels
+  (~3.6 GP) coasted past every input-size check and pinned the worker
+  decoding ~14 GB of memory before the output-cap guard rejected the
+  result.
+- New env var `FILEMORPH_IMAGE_MAX_MEGAPIXELS` (default 89, range
+  1–10 000) lets self-hosters with explicit large-image use cases
+  (GIS, scans, microscopy) raise the threshold. Garbage / out-of-range
+  values fall back to the default rather than refusing to boot.
+- `/api/v1/convert` and `/api/v1/compress` catch the
+  `DecompressionBombError` specifically and emit HTTP 400 with
+  `X-FileMorph-Error-Code: decompression_bomb` so the UI can render
+  a distinct "image too large to decode safely" message instead of
+  the generic 500. CORS expose-headers already includes
+  `X-FileMorph-Error-Code` since the Sprint B 413-disambiguation
+  commit, so cross-origin callers see it too.
+- 6 new regression tests in `tests/test_image_hardening.py` pin the
+  hardening module (MAX_IMAGE_PIXELS resolution, warning-to-error
+  filter, env-var override + garbage-value fallback) and the two
+  route handlers (400 + structured header on bomb input, no
+  false-positive on normal-sized images).
+- `docs/security-overview.md` § "Decompression bombs" updated from
+  "Pillow default is in effect" to the current hard-reject contract.
+
 ### Added — DOCX → PDF high-fidelity engine (Technology-First Sprint A)
 
 - Two-engine routing for DOCX → PDF in `app/converters/document.py`. A

@@ -216,10 +216,24 @@ not disable this.
 
 ### Decompression bombs
 
-Pillow's `Image.MAX_IMAGE_PIXELS` default (around 89 megapixels)
-is in effect, and the per-tier output cap (see "Output Bandwidth
-Guards") rejects oversized output even when the input passes the
-pixel check.
+`Image.MAX_IMAGE_PIXELS` is enforced as a *hard* limit (around 89
+megapixels by default, tunable via the
+`FILEMORPH_IMAGE_MAX_MEGAPIXELS` env var). Pillow's stock behaviour
+is to *warn but continue decoding* between the configured limit and
+2× the limit — a denial-of-service vector for a conversion service
+because a 200 kB PNG claiming 60 000 × 60 000 pixels in its IHDR
+chunk would coast past every input-size check and pin the worker
+decoding into ~14 GB of memory before the output-cap guard could
+reject the result. `app/core/image_hardening.py` flips the
+`DecompressionBombWarning` to a synchronously raised
+`DecompressionBombError` at startup so every `Image.open(...)` site
+in the codebase fails fast. The /convert and /compress route handlers
+catch the error specifically and return HTTP 400 with
+`X-FileMorph-Error-Code: decompression_bomb`, distinct from the
+generic 500 the catch-all handler would otherwise emit. The per-tier
+output cap (see "Output Bandwidth Guards") remains in place as a
+defence-in-depth second layer for any pathological input that passes
+the pixel check but produces an oversized output.
 
 ### Historical findings addressed in this area
 

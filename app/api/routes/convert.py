@@ -9,6 +9,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.responses import FileResponse, JSONResponse, Response
+from PIL import Image as _PILImage
 from starlette.background import BackgroundTask
 
 from app.api.deps import require_api_key
@@ -131,6 +132,22 @@ async def _do_convert(
             await asyncio.to_thread(converter.convert, input_path, output_path, quality=quality)
         except HTTPException:
             raise
+        except _PILImage.DecompressionBombError as exc:
+            # P3-4: Pillow's DecompressionBombWarning is filtered to an error
+            # at startup (see app/core/image_hardening.py); the Error subclass
+            # also fires above the 2× ceiling. Both land here. Return 400
+            # with a structured error code so the UI can render a distinct
+            # "image too large to decode safely" message rather than the
+            # generic "Conversion failed".
+            logger.warning("decompression bomb rejected: %s -> %s (%s)", src_ext, tgt_ext, exc)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    "Image dimensions exceed safety limits — decoding would "
+                    "use excessive memory. Reduce the image size and retry."
+                ),
+                headers={"X-FileMorph-Error-Code": "decompression_bomb"},
+            )
         except Exception:
             # A-3: Log full exception server-side, return generic message to client
             logger.exception("Conversion error: %s -> %s", src_ext, tgt_ext)

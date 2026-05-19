@@ -9,6 +9,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.responses import FileResponse, JSONResponse, Response
+from PIL import Image as _PILImage
 from starlette.background import BackgroundTask
 
 from app.api.deps import require_api_key
@@ -166,6 +167,18 @@ async def _do_compress(
                 )
         except HTTPException:
             raise
+        except _PILImage.DecompressionBombError as exc:
+            # P3-4: Same hard-reject path as /convert. See app/core/image_hardening.py
+            # for the warning-to-error promotion at startup.
+            logger.warning("decompression bomb rejected: compress %s (%s)", ext, exc)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    "Image dimensions exceed safety limits — decoding would "
+                    "use excessive memory. Reduce the image size and retry."
+                ),
+                headers={"X-FileMorph-Error-Code": "decompression_bomb"},
+            )
         except Exception:
             # A-3: Log full exception server-side, return generic message to client
             logger.exception("Compression error for format: %s", ext)
