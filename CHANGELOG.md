@@ -15,6 +15,33 @@ and Anwaltskanzleien expect. None of this changes the existing public
 API behaviour for casual callers — every change is additive, defaulted
 off where applicable, and optional at deploy time.
 
+### Polished — Mobile-UX touch-target sweep (P1-5)
+
+Structural audit of every template at the 375 px viewport flagged a
+handful of touch targets below the W3C/Apple-HIG 44 px minimum and
+one grid that didn't stack on narrow screens. Concrete fixes:
+
+- `app/templates/index.html` — Tier-teaser grid `grid-cols-3` →
+  `grid-cols-1 sm:grid-cols-3`. On phones the three plan badges now
+  stack instead of crushing into ~114 px wide cards.
+- `app/templates/base.html` — Mobile drawer nav links bumped from
+  `py-1` (~28 px) to `py-2.5` (~40 px). Seven links + auth-mobile
+  pair touched.
+- `app/templates/cockpit.html` — Six chart range-buttons + four
+  filter controls (search input + 3 selects) + two pagination
+  buttons lifted from `py-1` / `py-1.5 text-xs` to `py-2 text-sm`.
+  Admin-only UI but the operator runs the cockpit from a phone
+  during incident response.
+- `app/templates/dashboard.html` — API-key Copy button consistency:
+  `py-2 text-xs` → `py-2.5 text-sm`.
+
+Total: 4 files, 14 line-level edits. No new components, no JS
+changes, no layout rework. The audit's "verify on a real device"
+list (native iOS picker behaviour, keyboard-pop coverage of submit
+buttons, modal scroll-lock on iOS Safari bounce-scroll) remains
+open as a `device-only` validation pass for a manual browser
+session.
+
 ### Added — Per-file batch result summary (P2-1)
 
 - `/api/v1/convert/batch` and `/api/v1/compress/batch` now emit four

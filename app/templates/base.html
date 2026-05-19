@@ -99,15 +99,15 @@
          {% if locale == 'en' %}aria-current="true"{% endif %}
          class="text-xs uppercase tracking-wider {% if locale == 'en' %}text-white font-semibold{% else %}text-gray-500{% endif %}">EN</a>
     </div>
-    <a href="{{ localized_url('/', current_prefix) }}" class="block text-gray-400 hover:text-white transition-colors py-1">{{ _('Convert') }}</a>
-    {% if pricing_enabled %}<a href="{{ localized_url('/pricing', current_prefix) }}" class="block text-gray-400 hover:text-white transition-colors py-1">{{ _('Pricing') }}</a>{% endif %}
-    {% if pricing_enabled %}<a href="{{ localized_url('/enterprise', current_prefix) }}" class="block text-gray-400 hover:text-white transition-colors py-1">{{ _('Enterprise') }}</a>{% endif %}
-    <a href="/docs" target="_blank" class="block text-gray-400 hover:text-white transition-colors py-1">{{ _('API Docs') }}</a>
+    <a href="{{ localized_url('/', current_prefix) }}" class="block text-gray-400 hover:text-white transition-colors py-2.5">{{ _('Convert') }}</a>
+    {% if pricing_enabled %}<a href="{{ localized_url('/pricing', current_prefix) }}" class="block text-gray-400 hover:text-white transition-colors py-2.5">{{ _('Pricing') }}</a>{% endif %}
+    {% if pricing_enabled %}<a href="{{ localized_url('/enterprise', current_prefix) }}" class="block text-gray-400 hover:text-white transition-colors py-2.5">{{ _('Enterprise') }}</a>{% endif %}
+    <a href="/docs" target="_blank" class="block text-gray-400 hover:text-white transition-colors py-2.5">{{ _('API Docs') }}</a>
     <a href="https://github.com/MrChengLen/FileMorph" target="_blank"
-       class="block text-gray-400 hover:text-white transition-colors py-1">GitHub ↗</a>
+       class="block text-gray-400 hover:text-white transition-colors py-2.5">GitHub ↗</a>
     <div id="nav-auth-mobile">
-      <a href="{{ localized_url('/login', current_prefix) }}" class="block text-gray-400 hover:text-white transition-colors py-1">{{ _('Sign In') }}</a>
-      <a href="{{ localized_url('/register', current_prefix) }}" class="block text-brand hover:text-white py-1">{{ _('Register') }}</a>
+      <a href="{{ localized_url('/login', current_prefix) }}" class="block text-gray-400 hover:text-white transition-colors py-2.5">{{ _('Sign In') }}</a>
+      <a href="{{ localized_url('/register', current_prefix) }}" class="block text-brand hover:text-white py-2.5">{{ _('Register') }}</a>
     </div>
   </div>
 
