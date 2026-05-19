@@ -232,7 +232,7 @@ libheif) caveats, and the machine-readable SBOM — is in
 | Jinja2, MarkupSafe | BSD-3-Clause | Permissive. |
 | Pillow | HPND (BSD-style) | Permissive. |
 | pillow-heif | wheel metadata: GPLv2 (bundled native HEVC stack) | The distributed wheels bundle `libheif`/`libde265` (LGPL-3.0) **+ `x265` (GPL-2.0+)**, and the metadata reflects the most-restrictive component. FileMorph uses it for HEIC *decode* only (the `libde265` path); `x265` is present but never invoked. An automated scan **will** flag this — explanation and the GPL-free build option in [`third-party-licenses.md`](./third-party-licenses.md). |
-| mammoth | BSD-2-Clause | Permissive (.docx → HTML for the conversion path). |
+| mammoth | BSD-2-Clause | Permissive (.docx → HTML for the *fallback* converter — the high-fidelity DOCX → PDF path delegates to LibreOffice in the `filemorph:office` image instead; see [`docs/formats.md`](./formats.md#notes-on-docx--pdf)). |
 | python-docx | MIT | Permissive. |
 | pypdf | BSD-3-Clause | Permissive (clean fork from PyPDF2's BSD heritage). |
 | reportlab | BSD-3-Clause (Open Source Edition) | Commercial Plus edition exists but we use OSE. |
@@ -330,6 +330,24 @@ so the same arguments don't have to be relitigated every six months.
 - **wkhtmltopdf** — Considered for HTML→PDF. Rejected: upstream
   deprecated, security-uncertain, and based on an old QtWebKit fork.
   WeasyPrint is the maintained replacement.
+- **docx2pdf** — Considered for DOCX → PDF in the original Sprint-5
+  cut. Rejected: requires Microsoft Word installed locally on Windows
+  or LibreOffice on Linux at process startup; the previous import
+  crashed at runtime on every container deployment that didn't
+  provide one. The lesson — *some* DOCX features genuinely need a
+  Word-class engine — drove the current two-engine routing in
+  [`docs/formats.md`](./formats.md#notes-on-docx--pdf): the slim image
+  keeps the pure-Python mammoth+WeasyPrint pipeline for simple docs
+  (and as the fallback when LibreOffice is missing), the
+  `filemorph:office` image bundles LibreOffice for the complex cases.
+- **Aspose.Words for Python** — Considered for the high-fidelity DOCX
+  → PDF path. Rejected for the AGPL base: a proprietary closed-source
+  library linked into the running AGPL service does not survive
+  AGPL § 13 scrutiny (Derivative Work, not Mere Aggregate). Could
+  re-enter consideration as an `app/ee/` Compliance-Edition feature
+  later if the OFL-metric-font output ever proves insufficient — but
+  LibreOffice handles every Word feature observed in Behörden /
+  Kanzlei / Klinik documents to date, at €0 licence cost.
 - **Django** — Considered as the web framework. Rejected: synchronous
   request model would tax the file-conversion paths, and the ORM-
   centric design fits poorly with the largely stateless converter

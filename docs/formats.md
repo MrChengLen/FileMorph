@@ -46,7 +46,7 @@ Re-encode an image at a lower quality to reduce file size without changing forma
 
 | From | To | Notes |
 |------|-----|-------|
-| **DOCX** | PDF | Best-effort: tables, images, hyperlinks and basic styles preserved. Footnotes, headers/footers and embedded OLE objects are simplified. |
+| **DOCX** | PDF | Two-engine routing — see [Notes on DOCX → PDF](#notes-on-docx--pdf) below. Word-grade fidelity in the `filemorph:office` image; pure-Python fallback in the slim image. |
 | **DOCX** | TXT | Extracts plain text from all paragraphs. Formatting (bold, tables) is lost. |
 | **TXT** | PDF | Creates a clean PDF with Helvetica font, A4 page size. |
 | **PDF** | TXT | Extracts text from each page using PyPDF. Complex layouts (columns, forms) may not extract cleanly. |
@@ -55,24 +55,71 @@ Re-encode an image at a lower quality to reduce file size without changing forma
 
 ### Notes on DOCX → PDF
 
-The pipeline runs in pure Python: `mammoth` extracts the DOCX body as HTML
-(with images inlined as `data:` URIs), then `WeasyPrint` renders the HTML
-to PDF. No external binary, no Microsoft Word, no LibreOffice required —
-works the same on Linux, macOS, Windows and inside the standard container.
+DOCX → PDF runs through a **complexity router** that picks one of two
+engines per conversion. Routing is controlled by the
+`FILEMORPH_OFFICE_ENGINE` environment variable; the default is `auto`.
 
-**What is preserved**: paragraphs, basic character formatting (bold, italic),
-tables (with cell borders), inline images, hyperlinks, and standard list
-styles.
+#### Two engines
 
-**What is simplified**: footnotes and endnotes, headers and footers, page
-breaks, embedded OLE objects (Excel charts, Visio diagrams), and DOCX-native
-style hierarchies. When the source DOCX uses any of these, the resulting PDF
-includes a small notice banner at the top.
+| Engine | Library | Image variant | Fidelity | Speed |
+|---|---|---|---|---|
+| **High-fidelity** | LibreOffice headless (`soffice --convert-to pdf`) | `filemorph:office` | Word-grade — preserves footnotes, headers / footers, multi-section layout, table-of-contents fields, multi-level numbered lists, OLE objects, equations | Slower (cold ~3–5 s, subsequent ~1–2 s) |
+| **Pure-Python** | `mammoth` (DOCX → HTML) + `WeasyPrint` (HTML → PDF) | Either — runs everywhere | Best-effort — strips footnotes / headers / footers / OLE, multi-level numbering flattens to nested lists, multi-section layout collapses to the document defaults | Fast (~0.5–1 s) |
 
-**Security**: The HTML pipeline runs WeasyPrint with `_deny_url_fetcher`,
-blocking any external resource load that a malformed DOCX might attempt. See
-`tests/test_convert_document.py::test_docx_to_pdf_ssrf_blocked` for the
-regression guard.
+#### How routing works (`auto` mode)
+
+1. The router opens the DOCX as an OPC ZIP and probes for the features
+   `mammoth` would silently lose: `word/footnotes.xml`,
+   `word/endnotes.xml`, any `word/header*.xml` / `word/footer*.xml`,
+   anything under `word/embeddings/`, two-or-more `<w:sectPr>` in
+   `word/document.xml`, `<m:oMath>` (equations), `<w:ilvl w:val="N">` for
+   N≥1 (multi-level numbered lists).
+2. If any complex feature is present **and** `soffice` (or `libreoffice`)
+   is on PATH, the router invokes LibreOffice.
+3. If complex features are present **but** `soffice` is missing (running
+   the slim image), the router falls back to `mammoth + WeasyPrint` and
+   surfaces an `X-FileMorph-Warnings` response header so the caller knows
+   fidelity was reduced — e.g.
+   `X-FileMorph-Warnings: engine=mammoth_fallback, reason=soffice_unavailable, simplified=footnotes, simplified=headers`.
+4. Simple DOCX with no complex features always takes the fast pure-Python
+   path, regardless of which image is running.
+
+To force a specific engine, set `FILEMORPH_OFFICE_ENGINE=libreoffice`
+(fails loud if `soffice` is missing — recommended in the office image
+when you never want the fallback) or `FILEMORPH_OFFICE_ENGINE=mammoth`
+(always pure-Python; useful for A/B comparing the two engines on the
+office image, or for self-hosters who explicitly accept the fidelity
+ceiling for predictability).
+
+#### Which image to pull
+
+- **`ghcr.io/mrchenglen/filemorph:latest`** (slim, ~150 MB) — for
+  self-hosters who don't run DOCX conversions or accept the
+  pure-Python fidelity ceiling.
+- **`ghcr.io/mrchenglen/filemorph:office`** (~430 MB) — adds
+  LibreOffice + OFL Calibri/Arial/Times-metric fonts on top of the
+  slim image. Recommended for Compliance Edition deployments, and for
+  any deployment where Behörden / Kanzlei / Klinik Word documents flow
+  through.
+
+Both images are
+[cosign-signed](release-signing.md). See
+[`docs/self-hosting.md`](self-hosting.md) for the compose recipes.
+
+#### Security
+
+The pure-Python pipeline runs `WeasyPrint` with `_deny_url_fetcher`,
+blocking any external resource load that a malformed DOCX might attempt;
+the regression guard is
+`tests/test_convert_document.py::test_docx_to_pdf_ssrf_blocked`.
+
+The LibreOffice path runs `soffice --headless` with `--nolockcheck`,
+`--norestore`, a per-conversion `UserInstallation` profile (so two
+parallel conversions can't clobber each other's lockfiles), and a
+60-second hard timeout. It runs as the same non-root `appuser` as the
+rest of the container; the subprocess inherits the container's
+`no-new-privileges` and dropped capability set from
+`docker-compose.yml`.
 
 ---
 

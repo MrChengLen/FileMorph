@@ -15,6 +15,48 @@ and Anwaltskanzleien expect. None of this changes the existing public
 API behaviour for casual callers — every change is additive, defaulted
 off where applicable, and optional at deploy time.
 
+### Added — DOCX → PDF high-fidelity engine (Technology-First Sprint A)
+
+- Two-engine routing for DOCX → PDF in `app/converters/document.py`. A
+  per-document complexity detector opens the OPC ZIP and probes for the
+  features `mammoth` silently drops — footnotes, endnotes, headers,
+  footers, OLE embeddings, multi-section page layout, OMML equations,
+  multi-level numbered lists. Complex docs route to LibreOffice
+  (`soffice --headless --convert-to pdf`); simple docs stay on the
+  fast pure-Python mammoth+WeasyPrint path.
+- New env var `FILEMORPH_OFFICE_ENGINE` (`auto` default,
+  `libreoffice`, `mammoth`). `auto` does the routing described above
+  and falls back to mammoth when `soffice` is missing, with a
+  structured `X-FileMorph-Warnings` response header so the client
+  knows fidelity was reduced (`engine=mammoth_fallback,
+  reason=soffice_unavailable, simplified=footnotes, …`).
+  `libreoffice` forces the high-fidelity path and fails loud when
+  `soffice` isn't on PATH — for deployments that explicitly never
+  want the fallback. `mammoth` forces the pure-Python path even when
+  LibreOffice is installed (A/B comparison, predictability).
+- New `filemorph:office` image variant. `Dockerfile` is now
+  multi-stage: the `base` stage is the slim image
+  (`ghcr.io/mrchenglen/filemorph:latest`, unchanged footprint),
+  the `office` stage adds LibreOffice + OFL Calibri/Arial/Times-metric
+  fonts (`fonts-crosextra-carlito`, `fonts-liberation`,
+  `fonts-dejavu-core`) on top. The office image is published as
+  `:office`, `:{version}-office`, and `:{major}.{minor}-office`,
+  cosign-signed identically to the slim variant.
+- New `docker-compose.office.yml` overlay for self-hosters who want
+  the office image without changing the default
+  `docker compose up` behaviour:
+  `docker compose -f docker-compose.yml -f docker-compose.office.yml up -d`.
+- `docs/formats.md`, `docs/self-hosting.md`, and
+  `docs/tech-stack-rationale.md` updated to document the routing,
+  the two image variants, and the historical decision trail (the
+  2026-05-08 `docx2pdf` failure plus the AGPL § 13 reasoning against
+  Aspose.Words now both live in the Considered-and-Rejected section).
+- 21 new regression tests in `tests/test_docx_complexity.py` pinning
+  every detector branch + every engine-resolution outcome + the full
+  fallback chain. The existing `tests/test_convert_document.py` suite
+  is unchanged and still skips on Windows dev boxes that lack
+  GTK/Pango (CI on Linux + the Dockerfile both run it).
+
 ### Added — Public contact form (German Impressum, DDG §5)
 
 - `/contact` page with a contact form (de / en / x-default). Submissions

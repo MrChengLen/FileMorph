@@ -61,6 +61,10 @@ LANG_DEFAULT=de
 docker compose up -d
 ```
 
+This builds and runs the **slim** image (`filemorph:latest`, ~150 MB).
+For Word documents with footnotes, headers, multi-section layout, or
+table-of-contents, see the [office image variant](#image-variants) below.
+
 ### 3. Generate API keys
 
 ```bash
@@ -74,6 +78,76 @@ The key is stored as a hash in `./data/api_keys.json` (bind-mounted into the con
 ```bash
 curl http://localhost:8000/api/v1/health
 ```
+
+---
+
+## Image variants
+
+FileMorph ships in two image flavours so self-hosters can match the
+attack surface and disk footprint to what they actually convert.
+
+### `filemorph:latest` — slim image
+
+The default. ~150 MB. Includes ffmpeg, Cairo / Pango (for WeasyPrint),
+Ghostscript (for the PDF/A-2b re-render path), and the pure-Python
+conversion stack. Use this image when your deployment:
+
+- converts images, audio, video, markdown, or txt; or
+- accepts the mammoth-based fidelity ceiling for DOCX → PDF (no
+  footnotes / headers / footers / multi-section layout / TOC).
+
+```yaml
+# docker-compose.yml — default, builds the slim image
+services:
+  filemorph:
+    image: ghcr.io/mrchenglen/filemorph:latest
+    # or: build: { context: ., target: base }
+```
+
+### `filemorph:office` — high-fidelity DOCX → PDF
+
+Adds LibreOffice headless + OFL Calibri/Arial/Times-metric fonts on
+top of the slim image. ~430 MB. Use this image when:
+
+- your deployment converts Word documents with footnotes, headers,
+  footers, table-of-contents, multi-section layout, multi-level
+  numbered lists, OLE objects, or equations; or
+- you are running the **Compliance Edition** for Behörden / Kanzleien /
+  Klinik buyers — Word-grade fidelity is part of the trust contract
+  there.
+
+The complexity router auto-detects which engine each DOCX needs (see
+[`docs/formats.md`](./formats.md#notes-on-docx--pdf)); simple
+documents still take the fast pure-Python path.
+
+```bash
+# Pre-built image:
+docker pull ghcr.io/mrchenglen/filemorph:office
+
+# Or layer the office overlay on top of the default compose:
+docker compose -f docker-compose.yml -f docker-compose.office.yml up -d
+```
+
+The overlay sets `FILEMORPH_OFFICE_ENGINE=auto` (the default — route
+complex DOCX through LibreOffice, simple ones through mammoth). To
+force every conversion through LibreOffice, set
+`FILEMORPH_OFFICE_ENGINE=libreoffice` in your `.env` (recommended in
+the office image when you never want the fallback — it makes a missing
+`soffice` fail loud instead of silently degrading).
+
+### Verifying signatures
+
+Both images are cosign-signed (keyless OIDC, no long-lived signing
+key). After pulling, verify with:
+
+```bash
+cosign verify ghcr.io/mrchenglen/filemorph:office \
+  --certificate-identity-regexp "^https://github\\.com/MrChengLen/FileMorph/" \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
+See [`docs/release-signing.md`](./release-signing.md) for the full
+trust chain (cosign images + GPG-signed Git tags).
 
 ---
 
