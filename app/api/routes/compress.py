@@ -32,6 +32,7 @@ from app.core.batch import (
 from app.core.concurrency import acquire_slot
 from app.core.data_classification import DEFAULT_CLASSIFICATION as DATA_CLASSIFICATION_DEFAULT
 from app.core.metrics import increment as metric_increment
+from app.core.observability import record_conversion
 from app.core.processing import BLOCKED_MAGIC, actor_id, sha256_file
 from app.core.quotas import _MB, get_quota, tier_for
 from app.core.rate_limit import limiter
@@ -260,6 +261,8 @@ async def _do_compress(
         # corrupt the response (no caller transaction here, but the
         # principle keeps batch / auth integrations safe).
         await metric_increment(f"compress.{ext}")
+        # Prometheus mirror — compression keeps the format, so src == tgt.
+        record_conversion("compress", ext, ext, "success")
         # NEU-B.2: integrity hash for downstream auditors (eDiscovery,
         # GoBD-archival, beA-Anhang-Trail). Same chunk-streamed SHA-256
         # as in convert.py.
@@ -293,6 +296,7 @@ async def _do_compress(
         # Track compression failures separately from infra so the cockpit
         # has a meaningful failure-rate. The HTTPException still propagates.
         await metric_increment("failures.compress")
+        record_conversion("compress", ext, ext, "failure")
         await audit_record(
             "compress.failure",
             actor_user_id=user.id if user is not None else None,
@@ -468,6 +472,7 @@ async def _do_compress_batch(
                 )
                 key = f"compress.{ext}"
                 metric_counts[key] = metric_counts.get(key, 0) + 1
+                record_conversion("compress_batch", ext, ext, "success")
             finally:
                 shutil.rmtree(tmp_dir, ignore_errors=True)
         except ValueError as e:
@@ -477,6 +482,7 @@ async def _do_compress_batch(
                 )
             )
             metric_counts["failures.compress"] = metric_counts.get("failures.compress", 0) + 1
+            record_conversion("compress_batch", ext, ext, "failure")
         except Exception:
             logger.exception("Batch compression error on one file")
             results.append(
@@ -488,6 +494,7 @@ async def _do_compress_batch(
                 )
             )
             metric_counts["failures.compress"] = metric_counts.get("failures.compress", 0) + 1
+            record_conversion("compress_batch", ext, ext, "failure")
 
     for key, count in metric_counts.items():
         await metric_increment(key, by=count)

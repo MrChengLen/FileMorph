@@ -35,5 +35,13 @@ aiosmtplib>=3.0
 # ── Payments ─────────────────────────────────────────────────────
 stripe>=8.0
 
+# ── Observability ────────────────────────────────────────────────
+# Prometheus exposition at /api/v1/metrics (gated by METRICS_ENABLED).
+# Raw prometheus-client (not the FastAPI instrumentator wrapper): the
+# wrapper pins starlette<1.0.0, which would hold the dependency below the
+# 1.0.1 fix for PYSEC-2026-161 (Host-header URL-reconstruction). The
+# request middleware + endpoint live in app/core/observability.py.
+prometheus-client>=0.20
+
 # ── Future: Storage ───────────────────────────────────────────────
 # boto3>=1.34

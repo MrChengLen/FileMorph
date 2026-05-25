@@ -401,12 +401,17 @@ def test_fm_i18n_json_blob_present_on_every_page(client):
     """Every rendered page must inline the FM_I18N JSON catalogue so the
     front-end JS layer has translated strings available. Missing this blob
     means every alert/button label silently falls back to its English
-    hardcoded fallback, defeating the JS-i18n design."""
+    hardcoded fallback, defeating the JS-i18n design.
+
+    The catalogue ships as a ``type="application/json"`` data block; the
+    parse-into-window.FM_I18N bootstrap lives in an external
+    ``i18n-bootstrap.js`` (loaded via ``<script src>``) so the strict CSP
+    needs no inline-script hash — see tests/test_csp_no_unpinned_inline_scripts.py."""
     for path in ("/", "/de/", "/en/", "/de/login", "/en/login"):
         r = client.get(path)
         assert r.status_code == 200, f"{path} -> {r.status_code}"
         assert 'id="fm-i18n-strings"' in r.text, f"{path} missing FM_I18N script tag"
-        assert "window.FM_I18N = JSON.parse" in r.text, f"{path} missing FM_I18N bootstrap"
+        assert "/static/js/i18n-bootstrap.js" in r.text, f"{path} missing FM_I18N bootstrap"
 
 
 def test_fm_i18n_json_blob_localises_per_request(client):

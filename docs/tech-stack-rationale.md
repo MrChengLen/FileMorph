@@ -279,7 +279,7 @@ without having to read the changelog backwards.
 |---|---|---|
 | **boto3** (commented in `requirements.txt`) | S3- or R2-compatible object storage | When FileMorph needs to scale beyond a single instance. The current stateless design — files held in `BytesIO`, temp dirs cleaned in `finally` blocks — is adequate for one box. |
 | **Redis** | Multi-instance rate-limit storage (slowapi backend), session storage | When FileMorph runs on more than one application container. Not currently wired in. |
-| **prometheus-fastapi-instrumentator** | `/metrics` endpoint for Prometheus / Grafana | Planned for post-launch monitoring. |
+| **prometheus-fastapi-instrumentator** | Convenience wrapper for a `/metrics` endpoint | **Evaluated and rejected.** It pins `starlette<1.0.0`, which would hold the dependency below the `1.0.1` fix for PYSEC-2026-161 (Host-header URL-reconstruction). Metrics ship instead on the raw **`prometheus-client`** in `app/core/observability.py` — `GET /api/v1/metrics`, gated by `METRICS_ENABLED`. See the security-overview "Metrics endpoint" section. |
 | **PostHog or Plausible** (external services, not Python deps) | Product / web analytics — both are GDPR-friendly, both can self-host | When the product needs funnel analysis or conversion tracking beyond what the structured logs already give. |
 
 ---

@@ -286,6 +286,67 @@ Your application calls FileMorph at `http://filemorph:8000` (Docker service name
 
 ---
 
+## Monitoring & metrics
+
+FileMorph exposes Prometheus metrics at **`GET /api/v1/metrics`** when
+`METRICS_ENABLED=true` (the default). Set `METRICS_ENABLED=false` to
+remove the endpoint entirely on a single-tenant deployment that doesn't
+run Prometheus — when disabled, no instrumentation is attached and the
+route returns 404.
+
+### What's exposed
+
+| Metric family | Type | Labels | Use |
+|---|---|---|---|
+| `http_requests_total` | counter | `handler`, `method`, `status` | Throughput + error rate per route |
+| `http_request_duration_seconds` | histogram | `handler`, `method` | Latency percentiles (p50/p95/p99) |
+| `http_request_size_bytes` / `http_response_size_bytes` | summary | `handler` | Upload / download volume |
+| `filemorph_conversions_total` | counter | `operation`, `src`, `tgt`, `status` | Per-format-pair conversion KPIs |
+
+The endpoint emits only aggregate counters and timings — never file
+contents, user identifiers, or secrets.
+
+**Cardinality is bounded.** `src` / `tgt` come from user input, so any
+format not in the converter registry collapses to `other`. The label
+space is therefore `operations × (known_formats + 1) × statuses`, not
+unbounded — a caller cannot explode the time-series count by POSTing
+fake extensions.
+
+### Scraping it
+
+`/api/v1/metrics` is **unauthenticated** (the standard Prometheus
+pattern). Keep it reachable only from your scraper — never the public
+internet. Restrict it at the reverse proxy. Caddy:
+
+```caddyfile
+filemorph.example.com {
+    @metrics path /api/v1/metrics
+    handle @metrics {
+        @notprom not remote_ip 10.0.0.0/8 127.0.0.1
+        respond @notprom 403
+        reverse_proxy 127.0.0.1:8000
+    }
+    reverse_proxy 127.0.0.1:8000
+}
+```
+
+Minimal Prometheus scrape config:
+
+```yaml
+scrape_configs:
+  - job_name: filemorph
+    metrics_path: /api/v1/metrics
+    scrape_interval: 15s
+    static_configs:
+      - targets: ["filemorph:8000"]
+```
+
+Grafana dashboards and alert rules (uptime, error-rate, p95 latency)
+are not bundled in this repo — wire your own against the metric families
+above, or use the dashboards the Compliance Edition ships.
+
+---
+
 ## API Key management
 
 ### Generate a new key

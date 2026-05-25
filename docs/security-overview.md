@@ -300,13 +300,21 @@ Caddy, which provisions and renews certificates automatically.
 The CSP is built in `app/main.py::_build_csp_header`. Highlights:
 
 - `default-src 'self'` — no third-party content by default.
-- `script-src 'self' 'sha256-…'` — the only inline script allowed
-  is the Tailwind config block in the page head, pinned by its
-  SHA-256 hash. Any drift in that block invalidates the hash and
-  the script will not run.
+- `script-src 'self' 'sha256-…'` — all executable JavaScript ships
+  as external `/static/js/*.js` files; there are no inline event
+  handlers and no inline bootstrap. The single pinned `sha256-`
+  source covers the inline JSON-LD structured-data block
+  (`type="application/ld+json"`), whose bytes are derived from
+  `app/core/jsonld.py` at startup so the hash can never drift from
+  what the template renders. Regression guard:
+  `tests/test_csp_no_unpinned_inline_scripts.py` fails the build if
+  any page ships an inline executable `<script>` whose hash is not
+  in its own CSP.
 - `connect-src 'self'` — extended to include `API_BASE_URL` when
   that environment variable is set, so cross-origin uploads to a
   separate API subdomain pass through the policy.
+- `base-uri 'self'` — a `<base>` tag injected via XSS cannot
+  repoint the page's relative URLs at an attacker origin.
 - `frame-ancestors 'none'` — not embeddable in another origin.
 
 ### CORS
@@ -517,12 +525,44 @@ and is available to features that need it (e.g. billing flows).
 Operators who want a hard log-in gate add the check in
 `get_current_user` before this lands as a default.
 
-### Monitoring not yet wired
+### Metrics endpoint is unauthenticated by design
 
-`/metrics`, Prometheus-FastAPI-Instrumentator, and a Grafana
-dashboard are not deployed today. Without them there is no
-runtime visibility into rate-limit hits, error rates, or latency
-percentiles. Treat this as required before public launch.
+`GET /api/v1/metrics` exposes Prometheus exposition (request
+counts, latency histograms, per-format conversion counters) when
+`METRICS_ENABLED=true` (the default). Like every Prometheus
+target it carries **no authentication** — the standard pattern is
+to keep the endpoint reachable only from the scraper, not the
+public internet. Self-hosters **must** restrict it at the reverse
+proxy. Caddy example:
+
+```caddyfile
+filemorph.example.com {
+  @metrics path /api/v1/metrics
+  handle @metrics {
+    # Allow only the Prometheus host; everyone else gets 403.
+    @notprom not remote_ip 10.0.0.0/8 127.0.0.1
+    respond @notprom 403
+    reverse_proxy localhost:8000
+  }
+  reverse_proxy localhost:8000
+}
+```
+
+The endpoint never emits file contents, user identifiers, or
+secrets — only aggregate counters and timings — so an accidental
+exposure leaks operational shape, not personal data. Set
+`METRICS_ENABLED=false` to remove the endpoint entirely on
+single-tenant deployments that don't run Prometheus.
+
+### Grafana dashboards / alerting not yet wired
+
+The `/api/v1/metrics` endpoint exists, but the Prometheus +
+Grafana stack that scrapes it (scrape config, dashboards-as-code,
+alert rules for uptime / error-rate / p95 latency) lives in the
+private `filemorph-ops` repo and is tracked as a follow-up. Until
+it is deployed there is no alerting on rate-limit hits, error
+rates, or latency percentiles. Treat the dashboard/alert layer as
+required before public launch.
 
 ### API key in browser localStorage (PT-010)
 
