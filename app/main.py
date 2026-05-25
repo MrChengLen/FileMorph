@@ -46,6 +46,7 @@ from app.core.i18n import (
 from app.core.jsonld import build_site_jsonld
 from app.core.logging_config import configure_logging
 from app.core.metrics import increment as metric_increment
+from app.core.observability import setup_metrics
 from app.core.rate_limit import limiter
 from app.core.templates import templates
 from app.converters.registry import _ensure_loaded
@@ -269,7 +270,9 @@ def _build_csp_header(api_base_url: str) -> str:
         f"script-src {script_src}; "
         "style-src 'self' 'unsafe-inline'; "
         "img-src 'self' data:; "
-        f"connect-src {connect_src};"
+        f"connect-src {connect_src}; "
+        "base-uri 'self'; "
+        "frame-ancestors 'none';"
     )
 
 
@@ -481,3 +484,12 @@ app.include_router(cockpit_route.router, prefix="/api/v1")
 app.include_router(pages.router)  # /, /pricing, /enterprise, ...
 app.include_router(pages.router, prefix="/de")  # /de/, /de/pricing, ...
 app.include_router(pages.router, prefix="/en")  # /en/, /en/pricing, ...
+
+
+# ── Observability ───────────────────────────────────────────────────────────────
+#
+# Wired last (after all routes) so the instrumentator middleware sits
+# outermost and measures full request time, and so /api/v1/metrics is
+# registered cleanly. No-op when METRICS_ENABLED=false. See
+# app/core/observability.py for the metric surface and cardinality cap.
+setup_metrics(app)

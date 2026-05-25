@@ -26,6 +26,7 @@ from app.core.batch import (
 from app.core.concurrency import acquire_slot
 from app.core.data_classification import DEFAULT_CLASSIFICATION as DATA_CLASSIFICATION_DEFAULT
 from app.core.metrics import increment as metric_increment
+from app.core.observability import record_conversion
 from app.core.processing import BLOCKED_MAGIC, actor_id, sha256_file
 from app.core.quotas import _MB, get_quota, tier_for
 from app.core.rate_limit import limiter
@@ -233,6 +234,8 @@ async def _do_convert(
         # request's transaction (and there is none here, but the principle
         # is what keeps batch + auth integrations safe).
         await metric_increment(f"convert.{src_ext}-to-{tgt_ext}")
+        # Prometheus mirror of the same per-format-pair signal, scrape-friendly.
+        record_conversion("convert", src_ext, tgt_ext, "success")
         # NEU-B.1: tamper-evident audit trail. Same fire-and-forget shape as
         # the metric write; Compliance Edition flips ``audit_fail_closed``
         # so this raises and the request fails closed instead. The payload
@@ -270,6 +273,7 @@ async def _do_convert(
         # so the cockpit can show a meaningful failure-rate. We swallow the
         # metric write itself — the user-visible exception still propagates.
         await metric_increment("failures.convert")
+        record_conversion("convert", src_ext, tgt_ext, "failure")
         await audit_record(
             "convert.failure",
             actor_user_id=user.id if user is not None else None,
@@ -434,6 +438,7 @@ async def _do_convert_batch(
                 )
                 key = f"convert.{src_ext}-to-{tgt_ext}"
                 metric_counts[key] = metric_counts.get(key, 0) + 1
+                record_conversion("convert_batch", src_ext, tgt_ext, "success")
             finally:
                 shutil.rmtree(tmp_dir, ignore_errors=True)
         except UnsupportedConversionError as e:
@@ -443,6 +448,7 @@ async def _do_convert_batch(
                 )
             )
             metric_counts["failures.convert"] = metric_counts.get("failures.convert", 0) + 1
+            record_conversion("convert_batch", src_ext, tgt_ext, "failure")
         except ValueError as e:
             results.append(
                 BatchFileResult(
@@ -450,6 +456,7 @@ async def _do_convert_batch(
                 )
             )
             metric_counts["failures.convert"] = metric_counts.get("failures.convert", 0) + 1
+            record_conversion("convert_batch", src_ext, tgt_ext, "failure")
         except Exception:
             logger.exception("Batch conversion error on one file")
             results.append(
@@ -461,6 +468,7 @@ async def _do_convert_batch(
                 )
             )
             metric_counts["failures.convert"] = metric_counts.get("failures.convert", 0) + 1
+            record_conversion("convert_batch", src_ext, tgt_ext, "failure")
 
     # Flush aggregated counters — one UPSERT per unique key, all on isolated
     # sessions so a metrics failure can't poison the response.

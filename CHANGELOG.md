@@ -15,6 +15,67 @@ and Anwaltskanzleien expect. None of this changes the existing public
 API behaviour for casual callers — every change is additive, defaulted
 off where applicable, and optional at deploy time.
 
+### Added — Prometheus metrics endpoint (`/api/v1/metrics`)
+
+Request-path observability for self-hosters and the Compliance Edition.
+Gated by `METRICS_ENABLED` (default `true`; the same flag the cockpit's
+analytics card already references). When disabled, no instrumentation is
+attached and the endpoint 404s — a single-tenant deployment that doesn't
+run Prometheus pays nothing.
+
+- `app/core/observability.py` — new. A small request-timing middleware
+  (built on the raw `prometheus-client`, not the FastAPI instrumentator
+  wrapper) records `http_requests_total{method,handler,status}` and the
+  `http_request_duration_seconds{method,handler}` histogram, plus a
+  domain counter `filemorph_conversions_total{operation,src,tgt,status}`.
+  The middleware is attached last in `app/main.py` so it sits outermost
+  and measures full request time.
+- **Raw client, not the wrapper — a security choice.** The
+  `prometheus-fastapi-instrumentator` wrapper pins `starlette<1.0.0`,
+  which would hold the dependency below the `1.0.1` fix for
+  PYSEC-2026-161 (Host-header URL-reconstruction / auth-bypass class).
+  The raw `prometheus-client` has no such constraint, so the CVE scan
+  stays clean and starlette floats to the patched release.
+- **Cardinality is capped.** `src`/`tgt` and the request `handler` come
+  from request data, so unknown formats collapse to `other` and an
+  unmatched path (404) reports `handler="other"`; the label space is
+  bounded by registered routes and formats, not by what a caller sends.
+- `app/api/routes/convert.py` + `compress.py` — increment the domain
+  counter at the same success/failure sites that already feed the
+  `daily_metrics` table (single + batch), so the cockpit's DB counters
+  and the scrape-friendly counter never diverge.
+- The endpoint is **unauthenticated by design** (standard Prometheus
+  pattern) and must be IP-restricted at the reverse proxy — see
+  `docs/self-hosting.md` (Monitoring & metrics) and
+  `docs/security-overview.md`.
+- Tests: `tests/test_observability_metrics.py` (exposition format,
+  counter increment + visibility, cardinality cap, disabled-path no-op).
+- Grafana dashboards / alert rules are a follow-up (private ops repo);
+  the OSS app ships only the instrumentation + endpoint.
+
+### Fixed — CSP: inline i18n bootstrap moved to an external file
+
+The `window.FM_I18N = JSON.parse(...)` bootstrap in `base.html` was an
+inline `<script>` with no `src` and no pinned hash, so the strict CSP
+(`script-src 'self' 'sha256-<jsonld>'`) blocked it on every page. The
+block was silent server-side (the page still renders) but visible in the
+browser console, and because the blocked script never runs, its `catch`
+never fired — `window.FM_I18N` stayed `undefined` and every JS string
+fell back to its English literal. Most visible on `/de/dashboard`, where
+German copy silently rendered in English.
+
+- `app/static/js/i18n-bootstrap.js` — new. Parses the `#fm-i18n-strings`
+  data block into `window.FM_I18N`, loaded via `<script src>` before the
+  consumer scripts (nav/auth/app). No inline executable script remains.
+- `app/main.py::_build_csp_header` — added `base-uri 'self'` and
+  `frame-ancestors 'none'` while in the file.
+- `tests/test_csp_no_unpinned_inline_scripts.py` — new regression guard:
+  every inline executable `<script>` on `/`, `/dashboard`,
+  `/{de,en}/dashboard`, `/cockpit`, `/de/cockpit` must have its SHA-256
+  in that page's own CSP, or the build fails.
+- `docs/security-overview.md` — CSP section corrected (it still described
+  a Tailwind inline-config block that no longer exists).
+
 ### Polished — Mobile-UX touch-target sweep (P1-5)
 
 Structural audit of every template at the 375 px viewport flagged a
