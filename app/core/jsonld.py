@@ -18,6 +18,8 @@ import base64
 import hashlib
 import json
 
+from app.core.config import settings
+
 
 def _compile(data: list[dict] | dict) -> tuple[str, str]:
     """Return ``(canonical_json, csp_source)``.
@@ -48,7 +50,7 @@ def build_site_jsonld(app_base_url: str) -> tuple[str, str]:
             "url": base,
             "applicationCategory": "Multimedia",
             "operatingSystem": "Any",
-            "offers": {"@type": "Offer", "price": "0", "priceCurrency": "EUR"},
+            "offers": {"@type": "Offer", "price": "0", "priceCurrency": settings.price_currency},
             "description": (
                 "Privacy-respecting file converter & compressor — open-source and self-hostable."
             ),
@@ -60,7 +62,7 @@ def build_site_jsonld(app_base_url: str) -> tuple[str, str]:
             "url": base,
             "applicationCategory": "Multimedia",
             "operatingSystem": "Linux, Windows, macOS, Docker",
-            "offers": {"@type": "Offer", "price": "0", "priceCurrency": "EUR"},
+            "offers": {"@type": "Offer", "price": "0", "priceCurrency": settings.price_currency},
             "license": "https://www.gnu.org/licenses/agpl-3.0.html",
         },
     ]

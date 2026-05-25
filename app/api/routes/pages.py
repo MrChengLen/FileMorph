@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Request
 
+from app.core import pricing as pricing_mod
 from app.core.config import settings
 from app.core.i18n import localized_context
 from app.core.templates import templates
@@ -118,7 +119,15 @@ async def pricing_page(request: Request):
         return templates.TemplateResponse(
             request, "404.html", context=localized_context(request), status_code=404
         )
-    return _render(request, "pricing.html")
+    locale = getattr(request.state, "locale", settings.lang_default)
+    return _render(
+        request,
+        "pricing.html",
+        anon_plan=pricing_mod.anonymous_plan(locale),
+        plans={p.tier: p for p in pricing_mod.saas_plans(locale)},
+        compliance_plans=pricing_mod.compliance_plans(locale),
+        saas_prices_configured=pricing_mod.saas_prices_configured(),
+    )
 
 
 @router.get("/enterprise")
@@ -131,7 +140,12 @@ async def enterprise_page(request: Request):
         return templates.TemplateResponse(
             request, "404.html", context=localized_context(request), status_code=404
         )
-    return _render(request, "enterprise.html")
+    locale = getattr(request.state, "locale", settings.lang_default)
+    return _render(
+        request,
+        "enterprise.html",
+        compliance_plans=pricing_mod.compliance_plans(locale),
+    )
 
 
 @router.get("/cockpit")

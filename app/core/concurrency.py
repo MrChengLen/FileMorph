@@ -18,7 +18,7 @@ layer the route needs:
   then gets a 503 Service Unavailable with a ``Retry-After`` hint.
 * A **per-actor** semaphore so that one tenant cannot occupy every
   global slot at once. The per-actor cap depends on the tier — an
-  anonymous caller gets 1, Pro gets 2, Business gets 5. Past the
+  anonymous caller gets 1, Pro gets 3, Business gets 6. Past the
   cap: 429 Too Many Requests, again with ``Retry-After``.
 
 The "actor" key is the API-key hash for authenticated callers,
@@ -57,23 +57,19 @@ from typing import AsyncIterator
 from fastapi import HTTPException, status
 
 from app.core.config import settings
+from app.core.quotas import QUOTAS, get_quota
 
 logger = logging.getLogger(__name__)
 
 
-# Per-tier concurrency caps. Anonymous and free are tight (1) so
-# casual abuse cannot starve paying tiers; Pro and Business get
-# more headroom. Numbers are derived from the Pricing-page
-# capacity discussion (~4 worker slots on a 4 GB host) — Pro has
-# headroom to overlap a small batch with a single follow-up call,
-# Business can run a 5-thread parallel-import workflow.
-_PER_TIER_CONCURRENCY: dict[str, int] = {
-    "anonymous": 1,
-    "free": 1,
-    "pro": 2,
-    "business": 5,
-    "enterprise": 10,
-}
+# Per-tier concurrency caps. The single source is ``TierQuota.concurrency`` in
+# app/core/quotas.py — this dict is derived from it for backward-compat (the
+# pricing-visibility test imports the symbol). Anonymous and free are tight (1)
+# so casual abuse cannot starve paying tiers; Pro/Business get more headroom.
+# The global cap (``settings.max_global_concurrency``, default 4 on a 4 GB host)
+# is the real backstop, so a per-tier value only raises what one actor may
+# request, never beyond the global pool.
+_PER_TIER_CONCURRENCY: dict[str, int] = {tier: q.concurrency for tier, q in QUOTAS.items()}
 
 
 # Module-level singletons. The semaphores are bound to whatever
@@ -125,7 +121,7 @@ def _per_actor_semaphore(actor_id: str, tier: str) -> asyncio.Semaphore:
     """
     sem = _PER_ACTOR_SEMAPHORES.get(actor_id)
     if sem is None:
-        limit = _PER_TIER_CONCURRENCY.get(tier, 1)
+        limit = get_quota(tier).concurrency
         sem = asyncio.Semaphore(limit)
         _PER_ACTOR_SEMAPHORES[actor_id] = sem
     return sem

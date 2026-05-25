@@ -16,9 +16,17 @@ _MB = 1024 * 1024
 class TierQuota:
     """Quota limits for a user tier.
 
-    `max_file_size_bytes`, `max_files_per_batch`, and `output_cap_bytes` are
-    enforced at runtime. Other fields are informational (used for UI display /
-    future enforcement).
+    `max_file_size_bytes`, `max_files_per_batch`, `output_cap_bytes`, and
+    `concurrency` are enforced at runtime (the first three here, `concurrency`
+    via `app/core/concurrency.py`). Other fields are informational (used for UI
+    display / future enforcement).
+
+    `concurrency` is the per-actor parallel-request cap. It lives here so a
+    tier is described by a single record (the pricing page, the monthly-quota
+    gate, and the concurrency semaphore all read the same source — no drift).
+    The **global** parallel cap (`settings.max_global_concurrency`, default 4
+    on a 4 GB host) is the real backstop; a high per-tier value only raises the
+    ceiling a single actor may request, never beyond the global cap.
 
     `output_cap_bytes` protects against bandwidth-amplification abuse: a 3 MB
     JPG re-encoded to PNG can balloon to 25 MB, and MP3→WAV is ~11×. The cap
@@ -38,40 +46,53 @@ class TierQuota:
     max_file_size_bytes: int
     max_files_per_batch: int
     output_cap_bytes: int
+    concurrency: int
 
 
+# Pricing-overhaul 2026-05-25: the free/anonymous limits are deliberately
+# generous (a market-undercut lever — most hosted converters cap free uploads
+# far lower), and the paid SaaS tiers were re-priced to €3 (Pro) / €9 (Business)
+# in the pricing config. Limit numbers here are the single source the pricing
+# page reads (via app/core/pricing.py) so display never drifts from enforcement.
+# Output caps stay ≤ 500 MB so the worst case (global cap of 4 concurrent ×
+# 500 MB ≈ 2 GB buffered) fits the 4 GB host — raising the free/pro caps does
+# not raise that ceiling because business already sets the 500 MB maximum.
 QUOTAS: dict[str, TierQuota] = {
     "anonymous": TierQuota(
         conversions_per_day=None,
         storage_days=None,
         api_calls_per_month=0,
-        max_file_size_bytes=20 * _MB,
+        max_file_size_bytes=30 * _MB,
         max_files_per_batch=1,
-        output_cap_bytes=60 * _MB,
+        output_cap_bytes=90 * _MB,
+        concurrency=1,
     ),
     "free": TierQuota(
         conversions_per_day=None,
         storage_days=1,
-        api_calls_per_month=500,
-        max_file_size_bytes=50 * _MB,
-        max_files_per_batch=5,
-        output_cap_bytes=150 * _MB,
+        api_calls_per_month=1_000,
+        max_file_size_bytes=100 * _MB,
+        max_files_per_batch=10,
+        output_cap_bytes=300 * _MB,
+        concurrency=1,
     ),
     "pro": TierQuota(
         conversions_per_day=None,
         storage_days=7,
-        api_calls_per_month=10_000,
-        max_file_size_bytes=100 * _MB,
-        max_files_per_batch=25,
-        output_cap_bytes=300 * _MB,
+        api_calls_per_month=25_000,
+        max_file_size_bytes=250 * _MB,
+        max_files_per_batch=50,
+        output_cap_bytes=400 * _MB,
+        concurrency=3,
     ),
     "business": TierQuota(
         conversions_per_day=None,
         storage_days=30,
-        api_calls_per_month=100_000,
+        api_calls_per_month=200_000,
         max_file_size_bytes=500 * _MB,
-        max_files_per_batch=100,
+        max_files_per_batch=150,
         output_cap_bytes=500 * _MB,
+        concurrency=6,
     ),
     "enterprise": TierQuota(
         conversions_per_day=None,
@@ -80,6 +101,7 @@ QUOTAS: dict[str, TierQuota] = {
         max_file_size_bytes=500 * _MB,
         max_files_per_batch=250,
         output_cap_bytes=500 * _MB,
+        concurrency=10,
     ),
 }
 
