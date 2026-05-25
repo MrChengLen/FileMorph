@@ -113,15 +113,29 @@ unserer Behörden-Deployments laufen unter AGPLv3.
 
 ## Was im EVB-IT-Vertragswerk zu beachten ist
 
-Die EVB-IT-Vertragsbausteine (insbesondere "EVB-IT Cloud" und
-"EVB-IT System") behandeln Open-Source-Software ausdrücklich. Die
-AGPLv3 ist eine OSI-zertifizierte und FSF-anerkannte Lizenz und damit
-nach EVB-IT-Update März 2026 ausdrücklich vorgesehen. Beim
-Vertragsabschluss ist dem Auftraggeber ein **Software Bill of
-Materials (SBOM)** in CycloneDX-Format auszuhändigen — FileMorph
-liefert dieses Artefakt mit jedem Release als
-`filemorph-{version}.cdx.json` (siehe
-[`patch-policy.md`](./patch-policy.md)).
+Mit der EVB-IT-Reform vom März 2026 ist Open-Source-Software erstmals
+systematisch in den Vertragsbausteinen verankert: Open Source wird zum
+Regelfall der öffentlichen IT-Beschaffung. Die AGPLv3 ist eine
+OSI-zertifizierte und FSF-anerkannte Open-Source-Lizenz und damit von
+diesen Regelungen ausdrücklich erfasst. Ergänzend kann beim
+Vertragsabschluss ein **Software Bill of Materials (SBOM)** verlangt
+werden — ein fehlendes oder unvollständiges SBOM kann künftig einen
+Mangel darstellen. FileMorph liefert dieses Artefakt im
+CycloneDX-Format mit jedem Release als `filemorph-{version}.cdx.json`
+(siehe [`patch-policy.md`](./patch-policy.md)).
+
+> **Wichtig für die Vertragswahl:** Die Reform betraf 8 der 11
+> EVB-IT-Vertragstypen. **EVB-IT Cloud** und **EVB-IT Überlassung
+> Typ B** wurden ausdrücklich **noch nicht** überarbeitet (eine
+> Neufassung ist für später in 2026 angekündigt). Prüfen Sie deshalb
+> für Ihren konkreten Vertragstyp, ob die neuen Open-Source- und
+> SBOM-Regelungen dort bereits gelten.
+
+Zur Einordnung: Die Reform folgt dem Grundsatz „Public Money, Public
+Code" und macht Open Source zum Standard der Verwaltungsbeschaffung.
+Sie stärkt damit ausdrücklich auch die **kostenfreie AGPLv3-Nutzung** —
+eine kommerzielle Lizenz ist dafür nicht erforderlich (siehe die
+Tabelle oben).
 
 ## Kontakt
 
@@ -136,3 +150,4 @@ Zusatzkosten möglich.
 - [GNU Affero General Public License v3](https://www.gnu.org/licenses/agpl-3.0.html) — der vollständige Lizenztext.
 - [GNU AGPL FAQ](https://www.gnu.org/licenses/gpl-faq.html#UnreleasedMods) — die FSF erläutert die §13-Klausel und stellt explizit klar, dass interne Nutzung **keine** Veröffentlichungspflicht auslöst.
 - [Open Source Initiative — AGPL-3.0 Approval](https://opensource.org/license/agpl-v3) — OSI-Zertifizierung.
+- EVB-IT-Reform März 2026 (Open Source als Standard, SBOM-Anforderung; EVB-IT Cloud und Überlassung Typ B von dieser Runde ausgenommen): Berichterstattung u. a. von ZenDiS, der Open Source Business Alliance und der Kanzlei Luther.
