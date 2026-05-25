@@ -5,8 +5,8 @@
 <main class="flex-1 max-w-5xl mx-auto w-full px-4 sm:px-6 py-12 space-y-10">
 
   <div class="text-center space-y-3">
-    <h1 class="text-h-page text-ink">{{ _('Simple, transparent pricing') }}</h1>
-    <p class="text-ink-muted max-w-xl mx-auto">{{ _('Start free. Upgrade when you need more. No hidden fees.') }}</p>
+    <h1 class="text-h-page text-ink">{{ _('Free engine. Pay only for hosting or a license.') }}</h1>
+    <p class="text-ink-muted max-w-2xl mx-auto">{{ _('The FileMorph conversion engine is open source (AGPL-3.0) — self-host it free, forever, with no feature gates. The plans below are for our hosted instance and for embedding FileMorph in a closed-source product.') }}</p>
   </div>
 
   {% if not stripe_enabled %}
@@ -19,7 +19,7 @@
   {% endif %}
 
   <p class="text-center text-xs text-gray-500">
-    {{ _('Using without an account: up to 20 MB per file · single file at a time · 10 requests/minute · no API access') }}
+    {{ _('Using without an account:') }} {{ _('up to') }} {{ anon_plan.max_file_size_mb }} MB {{ _('per file') }} · {{ _('single file at a time') }} · {{ _('10 requests/minute') }} · {{ _('no API access') }}
   </p>
 
   <p class="text-center text-xs text-gray-500 max-w-3xl mx-auto">
@@ -30,7 +30,15 @@
     {{ _('hint. Large batches are processed sequentially inside the request.') }}
   </p>
 
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
+  <!-- Audience segment toggle (CSP-safe: handlers in /static/js/pricing-segment.js) -->
+  <div class="flex rounded-lg overflow-hidden border border-gray-700 text-sm font-medium max-w-xl mx-auto" role="tablist" aria-label="{{ _('Choose audience') }}">
+    <button id="seg-dev" type="button" class="flex-1 py-2 transition-colors bg-brand text-white" aria-pressed="true">{{ _('For developers & SaaS') }}</button>
+    <button id="seg-gov" type="button" class="flex-1 py-2 transition-colors text-gray-400 hover:text-white" aria-pressed="false">{{ _('For public sector & compliance') }}</button>
+  </div>
+
+  <!-- ───────────────────────── PANEL A: developers & SaaS ───────────────────────── -->
+  <section id="panel-dev" class="space-y-8">
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
 
     <!-- Free -->
     {% call uc.card() %}
@@ -43,11 +51,11 @@
       <ul class="space-y-2.5 text-sm text-gray-300 flex-1">
         <li class="flex items-start gap-2">
           <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span>{{ _('Up to 50 MB per file') }} <span class="text-ink-faint">{{ _('(vs. 20 MB anonymous)') }}</span></span>
+          <span>{{ _('up to') }} {{ plans.free.max_file_size_mb }} MB {{ _('per file') }} <span class="text-ink-faint">{{ _('(vs.') }} {{ anon_plan.max_file_size_mb }} MB {{ _('anonymous)') }}</span></span>
         </li>
         <li class="flex items-start gap-2">
           <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span>{{ _('Batch upload:') }} <strong class="text-white">{{ _('5 files') }}</strong> {{ _('per request') }}</span>
+          <span>{{ _('Batch upload:') }} <strong class="text-white">{{ plans.free.max_files_per_batch }} {{ _('files') }}</strong> {{ _('per request') }}</span>
         </li>
         <li class="flex items-start gap-2">
           <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
@@ -55,15 +63,11 @@
         </li>
         <li class="flex items-start gap-2">
           <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span>{{ _('API key — ') }}<strong class="text-white">{{ _('500 calls / month') }}</strong>{{ _(', 1 concurrent, 10 req/min') }}</span>
+          <span>{{ _('API key — ') }}<strong class="text-white">{{ plans.free.api_calls_display }} {{ _('calls / month') }}</strong>, {{ plans.free.concurrency }} {{ _('concurrent') }}, 10 req/min</span>
         </li>
         <li class="flex items-start gap-2">
           <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span>{{ _('Saved API keys & dashboard') }}</span>
-        </li>
-        <li class="flex items-start gap-2 text-ink-faint">
-          <span class="shrink-0 leading-6" aria-hidden="true">✗</span>
-          <span>{{ _('Priority support') }}</span>
+          <span>{{ _('All smart-tech: compress-to-target, EXIF strip, PDF/A, integrity hash') }}</span>
         </li>
       </ul>
       <a href="{{ localized_url('/register', current_prefix) }}" class="block text-center py-2.5 rounded-xl border border-hairline hover:border-brand text-gray-300 hover:text-white transition-colors text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
@@ -77,17 +81,21 @@
       <span class="absolute -top-3 left-1/2 -translate-x-1/2 bg-brand text-white text-xs font-bold px-3 py-1 rounded-full">{{ _('Most popular') }}</span>
       <div>
         <p class="text-xs font-semibold uppercase tracking-wider text-brand">{{ _('Pro') }}</p>
-        <p class="text-4xl font-bold mt-2">€7<span class="text-base font-normal text-gray-400">{{ _('/mo') }}</span></p>
+        {% if plans.pro.price_display %}
+        <p class="text-4xl font-bold mt-2">€{{ plans.pro.price_display }}<span class="text-base font-normal text-gray-400">{{ _('/mo') }}</span></p>
+        {% else %}
+        <p class="text-2xl font-bold mt-2">{{ _('Contact us') }}</p>
+        {% endif %}
         <p class="text-sm text-gray-400 mt-1">{{ _('Billed monthly, cancel anytime') }}</p>
       </div>
       <ul class="space-y-2.5 text-sm text-gray-300 flex-1">
         <li class="flex items-start gap-2">
           <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span>{{ _('Up to 100 MB per file') }}</span>
+          <span>{{ _('up to') }} {{ plans.pro.max_file_size_mb }} MB {{ _('per file') }}</span>
         </li>
         <li class="flex items-start gap-2">
           <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span>{{ _('Batch upload:') }} <strong class="text-white">{{ _('25 files') }}</strong> {{ _('per request') }}</span>
+          <span>{{ _('Batch upload:') }} <strong class="text-white">{{ plans.pro.max_files_per_batch }} {{ _('files') }}</strong> {{ _('per request') }}</span>
         </li>
         <li class="flex items-start gap-2">
           <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
@@ -95,11 +103,7 @@
         </li>
         <li class="flex items-start gap-2">
           <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span><strong class="text-white">{{ _('10,000 API calls / month') }}</strong>{{ _(', 2 concurrent, 10 req/min') }}</span>
-        </li>
-        <li class="flex items-start gap-2">
-          <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span>{{ _('API key management') }}</span>
+          <span><strong class="text-white">{{ plans.pro.api_calls_display }} {{ _('API calls / month') }}</strong>, {{ plans.pro.concurrency }} {{ _('concurrent') }}, 10 req/min</span>
         </li>
         <li class="flex items-start gap-2">
           <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
@@ -130,21 +134,25 @@
     <div class="flex flex-col gap-6 h-full">
       <div>
         <p class="text-xs font-semibold uppercase tracking-wider text-ink-faint">{{ _('Business') }}</p>
-        <p class="text-4xl font-bold mt-2">€19<span class="text-base font-normal text-ink-muted">{{ _('/mo') }}</span></p>
+        {% if plans.business.price_display %}
+        <p class="text-4xl font-bold mt-2">€{{ plans.business.price_display }}<span class="text-base font-normal text-ink-muted">{{ _('/mo') }}</span></p>
+        {% else %}
+        <p class="text-2xl font-bold mt-2">{{ _('Contact us') }}</p>
+        {% endif %}
         <p class="text-sm text-ink-muted mt-1">{{ _('Billed monthly, cancel anytime') }}</p>
       </div>
       <ul class="space-y-2.5 text-sm text-gray-300 flex-1">
         <li class="flex items-start gap-2">
           <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span>{{ _('Up to 500 MB per file') }}</span>
+          <span>{{ _('up to') }} {{ plans.business.max_file_size_mb }} MB {{ _('per file') }}</span>
         </li>
         <li class="flex items-start gap-2">
           <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span>{{ _('Batch upload:') }} <strong class="text-white">{{ _('100 files') }}</strong> {{ _('per request') }}</span>
+          <span>{{ _('Batch upload:') }} <strong class="text-white">{{ plans.business.max_files_per_batch }} {{ _('files') }}</strong> {{ _('per request') }}</span>
         </li>
         <li class="flex items-start gap-2">
           <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span><strong class="text-white">{{ _('100,000 API calls / month') }}</strong>{{ _(', 5 concurrent, 10 req/min') }}</span>
+          <span><strong class="text-white">{{ plans.business.api_calls_display }} {{ _('API calls / month') }}</strong>, {{ plans.business.concurrency }} {{ _('concurrent') }}, 10 req/min</span>
         </li>
         <li class="flex items-start gap-2">
           <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
@@ -153,10 +161,6 @@
         <li class="flex items-start gap-2">
           <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
           <span>{{ _('Priority support (best effort)') }}</span>
-        </li>
-        <li class="flex items-start gap-2">
-          <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span>{{ _('Dedicated onboarding') }}</span>
         </li>
       </ul>
       {% if stripe_enabled %}
@@ -181,22 +185,95 @@
 
   </div>
 
-  <!-- Enterprise -->
-  {% call uc.card() %}
-  <div class="flex flex-col sm:flex-row sm:items-center items-start justify-between gap-4">
-    <div>
-      <p class="font-semibold">{{ _('Enterprise / Compliance') }}</p>
-      <p class="text-sm text-ink-muted mt-0.5">{{ _('Custom volume, batch uploads up to 250 files, SLA, on-premise deployment, dedicated support & contract. For DACH Behörden, hospitals, law firms see') }} <a href="{{ localized_url('/enterprise', current_prefix) }}" class="text-brand hover:underline">{{ _('Compliance Edition →') }}</a>.</p>
+  <p class="text-center text-sm text-ink-muted">
+    {{ _('Building a closed-source product, SaaS, or OEM integration on FileMorph?') }}
+    <a href="{{ localized_url('/enterprise', current_prefix) }}" class="text-brand hover:underline">{{ _('See licensing →') }}</a>
+  </p>
+  </section>
+
+  <!-- ──────────────────── PANEL B: public sector & compliance ──────────────────── -->
+  <section id="panel-gov" class="hidden">
+    {% call uc.card() %}
+    <div class="space-y-5">
+      <div>
+        <p class="font-semibold text-ink">{{ _('Behörden · Krankenhäuser · Kanzleien') }}</p>
+        <p class="text-sm text-ink-muted mt-1">{{ _('Runs behind your firewall — citizen, patient and client data never leaves your infrastructure. EU vendor, German imprint.') }}</p>
+      </div>
+      <div class="bg-brand/10 border border-brand/30 rounded-xl px-4 py-3 text-sm text-gray-300">
+        {{ _('Internal use is already free under AGPL-3.0.') }}
+        <a href="{{ localized_url('/enterprise', current_prefix) }}" class="text-brand hover:underline">{{ _('Why →') }}</a>
+        {{ _('The Compliance Edition is for when you need a contract behind it: DPA, support SLA, signed releases, and someone accountable — not "permission".') }}
+      </div>
+      <ul class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-300">
+        <li class="flex items-start gap-2"><span class="text-emerald-400" aria-hidden="true">✓</span> {{ _('Self-hosted (on-prem / air-gap)') }}</li>
+        <li class="flex items-start gap-2"><span class="text-emerald-400" aria-hidden="true">✓</span> {{ _('Art. 28 GDPR DPA template') }}</li>
+        <li class="flex items-start gap-2"><span class="text-emerald-400" aria-hidden="true">✓</span> {{ _('Tamper-evident SHA-256 audit log') }}</li>
+        <li class="flex items-start gap-2"><span class="text-emerald-400" aria-hidden="true">✓</span> {{ _('PDF/A-2b (veraPDF CI gate)') }}</li>
+        <li class="flex items-start gap-2"><span class="text-emerald-400" aria-hidden="true">✓</span> {{ _('Signed releases + CycloneDX SBOM') }}</li>
+        <li class="flex items-start gap-2"><span class="text-emerald-400" aria-hidden="true">✓</span> {{ _('Commercial license on top of AGPL') }}</li>
+      </ul>
+      <a href="{{ localized_url('/enterprise', current_prefix) }}"
+        class="inline-block px-6 py-2.5 rounded-xl bg-brand hover:bg-brand-dark text-white transition-colors text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+        {{ _('See the Compliance Edition →') }}
+      </a>
     </div>
-    <a href="{{ localized_url('/enterprise', current_prefix) }}"
-      class="shrink-0 px-6 py-2.5 rounded-xl border border-hairline hover:border-brand text-gray-300 hover:text-white transition-colors text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
-      {{ _('Compliance Edition →') }}
-    </a>
+    {% endcall %}
+  </section>
+
+  <!-- ───────────────────────── Feature comparison (always visible) ───────────────────────── -->
+  <div class="space-y-3">
+    <h2 class="text-center text-h-section text-ink">{{ _('Compare plans') }}</h2>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm border-collapse">
+        <thead>
+          <tr class="text-ink-faint border-b border-hairline">
+            <th class="text-left font-medium py-2 pr-3">{{ _('Feature') }}</th>
+            <th class="font-medium py-2 px-3">{{ _('Free') }}</th>
+            <th class="font-medium py-2 px-3">{{ _('Pro') }}</th>
+            <th class="font-medium py-2 px-3">{{ _('Business') }}</th>
+            <th class="font-medium py-2 px-3">{{ _('Compliance') }}</th>
+          </tr>
+        </thead>
+        <tbody class="text-gray-300">
+          <tr class="border-b border-hairline/50"><td class="py-2 pr-3 text-ink-muted">{{ _('Max file size') }}</td><td class="text-center">{{ plans.free.max_file_size_mb }} MB</td><td class="text-center">{{ plans.pro.max_file_size_mb }} MB</td><td class="text-center">{{ plans.business.max_file_size_mb }} MB</td><td class="text-center">{{ _('self-set') }}</td></tr>
+          <tr class="border-b border-hairline/50"><td class="py-2 pr-3 text-ink-muted">{{ _('Batch / request') }}</td><td class="text-center">{{ plans.free.max_files_per_batch }}</td><td class="text-center">{{ plans.pro.max_files_per_batch }}</td><td class="text-center">{{ plans.business.max_files_per_batch }}</td><td class="text-center">250</td></tr>
+          <tr class="border-b border-hairline/50"><td class="py-2 pr-3 text-ink-muted">{{ _('API calls / month') }}</td><td class="text-center">{{ plans.free.api_calls_display }}</td><td class="text-center">{{ plans.pro.api_calls_display }}</td><td class="text-center">{{ plans.business.api_calls_display }}</td><td class="text-center">{{ _('unlimited*') }}</td></tr>
+          <tr class="border-b border-hairline/50"><td class="py-2 pr-3 text-ink-muted">{{ _('Concurrent slots') }}</td><td class="text-center">{{ plans.free.concurrency }}</td><td class="text-center">{{ plans.pro.concurrency }}</td><td class="text-center">{{ plans.business.concurrency }}</td><td class="text-center">{{ _('custom') }}</td></tr>
+          <tr class="border-b border-hairline/50"><td class="py-2 pr-3 text-ink-muted">{{ _('All formats + smart-tech') }}</td><td class="text-center text-emerald-400">✓</td><td class="text-center text-emerald-400">✓</td><td class="text-center text-emerald-400">✓</td><td class="text-center text-emerald-400">✓</td></tr>
+          <tr class="border-b border-hairline/50"><td class="py-2 pr-3 text-ink-muted">{{ _('Self-hosted') }}</td><td class="text-center text-ink-faint">—</td><td class="text-center text-ink-faint">—</td><td class="text-center text-ink-faint">—</td><td class="text-center text-emerald-400">✓</td></tr>
+          <tr class="border-b border-hairline/50"><td class="py-2 pr-3 text-ink-muted">{{ _('Art. 28 DPA template') }}</td><td class="text-center text-ink-faint">—</td><td class="text-center text-ink-faint">—</td><td class="text-center text-ink-faint">—</td><td class="text-center text-emerald-400">✓</td></tr>
+          <tr class="border-b border-hairline/50"><td class="py-2 pr-3 text-ink-muted">{{ _('Audit log + signed releases') }}</td><td class="text-center text-ink-faint">—</td><td class="text-center text-ink-faint">—</td><td class="text-center text-ink-faint">—</td><td class="text-center text-emerald-400">✓</td></tr>
+          <tr class="border-b border-hairline/50"><td class="py-2 pr-3 text-ink-muted">{{ _('Commercial license') }}</td><td class="text-center text-ink-faint">—</td><td class="text-center text-ink-faint">—</td><td class="text-center text-ink-faint">—</td><td class="text-center text-emerald-400">✓</td></tr>
+          <tr><td class="py-2 pr-3 text-ink-muted">{{ _('Support') }}</td><td class="text-center text-ink-faint">—</td><td class="text-center">{{ _('e-mail') }}</td><td class="text-center">{{ _('priority') }}</td><td class="text-center">{{ _('SLA') }}</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="text-xs text-gray-600">{{ _('* Unlimited within your self-hosted infrastructure — you run the server.') }}</p>
+  </div>
+
+  <!-- ───────────────────────── Honest trust band ───────────────────────── -->
+  {% call uc.card() %}
+  <div class="space-y-4">
+    <p class="font-semibold text-ink">{{ _('What you can verify today') }}</p>
+    <ul class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm text-gray-300">
+      <li class="flex items-start gap-2"><span class="text-emerald-400" aria-hidden="true">✓</span> {{ _('EU hosting, German imprint') }}</li>
+      <li class="flex items-start gap-2"><span class="text-emerald-400" aria-hidden="true">✓</span> {{ _('Full source on GitHub (AGPLv3)') }}</li>
+      <li class="flex items-start gap-2"><span class="text-emerald-400" aria-hidden="true">✓</span> {{ _('GDPR + Art. 28 DPA template') }}</li>
+      <li class="flex items-start gap-2"><span class="text-emerald-400" aria-hidden="true">✓</span> {{ _('CycloneDX SBOM per release') }}</li>
+      <li class="flex items-start gap-2"><span class="text-emerald-400" aria-hidden="true">✓</span> {{ _('Signed releases (cosign + GPG)') }}</li>
+      <li class="flex items-start gap-2"><span class="text-emerald-400" aria-hidden="true">✓</span> {{ _('Tamper-evident audit log') }}</li>
+    </ul>
+    <p class="text-xs text-gray-500">
+      {{ _('Being transparent about what is not done yet: no external ISO 27001 certification and no external penetration test yet (both planned once a paying pilot justifies the cost), and no tagged release cut yet — the signing/SBOM pipeline is wired in CI and produces those artefacts on the first tag. Everything else above is in the repository today and auditable.') }}
+    </p>
   </div>
   {% endcall %}
 
-  <p class="text-center text-xs text-gray-600">{{ _('All prices excl. VAT where applicable. Payments processed by Stripe.') }}</p>
+  <p class="text-center text-xs text-gray-600">
+    {{ _('Kleinunternehmer gemäß §19 UStG — keine Umsatzsteuer ausgewiesen (no VAT charged, small-business rule, §19 German VAT Act). Payments processed by Stripe.') }}
+  </p>
 
 </main>
 <script src="/static/js/pricing.js"></script>
+<script src="/static/js/pricing-segment.js"></script>
 {% endblock %}

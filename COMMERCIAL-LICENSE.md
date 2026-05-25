@@ -73,7 +73,7 @@ for a back-end file-conversion service.
 
 | Tier | Scope | Annual |
 |---|---|---|
-| **Compliance Starter** | 1 server, ≤ 50 staff | € 1.490 |
+| **Compliance Starter** | 1 server, ≤ 50 staff | € 990 |
 | **Compliance Standard** | 3 servers, ≤ 2.000 staff | € 7.490 |
 | **Compliance Enterprise** | unlimited servers, dedicated onboarding, custom SLA | from € 24.900 |
 | **OEM / white-label** | Embed + redistribute inside your own product | Case-by-case |
@@ -96,7 +96,15 @@ support framework (the SLA itself is set per agreement, not published).
 > are a separate offering — usage of the hosted API. The tiers above license the
 > *source code* for self-hosted closed-source, compliance, and OEM use.
 
-Prices exclude VAT. Multi-year discounts available.
+Kleinunternehmer gemäß §19 UStG — no VAT is charged (small-business regulation,
+§19 German VAT Act). Multi-year discounts available.
+
+> The clearest fit for the Commercial License is a **SaaS / OEM** product that
+> embeds FileMorph closed-source — there AGPL §13 actually triggers. Authorities,
+> clinics and law firms running FileMorph **internally** do not trigger AGPL and
+> do **not** need this license; for them the Compliance tiers sell accountability
+> (DPA, SLA, a liable contact, signed releases), not permission. See
+> [`docs/agpl-fuer-behoerden.md`](docs/agpl-fuer-behoerden.md).
 
 ---
 

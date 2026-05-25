@@ -1,9 +1,11 @@
 # FileMorph
 
-> **File conversion and compression — Web UI + REST API**
+> **Open-source file conversion & compression you can read, run, and self-host.**
 
-Convert between image, document, audio, video, and spreadsheet formats.
-Compress files by quality. Self-hostable via Docker. Integrable by any service via REST API.
+Convert images, documents, audio, video, and spreadsheets; compress to an exact
+target size. AGPL-3.0, EU-hostable, stateless. Web UI + REST API. The full engine
+is free with **no feature gates** — self-host it via Docker, or use the hosted
+instance at [filemorph.io](https://filemorph.io). Integrable by any service via REST API.
 
 [![CI](https://github.com/MrChengLen/FileMorph/actions/workflows/ci.yml/badge.svg)](https://github.com/MrChengLen/FileMorph/actions)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE) [![Commercial](https://img.shields.io/badge/commercial-available-brightgreen)](COMMERCIAL-LICENSE.md)
@@ -74,6 +76,46 @@ for the defensive-transparency overview. The Compliance-Edition contract
 + commercial licence are described at
 [`/enterprise`](https://filemorph.io/enterprise) (live on filemorph.io)
 and [`COMMERCIAL-LICENSE.md`](COMMERCIAL-LICENSE.md).
+
+---
+
+## Pricing & positioning
+
+FileMorph is **free and self-hostable forever** under AGPL-3.0, with no feature
+gates. Hosted plans on [filemorph.io](https://filemorph.io) add convenience
+(accounts, volume quotas, API); the Compliance Edition adds a commercial licence
+plus contracts for regulated administration.
+
+**Hosted plans (filemorph.io)** — prices without VAT (the operator is a small
+business under §19 UStG, Germany). Pre-launch: the Free tier is live; paid
+checkout goes live once payment processing is set up. Self-hosting is always free.
+
+| Plan | Price | File size | Batch | API calls/mo | Concurrency |
+|---|---|---|---|---|---|
+| Free | €0 | 100 MB | 10 | 1,000 | 1 |
+| Pro | €3/mo | 250 MB | 50 | 25,000 | 3 |
+| Business | €9/mo | 500 MB | 150 | 200,000 | 6 |
+
+**Compliance Edition** (self-hosted + commercial licence) — for DACH Behörden,
+Krankenhäuser, Anwaltskanzleien; data stays behind your firewall.
+
+| Tier | Scope | Price/year |
+|---|---|---|
+| Starter | 1 server, ≤ 50 staff | €990 |
+| Standard | 3 servers, ≤ 2,000 staff | €7,490 |
+| Enterprise | unlimited servers, custom SLA | from €24,900 |
+
+Includes the commercial licence, an Art. 28 GDPR DPA template, the SHA-256 audit
+log, PDF/A-2b (veraPDF CI-gated), default-on EXIF/XMP strip, and signed images
+(cosign) + SBOM. See [`/enterprise`](https://filemorph.io/enterprise) and
+[`COMMERCIAL-LICENSE.md`](COMMERCIAL-LICENSE.md). Internal use by an authority is
+already free under AGPL — the Compliance Edition sells accountability (DPA, SLA,
+a liable EU contact), not permission.
+
+> **Honest maturity:** no external audit or ISO 27001 certification yet (both a
+> Year-2 roadmap item), and no tagged release cut yet — the signing/SBOM pipeline
+> is wired in CI and produces those artefacts on the first tag. Everything else
+> above is in the repository today and auditable.
 
 ---
 
