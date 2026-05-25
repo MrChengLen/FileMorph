@@ -96,12 +96,13 @@ def test_batch_free_three_files_ok(client, auth_headers, override_free_user):
     assert png_count == 3
 
 
-def test_batch_free_six_files_rejected(client, auth_headers, override_free_user):
-    files = [("files", (f"img{i}.jpg", _jpg_bytes(), "image/jpeg")) for i in range(6)]
+def test_batch_free_eleven_files_rejected(client, auth_headers, override_free_user):
+    # Free batch limit is 10 — 11 files must be rejected.
+    files = [("files", (f"img{i}.jpg", _jpg_bytes(), "image/jpeg")) for i in range(11)]
     r = client.post(
         "/api/v1/convert/batch",
         headers=auth_headers,
-        data=_targets("png", 6),
+        data=_targets("png", 11),
         files=files,
     )
     assert r.status_code == 400

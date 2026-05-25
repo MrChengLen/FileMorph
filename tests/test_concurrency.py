@@ -77,23 +77,28 @@ async def test_global_cap_rejects_overflow(monkeypatch):
 
 
 async def test_per_actor_cap_rejects_overflow_for_same_actor(monkeypatch):
-    """Pro tier = 2 per actor. The 3rd concurrent slot for the same
-    actor returns 429 even though the global pool has room."""
-    monkeypatch.setattr(settings, "max_global_concurrency", 10)
+    """The per-actor cap is the tier's ``concurrency`` (single source in
+    ``app/core/quotas.py``). Holding exactly that many slots for one actor
+    and attempting one more returns 429 even though the global pool has
+    room. Reading the limit from the quota keeps this test correct if the
+    tier number changes."""
+    from app.core.quotas import get_quota
+
+    limit = get_quota("pro").concurrency
+    monkeypatch.setattr(settings, "max_global_concurrency", limit + 10)
     concurrency_module._reset_for_tests()
 
-    in_evs = [asyncio.Event(), asyncio.Event()]
-    rel_evs = [asyncio.Event(), asyncio.Event()]
+    in_evs = [asyncio.Event() for _ in range(limit)]
+    rel_evs = [asyncio.Event() for _ in range(limit)]
 
     async def _hold(idx: int):
         async with acquire_slot(actor_id="user:42", tier="pro"):
             in_evs[idx].set()
             await rel_evs[idx].wait()
 
-    h1 = asyncio.create_task(_hold(0))
-    h2 = asyncio.create_task(_hold(1))
-    await asyncio.wait_for(in_evs[0].wait(), timeout=1)
-    await asyncio.wait_for(in_evs[1].wait(), timeout=1)
+    holders = [asyncio.create_task(_hold(i)) for i in range(limit)]
+    for ev in in_evs:
+        await asyncio.wait_for(ev.wait(), timeout=1)
 
     with pytest.raises(ConcurrencyExhausted) as excinfo:
         async with acquire_slot(actor_id="user:42", tier="pro"):
@@ -103,7 +108,7 @@ async def test_per_actor_cap_rejects_overflow_for_same_actor(monkeypatch):
 
     for ev in rel_evs:
         ev.set()
-    await asyncio.gather(h1, h2)
+    await asyncio.gather(*holders)
 
 
 async def test_different_actors_do_not_share_per_actor_cap(monkeypatch):
