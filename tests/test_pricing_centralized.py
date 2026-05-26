@@ -61,13 +61,15 @@ def test_pricing_shows_kleinunternehmer_vat_note(client, monkeypatch):
 
 
 def test_billing_redirects_use_app_base_url(monkeypatch):
-    """Stripe redirect base is the deployment's own origin, never filemorph.io."""
-    from app.api.routes.billing import _redirect_base
+    """Stripe redirect URLs are built on the deployment's own origin, never on
+    a hardcoded filemorph.io. Uses ``_app_url`` from billing.py (the helper
+    landed in PR #41 covers the same case my own ``_redirect_base`` did)."""
+    from app.api.routes.billing import _app_url
 
     monkeypatch.setattr(settings, "app_base_url", "https://files.example.com")
-    base = _redirect_base()
-    assert base == "https://files.example.com"
-    assert "filemorph.io" not in base
+    url = _app_url("/dashboard")
+    assert url == "https://files.example.com/dashboard"
+    assert "filemorph.io" not in url
 
 
 def test_commercial_pages_make_no_false_certification_claims(client, monkeypatch):
