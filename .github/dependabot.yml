@@ -1,0 +1,60 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Dependabot — automated dependency-update PRs (PR-S, supply-chain hygiene).
+#
+# Three ecosystems:
+#  - pip:            requirements.txt — security + minor/patch bumps
+#  - github-actions: every `uses:` in .github/workflows/* — keeps the
+#                    SHA-pinned actions current (Dependabot tracks the
+#                    `# vX.Y` comment to know which version a SHA maps to)
+#  - docker:         the base image in ./Dockerfile — keeps the
+#                    digest-pinned `python:3.12-slim@sha256:...` fresh
+#
+# Weekly cadence (Monday) keeps the PR volume low; pip-audit in ci.yml is
+# the same-day blocking gate for known CVEs, so Dependabot is the
+# "stay current" layer, not the "react to a 0-day" layer.
+version: 2
+updates:
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "deps"
+    # Group all non-major Python bumps into one PR per week to cut noise.
+    groups:
+      python-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "ci"
+    commit-message:
+      prefix: "ci(deps)"
+    groups:
+      actions-all:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 2
+    labels:
+      - "dependencies"
+      - "docker"
+    commit-message:
+      prefix: "docker(deps)"
