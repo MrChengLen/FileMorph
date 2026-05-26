@@ -35,7 +35,7 @@ alembic>=1.13
 asyncpg>=0.29
 python-jose[cryptography]>=3.3.0
 bcrypt>=4.0
-email-validator>=2.0.0
+email-validator>=2.3.0
 aiosmtplib>=3.0
 
 # ── Payments ─────────────────────────────────────────────────────
