@@ -10,15 +10,25 @@ Four token types share the JWT secret and are discriminated only by the
 - ``reset``   — single-use password-reset link (30 min, bound to ``phv``)
 - ``verify``  — email-verification link (7 d, bound to ``eat``)
 
+Every token also carries the RFC 7519 ``iss`` (issuer) and ``aud``
+(audience) claims (PR-J). They are minted from ``settings.jwt_issuer`` /
+``settings.jwt_audience`` and re-validated on every decode path: a token
+minted by a different FileMorph deployment (or another service that
+happens to share a leaked secret) is rejected even when the HMAC checks
+out, because the issuer/audience won't match. The ``_ENCODE_CLAIMS``
+helper centralises the issuer/audience injection so a new token type
+can't accidentally ship without them, and ``_decode`` centralises the
+matching validation.
+
 Splitting these out of ``app/core/auth.py`` keeps password hashing
-(``bcrypt``) physically separate from JWT issuance, and gives the upcoming
-``iss``/``aud``-claim work (PR-J) a single file to amend.
+(``bcrypt``) physically separate from JWT issuance.
 """
 
 from __future__ import annotations
 
 import hashlib
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 from fastapi import HTTPException, status
 from jose import JWTError, jwt
@@ -32,13 +42,45 @@ PASSWORD_RESET_TOKEN_EXPIRE_MINUTES = 30
 EMAIL_VERIFY_TOKEN_EXPIRE_DAYS = 7
 
 
+# ── iss/aud helpers ───────────────────────────────────────────────────────────
+#
+# Every token gets ``iss``/``aud`` from settings, and every decode validates
+# them. Routing all encode/decode through these two helpers means a future
+# token type physically cannot ship without the claims (the helper adds them)
+# and cannot skip the validation (the helper enforces it). ``jose`` raises
+# ``JWTClaimsError`` (a ``JWTError`` subclass) on mismatch, so the existing
+# ``except JWTError`` handlers in every decoder already cover it — no new
+# error branches needed, just stricter checks.
+
+
+def _encode_claims(claims: dict[str, Any]) -> dict[str, Any]:
+    """Return ``claims`` with the standard ``iss``/``aud`` added."""
+    return {**claims, "iss": settings.jwt_issuer, "aud": settings.jwt_audience}
+
+
+def _decode(token: str) -> dict[str, Any]:
+    """Decode + validate signature, expiry, issuer, and audience.
+
+    Raises ``jose.JWTError`` (or a subclass) on any failure — the caller's
+    ``except JWTError`` block turns that into the appropriate user-facing
+    HTTP error without branching on the exact cause.
+    """
+    return jwt.decode(
+        token,
+        settings.jwt_secret,
+        algorithms=[ALGORITHM],
+        audience=settings.jwt_audience,
+        issuer=settings.jwt_issuer,
+    )
+
+
 # ── Access / refresh tokens ───────────────────────────────────────────────────
 
 
 def create_access_token(subject: str, role: str = "user") -> str:
     expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     return jwt.encode(
-        {"sub": subject, "exp": expire, "type": "access", "role": role},
+        _encode_claims({"sub": subject, "exp": expire, "type": "access", "role": role}),
         settings.jwt_secret,
         algorithm=ALGORITHM,
     )
@@ -47,7 +89,9 @@ def create_access_token(subject: str, role: str = "user") -> str:
 def create_refresh_token(subject: str) -> str:
     expire = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
     return jwt.encode(
-        {"sub": subject, "exp": expire, "type": "refresh"}, settings.jwt_secret, algorithm=ALGORITHM
+        _encode_claims({"sub": subject, "exp": expire, "type": "refresh"}),
+        settings.jwt_secret,
+        algorithm=ALGORITHM,
     )
 
 
@@ -60,7 +104,7 @@ def decode_token(token: str, expected_type: str = "access") -> str:
 def decode_token_full(token: str, expected_type: str = "access") -> tuple[str, str]:
     """Return ``(subject, role)``. The role defaults to ``"user"`` for legacy tokens."""
     try:
-        payload = jwt.decode(token, settings.jwt_secret, algorithms=[ALGORITHM])
+        payload = _decode(token)
         if payload.get("type") != expected_type:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type."
@@ -106,7 +150,7 @@ def create_password_reset_token(
 ) -> str:
     expire = datetime.now(timezone.utc) + timedelta(minutes=ttl_minutes)
     return jwt.encode(
-        {"sub": subject, "exp": expire, "type": "reset", "phv": phv},
+        _encode_claims({"sub": subject, "exp": expire, "type": "reset", "phv": phv}),
         settings.jwt_secret,
         algorithm=ALGORITHM,
     )
@@ -114,11 +158,11 @@ def create_password_reset_token(
 
 def decode_password_reset_token(token: str) -> tuple[str, str]:
     """Return ``(user_id, phv)`` from a reset JWT. Raises HTTP 400 on any
-    issue — malformed, wrong type, expired, or missing claims — so the
-    caller returns a user-friendly "invalid or expired" message without
-    branching on the exact cause."""
+    issue — malformed, wrong type, expired, missing claims, or wrong
+    issuer/audience — so the caller returns a user-friendly "invalid or
+    expired" message without branching on the exact cause."""
     try:
-        payload = jwt.decode(token, settings.jwt_secret, algorithms=[ALGORITHM])
+        payload = _decode(token)
     except JWTError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -162,12 +206,14 @@ def create_email_verify_token(
     sent, the old link no longer auto-verifies the new address."""
     expire = datetime.now(timezone.utc) + timedelta(days=ttl_days)
     return jwt.encode(
-        {
-            "sub": subject,
-            "exp": expire,
-            "type": "verify",
-            "eat": email_at_issuance,
-        },
+        _encode_claims(
+            {
+                "sub": subject,
+                "exp": expire,
+                "type": "verify",
+                "eat": email_at_issuance,
+            }
+        ),
         settings.jwt_secret,
         algorithm=ALGORITHM,
     )
@@ -175,12 +221,12 @@ def create_email_verify_token(
 
 def decode_email_verify_token(token: str) -> tuple[str, str]:
     """Return ``(user_id, email_at_issuance)``. Raises HTTP 400 on any
-    issue — malformed, wrong type, expired, or missing claims — so the
-    caller emits a user-friendly "invalid or expired" message without
-    branching on the exact cause (and without leaking which token type
-    a malformed JWT actually was)."""
+    issue — malformed, wrong type, expired, missing claims, or wrong
+    issuer/audience — so the caller emits a user-friendly "invalid or
+    expired" message without branching on the exact cause (and without
+    leaking which token type a malformed JWT actually was)."""
     try:
-        payload = jwt.decode(token, settings.jwt_secret, algorithms=[ALGORITHM])
+        payload = _decode(token)
     except JWTError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

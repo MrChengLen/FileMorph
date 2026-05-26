@@ -56,6 +56,8 @@ curl -X POST http://localhost:8000/api/v1/auth/refresh \
 
 Logged-in users can also generate API keys bound to their account at `POST /api/v1/keys`; those keys count against the user's tier quota rather than the anonymous tier.
 
+All tokens (access, refresh, password-reset, email-verify) carry the RFC 7519 `iss` and `aud` claims — `iss=JWT_ISSUER` (default `filemorph`), `aud=JWT_AUDIENCE` (default `filemorph-api`) — and every decode path validates them. A token minted by a different FileMorph deployment, or by anything that shares a leaked `JWT_SECRET` but uses a different audience, is rejected before any business logic runs. Multi-instance operators behind one identity provider should set a distinct `JWT_AUDIENCE` per instance. Changing either value invalidates every in-flight token on the next request.
+
 ---
 
 ## Endpoints
@@ -92,7 +94,7 @@ The endpoints in this section only respond when the Cloud overlay is configured 
 |---|---|---|
 | `POST /api/v1/billing/checkout/{tier}` | Bearer | Start a Stripe Checkout for `pro` / `business`. Body MUST include `withdrawal_waiver_acknowledged: true` (BGB §356 (5) consent — see `terms.html` § 9). Returns the Stripe Checkout URL; an `auth.billing.withdrawal_waiver_recorded` audit event is written before the redirect. |
 | `POST /api/v1/billing/portal` | Bearer | Return a Stripe Customer Portal URL so the user can manage card / cancel / re-subscribe. |
-| `POST /api/v1/billing/webhook` | Stripe signature | Stripe → FileMorph webhook receiver. Handles `customer.subscription.{created,updated,deleted}`. Not exposed in OpenAPI. |
+| `POST /api/v1/billing/webhook` | Stripe signature | Stripe → FileMorph webhook receiver. Handles `customer.subscription.{created,updated,deleted}` (tier sync from price + status) and `invoice.payment_failed` (dunning: marks `subscription_status=past_due`, sends a "payment failed — update your card" email once per retry cycle, keeps the paid tier during Stripe's grace window, and downgrades to Free only on a terminal status). Not exposed in OpenAPI. |
 
 For schema details (request bodies, response shapes), open the auto-generated Swagger UI at `/docs` on the live deployment.
 

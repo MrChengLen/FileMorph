@@ -72,6 +72,17 @@ class User(Base):
         server_default=RoleEnum.user.value,
     )
     stripe_customer_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    # PR-J: latest Stripe subscription status, mirrored from the webhook.
+    # NULL = never subscribed (or pre-PR-J). Values follow Stripe's
+    # ``Subscription.status`` enum verbatim: ``active``, ``trialing``,
+    # ``past_due`` (a charge failed; Stripe is retrying — user keeps
+    # access during the dunning window), ``unpaid`` / ``canceled`` /
+    # ``incomplete_expired`` (terminal — tier dropped to free),
+    # ``incomplete`` (first charge pending 3DS). The dashboard reads this
+    # to surface a "payment issue — update your card" banner; the webhook
+    # uses it to debounce the dunning email so a user gets one mail per
+    # dunning cycle rather than one per retry.
+    subscription_status: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

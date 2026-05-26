@@ -87,6 +87,10 @@ class UserResponse(BaseModel):
     tier: str
     role: str
     created_at: datetime
+    # PR-J: mirrors the Stripe subscription status so the dashboard can
+    # surface a "payment issue — update your card" banner when this is
+    # ``past_due`` / ``incomplete``. ``None`` = never subscribed.
+    subscription_status: str | None = None
 
 
 class ForgotPasswordRequest(BaseModel):
@@ -379,6 +383,7 @@ async def me(user: User = Depends(get_current_user)):
         tier=user.tier.value,
         role=user.role.value,
         created_at=user.created_at,
+        subscription_status=user.subscription_status,
     )
 
 

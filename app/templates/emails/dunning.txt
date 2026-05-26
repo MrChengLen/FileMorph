@@ -1,0 +1,21 @@
+Action needed: your FileMorph payment failed
+=============================================
+
+The last payment for your FileMorph {{ tier_label }} plan ({{ user_email }})
+could not be charged.
+
+{% if next_attempt_date %}Stripe will retry automatically around {{ next_attempt_date }}. {% endif -%}
+If it still doesn't go through, your account drops to the Free plan and the
+{{ tier_label }} limits no longer apply.
+
+To fix it now, log in and update your payment method:
+
+    {{ billing_url }}
+
+(Open the dashboard → "Manage billing" → update card.)
+
+Already updated your card? You can ignore this — the next retry will pick up
+the new method automatically.
+
+—
+FileMorph · {{ app_base_url }}

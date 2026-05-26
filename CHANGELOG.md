@@ -373,6 +373,54 @@ session.
 - `/pricing` page surfaces the per-tier concurrency + rate-limit
   contract so callers can size their client pools.
 
+### Added — Monthly API-call quota (PR-M)
+
+- The per-tier monthly call limits (`api_calls_per_month` in
+  `app/core/quotas.py` — 500 Free / 10 000 Pro / 100 000 Business)
+  are now **enforced**, not just informational. `app/core/usage.py`
+  records one `UsageRecord` row per successful `/convert`,
+  `/convert/batch`, `/compress`, `/compress/batch` and counts the
+  current calendar month (UTC) before each call. Over the limit →
+  `429 Too Many Requests` + `Retry-After` pointing at the next month
+  boundary. A batch counts as one call. Anonymous tier (per-IP
+  rate-limit only) and Enterprise (unlimited) are exempt. Migration
+  007 adds the `(user_id, timestamp)` index that keeps the gate
+  query sub-millisecond.
+
+### Changed — JWT `iss` / `aud` claims (PR-J)
+
+- **Breaking for in-flight tokens.** Every JWT FileMorph mints
+  (access, refresh, password-reset, email-verify) now carries the
+  RFC 7519 `iss` and `aud` claims from `JWT_ISSUER` (default
+  `filemorph`) / `JWT_AUDIENCE` (default `filemorph-api`), and every
+  decode path validates them. A token minted before this change — or
+  by a different FileMorph deployment, or by another service that
+  shares a leaked secret — is rejected even with a valid HMAC.
+  Existing sessions invalidate on the next request after upgrade
+  (same blast radius as rotating `JWT_SECRET`). Multi-instance
+  operators behind one identity provider should give each instance a
+  distinct `JWT_AUDIENCE`.
+
+### Added — Stripe dunning webhooks (PR-J)
+
+- Migration 008 adds `users.subscription_status` (mirrors Stripe's
+  `Subscription.status`). The billing webhook now handles
+  `invoice.payment_failed` and the full status-transition matrix on
+  `customer.subscription.{created,updated,deleted}`: a failed charge
+  sets `past_due`, fires a "payment failed — update your card" email
+  **once per dunning cycle** (debounced on the status flag), and
+  records `billing.subscription.payment_failed` +
+  `billing.dunning_email_sent` audit events. The paid tier is kept
+  during Stripe's retry window (`past_due` / `incomplete`); recovery
+  back to `active` re-derives the tier and records
+  `billing.subscription.recovered`; a terminal status (`canceled` /
+  `unpaid` / `incomplete_expired`, or the `.deleted` event) drops the
+  tier to Free with `billing.subscription.canceled`. An unknown Stripe
+  status leaves the tier untouched (recorded, not acted on). New
+  `app/templates/emails/dunning.{html,txt}`. `GET /api/v1/auth/me` now
+  returns `subscription_status` so the dashboard can surface a
+  payment-issue banner.
+
 ### Added — Cloud-Edition pre-launch hardening (NEU-B.3 b/c.1)
 
 - **Email verification** (NEU-B.3 slice b): Migration 006 adds
