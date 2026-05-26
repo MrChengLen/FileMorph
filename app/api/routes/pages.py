@@ -33,7 +33,22 @@ def _render(request: Request, name: str, **extra):
 
 @router.get("/")
 async def index(request: Request):
-    return _render(request, "index.html")
+    # The homepage tier teaser mirrors /pricing's display contract (limits
+    # from quotas.py, price strings from PRICE_*_DISPLAY env) so the two
+    # surfaces can't drift — see app/core/pricing.py for the centralised
+    # source. On self-host deployments the teaser is wrapped in
+    # ``{% if pricing_enabled %}`` and these values stay unused; passing
+    # them unconditionally keeps the template free of route-coupled
+    # conditionals.
+    locale = getattr(request.state, "locale", settings.lang_default)
+    return _render(
+        request,
+        "index.html",
+        anon_plan=pricing_mod.anonymous_plan(locale),
+        plans={p.tier: p for p in pricing_mod.saas_plans(locale)},
+        saas_prices_configured=pricing_mod.saas_prices_configured(),
+        price_currency=pricing_mod.price_currency(),
+    )
 
 
 @router.get("/impressum")

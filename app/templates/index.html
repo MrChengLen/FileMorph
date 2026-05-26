@@ -206,8 +206,52 @@
           class="text-gray-600 hover:text-gray-400 transition-colors ml-1">{{ _('GitHub ↗') }}</a>
       </p>
 
+      <!-- Self-Hosted / Open-Source promotion — the canonical product
+           truth (see docs-internal/pricing-overhaul-konzept.md §1).
+           Always rendered: the OSS story holds for self-hosters too, and
+           id="self-hosted" is the navbar anchor target. The Compliance
+           CTA below is gated by ``pricing_enabled`` so a self-host
+           deployment doesn't link to its own 404 /enterprise; the GitHub
+           guide stays always-on. Only real features are listed
+           (CLAUDE.md "Technology First" + honesty guardrail). -->
+      <section id="self-hosted" class="border border-gray-800 rounded-xl px-5 py-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">{{ _('Open Source · Self-Hosted') }}</p>
+          <a href="https://github.com/MrChengLen/FileMorph" target="_blank" rel="noopener"
+             class="text-xs text-gray-500 hover:text-gray-300 transition-colors">{{ _('AGPLv3 ↗') }}</a>
+        </div>
+        <h2 class="text-base font-semibold text-white">{{ _('Run FileMorph on your own infrastructure') }}</h2>
+        <p class="text-xs text-gray-400 leading-relaxed">
+          {{ _('The conversion engine is open source (AGPLv3) — self-host it via Docker on your own server, with no feature gates. Your files never leave your infrastructure: well suited for GDPR, EU-only hosting, and air-gapped networks.') }}
+        </p>
+        <ul class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-400">
+          <li class="flex items-start gap-1.5"><span class="text-emerald-400 shrink-0" aria-hidden="true">✓</span> {{ _('AGPLv3, fully auditable') }}</li>
+          <li class="flex items-start gap-1.5"><span class="text-emerald-400 shrink-0" aria-hidden="true">✓</span> {{ _('One-command Docker deploy') }}</li>
+          <li class="flex items-start gap-1.5"><span class="text-emerald-400 shrink-0" aria-hidden="true">✓</span> {{ _('Signed releases + CycloneDX SBOM') }}</li>
+          <li class="flex items-start gap-1.5"><span class="text-emerald-400 shrink-0" aria-hidden="true">✓</span> {{ _('Tamper-evident audit-log hash chain') }}</li>
+          <li class="flex items-start gap-1.5"><span class="text-emerald-400 shrink-0" aria-hidden="true">✓</span> {{ _('PDF/A-2b (veraPDF-validated)') }}</li>
+          <li class="flex items-start gap-1.5"><span class="text-emerald-400 shrink-0" aria-hidden="true">✓</span> {{ _('EU hosting, German imprint') }}</li>
+        </ul>
+        <div class="flex flex-wrap items-center gap-3 pt-1">
+          <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/self-hosting.md"
+             target="_blank" rel="noopener"
+             class="inline-flex items-center gap-1 text-xs font-semibold py-2 px-3 rounded-lg bg-brand hover:bg-brand-dark text-white transition-colors">
+            {{ _('Self-hosting guide ↗') }}
+          </a>
+          {% if pricing_enabled %}
+          <a href="{{ localized_url('/enterprise', current_prefix) }}"
+             class="text-xs text-brand hover:underline">{{ _('Need a DPA & SLA? Compliance Edition →') }}</a>
+          {% endif %}
+        </div>
+      </section>
+
       {% if pricing_enabled %}
-      <!-- Tier teaser — commercial offer surface, only on deployments with pricing enabled -->
+      <!-- Tier teaser — commercial offer surface. Limits come from
+           quotas.py and the price strings from PRICE_*_DISPLAY env via
+           app/core/pricing.py — the same display contract /pricing
+           renders, so the two surfaces can't drift. When a price isn't
+           configured (e.g. self-host enabled the page without setting
+           PRICE_PRO_DISPLAY), the chip shows only the tier name + limits. -->
       <div class="border border-gray-800 rounded-xl px-5 py-4 space-y-3">
         <div class="flex items-center justify-between">
           <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">{{ _('Plans') }}</p>
@@ -216,20 +260,24 @@
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-center text-xs">
           <div class="bg-gray-800 rounded-lg px-2 py-2.5">
             <p class="font-semibold text-gray-300">{{ _('Free') }}</p>
-            <p class="text-gray-500 mt-0.5">{{ _('50 MB · API key') }}</p>
+            <p class="text-gray-500 mt-0.5">{{ plans.free.max_file_size_mb }} MB · {{ _('API key') }}</p>
           </div>
           <div class="bg-brand/10 border border-brand/30 rounded-lg px-2 py-2.5">
-            <p class="font-semibold text-brand">{{ _('Pro · €7/mo') }}</p>
-            <p class="text-gray-400 mt-0.5">{{ _('100 MB · 10k API') }}</p>
+            <p class="font-semibold text-brand">
+              {{ _('Pro') }}{% if plans.pro.price_display %} · €{{ plans.pro.price_display }}{{ _('/mo') }}{% endif %}
+            </p>
+            <p class="text-gray-400 mt-0.5">{{ plans.pro.max_file_size_mb }} MB · {{ plans.pro.api_calls_display }} {{ _('API') }}</p>
           </div>
           <div class="bg-gray-800 rounded-lg px-2 py-2.5">
-            <p class="font-semibold text-gray-300">{{ _('Business · €19') }}</p>
-            <p class="text-gray-500 mt-0.5">{{ _('500 MB · 100k API') }}</p>
+            <p class="font-semibold text-gray-300">
+              {{ _('Business') }}{% if plans.business.price_display %} · €{{ plans.business.price_display }}{{ _('/mo') }}{% endif %}
+            </p>
+            <p class="text-gray-500 mt-0.5">{{ plans.business.max_file_size_mb }} MB · {{ plans.business.api_calls_display }} {{ _('API') }}</p>
           </div>
         </div>
         <p class="text-center text-xs text-gray-600 pt-1">
-          {{ _('Using anonymously: up to 20 MB per file.') }}
-          <a href="{{ localized_url('/register', current_prefix) }}" class="text-brand hover:underline">{{ _('Register free for 50 MB & API access →') }}</a>
+          {{ _('Using anonymously: up to') }} {{ anon_plan.max_file_size_mb }} {{ _('MB per file.') }}
+          <a href="{{ localized_url('/register', current_prefix) }}" class="text-brand hover:underline">{{ _('Register free for more →') }}</a>
         </p>
       </div>
       {% endif %}
@@ -247,13 +295,6 @@
           <a href="{{ localized_url('/register', current_prefix) }}" class="text-xs text-gray-400 hover:text-white">{{ _('Get API Key →') }}</a>
         </div>
       </div>
-
-      <!-- Enterprise contact -->
-      <p class="text-center text-xs text-gray-600">
-        {{ _('Enterprise & self-hosted:') }}
-        <a href="mailto:enterprise@filemorph.io"
-           class="text-gray-500 hover:text-gray-300 transition-colors">enterprise@filemorph.io</a>
-      </p>
 
     </div>
   </main>

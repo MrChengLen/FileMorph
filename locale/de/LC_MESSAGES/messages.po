@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-05-25 19:27+0200\n"
+"POT-Creation-Date: 2026-05-26 12:36+0200\n"
 "PO-Revision-Date: 2026-05-08 11:00+0200\n"
 "Last-Translator: FileMorph <hallo@filemorph.io>\n"
 "Language: de\n"
@@ -77,9 +77,6 @@ msgstr "10 Anfragen/Minute"
 msgid "10. Contact"
 msgstr "10. Kontakt"
 
-msgid "100 MB · 10k API"
-msgstr "100 MB · 10k API"
-
 msgid "2. Description of Service"
 msgstr "2. Beschreibung des Dienstes"
 
@@ -137,12 +134,6 @@ msgstr "5. Haftungsbeschränkung"
 msgid "5. Your rights (GDPR)"
 msgstr "5. Deine Rechte (DSGVO)"
 
-msgid "50 MB · API key"
-msgstr "50 MB · API-Key"
-
-msgid "500 MB · 100k API"
-msgstr "500 MB · 100k API"
-
 msgid "500 – Server Error"
 msgstr "500 – Serverfehler"
 
@@ -178,6 +169,15 @@ msgstr ""
 msgid "AGPLv3 for public authorities"
 msgstr "AGPLv3 für Behörden"
 
+msgid "AGPLv3 ↗"
+msgstr "AGPLv3 ↗"
+
+msgid "AGPLv3, fully auditable"
+msgstr "AGPLv3, vollständig prüfbar"
+
+msgid "API"
+msgstr "API"
+
 msgid "API Docs"
 msgstr "API-Doku"
 
@@ -189,6 +189,9 @@ msgstr "API-Schlüssel"
 
 msgid "API calls / month"
 msgstr "API-Aufrufe / Monat"
+
+msgid "API key"
+msgstr "API-Schlüssel"
 
 msgid "API key — "
 msgstr "API-Key — "
@@ -378,9 +381,6 @@ msgstr ""
 
 msgid "Business"
 msgstr "Business"
-
-msgid "Business · €19"
-msgstr "Business · 19 €"
 
 msgid "By quality %"
 msgstr "Nach Qualität %"
@@ -667,9 +667,6 @@ msgstr "Gib deine E-Mail-Adresse ein, um einen Zurücksetzungs-Link zu erhalten"
 
 msgid "Enterprise"
 msgstr "Enterprise"
-
-msgid "Enterprise & self-hosted:"
-msgstr "Enterprise & Self-Hosted:"
 
 msgid "Equations were simplified"
 msgstr "Formeln wurden vereinfacht"
@@ -1100,6 +1097,9 @@ msgstr ""
 "Logo-Nennung als Pilotkunde (optional). Roadmap-Feedback alle vier "
 "Wochen. Bereitschaft, Feature-Tickets zu priorisieren."
 
+msgid "MB per file."
+msgstr "MB pro Datei."
+
 msgid "MP4 · MOV · AVI · MKV · WebM"
 msgstr "MP4 · MOV · AVI · MKV · WebM"
 
@@ -1146,6 +1146,9 @@ msgstr "Mehrfach-Sektions-Seitenlayout wurde vereinfacht"
 msgid "Name (optional)"
 msgstr "Name (optional)"
 
+msgid "Need a DPA & SLA? Compliance Edition →"
+msgstr "DPA & SLA nötig? Zur Compliance Edition →"
+
 msgid "Never used"
 msgstr "Noch nicht verwendet"
 
@@ -1183,6 +1186,12 @@ msgid "One of the files has no target format available. Remove it to proceed."
 msgstr ""
 "Für eine Datei ist kein Zielformat verfügbar. Bitte entfernen und erneut "
 "versuchen."
+
+msgid "One-command Docker deploy"
+msgstr "Docker-Deployment mit einem Befehl"
+
+msgid "Open Source · Self-Hosted"
+msgstr "Open Source · Self-Hosted"
 
 msgid "Open dashboard"
 msgstr "Dashboard öffnen"
@@ -1223,6 +1232,9 @@ msgstr "Übersicht"
 
 msgid "PDF/A-2b (veraPDF CI gate)"
 msgstr "PDF/A-2b (veraPDF-CI-Gate)"
+
+msgid "PDF/A-2b (veraPDF-validated)"
+msgstr "PDF/A-2b (veraPDF-validiert)"
 
 msgid "PDF/A-2b output"
 msgstr "PDF/A-2b-Output"
@@ -1332,9 +1344,6 @@ msgstr "Datenschutzerklärung"
 msgid "Pro"
 msgstr "Pro"
 
-msgid "Pro · €7/mo"
-msgstr "Pro · 7 €/Monat"
-
 msgid "Processing…"
 msgstr "Verarbeitung…"
 
@@ -1408,8 +1417,8 @@ msgstr ""
 msgid "Register"
 msgstr "Registrieren"
 
-msgid "Register free for 50 MB & API access →"
-msgstr "Kostenlos registrieren für 50 MB & API-Zugriff →"
+msgid "Register free for more →"
+msgstr "Kostenlos registrieren für mehr →"
 
 msgid "Registration failed."
 msgstr "Registrierung fehlgeschlagen."
@@ -1471,6 +1480,9 @@ msgstr ""
 "FileMorph auf Bürgerdaten betreiben — mit unterzeichnetem AVV, haftbarem "
 "EU-Ansprechpartner und SLA."
 
+msgid "Run FileMorph on your own infrastructure"
+msgstr "FileMorph auf eigener Infrastruktur betreiben"
+
 msgid ""
 "Runs behind your firewall — citizen, patient and client data never leaves"
 " your infrastructure. EU vendor, German imprint."
@@ -1530,6 +1542,9 @@ msgstr "Zur Compliance Edition →"
 msgid "Select one or more files to convert or compress"
 msgstr "Wähle eine oder mehrere Dateien zum Konvertieren oder Komprimieren"
 
+msgid "Self-Hosted"
+msgstr "Self-Hosted"
+
 msgid "Self-hosted"
 msgstr "Selbst gehostet"
 
@@ -1556,6 +1571,9 @@ msgid ""
 msgstr ""
 "Self-Hoster-spezifische Deployment-Fehlkonfigurationen, die nicht durch "
 "unsere Defaults oder Dokumentation verursacht werden."
+
+msgid "Self-hosting guide ↗"
+msgstr "Self-Hosting-Anleitung ↗"
 
 msgid "Send Reset Link"
 msgstr "Link senden"
@@ -1702,6 +1720,9 @@ msgstr "Manipulationssicheres SHA-256-Audit-Log"
 msgid "Tamper-evident audit log"
 msgstr "Manipulationssicheres Audit-Log"
 
+msgid "Tamper-evident audit-log hash chain"
+msgstr "Manipulationssicheres Audit-Log (Hash-Chain)"
+
 msgid "Target Format"
 msgstr "Zielformat"
 
@@ -1776,6 +1797,17 @@ msgstr ""
 "Gewährleistung bereitgestellt. Wir garantieren keine Verfügbarkeit, "
 "Konvertierungs-Ergebnis-Genauigkeit oder Eignung für einen bestimmten "
 "Zweck."
+
+msgid ""
+"The conversion engine is open source (AGPLv3) — self-host it via Docker "
+"on your own server, with no feature gates. Your files never leave your "
+"infrastructure: well suited for GDPR, EU-only hosting, and air-gapped "
+"networks."
+msgstr ""
+"Die Konvertierungs-Engine ist Open Source (AGPLv3) — per Docker auf dem "
+"eigenen Server self-hosten, ohne Feature-Gates. Deine Dateien verlassen "
+"die eigene Infrastruktur nie: gut geeignet für DSGVO, EU-Hosting und "
+"abgeschottete Netze."
 
 msgid ""
 "The high-fidelity LibreOffice engine wasn't available on this deployment "
@@ -1924,8 +1956,8 @@ msgstr "Verwende diese zur Authentifizierung programmatischer API-Anfragen."
 msgid "Users"
 msgstr "Nutzer"
 
-msgid "Using anonymously: up to 20 MB per file."
-msgstr "Anonyme Nutzung: bis zu 20 MB pro Datei."
+msgid "Using anonymously: up to"
+msgstr "Anonyme Nutzung: bis zu"
 
 msgid "Using without an account:"
 msgstr "Nutzung ohne Konto:"
@@ -2383,4 +2415,19 @@ msgstr "← Zurück zu FileMorph"
 
 msgid "← Prev"
 msgstr "← Zurück"
+
+#~ msgid "100 MB · 10k API"
+#~ msgstr "100 MB · 10k API"
+
+#~ msgid "50 MB · API key"
+#~ msgstr "50 MB · API-Key"
+
+#~ msgid "500 MB · 100k API"
+#~ msgstr "500 MB · 100k API"
+
+#~ msgid "Business · €19"
+#~ msgstr "Business · 19 €"
+
+#~ msgid "Pro · €7/mo"
+#~ msgstr "Pro · 7 €/Monat"
 

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph 1.1.0.dev0\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-05-25 19:27+0200\n"
+"POT-Creation-Date: 2026-05-26 12:36+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -61,9 +61,6 @@ msgid "10 requests/minute"
 msgstr ""
 
 msgid "10. Contact"
-msgstr ""
-
-msgid "100 MB · 10k API"
 msgstr ""
 
 msgid "2. Description of Service"
@@ -123,12 +120,6 @@ msgstr ""
 msgid "5. Your rights (GDPR)"
 msgstr ""
 
-msgid "50 MB · API key"
-msgstr ""
-
-msgid "500 MB · 100k API"
-msgstr ""
-
 msgid "500 – Server Error"
 msgstr ""
 
@@ -162,6 +153,15 @@ msgstr ""
 msgid "AGPLv3 for public authorities"
 msgstr ""
 
+msgid "AGPLv3 ↗"
+msgstr ""
+
+msgid "AGPLv3, fully auditable"
+msgstr ""
+
+msgid "API"
+msgstr ""
+
 msgid "API Docs"
 msgstr ""
 
@@ -172,6 +172,9 @@ msgid "API Keys"
 msgstr ""
 
 msgid "API calls / month"
+msgstr ""
+
+msgid "API key"
 msgstr ""
 
 msgid "API key — "
@@ -328,9 +331,6 @@ msgid "Building a closed-source product, SaaS, or OEM integration on FileMorph?"
 msgstr ""
 
 msgid "Business"
-msgstr ""
-
-msgid "Business · €19"
 msgstr ""
 
 msgid "By quality %"
@@ -595,9 +595,6 @@ msgid "Enter your email to receive a reset link"
 msgstr ""
 
 msgid "Enterprise"
-msgstr ""
-
-msgid "Enterprise & self-hosted:"
 msgstr ""
 
 msgid "Equations were simplified"
@@ -935,6 +932,9 @@ msgid ""
 "weeks. Willingness to prioritize feature tickets."
 msgstr ""
 
+msgid "MB per file."
+msgstr ""
+
 msgid "MP4 · MOV · AVI · MKV · WebM"
 msgstr ""
 
@@ -977,6 +977,9 @@ msgstr ""
 msgid "Name (optional)"
 msgstr ""
 
+msgid "Need a DPA & SLA? Compliance Edition →"
+msgstr ""
+
 msgid "Never used"
 msgstr ""
 
@@ -1013,6 +1016,12 @@ msgstr ""
 msgid "One of the files has no target format available. Remove it to proceed."
 msgstr ""
 
+msgid "One-command Docker deploy"
+msgstr ""
+
+msgid "Open Source · Self-Hosted"
+msgstr ""
+
 msgid "Open dashboard"
 msgstr ""
 
@@ -1043,6 +1052,9 @@ msgid "Overview"
 msgstr ""
 
 msgid "PDF/A-2b (veraPDF CI gate)"
+msgstr ""
+
+msgid "PDF/A-2b (veraPDF-validated)"
 msgstr ""
 
 msgid "PDF/A-2b output"
@@ -1139,9 +1151,6 @@ msgstr ""
 msgid "Pro"
 msgstr ""
 
-msgid "Pro · €7/mo"
-msgstr ""
-
 msgid "Processing…"
 msgstr ""
 
@@ -1194,7 +1203,7 @@ msgstr ""
 msgid "Register"
 msgstr ""
 
-msgid "Register free for 50 MB & API access →"
+msgid "Register free for more →"
 msgstr ""
 
 msgid "Registration failed."
@@ -1246,6 +1255,9 @@ msgstr ""
 msgid ""
 "Run FileMorph on citizen data — with a signed DPA, a liable EU contact, "
 "and an SLA."
+msgstr ""
+
+msgid "Run FileMorph on your own infrastructure"
 msgstr ""
 
 msgid ""
@@ -1303,6 +1315,9 @@ msgstr ""
 msgid "Select one or more files to convert or compress"
 msgstr ""
 
+msgid "Self-Hosted"
+msgstr ""
+
 msgid "Self-hosted"
 msgstr ""
 
@@ -1322,6 +1337,9 @@ msgstr ""
 msgid ""
 "Self-hoster-specific deployment misconfiguration that is not caused by "
 "our defaults or documentation."
+msgstr ""
+
+msgid "Self-hosting guide ↗"
 msgstr ""
 
 msgid "Send Reset Link"
@@ -1454,6 +1472,9 @@ msgstr ""
 msgid "Tamper-evident audit log"
 msgstr ""
 
+msgid "Tamper-evident audit-log hash chain"
+msgstr ""
+
 msgid "Target Format"
 msgstr ""
 
@@ -1508,6 +1529,13 @@ msgid ""
 "The Service is provided \"as is\" without warranty of any kind, express "
 "or implied. We do not guarantee uptime, accuracy of conversion results, "
 "or fitness for a particular purpose."
+msgstr ""
+
+msgid ""
+"The conversion engine is open source (AGPLv3) — self-host it via Docker "
+"on your own server, with no feature gates. Your files never leave your "
+"infrastructure: well suited for GDPR, EU-only hosting, and air-gapped "
+"networks."
 msgstr ""
 
 msgid ""
@@ -1630,7 +1658,7 @@ msgstr ""
 msgid "Users"
 msgstr ""
 
-msgid "Using anonymously: up to 20 MB per file."
+msgid "Using anonymously: up to"
 msgstr ""
 
 msgid "Using without an account:"

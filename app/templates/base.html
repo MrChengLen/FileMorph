@@ -61,6 +61,10 @@
     </button>
     <div id="nav-menu" class="hidden md:flex items-center gap-6 text-sm">
       <a href="{{ localized_url('/', current_prefix) }}" class="text-gray-400 hover:text-white transition-colors">{{ _('Convert') }}</a>
+      {# Ungated: points to the always-rendered #self-hosted section on the
+         homepage, so the OSS/self-host story is reachable on every
+         deployment (incl. self-host where /enterprise 404s). #}
+      <a href="{{ localized_url('/', current_prefix) }}#self-hosted" class="text-gray-400 hover:text-white transition-colors">{{ _('Self-Hosted') }}</a>
       {% if pricing_enabled %}<a href="{{ localized_url('/pricing', current_prefix) }}" class="text-gray-400 hover:text-white transition-colors">{{ _('Pricing') }}</a>{% endif %}
       {% if pricing_enabled %}<a href="{{ localized_url('/enterprise', current_prefix) }}" class="text-gray-400 hover:text-white transition-colors">{{ _('Enterprise') }}</a>{% endif %}
       <a href="/docs" target="_blank" class="text-gray-400 hover:text-white transition-colors">{{ _('API Docs') }}</a>
@@ -100,6 +104,7 @@
          class="text-xs uppercase tracking-wider {% if locale == 'en' %}text-white font-semibold{% else %}text-gray-500{% endif %}">EN</a>
     </div>
     <a href="{{ localized_url('/', current_prefix) }}" class="block text-gray-400 hover:text-white transition-colors py-2.5">{{ _('Convert') }}</a>
+    <a href="{{ localized_url('/', current_prefix) }}#self-hosted" class="block text-gray-400 hover:text-white transition-colors py-2.5">{{ _('Self-Hosted') }}</a>
     {% if pricing_enabled %}<a href="{{ localized_url('/pricing', current_prefix) }}" class="block text-gray-400 hover:text-white transition-colors py-2.5">{{ _('Pricing') }}</a>{% endif %}
     {% if pricing_enabled %}<a href="{{ localized_url('/enterprise', current_prefix) }}" class="block text-gray-400 hover:text-white transition-colors py-2.5">{{ _('Enterprise') }}</a>{% endif %}
     <a href="/docs" target="_blank" class="block text-gray-400 hover:text-white transition-colors py-2.5">{{ _('API Docs') }}</a>
