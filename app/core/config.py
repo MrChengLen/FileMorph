@@ -49,6 +49,20 @@ class Settings(BaseSettings):
     # to off (no commercial offer to advertise).
     pricing_page_enabled: bool = False
 
+    # Displayed prices (deployment-agnostic). These are DISPLAY-ONLY strings
+    # surfaced on /pricing + /enterprise via app/core/pricing.py — the Stripe
+    # price IDs above remain the source of truth for the actual charge. Empty
+    # by default so a self-hoster who flips PRICING_PAGE_ENABLED on does NOT
+    # inherit filemorph.io's amounts; the tiers then render without a price
+    # ("Contact us"). filemorph.io sets these in its own deployment env.
+    # Plain numbers, no currency symbol (the € is rendered by the template).
+    price_currency: str = "EUR"
+    price_pro_display: str = ""
+    price_business_display: str = ""
+    price_compliance_starter_display: str = ""
+    price_compliance_standard_display: str = ""
+    price_compliance_enterprise_display: str = ""
+
     # S10-lite analytics: per-day counter increments for page views,
     # conversions, registrations, failures. Default on — the counters are
     # aggregates only, no personal data, no cookie-banner implication.

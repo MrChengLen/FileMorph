@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-05-19 15:03+0200\n"
+"POT-Creation-Date: 2026-05-26 12:36+0200\n"
 "PO-Revision-Date: 2026-05-07 13:43+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -24,7 +24,7 @@ msgid ""
 "registered email address speeds up identification of your account."
 msgstr ""
 
-msgid "(vs. 20 MB anonymous)"
+msgid "(vs."
 msgstr ""
 
 msgid ""
@@ -34,16 +34,10 @@ msgid ""
 "confirmation email is sent after the row is gone."
 msgstr ""
 
+msgid "* Unlimited within your self-hosted infrastructure — you run the server."
+msgstr ""
+
 msgid "+ New Key"
-msgstr ""
-
-msgid ", 1 concurrent, 10 req/min"
-msgstr ""
-
-msgid ", 2 concurrent, 10 req/min"
-msgstr ""
-
-msgid ", 5 concurrent, 10 req/min"
 msgstr ""
 
 msgid ""
@@ -64,28 +58,16 @@ msgstr ""
 msgid "1. Who is responsible?"
 msgstr ""
 
-msgid "10,000 API calls / month"
+msgid "10 requests/minute"
 msgstr ""
 
 msgid "10. Contact"
-msgstr ""
-
-msgid "100 MB · 10k API"
-msgstr ""
-
-msgid "100 files"
-msgstr ""
-
-msgid "100,000 API calls / month"
 msgstr ""
 
 msgid "2. Description of Service"
 msgstr ""
 
 msgid "2. What data we process"
-msgstr ""
-
-msgid "25 files"
 msgstr ""
 
 msgid "2a. Uploaded files:"
@@ -133,22 +115,10 @@ msgstr ""
 msgid "404 – Not Found"
 msgstr ""
 
-msgid "5 files"
-msgstr ""
-
 msgid "5. Limitation of Liability"
 msgstr ""
 
 msgid "5. Your rights (GDPR)"
-msgstr ""
-
-msgid "50 MB · API key"
-msgstr ""
-
-msgid "500 MB · 100k API"
-msgstr ""
-
-msgid "500 calls / month"
 msgstr ""
 
 msgid "500 – Server Error"
@@ -184,6 +154,15 @@ msgstr ""
 msgid "AGPLv3 for public authorities"
 msgstr ""
 
+msgid "AGPLv3 ↗"
+msgstr ""
+
+msgid "AGPLv3, fully auditable"
+msgstr ""
+
+msgid "API"
+msgstr ""
+
 msgid "API Docs"
 msgstr ""
 
@@ -193,7 +172,10 @@ msgstr ""
 msgid "API Keys"
 msgstr ""
 
-msgid "API key management"
+msgid "API calls / month"
+msgstr ""
+
+msgid "API key"
 msgstr ""
 
 msgid "API key — "
@@ -247,6 +229,9 @@ msgid ""
 "to render the site."
 msgstr ""
 
+msgid "All formats + smart-tech"
+msgstr ""
+
 msgid ""
 "All of them are strictly necessary to provide the signed-in service you "
 "requested, so they fall under the exemption in Art. 5(3) ePrivacy "
@@ -254,7 +239,7 @@ msgid ""
 "you are not signed in, nothing at all is stored in your browser."
 msgstr ""
 
-msgid "All prices excl. VAT where applicable. Payments processed by Stripe."
+msgid "All smart-tech: compress-to-target, EXIF strip, PDF/A, integrity hash"
 msgstr ""
 
 msgid "Already have an account?"
@@ -289,13 +274,25 @@ msgstr ""
 msgid "Apply as design partner"
 msgstr ""
 
+msgid "Apply →"
+msgstr ""
+
 msgid "Architecture overview"
+msgstr ""
+
+msgid "Art. 28 DPA template"
+msgstr ""
+
+msgid "Art. 28 GDPR DPA template"
 msgstr ""
 
 msgid "At least 8 characters"
 msgstr ""
 
 msgid "Attempt to circumvent rate limits or security controls"
+msgstr ""
+
+msgid "Audit log + signed releases"
 msgstr ""
 
 msgid "Audit log with hash chain"
@@ -307,7 +304,22 @@ msgstr ""
 msgid "Back to Sign In"
 msgstr ""
 
+msgid "Batch / request"
+msgstr ""
+
 msgid "Batch upload:"
+msgstr ""
+
+msgid "Behörden · Krankenhäuser · Kanzleien"
+msgstr ""
+
+msgid ""
+"Being transparent about what is not done yet: no external ISO 27001 "
+"certification and no external penetration test yet (both planned once a "
+"paying pilot justifies the cost), and no tagged release cut yet — the "
+"signing/SBOM pipeline is wired in CI and produces those artefacts on the "
+"first tag. Everything else above is in the repository today and "
+"auditable."
 msgstr ""
 
 msgid "Best quality"
@@ -316,10 +328,10 @@ msgstr ""
 msgid "Billed monthly, cancel anytime"
 msgstr ""
 
-msgid "Business"
+msgid "Building a closed-source product, SaaS, or OEM integration on FileMorph?"
 msgstr ""
 
-msgid "Business · €19"
+msgid "Business"
 msgstr ""
 
 msgid "By quality %"
@@ -344,6 +356,9 @@ msgstr ""
 msgid "Choose a password you haven't used before"
 msgstr ""
 
+msgid "Choose audience"
+msgstr ""
+
 msgid "Clear all"
 msgstr ""
 
@@ -359,6 +374,12 @@ msgstr ""
 msgid "Commercial license on AGPL code"
 msgstr ""
 
+msgid "Commercial license on top of AGPL"
+msgstr ""
+
+msgid "Compare plans"
+msgstr ""
+
 msgid ""
 "Complex Word features (footnotes, headers/footers, table-of-contents, "
 "multi-section layout, multi-level lists) auto-route to the high-fidelity "
@@ -370,9 +391,6 @@ msgid "Compliance"
 msgstr ""
 
 msgid "Compliance Edition"
-msgstr ""
-
-msgid "Compliance Edition →"
 msgstr ""
 
 msgid "Compliance Enterprise"
@@ -399,6 +417,9 @@ msgid "Compression"
 msgstr "Imprint"
 
 msgid "Compression mode"
+msgstr ""
+
+msgid "Concurrent slots"
 msgstr ""
 
 msgid "Confidential inquiries via"
@@ -494,10 +515,7 @@ msgstr ""
 msgid "Criterion"
 msgstr ""
 
-msgid ""
-"Custom volume, batch uploads up to 250 files, SLA, on-premise deployment,"
-" dedicated support & contract. For DACH Behörden, hospitals, law firms "
-"see"
+msgid "CycloneDX SBOM per release"
 msgstr ""
 
 msgid "DOCX · PDF · TXT · MD · XLSX · CSV · JSON"
@@ -512,13 +530,13 @@ msgstr ""
 msgid "Deactivated"
 msgstr ""
 
-msgid "Dedicated onboarding"
-msgstr ""
-
 msgid "Delete failed."
 msgstr ""
 
 msgid "Design Partner Programme"
+msgstr ""
+
+msgid "Design Partner Programme: 3 spots, 6 months free."
 msgstr ""
 
 msgid "Do I need the Enterprise tier for KRITIS?"
@@ -543,6 +561,9 @@ msgid "E-mail support"
 msgstr ""
 
 msgid "EU Online Dispute Resolution:"
+msgstr ""
+
+msgid "EU hosting, German imprint"
 msgstr ""
 
 msgid "EU vendor with German imprint"
@@ -578,12 +599,6 @@ msgstr ""
 msgid "Enterprise"
 msgstr ""
 
-msgid "Enterprise & self-hosted:"
-msgstr ""
-
-msgid "Enterprise / Compliance"
-msgstr ""
-
 msgid "Equations were simplified"
 msgstr ""
 
@@ -599,6 +614,9 @@ msgid ""
 msgstr ""
 
 msgid "Failure rate (today)"
+msgstr ""
+
+msgid "Feature"
 msgstr ""
 
 msgid "File Converter & Compressor"
@@ -692,7 +710,13 @@ msgid ""
 "code. Detail in"
 msgstr ""
 
+msgid "For developers & SaaS"
+msgstr ""
+
 msgid "For issues in the open-source codebase itself, you may alternatively use"
+msgstr ""
+
+msgid "For public sector & compliance"
 msgstr ""
 
 msgid "For questions about these Terms, contact:"
@@ -708,6 +732,9 @@ msgid "Free"
 msgstr ""
 
 msgid "Free accounts can be deleted from the API at"
+msgstr ""
+
+msgid "Free engine. Pay only for hosting or a license."
 msgstr ""
 
 msgid "Free tier forever — upgrade only when you need more"
@@ -726,6 +753,12 @@ msgid ""
 "Priority bug hotfixes."
 msgstr ""
 
+msgid "Full source on GitHub (AGPLv3)"
+msgstr ""
+
+msgid "GDPR + Art. 28 DPA template"
+msgstr ""
+
 msgid "GDPR Art. 28 annex ↗"
 msgstr ""
 
@@ -735,9 +768,6 @@ msgid ""
 msgstr ""
 
 msgid "GDPR DPA template in German form"
-msgstr ""
-
-msgid "GDPR-aligned file engine for regulated administration."
 msgstr ""
 
 msgid "Germany"
@@ -845,6 +875,12 @@ msgstr ""
 msgid "Internal server error"
 msgstr ""
 
+msgid "Internal use is already free under AGPL-3.0"
+msgstr ""
+
+msgid "Internal use is already free under AGPL-3.0."
+msgstr ""
+
 msgid ""
 "Issues that require physical access to a self-hosted server, or social "
 "engineering of an operator."
@@ -859,6 +895,12 @@ msgstr ""
 msgid ""
 "KRITIS and air-gap variants on request. All tiers include commercial "
 "license, DPA template, signed Docker image and support SLA."
+msgstr ""
+
+msgid ""
+"Kleinunternehmer gemäß §19 UStG — keine Umsatzsteuer ausgewiesen (no VAT "
+"charged, small-business rule, §19 German VAT Act). Payments processed by "
+"Stripe."
 msgstr ""
 
 msgid "Language"
@@ -892,10 +934,16 @@ msgid ""
 "weeks. Willingness to prioritize feature tickets."
 msgstr ""
 
+msgid "MB per file."
+msgstr ""
+
 msgid "MP4 · MOV · AVI · MKV · WebM"
 msgstr ""
 
 msgid "MP4 · MOV · AVI · MKV · WebM · MP3 · WAV · FLAC · OGG · M4A"
+msgstr ""
+
+msgid "Max file size"
 msgstr ""
 
 msgid "Member since"
@@ -929,6 +977,9 @@ msgid "Multi-section page layout was simplified"
 msgstr ""
 
 msgid "Name (optional)"
+msgstr ""
+
+msgid "Need a DPA & SLA? Compliance Edition →"
 msgstr ""
 
 msgid "Never used"
@@ -967,6 +1018,12 @@ msgstr ""
 msgid "One of the files has no target format available. Remove it to proceed."
 msgstr ""
 
+msgid "One-command Docker deploy"
+msgstr ""
+
+msgid "Open Source · Self-Hosted"
+msgstr ""
+
 msgid "Open dashboard"
 msgstr ""
 
@@ -994,6 +1051,12 @@ msgid "Out of scope:"
 msgstr ""
 
 msgid "Overview"
+msgstr ""
+
+msgid "PDF/A-2b (veraPDF CI gate)"
+msgstr ""
+
+msgid "PDF/A-2b (veraPDF-validated)"
 msgstr ""
 
 msgid "PDF/A-2b output"
@@ -1073,10 +1136,12 @@ msgstr ""
 msgid "Price / year"
 msgstr ""
 
-msgid "Pricing"
+msgid ""
+"Prices per year. Kleinunternehmer gemäß §19 UStG — keine Umsatzsteuer "
+"ausgewiesen (no VAT charged, small-business rule, §19 German VAT Act)."
 msgstr ""
 
-msgid "Priority support"
+msgid "Pricing"
 msgstr ""
 
 msgid "Priority support (best effort)"
@@ -1086,9 +1151,6 @@ msgid "Privacy Policy"
 msgstr ""
 
 msgid "Pro"
-msgstr ""
-
-msgid "Pro · €7/mo"
 msgstr ""
 
 msgid "Processing…"
@@ -1143,7 +1205,7 @@ msgstr ""
 msgid "Register"
 msgstr ""
 
-msgid "Register free for 50 MB & API access →"
+msgid "Register free for more →"
 msgstr ""
 
 msgid "Registration failed."
@@ -1192,12 +1254,28 @@ msgstr ""
 msgid "Role"
 msgstr ""
 
+msgid ""
+"Run FileMorph on citizen data — with a signed DPA, a liable EU contact, "
+"and an SLA."
+msgstr ""
+
+msgid "Run FileMorph on your own infrastructure"
+msgstr ""
+
+msgid ""
+"Runs behind your firewall — citizen, patient and client data never leaves"
+" your infrastructure. EU vendor, German imprint."
+msgstr ""
+
 msgid "SHA-256 audit log"
 msgstr ""
 
 msgid ""
 "SHA-256-chained operations log, ISO 27001 A.12.4.1 / BORA §50 / BeurkG "
 "§39a."
+msgstr ""
+
+msgid "SLA"
 msgstr ""
 
 msgid "STRIDE threat model"
@@ -1210,9 +1288,6 @@ msgid "Save"
 msgstr ""
 
 msgid "Save failed."
-msgstr ""
-
-msgid "Saved API keys & dashboard"
 msgstr ""
 
 msgid "Scope"
@@ -1233,21 +1308,40 @@ msgstr ""
 msgid "See all plans →"
 msgstr ""
 
+msgid "See licensing →"
+msgstr ""
+
+msgid "See the Compliance Edition →"
+msgstr ""
+
 msgid "Select one or more files to convert or compress"
+msgstr ""
+
+msgid "Self-Hosted"
+msgstr ""
+
+msgid "Self-hosted"
 msgstr ""
 
 msgid "Self-hosted (data stays in-house)"
 msgstr ""
 
+msgid "Self-hosted (on-prem / air-gap)"
+msgstr ""
+
 msgid ""
-"Self-hosted behind your firewall. AGPLv3 + commercial license. EU vendor "
-"with German imprint, individually drafted DPA template in pilot "
-"conversation, and SBOM in every release."
+"Self-hosted behind your firewall. The open-source engine is free under "
+"AGPLv3; the Compliance Edition adds the contract behind it — Art. 28 DPA,"
+" support SLA, signed releases, and someone accountable. EU vendor with "
+"German imprint."
 msgstr ""
 
 msgid ""
 "Self-hoster-specific deployment misconfiguration that is not caused by "
 "our defaults or documentation."
+msgstr ""
+
+msgid "Self-hosting guide ↗"
 msgstr ""
 
 msgid "Send Reset Link"
@@ -1291,6 +1385,12 @@ msgstr ""
 msgid "Signed image + SBOM"
 msgstr ""
 
+msgid "Signed releases (cosign + GPG)"
+msgstr ""
+
+msgid "Signed releases + CycloneDX SBOM"
+msgstr ""
+
 msgid "Signed releases + SBOM"
 msgstr ""
 
@@ -1298,9 +1398,6 @@ msgid "Signing in…"
 msgstr ""
 
 msgid "Signups over time"
-msgstr ""
-
-msgid "Simple, transparent pricing"
 msgstr ""
 
 msgid ""
@@ -1333,9 +1430,6 @@ msgid ""
 "clarify this in 15 minutes by phone."
 msgstr ""
 
-msgid "Start free. Upgrade when you need more. No hidden fees."
-msgstr ""
-
 msgid "Steps to reproduce, including any required configuration or input files."
 msgstr ""
 
@@ -1356,6 +1450,9 @@ msgstr ""
 msgid "Subject (optional)"
 msgstr ""
 
+msgid "Support"
+msgstr ""
+
 msgid "Support SLA"
 msgstr ""
 
@@ -1369,6 +1466,15 @@ msgid "Switch to English"
 msgstr ""
 
 msgid "Switch to German"
+msgstr ""
+
+msgid "Tamper-evident SHA-256 audit log"
+msgstr ""
+
+msgid "Tamper-evident audit log"
+msgstr ""
+
+msgid "Tamper-evident audit-log hash chain"
 msgstr ""
 
 msgid "Target Format"
@@ -1401,6 +1507,12 @@ msgid ""
 msgstr ""
 
 msgid ""
+"The Compliance Edition is for when you need a contract behind it: DPA, "
+"support SLA, signed releases, and someone accountable — not "
+"\"permission\"."
+msgstr ""
+
+msgid ""
 "The Compliance Edition is self-hosted. If you can't operate your own "
 "infrastructure, filemorph.io (Cloud Edition) is the right path — "
 "different data class, different contracts, no EVB-IT anchor."
@@ -1410,9 +1522,22 @@ msgid "The FileMorph application source code (this repository)."
 msgstr ""
 
 msgid ""
+"The FileMorph conversion engine is open source (AGPL-3.0) — self-host it "
+"free, forever, with no feature gates. The plans below are for our hosted "
+"instance and for embedding FileMorph in a closed-source product."
+msgstr ""
+
+msgid ""
 "The Service is provided \"as is\" without warranty of any kind, express "
 "or implied. We do not guarantee uptime, accuracy of conversion results, "
 "or fitness for a particular purpose."
+msgstr ""
+
+msgid ""
+"The conversion engine is open source (AGPLv3) — self-host it via Docker "
+"on your own server, with no feature gates. Your files never leave your "
+"infrastructure: well suited for GDPR, EU-only hosting, and air-gapped "
+"networks."
 msgstr ""
 
 msgid ""
@@ -1512,15 +1637,6 @@ msgstr ""
 msgid "Typical open-source converters"
 msgstr ""
 
-msgid "Up to 100 MB per file"
-msgstr ""
-
-msgid "Up to 50 MB per file"
-msgstr ""
-
-msgid "Up to 500 MB per file"
-msgstr ""
-
 msgid "Update password"
 msgstr ""
 
@@ -1544,12 +1660,10 @@ msgstr ""
 msgid "Users"
 msgstr ""
 
-msgid "Using anonymously: up to 20 MB per file."
+msgid "Using anonymously: up to"
 msgstr ""
 
-msgid ""
-"Using without an account: up to 20 MB per file · single file at a time · "
-"10 requests/minute · no API access"
+msgid "Using without an account:"
 msgstr ""
 
 msgid "Verifying admin access…"
@@ -1604,6 +1718,9 @@ msgstr ""
 msgid "What we're transparent about"
 msgstr ""
 
+msgid "What you can verify today"
+msgstr ""
+
 msgid "What you get"
 msgstr ""
 
@@ -1639,6 +1756,9 @@ msgstr ""
 msgid "Why a Compliance Edition?"
 msgstr ""
 
+msgid "Why →"
+msgstr ""
+
 msgid ""
 "You also have the right to lodge a complaint with your local data "
 "protection authority."
@@ -1665,6 +1785,9 @@ msgid ""
 msgstr ""
 
 msgid "You may not use the Service to:"
+msgstr ""
+
+msgid "You pay for accountability, not permission."
 msgstr ""
 
 msgid ""
@@ -1699,7 +1822,16 @@ msgstr ""
 msgid "and"
 msgstr ""
 
+msgid "anonymous)"
+msgstr ""
+
 msgid "are encrypted with the same key."
+msgstr ""
+
+msgid "calls / month"
+msgstr ""
+
+msgid "concurrent"
 msgstr ""
 
 msgid ""
@@ -1709,8 +1841,8 @@ msgstr ""
 
 msgid ""
 "cosign-signed Docker image, cryptographically signed git tags, CycloneDX-"
-"JSON SBOM in every release. Aligned with the EVB-IT cloud clause (March "
-"2026)."
+"JSON SBOM in every release. Aligned with the open-source + SBOM "
+"provisions of the EVB-IT reform (March 2026)."
 msgstr ""
 
 msgid ""
@@ -1718,12 +1850,21 @@ msgid ""
 "within the next regular release."
 msgstr ""
 
+msgid "custom"
+msgstr ""
+
 msgid ""
 "domain, which sets its own cookies. That is outside FileMorph's control "
 "and is governed by"
 msgstr ""
 
+msgid "e-mail"
+msgstr ""
+
 msgid "escalation, post-mortem template ↗"
+msgstr ""
+
+msgid "files"
 msgstr ""
 
 msgid "for a fast direct line"
@@ -1735,16 +1876,22 @@ msgstr ""
 msgid "for their data processing terms."
 msgstr ""
 
-msgid "from € 24,900"
+msgid "from"
 msgstr ""
 
 msgid "full GitHub repository ↗"
+msgstr ""
+
+msgid "here is why ↗"
 msgstr ""
 
 msgid "hint. Large batches are processed sequentially inside the request."
 msgstr ""
 
 msgid "min 0.05 MB"
+msgstr ""
+
+msgid "no API access"
 msgstr ""
 
 msgid "no cookies"
@@ -1767,6 +1914,9 @@ msgid ""
 "(§ 25 TTDSG) treats your browser's"
 msgstr ""
 
+msgid "on request"
+msgstr ""
+
 msgid ""
 "optional; remembers the API key shown in your dashboard across reloads so"
 " you don't need to paste it again. Cleared on logout."
@@ -1778,7 +1928,13 @@ msgstr ""
 msgid "or click to browse (multi-file supported)"
 msgstr ""
 
+msgid "per file"
+msgstr ""
+
 msgid "per request"
+msgstr ""
+
+msgid "priority"
 msgstr ""
 
 msgid "rare"
@@ -1792,6 +1948,12 @@ msgid ""
 "deactivations) are recorded with the admin's user identifier, the target "
 "user's identifier, and the change performed, to enable internal auditing."
 " Legal basis: Art. 6(1)(f) GDPR."
+msgstr ""
+
+msgid "self-set"
+msgstr ""
+
+msgid "single file at a time"
 msgstr ""
 
 msgid ""
@@ -1815,6 +1977,12 @@ msgid "to enable."
 msgstr ""
 
 msgid "unlimited servers, dedicated onboarding, custom SLA"
+msgstr ""
+
+msgid "unlimited*"
+msgstr ""
+
+msgid "up to"
 msgstr ""
 
 msgid "varies"
@@ -1874,59 +2042,27 @@ msgstr ""
 msgid "← Prev"
 msgstr ""
 
-#~ msgid ""
-#~ "Account creation, paid subscriptions, and "
-#~ "transactional emails are processed on "
-#~ "the basis of Art. 6(1)(b) GDPR "
-#~ "(performance of a contract). Server-log"
-#~ " processing, rate-limiting, and abuse "
-#~ "prevention are based on our legitimate"
-#~ " interest (Art. 6(1)(f) GDPR) in "
-#~ "operating a secure and reliable service."
+#~ msgid "100 MB · 10k API"
 #~ msgstr ""
 
-#~ msgid ""
-#~ "FileMorph — Free online file converter"
-#~ " & compressor. Convert images, documents,"
-#~ " audio and video. Fast, private, no"
-#~ " account required."
+#~ msgid "50 MB · API key"
 #~ msgstr ""
 
-#~ msgid "Free forever — no credit card required"
+#~ msgid "500 MB · 100k API"
 #~ msgstr ""
 
-#~ msgid "Imprint per German Telemediengesetz §5 (TMG)."
+#~ msgid "Business · €19"
 #~ msgstr ""
 
-#~ msgid "Imprint under the German Digitale-Dienste-Gesetz §5 (DDG)."
+#~ msgid "Enterprise & self-hosted:"
 #~ msgstr ""
 
-#~ msgid "Last updated: 2026-04-23 · Community + Cloud Edition"
+#~ msgid "Pro · €7/mo"
 #~ msgstr ""
 
-#~ msgid ""
-#~ "The legal information below is provided"
-#~ " in German as required by German "
-#~ "law."
+#~ msgid "Register free for 50 MB & API access →"
 #~ msgstr ""
 
-#~ msgid ""
-#~ "These entries fall under the \"strictly"
-#~ " necessary\" exemption of Art. 5(3) "
-#~ "ePrivacy Directive / § 25 Abs. 2"
-#~ " Nr. 2 TTDSG and therefore do "
-#~ "not require a consent banner. For "
-#~ "anonymous usage, nothing is stored in"
-#~ " your browser at all."
-#~ msgstr ""
-
-#~ msgid ""
-#~ "on its own domain and runs no "
-#~ "tracking or analytics scripts. A small"
-#~ " number of keys are written to "
-#~ "your browser's"
-#~ msgstr ""
-
-#~ msgid "only while you are signed in:"
+#~ msgid "Using anonymously: up to 20 MB per file."
 #~ msgstr ""
 

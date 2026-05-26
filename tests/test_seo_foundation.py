@@ -599,3 +599,185 @@ def test_og_image_carries_no_saas_specific_text():
     )
     with Image.open(asset) as im:
         assert im.size == (1200, 630)
+
+
+# ── Homepage self-hosting promotion ─────────────────────────────────────────
+#
+# The homepage Self-Hosted section is the canonical product-truth surface
+# (open-source AGPLv3 engine, runs on the operator's own infrastructure —
+# see docs-internal/pricing-overhaul-konzept.md §1). It must render on
+# every deployment (incl. self-host) so the OSS story is always visible;
+# only the Compliance-Edition CTA inside it is gated by
+# ``pricing_page_enabled`` because /enterprise 404s on self-host. The
+# navbar entry "Self-Hosted" points at the section anchor and is ungated
+# for the same reason — the anchor target always exists.
+
+
+def test_homepage_self_hosted_section_rendered_when_pricing_disabled(client, monkeypatch):
+    """Self-host build (default): the OSS/self-host story still shows,
+    because self-hosting is the canonical product truth, not a paid
+    upsell. The Compliance CTA inside is hidden — covered separately."""
+    from app.core.config import settings
+    from app.main import templates
+
+    monkeypatch.setattr(settings, "pricing_page_enabled", False)
+    templates.env.globals["pricing_enabled"] = False
+
+    r = client.get("/")
+    assert r.status_code == 200
+    assert 'id="self-hosted"' in r.text, (
+        "homepage must always render the #self-hosted section — it is the "
+        "navbar anchor target and ungated by design"
+    )
+
+
+def test_homepage_self_hosted_section_rendered_when_pricing_enabled(client, monkeypatch):
+    """SaaS build: section also present (it is ungated)."""
+    from app.core.config import settings
+    from app.main import templates
+
+    monkeypatch.setattr(settings, "pricing_page_enabled", True)
+    templates.env.globals["pricing_enabled"] = True
+
+    r = client.get("/")
+    assert r.status_code == 200
+    assert 'id="self-hosted"' in r.text
+
+
+def test_homepage_self_hosting_guide_link_points_to_github_docs(client):
+    """The primary CTA inside the section must link to the upstream
+    GitHub self-hosting guide — that URL is always available, regardless
+    of deployment. Pointing at /something-on-this-deployment would 404 on
+    self-host, and pointing at filemorph.io would smuggle the upstream
+    SaaS URL into every fork's homepage."""
+    r = client.get("/")
+    assert r.status_code == 200
+    # The guide link target lives at the canonical upstream repo path.
+    assert "github.com/MrChengLen/FileMorph/blob/main/docs/self-hosting.md" in r.text, (
+        "section must link to the upstream self-hosting guide on GitHub"
+    )
+
+
+def test_navbar_self_hosted_link_present_when_pricing_disabled(client, monkeypatch):
+    """Unlike Pricing/Enterprise, the Self-Hosted nav entry is NOT
+    gated — it points at the homepage anchor, which is always rendered."""
+    from app.core.config import settings
+    from app.main import templates
+
+    monkeypatch.setattr(settings, "pricing_page_enabled", False)
+    templates.env.globals["pricing_enabled"] = False
+
+    r = client.get("/")
+    assert r.status_code == 200
+    assert "#self-hosted" in r.text, (
+        "navbar must keep the Self-Hosted entry even on self-host — the "
+        "anchor target is always present"
+    )
+
+
+def test_navbar_self_hosted_link_present_when_pricing_enabled(client, monkeypatch):
+    from app.core.config import settings
+    from app.main import templates
+
+    monkeypatch.setattr(settings, "pricing_page_enabled", True)
+    templates.env.globals["pricing_enabled"] = True
+
+    r = client.get("/")
+    assert r.status_code == 200
+    assert "#self-hosted" in r.text
+
+
+def test_homepage_compliance_cta_hidden_when_pricing_disabled(client, monkeypatch):
+    """The Compliance-Edition CTA inside the Self-Hosted section is gated
+    the same way the navbar /enterprise entry is: a self-host deployment
+    must not link to its own 404 /enterprise."""
+    from app.core.config import settings
+    from app.main import templates
+
+    monkeypatch.setattr(settings, "pricing_page_enabled", False)
+    templates.env.globals["pricing_enabled"] = False
+
+    r = client.get("/")
+    assert r.status_code == 200
+    assert 'href="/enterprise"' not in r.text, (
+        "Compliance CTA must be hidden on self-host (would 404)"
+    )
+
+
+def test_homepage_compliance_cta_shown_when_pricing_enabled(client, monkeypatch):
+    from app.core.config import settings
+    from app.main import templates
+
+    monkeypatch.setattr(settings, "pricing_page_enabled", True)
+    templates.env.globals["pricing_enabled"] = True
+
+    r = client.get("/")
+    assert r.status_code == 200
+    assert 'href="/enterprise"' in r.text, (
+        "Compliance CTA must be linked when /enterprise is reachable"
+    )
+
+
+# ── Homepage tier-teaser display-contract (deployment-agnostic prices) ──────
+
+
+def test_homepage_teaser_renders_configured_pro_price(client, monkeypatch):
+    """The teaser must read its price from the central pricing module
+    (PRICE_*_DISPLAY env via app/core/pricing.py), not hardcode it. A
+    drift between the teaser and /pricing (which already reads from the
+    same module) is exactly the bug the overhaul branch was meant to
+    prevent — guard it."""
+    from app.core.config import settings
+    from app.main import templates
+
+    monkeypatch.setattr(settings, "pricing_page_enabled", True)
+    templates.env.globals["pricing_enabled"] = True
+    monkeypatch.setattr(settings, "price_pro_display", "3")
+    monkeypatch.setattr(settings, "price_business_display", "9")
+
+    r = client.get("/")
+    assert r.status_code == 200
+    body = r.text
+    assert "€3" in body, "teaser must show the configured Pro price (€3)"
+    assert "€9" in body, "teaser must show the configured Business price (€9)"
+
+
+def test_homepage_teaser_omits_price_when_unconfigured(client, monkeypatch):
+    """Self-host enabled the pricing page but didn't set PRICE_*_DISPLAY:
+    the teaser must render the tier names + limits without inheriting the
+    upstream SaaS price strings (same contract as /pricing)."""
+    from app.core.config import settings
+    from app.main import templates
+
+    monkeypatch.setattr(settings, "pricing_page_enabled", True)
+    templates.env.globals["pricing_enabled"] = True
+    monkeypatch.setattr(settings, "price_pro_display", "")
+    monkeypatch.setattr(settings, "price_business_display", "")
+
+    r = client.get("/")
+    assert r.status_code == 200
+    body = r.text
+    assert "€3" not in body, "must not inherit upstream Pro price"
+    assert "€7" not in body and "€19" not in body, (
+        "the pre-overhaul hardcoded prices must not reappear"
+    )
+
+
+def test_homepage_teaser_no_legacy_hardcoded_prices(client, monkeypatch):
+    """Regression guard: even with a fully configured pricing page, the
+    pre-overhaul price strings (€7 Pro, €19 Business) must not leak back
+    into the homepage teaser. If a future edit re-hardcodes them, this
+    test fails — the deployment-agnostic teaser was specifically added
+    to close that drift."""
+    from app.core.config import settings
+    from app.main import templates
+
+    monkeypatch.setattr(settings, "pricing_page_enabled", True)
+    templates.env.globals["pricing_enabled"] = True
+    monkeypatch.setattr(settings, "price_pro_display", "3")
+    monkeypatch.setattr(settings, "price_business_display", "9")
+
+    r = client.get("/")
+    body = r.text
+    assert "€7/mo" not in body, "legacy Pro price string must not reappear"
+    assert "€19" not in body, "legacy Business price string must not reappear"

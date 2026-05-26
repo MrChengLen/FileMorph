@@ -14,10 +14,15 @@
   <section class="space-y-6">
     <p class="text-xs uppercase tracking-widest text-brand">{{ _('FileMorph Compliance Edition') }}</p>
     <h1 class="text-3xl sm:text-4xl font-bold text-white leading-tight">
-      {{ _('GDPR-aligned file engine for regulated administration.') }}
+      {{ _('Run FileMorph on citizen data — with a signed DPA, a liable EU contact, and an SLA.') }}
     </h1>
     <p class="text-lg text-gray-300 max-w-2xl leading-relaxed">
-      {{ _('Self-hosted behind your firewall. AGPLv3 + commercial license. EU vendor with German imprint, individually drafted DPA template in pilot conversation, and SBOM in every release.') }}
+      {{ _('Self-hosted behind your firewall. The open-source engine is free under AGPLv3; the Compliance Edition adds the contract behind it — Art. 28 DPA, support SLA, signed releases, and someone accountable. EU vendor with German imprint.') }}
+    </p>
+    <p class="text-sm text-gray-400 max-w-2xl leading-relaxed">
+      {{ _('Internal use is already free under AGPL-3.0') }} —
+      <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/agpl-fuer-behoerden.md" class="text-brand hover:underline" target="_blank" rel="noopener noreferrer">{{ _('here is why ↗') }}</a>.
+      {{ _('You pay for accountability, not permission.') }}
     </p>
     <div class="flex flex-wrap gap-3 pt-4">
       <a href="mailto:enterprise@filemorph.io"
@@ -29,6 +34,10 @@
         {{ _('What does the Edition cost?') }}
       </a>
     </div>
+    <p class="text-sm text-gray-400 pt-1">
+      {{ _('Design Partner Programme: 3 spots, 6 months free.') }}
+      <a href="#design-partner" class="text-brand hover:underline">{{ _('Apply →') }}</a>
+    </p>
   </section>
 
   <!-- In-page Trust-Summary — proof before doc-links -->
@@ -69,23 +78,26 @@
           <tr>
             <td class="px-4 py-3 font-semibold text-white">{{ _('Compliance Starter') }}</td>
             <td class="px-4 py-3 text-gray-400">{{ _('1 server, ≤ 50 employees') }}</td>
-            <td class="px-4 py-3 text-gray-200 whitespace-nowrap">€ 1,490</td>
+            <td class="px-4 py-3 text-gray-200 whitespace-nowrap">{% if compliance_plans[0].price_display %}€ {{ compliance_plans[0].price_display }}{% else %}{{ _('on request') }}{% endif %}</td>
           </tr>
           <tr>
             <td class="px-4 py-3 font-semibold text-white">{{ _('Compliance Standard') }}</td>
             <td class="px-4 py-3 text-gray-400">{{ _('3 servers, ≤ 2,000 employees') }}</td>
-            <td class="px-4 py-3 text-gray-200 whitespace-nowrap">€ 7,490</td>
+            <td class="px-4 py-3 text-gray-200 whitespace-nowrap">{% if compliance_plans[1].price_display %}€ {{ compliance_plans[1].price_display }}{% else %}{{ _('on request') }}{% endif %}</td>
           </tr>
           <tr>
             <td class="px-4 py-3 font-semibold text-white">{{ _('Compliance Enterprise') }}</td>
             <td class="px-4 py-3 text-gray-400">{{ _('unlimited servers, dedicated onboarding, custom SLA') }}</td>
-            <td class="px-4 py-3 text-gray-200 whitespace-nowrap">{{ _('from € 24,900') }}</td>
+            <td class="px-4 py-3 text-gray-200 whitespace-nowrap">{% if compliance_plans[2].price_display %}{{ _('from') }} € {{ compliance_plans[2].price_display }}{% else %}{{ _('on request') }}{% endif %}</td>
           </tr>
         </tbody>
       </table>
     </div>
     <p class="text-xs text-gray-500">
       {{ _('KRITIS and air-gap variants on request. All tiers include commercial license, DPA template, signed Docker image and support SLA.') }}
+    </p>
+    <p class="text-xs text-gray-600">
+      {{ _('Prices per year. Kleinunternehmer gemäß §19 UStG — keine Umsatzsteuer ausgewiesen (no VAT charged, small-business rule, §19 German VAT Act).') }}
     </p>
   </section>
 
@@ -122,7 +134,7 @@
       </div>
       <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-3">
         <h3 class="text-base font-semibold text-white tracking-tight">{{ _('Signed releases + SBOM') }}</h3>
-        <p class="text-gray-400 leading-relaxed">{{ _('cosign-signed Docker image, cryptographically signed git tags, CycloneDX-JSON SBOM in every release. Aligned with the EVB-IT cloud clause (March 2026).') }}</p>
+        <p class="text-gray-400 leading-relaxed">{{ _('cosign-signed Docker image, cryptographically signed git tags, CycloneDX-JSON SBOM in every release. Aligned with the open-source + SBOM provisions of the EVB-IT reform (March 2026).') }}</p>
       </div>
       <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-3">
         <h3 class="text-base font-semibold text-white tracking-tight">{{ _('Support SLA') }}</h3>
@@ -132,7 +144,7 @@
   </section>
 
   <!-- Pilot programme -->
-  <section class="space-y-5">
+  <section id="design-partner" class="space-y-5 scroll-mt-20">
     <h2 class="text-2xl font-bold text-white">{{ _('Design Partner Programme') }}</h2>
     <div class="bg-brand/5 border border-brand/30 rounded-xl p-6 space-y-4">
       <p class="text-base text-gray-200 leading-relaxed">

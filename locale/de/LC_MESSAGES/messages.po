@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-05-19 15:03+0200\n"
+"POT-Creation-Date: 2026-05-26 12:36+0200\n"
 "PO-Revision-Date: 2026-05-08 11:00+0200\n"
 "Last-Translator: FileMorph <hallo@filemorph.io>\n"
 "Language: de\n"
@@ -27,8 +27,8 @@ msgstr ""
 "Vertrag über das FileMorph-[Pro-/Business-]Abonnement.“ Die Angabe deiner"
 " registrierten E-Mail-Adresse beschleunigt die Zuordnung zu deinem Konto."
 
-msgid "(vs. 20 MB anonymous)"
-msgstr "(vs. 20 MB anonym)"
+msgid "(vs."
+msgstr "(ggü."
 
 msgid ""
 "). The cascade removes your login credentials and API keys; conversion-"
@@ -42,17 +42,13 @@ msgstr ""
 " DSGVO Art. 4(1) behalten). Eine Bestätigungs-E-Mail wird nach der "
 "Löschung gesendet."
 
+msgid "* Unlimited within your self-hosted infrastructure — you run the server."
+msgstr ""
+"* Unbegrenzt innerhalb Ihrer selbst gehosteten Infrastruktur — Sie "
+"betreiben den Server."
+
 msgid "+ New Key"
 msgstr "+ Neuer Key"
-
-msgid ", 1 concurrent, 10 req/min"
-msgstr ", 1 gleichzeitig, 10 Anfr./min"
-
-msgid ", 2 concurrent, 10 req/min"
-msgstr ", 2 gleichzeitig, 10 Anfr./min"
-
-msgid ", 5 concurrent, 10 req/min"
-msgstr ", 5 gleichzeitig, 10 Anfr./min"
 
 msgid ""
 ", hosted in Frankfurt, EU). Zoho receives the recipient address and the "
@@ -75,29 +71,17 @@ msgstr "1. Annahme"
 msgid "1. Who is responsible?"
 msgstr "1. Wer ist verantwortlich?"
 
-msgid "10,000 API calls / month"
-msgstr "10.000 API-Aufrufe / Monat"
+msgid "10 requests/minute"
+msgstr "10 Anfragen/Minute"
 
 msgid "10. Contact"
 msgstr "10. Kontakt"
-
-msgid "100 MB · 10k API"
-msgstr "100 MB · 10k API"
-
-msgid "100 files"
-msgstr "100 Dateien"
-
-msgid "100,000 API calls / month"
-msgstr "100.000 API-Aufrufe / Monat"
 
 msgid "2. Description of Service"
 msgstr "2. Beschreibung des Dienstes"
 
 msgid "2. What data we process"
 msgstr "2. Welche Daten wir verarbeiten"
-
-msgid "25 files"
-msgstr "25 Dateien"
 
 msgid "2a. Uploaded files:"
 msgstr "2a. Hochgeladene Dateien:"
@@ -144,23 +128,11 @@ msgstr "4. Hosting"
 msgid "404 – Not Found"
 msgstr "404 – Nicht gefunden"
 
-msgid "5 files"
-msgstr "5 Dateien"
-
 msgid "5. Limitation of Liability"
 msgstr "5. Haftungsbeschränkung"
 
 msgid "5. Your rights (GDPR)"
 msgstr "5. Deine Rechte (DSGVO)"
-
-msgid "50 MB · API key"
-msgstr "50 MB · API-Key"
-
-msgid "500 MB · 100k API"
-msgstr "500 MB · 100k API"
-
-msgid "500 calls / month"
-msgstr "500 Aufrufe / Monat"
 
 msgid "500 – Server Error"
 msgstr "500 – Serverfehler"
@@ -197,6 +169,15 @@ msgstr ""
 msgid "AGPLv3 for public authorities"
 msgstr "AGPLv3 für Behörden"
 
+msgid "AGPLv3 ↗"
+msgstr "AGPLv3 ↗"
+
+msgid "AGPLv3, fully auditable"
+msgstr "AGPLv3, vollständig prüfbar"
+
+msgid "API"
+msgstr "API"
+
 msgid "API Docs"
 msgstr "API-Doku"
 
@@ -206,8 +187,11 @@ msgstr "API-Doku ↗"
 msgid "API Keys"
 msgstr "API-Schlüssel"
 
-msgid "API key management"
-msgstr "API-Key-Verwaltung"
+msgid "API calls / month"
+msgstr "API-Aufrufe / Monat"
+
+msgid "API key"
+msgstr "API-Schlüssel"
 
 msgid "API key — "
 msgstr "API-Key — "
@@ -215,7 +199,6 @@ msgstr "API-Key — "
 msgid "Account active"
 msgstr "Konto aktiv"
 
-#, fuzzy
 msgid ""
 "Account creation, paid subscriptions, and transactional emails are "
 "processed on the basis of Art. 6(1)(b) GDPR (performance of a contract). "
@@ -225,9 +208,10 @@ msgid ""
 msgstr ""
 "Konto-Erstellung, bezahlte Abonnements und Transaktions-E-Mails werden "
 "auf Grundlage von Art. 6(1)(b) DSGVO (Vertragserfüllung) verarbeitet. "
-"Server-Log-Verarbeitung, Rate-Limiting und Missbrauchsprävention basieren"
-" auf unserem berechtigten Interesse (Art. 6(1)(f) DSGVO) am Betrieb eines"
-" sicheren und zuverlässigen Dienstes."
+"Server-Log-Verarbeitung, Rate-Limiting, Missbrauchsprävention und die "
+"Bearbeitung Ihrer Anfragen basieren auf unserem berechtigten Interesse "
+"(Art. 6(1)(f) DSGVO) am Betrieb eines sicheren und zuverlässigen "
+"Dienstes."
 
 msgid "Account deletion:"
 msgstr "Konto-Löschung:"
@@ -273,6 +257,9 @@ msgstr ""
 "werden von der FileMorph-Domain ausgeliefert; dein Browser kontaktiert "
 "niemals ein Drittanbieter-CDN zum Rendern der Site."
 
+msgid "All formats + smart-tech"
+msgstr "Alle Formate + Smart-Tech"
+
 msgid ""
 "All of them are strictly necessary to provide the signed-in service you "
 "requested, so they fall under the exemption in Art. 5(3) ePrivacy "
@@ -285,8 +272,10 @@ msgstr ""
 "Consent-Banner ist nicht erforderlich. Wenn du nicht angemeldet bist, "
 "wird überhaupt nichts in deinem Browser gespeichert."
 
-msgid "All prices excl. VAT where applicable. Payments processed by Stripe."
-msgstr "Alle Preise zzgl. ggf. anfallender USt. Zahlungen via Stripe."
+msgid "All smart-tech: compress-to-target, EXIF strip, PDF/A, integrity hash"
+msgstr ""
+"Alle Smart-Tech-Funktionen: Kompression auf Zielgröße, EXIF-Entfernung, "
+"PDF/A, Integritäts-Hash"
 
 msgid "Already have an account?"
 msgstr "Hast du schon ein Konto?"
@@ -325,14 +314,26 @@ msgstr "Alle Tiers"
 msgid "Apply as design partner"
 msgstr "Als Design-Partner bewerben"
 
+msgid "Apply →"
+msgstr "Bewerben →"
+
 msgid "Architecture overview"
 msgstr "Architektur-Übersicht"
+
+msgid "Art. 28 DPA template"
+msgstr "Art. 28 AVV-Vorlage"
+
+msgid "Art. 28 GDPR DPA template"
+msgstr "AVV-Vorlage nach Art. 28 DSGVO"
 
 msgid "At least 8 characters"
 msgstr "Mindestens 8 Zeichen"
 
 msgid "Attempt to circumvent rate limits or security controls"
 msgstr "Versuche zu unternehmen, Rate-Limits oder Sicherheitskontrollen zu umgehen"
+
+msgid "Audit log + signed releases"
+msgstr "Audit-Log + signierte Releases"
 
 msgid "Audit log with hash chain"
 msgstr "Audit-Log mit Hash-Chain"
@@ -343,8 +344,29 @@ msgstr "Zurück zur Startseite"
 msgid "Back to Sign In"
 msgstr "Zurück zur Anmeldung"
 
+msgid "Batch / request"
+msgstr "Batch / Anfrage"
+
 msgid "Batch upload:"
 msgstr "Batch-Upload:"
+
+msgid "Behörden · Krankenhäuser · Kanzleien"
+msgstr "Behörden · Krankenhäuser · Kanzleien"
+
+msgid ""
+"Being transparent about what is not done yet: no external ISO 27001 "
+"certification and no external penetration test yet (both planned once a "
+"paying pilot justifies the cost), and no tagged release cut yet — the "
+"signing/SBOM pipeline is wired in CI and produces those artefacts on the "
+"first tag. Everything else above is in the repository today and "
+"auditable."
+msgstr ""
+"Transparent zu dem, was noch fehlt: noch keine externe "
+"ISO-27001-Zertifizierung und kein externer Penetrationstest (beide "
+"geplant, sobald ein zahlender Pilot den Aufwand rechtfertigt), und noch "
+"kein getaggtes Release — die Signier-/SBOM-Pipeline ist in der CI "
+"verdrahtet und erzeugt diese Artefakte beim ersten Tag. Alles andere oben"
+" liegt heute im Repository und ist prüfbar."
 
 msgid "Best quality"
 msgstr "Beste Qualität"
@@ -352,11 +374,13 @@ msgstr "Beste Qualität"
 msgid "Billed monthly, cancel anytime"
 msgstr "Monatlich abgerechnet, jederzeit kündbar"
 
+msgid "Building a closed-source product, SaaS, or OEM integration on FileMorph?"
+msgstr ""
+"Sie bauen ein Closed-Source-Produkt, SaaS oder eine OEM-Integration auf "
+"FileMorph?"
+
 msgid "Business"
 msgstr "Business"
-
-msgid "Business · €19"
-msgstr "Business · 19 €"
 
 msgid "By quality %"
 msgstr "Nach Qualität %"
@@ -384,6 +408,9 @@ msgstr "Abbrechen"
 msgid "Choose a password you haven't used before"
 msgstr "Wähle ein Passwort, das du vorher noch nicht verwendet hast"
 
+msgid "Choose audience"
+msgstr "Zielgruppe wählen"
+
 msgid "Clear all"
 msgstr "Alle entfernen"
 
@@ -398,6 +425,12 @@ msgstr "Kommerzielle Lizenz"
 
 msgid "Commercial license on AGPL code"
 msgstr "Kommerzielle Lizenz auf AGPL-Code"
+
+msgid "Commercial license on top of AGPL"
+msgstr "Kommerzielle Lizenz zusätzlich zur AGPL"
+
+msgid "Compare plans"
+msgstr "Tarife vergleichen"
 
 msgid ""
 "Complex Word features (footnotes, headers/footers, table-of-contents, "
@@ -415,9 +448,6 @@ msgstr "Compliance"
 
 msgid "Compliance Edition"
 msgstr "Compliance Edition"
-
-msgid "Compliance Edition →"
-msgstr "Compliance Edition →"
 
 msgid "Compliance Enterprise"
 msgstr "Compliance Enterprise"
@@ -447,6 +477,9 @@ msgstr "Komprimierung"
 
 msgid "Compression mode"
 msgstr "Kompressions-Modus"
+
+msgid "Concurrent slots"
+msgstr "Gleichzeitige Slots"
 
 msgid "Confidential inquiries via"
 msgstr "Vertrauliche Anfragen über"
@@ -483,16 +516,14 @@ msgstr ""
 msgid "Consumer dispute resolution"
 msgstr "Verbraucherstreitbeilegung"
 
-#, fuzzy
 msgid "Contact"
-msgstr "Kontakt:"
+msgstr "Kontakt"
 
 msgid "Contact form"
 msgstr "Kontaktformular"
 
-#, fuzzy
 msgid "Contact us"
-msgstr "Kontakt:"
+msgstr "Auf Anfrage"
 
 msgid "Contact:"
 msgstr "Kontakt:"
@@ -553,14 +584,8 @@ msgstr "Erstelle …"
 msgid "Criterion"
 msgstr "Kriterium"
 
-msgid ""
-"Custom volume, batch uploads up to 250 files, SLA, on-premise deployment,"
-" dedicated support & contract. For DACH Behörden, hospitals, law firms "
-"see"
-msgstr ""
-"Individuelles Volumen, Batch-Uploads bis zu 250 Dateien, SLA, On-Premise-"
-"Deployment, dedizierter Support & Vertrag. Für DACH-Behörden, "
-"Krankenhäuser, Kanzleien siehe"
+msgid "CycloneDX SBOM per release"
+msgstr "CycloneDX-SBOM pro Release"
 
 msgid "DOCX · PDF · TXT · MD · XLSX · CSV · JSON"
 msgstr "DOCX · PDF · TXT · MD · XLSX · CSV · JSON"
@@ -574,14 +599,14 @@ msgstr "Auftragsverarbeitungs-Vertrag (AVV)"
 msgid "Deactivated"
 msgstr "Deaktiviert"
 
-msgid "Dedicated onboarding"
-msgstr "Dediziertes Onboarding"
-
 msgid "Delete failed."
 msgstr "Löschen fehlgeschlagen."
 
 msgid "Design Partner Programme"
 msgstr "Design-Partner-Programm"
+
+msgid "Design Partner Programme: 3 spots, 6 months free."
+msgstr "Design-Partner-Programm: 3 Plätze, 6 Monate gratis."
 
 msgid "Do I need the Enterprise tier for KRITIS?"
 msgstr "Brauche ich für KRITIS die Enterprise-Stufe?"
@@ -606,6 +631,9 @@ msgstr "E-Mail-Support"
 
 msgid "EU Online Dispute Resolution:"
 msgstr "Online-Streitbeilegung der EU-Kommission:"
+
+msgid "EU hosting, German imprint"
+msgstr "EU-Hosting, deutsches Impressum"
 
 msgid "EU vendor with German imprint"
 msgstr "EU-Vendor mit deutschem Impressum"
@@ -640,12 +668,6 @@ msgstr "Gib deine E-Mail-Adresse ein, um einen Zurücksetzungs-Link zu erhalten"
 msgid "Enterprise"
 msgstr "Enterprise"
 
-msgid "Enterprise & self-hosted:"
-msgstr "Enterprise & Self-Hosted:"
-
-msgid "Enterprise / Compliance"
-msgstr "Enterprise / Compliance"
-
 msgid "Equations were simplified"
 msgstr "Formeln wurden vereinfacht"
 
@@ -667,6 +689,9 @@ msgstr ""
 
 msgid "Failure rate (today)"
 msgstr "Fehlerrate (heute)"
+
+msgid "Feature"
+msgstr "Funktion"
 
 msgid "File Converter & Compressor"
 msgstr "Datei-Konverter & -Kompressor"
@@ -791,8 +816,14 @@ msgstr ""
 "können FileMorph in einem Bürgerportal einbinden, ohne den Quellcode "
 "Ihres Portals offenzulegen. Detail in"
 
+msgid "For developers & SaaS"
+msgstr "Für Entwickler & SaaS"
+
 msgid "For issues in the open-source codebase itself, you may alternatively use"
 msgstr "Für Probleme im Open-Source-Codebase selbst kannst du alternativ"
+
+msgid "For public sector & compliance"
+msgstr "Für Behörden & Compliance"
 
 msgid "For questions about these Terms, contact:"
 msgstr "Bei Fragen zu diesen Bedingungen, kontaktiere:"
@@ -808,6 +839,9 @@ msgstr "Kostenlos"
 
 msgid "Free accounts can be deleted from the API at"
 msgstr "Free-Konten können über die API gelöscht werden unter"
+
+msgid "Free engine. Pay only for hosting or a license."
+msgstr "Kostenlose Engine. Bezahlt wird nur Hosting oder eine Lizenz."
 
 msgid "Free tier forever — upgrade only when you need more"
 msgstr "Kostenlos für immer — Upgrade nur, wenn du mehr brauchst"
@@ -829,6 +863,12 @@ msgstr ""
 "Vollständige Compliance-Edition. Onboarding gemeinsam mit dem Maintainer."
 " Bug-Hotfix mit Priorität."
 
+msgid "Full source on GitHub (AGPLv3)"
+msgstr "Vollständiger Quellcode auf GitHub (AGPLv3)"
+
+msgid "GDPR + Art. 28 DPA template"
+msgstr "DSGVO + Art. 28 AVV-Vorlage"
+
 msgid "GDPR Art. 28 annex ↗"
 msgstr "DSGVO Art. 28-Anhang ↗"
 
@@ -841,9 +881,6 @@ msgstr ""
 
 msgid "GDPR DPA template in German form"
 msgstr "DSGVO-AVV-Vorlage in deutscher Form"
-
-msgid "GDPR-aligned file engine for regulated administration."
-msgstr "DSGVO-konforme File-Engine für regulierte Verwaltung."
 
 msgid "Germany"
 msgstr "Deutschland"
@@ -990,6 +1027,12 @@ msgstr ""
 msgid "Internal server error"
 msgstr "Interner Serverfehler"
 
+msgid "Internal use is already free under AGPL-3.0"
+msgstr "Interne Nutzung ist unter AGPL-3.0 bereits kostenlos"
+
+msgid "Internal use is already free under AGPL-3.0."
+msgstr "Interne Nutzung ist unter AGPL-3.0 bereits kostenlos."
+
 msgid ""
 "Issues that require physical access to a self-hosted server, or social "
 "engineering of an operator."
@@ -1011,15 +1054,22 @@ msgstr ""
 "kommerzielle Lizenz, AVV-Vorlage, signiertes Docker-Image und Support-"
 "SLA."
 
+msgid ""
+"Kleinunternehmer gemäß §19 UStG — keine Umsatzsteuer ausgewiesen (no VAT "
+"charged, small-business rule, §19 German VAT Act). Payments processed by "
+"Stripe."
+msgstr ""
+"Kleinunternehmer gemäß §19 UStG — keine Umsatzsteuer ausgewiesen. "
+"Zahlungsabwicklung über Stripe."
+
 msgid "Language"
 msgstr "Sprache"
 
 msgid "Last updated: 2026-05-08 · Community + Cloud Edition"
 msgstr "Stand: 08.05.2026 · Community + Cloud Edition"
 
-#, fuzzy
 msgid "Last updated: 2026-05-12 · Community + Cloud Edition"
-msgstr "Stand: 08.05.2026 · Community + Cloud Edition"
+msgstr "Stand: 12.05.2026 · Community + Cloud Edition"
 
 msgid "Last used"
 msgstr "Zuletzt verwendet"
@@ -1047,11 +1097,17 @@ msgstr ""
 "Logo-Nennung als Pilotkunde (optional). Roadmap-Feedback alle vier "
 "Wochen. Bereitschaft, Feature-Tickets zu priorisieren."
 
+msgid "MB per file."
+msgstr "MB pro Datei."
+
 msgid "MP4 · MOV · AVI · MKV · WebM"
 msgstr "MP4 · MOV · AVI · MKV · WebM"
 
 msgid "MP4 · MOV · AVI · MKV · WebM · MP3 · WAV · FLAC · OGG · M4A"
 msgstr "MP4 · MOV · AVI · MKV · WebM · MP3 · WAV · FLAC · OGG · M4A"
+
+msgid "Max file size"
+msgstr "Maximale Dateigröße"
 
 msgid "Member since"
 msgstr "Mitglied seit"
@@ -1089,6 +1145,9 @@ msgstr "Mehrfach-Sektions-Seitenlayout wurde vereinfacht"
 
 msgid "Name (optional)"
 msgstr "Name (optional)"
+
+msgid "Need a DPA & SLA? Compliance Edition →"
+msgstr "DPA & SLA nötig? Zur Compliance Edition →"
 
 msgid "Never used"
 msgstr "Noch nicht verwendet"
@@ -1128,6 +1187,12 @@ msgstr ""
 "Für eine Datei ist kein Zielformat verfügbar. Bitte entfernen und erneut "
 "versuchen."
 
+msgid "One-command Docker deploy"
+msgstr "Docker-Deployment mit einem Befehl"
+
+msgid "Open Source · Self-Hosted"
+msgstr "Open Source · Self-Hosted"
+
 msgid "Open dashboard"
 msgstr "Dashboard öffnen"
 
@@ -1164,6 +1229,12 @@ msgstr "Nicht im Geltungsbereich:"
 
 msgid "Overview"
 msgstr "Übersicht"
+
+msgid "PDF/A-2b (veraPDF CI gate)"
+msgstr "PDF/A-2b (veraPDF-CI-Gate)"
+
+msgid "PDF/A-2b (veraPDF-validated)"
+msgstr "PDF/A-2b (veraPDF-validiert)"
 
 msgid "PDF/A-2b output"
 msgstr "PDF/A-2b-Output"
@@ -1254,11 +1325,15 @@ msgstr "Bitte mindestens eine Datei wählen."
 msgid "Price / year"
 msgstr "Preis / Jahr"
 
+msgid ""
+"Prices per year. Kleinunternehmer gemäß §19 UStG — keine Umsatzsteuer "
+"ausgewiesen (no VAT charged, small-business rule, §19 German VAT Act)."
+msgstr ""
+"Preise pro Jahr. Kleinunternehmer gemäß §19 UStG — keine Umsatzsteuer "
+"ausgewiesen."
+
 msgid "Pricing"
 msgstr "Preise"
-
-msgid "Priority support"
-msgstr "Priorisierter Support"
 
 msgid "Priority support (best effort)"
 msgstr "Priorisierter Support (Best Effort)"
@@ -1268,9 +1343,6 @@ msgstr "Datenschutzerklärung"
 
 msgid "Pro"
 msgstr "Pro"
-
-msgid "Pro · €7/mo"
-msgstr "Pro · 7 €/Monat"
 
 msgid "Processing…"
 msgstr "Verarbeitung…"
@@ -1345,8 +1417,8 @@ msgstr ""
 msgid "Register"
 msgstr "Registrieren"
 
-msgid "Register free for 50 MB & API access →"
-msgstr "Kostenlos registrieren für 50 MB & API-Zugriff →"
+msgid "Register free for more →"
+msgstr "Kostenlos registrieren für mehr →"
 
 msgid "Registration failed."
 msgstr "Registrierung fehlgeschlagen."
@@ -1401,6 +1473,23 @@ msgstr "Diesen API-Key widerrufen? Das kann nicht rückgängig gemacht werden."
 msgid "Role"
 msgstr "Rolle"
 
+msgid ""
+"Run FileMorph on citizen data — with a signed DPA, a liable EU contact, "
+"and an SLA."
+msgstr ""
+"FileMorph auf Bürgerdaten betreiben — mit unterzeichnetem AVV, haftbarem "
+"EU-Ansprechpartner und SLA."
+
+msgid "Run FileMorph on your own infrastructure"
+msgstr "FileMorph auf eigener Infrastruktur betreiben"
+
+msgid ""
+"Runs behind your firewall — citizen, patient and client data never leaves"
+" your infrastructure. EU vendor, German imprint."
+msgstr ""
+"Läuft hinter Ihrer Firewall — Bürger-, Patienten- und Mandantendaten "
+"verlassen Ihre Infrastruktur nie. EU-Anbieter, deutsches Impressum."
+
 msgid "SHA-256 audit log"
 msgstr "SHA-256-Audit-Log"
 
@@ -1410,6 +1499,9 @@ msgid ""
 msgstr ""
 "SHA-256-verkettetes Operations-Log, ISO 27001 A.12.4.1 / BORA §50 / "
 "BeurkG §39a."
+
+msgid "SLA"
+msgstr "SLA"
 
 msgid "STRIDE threat model"
 msgstr "STRIDE-Threat-Model"
@@ -1422,9 +1514,6 @@ msgstr "Speichern"
 
 msgid "Save failed."
 msgstr "Speichern fehlgeschlagen."
-
-msgid "Saved API keys & dashboard"
-msgstr "Gespeicherte API-Keys & Dashboard"
 
 msgid "Scope"
 msgstr "Geltungsbereich"
@@ -1444,20 +1533,37 @@ msgstr "Siehe"
 msgid "See all plans →"
 msgstr "Alle Tarife anzeigen →"
 
+msgid "See licensing →"
+msgstr "Zur Lizenzierung →"
+
+msgid "See the Compliance Edition →"
+msgstr "Zur Compliance Edition →"
+
 msgid "Select one or more files to convert or compress"
 msgstr "Wähle eine oder mehrere Dateien zum Konvertieren oder Komprimieren"
+
+msgid "Self-Hosted"
+msgstr "Self-Hosted"
+
+msgid "Self-hosted"
+msgstr "Selbst gehostet"
 
 msgid "Self-hosted (data stays in-house)"
 msgstr "Self-Hosted (Daten bleiben im Haus)"
 
+msgid "Self-hosted (on-prem / air-gap)"
+msgstr "Selbst gehostet (On-Premises / Air-Gap)"
+
 msgid ""
-"Self-hosted behind your firewall. AGPLv3 + commercial license. EU vendor "
-"with German imprint, individually drafted DPA template in pilot "
-"conversation, and SBOM in every release."
+"Self-hosted behind your firewall. The open-source engine is free under "
+"AGPLv3; the Compliance Edition adds the contract behind it — Art. 28 DPA,"
+" support SLA, signed releases, and someone accountable. EU vendor with "
+"German imprint."
 msgstr ""
-"Self-hosted hinter deiner Firewall. AGPLv3 + kommerzielle Lizenz. EU-"
-"Anbieter mit deutschem Impressum, individuell ausgearbeitete AVV-Vorlage "
-"im Pilotgespräch und SBOM in jedem Release."
+"Selbst gehostet hinter Ihrer Firewall. Die Open-Source-Engine ist unter "
+"AGPLv3 kostenlos; die Compliance Edition ergänzt den Vertrag dahinter — "
+"Art. 28 AVV, Support-SLA, signierte Releases und einen haftbaren "
+"Ansprechpartner. EU-Anbieter mit deutschem Impressum."
 
 msgid ""
 "Self-hoster-specific deployment misconfiguration that is not caused by "
@@ -1465,6 +1571,9 @@ msgid ""
 msgstr ""
 "Self-Hoster-spezifische Deployment-Fehlkonfigurationen, die nicht durch "
 "unsere Defaults oder Dokumentation verursacht werden."
+
+msgid "Self-hosting guide ↗"
+msgstr "Self-Hosting-Anleitung ↗"
 
 msgid "Send Reset Link"
 msgstr "Link senden"
@@ -1509,6 +1618,12 @@ msgstr "Anmelden"
 msgid "Signed image + SBOM"
 msgstr "Signiertes Image + SBOM"
 
+msgid "Signed releases (cosign + GPG)"
+msgstr "Signierte Releases (cosign + GPG)"
+
+msgid "Signed releases + CycloneDX SBOM"
+msgstr "Signierte Releases + CycloneDX-SBOM"
+
 msgid "Signed releases + SBOM"
 msgstr "Signierte Releases + SBOM"
 
@@ -1517,9 +1632,6 @@ msgstr "Anmeldung …"
 
 msgid "Signups over time"
 msgstr "Registrierungen über Zeit"
-
-msgid "Simple, transparent pricing"
-msgstr "Einfache, transparente Preise"
 
 msgid ""
 "Small-business status under § 19 UStG — no VAT is charged and no USt-"
@@ -1559,9 +1671,6 @@ msgstr ""
 "sobald Air-Gap-Update-Mechanismus, Reproducible-Builds oder dedizierter "
 "Support-SLA gefordert sind. Wir klären das in 15 Minuten am Telefon."
 
-msgid "Start free. Upgrade when you need more. No hidden fees."
-msgstr "Kostenlos starten. Upgraden bei Bedarf. Keine versteckten Gebühren."
-
 msgid "Steps to reproduce, including any required configuration or input files."
 msgstr ""
 "Schritte zur Reproduktion, einschließlich erforderlicher Konfiguration "
@@ -1587,6 +1696,9 @@ msgstr "Sub-Processor-Liste"
 msgid "Subject (optional)"
 msgstr "Betreff (optional)"
 
+msgid "Support"
+msgstr "Support"
+
 msgid "Support SLA"
 msgstr "Support-SLA"
 
@@ -1601,6 +1713,15 @@ msgstr "Zu Englisch wechseln"
 
 msgid "Switch to German"
 msgstr "Zu Deutsch wechseln"
+
+msgid "Tamper-evident SHA-256 audit log"
+msgstr "Manipulationssicheres SHA-256-Audit-Log"
+
+msgid "Tamper-evident audit log"
+msgstr "Manipulationssicheres Audit-Log"
+
+msgid "Tamper-evident audit-log hash chain"
+msgstr "Manipulationssicheres Audit-Log (Hash-Chain)"
 
 msgid "Target Format"
 msgstr "Zielformat"
@@ -1637,6 +1758,15 @@ msgstr ""
 " eine gepatchte Version zentral veröffentlichen können."
 
 msgid ""
+"The Compliance Edition is for when you need a contract behind it: DPA, "
+"support SLA, signed releases, and someone accountable — not "
+"\"permission\"."
+msgstr ""
+"Die Compliance Edition ist für den Fall, dass Sie einen Vertrag dahinter "
+"brauchen: AVV, Support-SLA, signierte Releases und einen haftbaren "
+"Ansprechpartner — keine \"Erlaubnis\"."
+
+msgid ""
 "The Compliance Edition is self-hosted. If you can't operate your own "
 "infrastructure, filemorph.io (Cloud Edition) is the right path — "
 "different data class, different contracts, no EVB-IT anchor."
@@ -1649,6 +1779,16 @@ msgid "The FileMorph application source code (this repository)."
 msgstr "Der FileMorph-Anwendungs-Quellcode (dieses Repository)."
 
 msgid ""
+"The FileMorph conversion engine is open source (AGPL-3.0) — self-host it "
+"free, forever, with no feature gates. The plans below are for our hosted "
+"instance and for embedding FileMorph in a closed-source product."
+msgstr ""
+"Die FileMorph-Konvertierungs-Engine ist Open Source (AGPL-3.0) — selbst "
+"gehostet kostenlos, für immer, ohne Feature-Gates. Die Tarife unten "
+"gelten für unsere gehostete Instanz und für die Einbettung von FileMorph "
+"in ein Closed-Source-Produkt."
+
+msgid ""
 "The Service is provided \"as is\" without warranty of any kind, express "
 "or implied. We do not guarantee uptime, accuracy of conversion results, "
 "or fitness for a particular purpose."
@@ -1657,6 +1797,17 @@ msgstr ""
 "Gewährleistung bereitgestellt. Wir garantieren keine Verfügbarkeit, "
 "Konvertierungs-Ergebnis-Genauigkeit oder Eignung für einen bestimmten "
 "Zweck."
+
+msgid ""
+"The conversion engine is open source (AGPLv3) — self-host it via Docker "
+"on your own server, with no feature gates. Your files never leave your "
+"infrastructure: well suited for GDPR, EU-only hosting, and air-gapped "
+"networks."
+msgstr ""
+"Die Konvertierungs-Engine ist Open Source (AGPLv3) — per Docker auf dem "
+"eigenen Server self-hosten, ohne Feature-Gates. Deine Dateien verlassen "
+"die eigene Infrastruktur nie: gut geeignet für DSGVO, EU-Hosting und "
+"abgeschottete Netze."
 
 msgid ""
 "The high-fidelity LibreOffice engine wasn't available on this deployment "
@@ -1780,15 +1931,6 @@ msgstr "Typische SaaS-Konvertierer"
 msgid "Typical open-source converters"
 msgstr "Typische Open-Source-Konvertierer"
 
-msgid "Up to 100 MB per file"
-msgstr "Bis zu 100 MB pro Datei"
-
-msgid "Up to 50 MB per file"
-msgstr "Bis zu 50 MB pro Datei"
-
-msgid "Up to 500 MB per file"
-msgstr "Bis zu 500 MB pro Datei"
-
 msgid "Update password"
 msgstr "Passwort aktualisieren"
 
@@ -1814,15 +1956,11 @@ msgstr "Verwende diese zur Authentifizierung programmatischer API-Anfragen."
 msgid "Users"
 msgstr "Nutzer"
 
-msgid "Using anonymously: up to 20 MB per file."
-msgstr "Anonyme Nutzung: bis zu 20 MB pro Datei."
+msgid "Using anonymously: up to"
+msgstr "Anonyme Nutzung: bis zu"
 
-msgid ""
-"Using without an account: up to 20 MB per file · single file at a time · "
-"10 requests/minute · no API access"
-msgstr ""
-"Ohne Konto verwenden: bis zu 20 MB pro Datei · einzelne Dateien · 10 "
-"Anfragen/Minute · kein API-Zugriff"
+msgid "Using without an account:"
+msgstr "Nutzung ohne Konto:"
 
 msgid "Verifying admin access…"
 msgstr "Prüfe Admin-Berechtigung …"
@@ -1890,6 +2028,9 @@ msgstr "Was wir gegenüber typischen Alternativen liefern"
 msgid "What we're transparent about"
 msgstr "Worüber wir transparent sind"
 
+msgid "What you can verify today"
+msgstr "Was Sie heute überprüfen können"
+
 msgid "What you get"
 msgstr "Was Sie bekommen"
 
@@ -1933,6 +2074,9 @@ msgstr "Wer passt"
 msgid "Why a Compliance Edition?"
 msgstr "Warum eine Compliance-Edition?"
 
+msgid "Why →"
+msgstr "Warum →"
+
 msgid ""
 "You also have the right to lodge a complaint with your local data "
 "protection authority."
@@ -1972,6 +2116,9 @@ msgstr ""
 msgid "You may not use the Service to:"
 msgstr "Du darfst den Dienst nicht nutzen, um:"
 
+msgid "You pay for accountability, not permission."
+msgstr "Sie zahlen für Verantwortung, nicht für eine Erlaubnis."
+
 msgid ""
 "You're evaluating conversion software for a public authority, hospital or"
 " law firm? Write to us with your use case — we respond within one "
@@ -2009,8 +2156,17 @@ msgstr ""
 msgid "and"
 msgstr "und"
 
+msgid "anonymous)"
+msgstr "anonym)"
+
 msgid "are encrypted with the same key."
 msgstr "werden mit demselben Schlüssel verschlüsselt."
+
+msgid "calls / month"
+msgstr "Aufrufe / Monat"
+
+msgid "concurrent"
+msgstr "gleichzeitig"
 
 msgid ""
 "cosign keyless OIDC, cryptographically signed git tags, CycloneDX-JSON "
@@ -2021,12 +2177,12 @@ msgstr ""
 
 msgid ""
 "cosign-signed Docker image, cryptographically signed git tags, CycloneDX-"
-"JSON SBOM in every release. Aligned with the EVB-IT cloud clause (March "
-"2026)."
+"JSON SBOM in every release. Aligned with the open-source + SBOM "
+"provisions of the EVB-IT reform (March 2026)."
 msgstr ""
 "Cosign-signiertes Docker-Image, kryptographisch signierte Git-Tags, "
-"CycloneDX-JSON-SBOM in jedem Release. Abgestimmt auf die EVB-IT-Cloud-"
-"Klausel (März 2026)."
+"CycloneDX-JSON-SBOM in jedem Release. Abgestimmt auf die Open-Source- und"
+" SBOM-Vorgaben der EVB-IT-Reform (März 2026)."
 
 msgid ""
 "critical issues within 7 days, high severity within 30 days, medium/low "
@@ -2035,6 +2191,9 @@ msgstr ""
 "kritische Probleme innerhalb von 7 Tagen, hohe Schwere innerhalb von 30 "
 "Tagen, mittel/niedrig im nächsten regulären Release."
 
+msgid "custom"
+msgstr "individuell"
+
 msgid ""
 "domain, which sets its own cookies. That is outside FileMorph's control "
 "and is governed by"
@@ -2042,8 +2201,14 @@ msgstr ""
 "-Domain umgeleitet, die eigene Cookies setzt. Das liegt außerhalb der "
 "Kontrolle von FileMorph und unterliegt"
 
+msgid "e-mail"
+msgstr "E-Mail"
+
 msgid "escalation, post-mortem template ↗"
 msgstr "Eskalation, Post-Mortem-Vorlage ↗"
+
+msgid "files"
+msgstr "Dateien"
 
 msgid "for a fast direct line"
 msgstr "für eine schnelle, direkte Kontaktaufnahme"
@@ -2054,11 +2219,14 @@ msgstr "für vollständige Kontaktdaten."
 msgid "for their data processing terms."
 msgstr "für deren Datenverarbeitungs-Bedingungen."
 
-msgid "from € 24,900"
-msgstr "ab € 24.900"
+msgid "from"
+msgstr "ab"
 
 msgid "full GitHub repository ↗"
 msgstr "vollständiges GitHub-Repository ↗"
+
+msgid "here is why ↗"
+msgstr "hier ist warum ↗"
 
 msgid "hint. Large batches are processed sequentially inside the request."
 msgstr ""
@@ -2067,6 +2235,9 @@ msgstr ""
 
 msgid "min 0.05 MB"
 msgstr "min. 0,05 MB"
+
+msgid "no API access"
+msgstr "kein API-Zugriff"
 
 msgid "no cookies"
 msgstr "keine Cookies"
@@ -2090,6 +2261,9 @@ msgstr ""
 "auf der eigenen Domain und betreibt keine Tracking- oder Analytics-"
 "Skripte. Das deutsche Recht (§ 25 TTDSG) behandelt den"
 
+msgid "on request"
+msgstr "auf Anfrage"
+
 msgid ""
 "optional; remembers the API key shown in your dashboard across reloads so"
 " you don't need to paste it again. Cleared on logout."
@@ -2104,8 +2278,14 @@ msgstr "oder direkt als Design-Partner bewerben →"
 msgid "or click to browse (multi-file supported)"
 msgstr "oder klicken zum Auswählen (Mehrfach-Dateien möglich)"
 
+msgid "per file"
+msgstr "pro Datei"
+
 msgid "per request"
 msgstr "pro Anfrage"
+
+msgid "priority"
+msgstr "priorisiert"
 
 msgid "rare"
 msgstr "selten"
@@ -2127,6 +2307,12 @@ msgstr ""
 "Identifier des Admins, dem User-Identifier des Ziel-Users und der "
 "durchgeführten Änderung aufgezeichnet, um interne Auditierung zu "
 "ermöglichen. Rechtsgrundlage: Art. 6(1)(f) DSGVO."
+
+msgid "self-set"
+msgstr "selbst gesetzt"
+
+msgid "single file at a time"
+msgstr "einzelne Datei"
 
 msgid ""
 "the same as cookies, so the few keys we write there while you are signed "
@@ -2159,6 +2345,12 @@ msgstr "zum Aktivieren."
 
 msgid "unlimited servers, dedicated onboarding, custom SLA"
 msgstr "unbegrenzte Server, dediziertes Onboarding, Custom-SLA"
+
+msgid "unlimited*"
+msgstr "unbegrenzt*"
+
+msgid "up to"
+msgstr "bis zu"
 
 msgid "varies"
 msgstr "variabel"
@@ -2224,35 +2416,18 @@ msgstr "← Zurück zu FileMorph"
 msgid "← Prev"
 msgstr "← Zurück"
 
-#~ msgid ""
-#~ "FileMorph — Free online file converter"
-#~ " & compressor. Convert images, documents,"
-#~ " audio and video. Fast, private, no"
-#~ " account required."
-#~ msgstr ""
-#~ "FileMorph — Kostenloser Online-Datei-"
-#~ "Konverter & -Kompressor. Bilder, Dokumente,"
-#~ " Audio und Video konvertieren. Schnell, "
-#~ "privat, kein Konto erforderlich."
+#~ msgid "100 MB · 10k API"
+#~ msgstr "100 MB · 10k API"
 
-#~ msgid "Free forever — no credit card required"
-#~ msgstr "Für immer kostenlos — keine Kreditkarte erforderlich"
+#~ msgid "50 MB · API key"
+#~ msgstr "50 MB · API-Key"
 
-#~ msgid "Imprint under the German Digitale-Dienste-Gesetz §5 (DDG)."
-#~ msgstr "Impressum gemäß § 5 Digitale-Dienste-Gesetz (DDG)."
+#~ msgid "500 MB · 100k API"
+#~ msgstr "500 MB · 100k API"
 
-#~ msgid "Last updated: 2026-04-23 · Community + Cloud Edition"
-#~ msgstr "Zuletzt aktualisiert: 2026-04-23 · Community + Cloud Edition"
+#~ msgid "Business · €19"
+#~ msgstr "Business · 19 €"
 
-#~ msgid ""
-#~ "The legal information below is provided"
-#~ " in German as required by German "
-#~ "law."
-#~ msgstr ""
-#~ "Die nachfolgenden rechtlichen Angaben sind "
-#~ "aus rechtlichen Gründen auf Deutsch "
-#~ "verfasst."
-
-#~ msgid "only while you are signed in:"
-#~ msgstr "deines Browsers gespeichert, während du angemeldet bist:"
+#~ msgid "Pro · €7/mo"
+#~ msgstr "Pro · 7 €/Monat"
 

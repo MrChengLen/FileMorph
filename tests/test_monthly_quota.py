@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """PR-M: monthly API-call quota gate + UsageRecord writer.
 
-The pricing page advertises 500/month (Free), 10 000 (Pro), 100 000
+The pricing page advertises 1 000/month (Free), 25 000 (Pro), 200 000
 (Business). These tests pin the contract:
 
 * ``enforce_monthly_quota`` raises 429 with a ``Retry-After`` header
@@ -201,7 +201,7 @@ def test_enforce_enterprise_is_noop():
 
 def test_enforce_below_limit_is_noop():
     user = asyncio.run(_make_user(email="below@example.com", tier=TierEnum.free))
-    # Free = 500/month. 100 rows is well under.
+    # Free = 1 000/month. 100 rows is well under.
     asyncio.run(_seed_usage(user.id, 100))
     asyncio.run(enforce_monthly_quota(user))  # must not raise
 
@@ -209,7 +209,7 @@ def test_enforce_below_limit_is_noop():
 def test_enforce_at_limit_raises_429_with_retry_after():
     """At limit (>= api_calls_per_month) → 429 + Retry-After header."""
     user = asyncio.run(_make_user(email="at-limit@example.com", tier=TierEnum.free))
-    asyncio.run(_seed_usage(user.id, 500))  # Free = 500
+    asyncio.run(_seed_usage(user.id, 1_000))  # Free = 1 000
 
     with pytest.raises(HTTPException) as exc_info:
         asyncio.run(enforce_monthly_quota(user))
@@ -224,27 +224,32 @@ def test_enforce_at_limit_raises_429_with_retry_after():
     assert "tier 'free'" in err.detail
 
 
-def test_enforce_pro_tier_at_10k():
-    """Pro tier = 10 000/month."""
+def test_enforce_pro_tier_at_25k():
+    """Pro tier = 25 000/month. Patch the count so the test doesn't
+    materialise 25 000 rows — the gate is whatever ``monthly_call_count``
+    returns, mocking it pins the boundary precisely."""
     user = asyncio.run(_make_user(email="pro@example.com", tier=TierEnum.pro))
-    asyncio.run(_seed_usage(user.id, 10_000))
 
-    with pytest.raises(HTTPException) as exc_info:
-        asyncio.run(enforce_monthly_quota(user))
+    async def _fake_count(*args, **kwargs):
+        return 25_000
+
+    with patch.object(usage_module, "monthly_call_count", _fake_count):
+        with pytest.raises(HTTPException) as exc_info:
+            asyncio.run(enforce_monthly_quota(user))
     assert exc_info.value.status_code == 429
     assert "tier 'pro'" in exc_info.value.detail
 
 
-def test_enforce_business_tier_at_100k():
-    """Business tier = 100 000/month. Use a Python-side patched count
-    so the test doesn't have to materialise 100 000 rows in SQLite —
+def test_enforce_business_tier_at_200k():
+    """Business tier = 200 000/month. Use a Python-side patched count
+    so the test doesn't have to materialise 200 000 rows in SQLite —
     the gate is whatever ``monthly_call_count`` returns, mocking that
     pins the boundary precisely.
     """
     user = asyncio.run(_make_user(email="biz@example.com", tier=TierEnum.business))
 
     async def _fake_count(*args, **kwargs):
-        return 100_000
+        return 200_000
 
     with patch.object(usage_module, "monthly_call_count", _fake_count):
         with pytest.raises(HTTPException) as exc_info:
@@ -308,9 +313,9 @@ def _override_user(user: User):
 
 
 def test_convert_route_returns_429_when_user_is_at_monthly_limit(client):
-    """End-to-end: a free-tier user with 500 rows already gets 429 on /convert."""
+    """End-to-end: a free-tier user with 1 000 rows already gets 429 on /convert."""
     user = asyncio.run(_make_user(email="convert-blocked@example.com", tier=TierEnum.free))
-    asyncio.run(_seed_usage(user.id, 500))
+    asyncio.run(_seed_usage(user.id, 1_000))
     app.dependency_overrides[get_optional_user] = _override_user(user)
     try:
         png_bytes = _tiny_png_bytes()  # Reused across both end-to-end tests.

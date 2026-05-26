@@ -15,6 +15,58 @@ and Anwaltskanzleien expect. None of this changes the existing public
 API behaviour for casual callers — every change is additive, defaulted
 off where applicable, and optional at deploy time.
 
+### Added — Homepage Self-Hosted promotion + nav anchor
+
+The canonical product truth (open-source AGPLv3 engine, runs on your own
+infrastructure — see `docs-internal/pricing-overhaul-konzept.md` §1) was
+barely visible on the homepage: a single grey `mailto:` line at the
+bottom. This sprint adds a real promotion surface so a visitor scanning
+for "can I self-host this?" sees the answer on the highest-authority page.
+
+- `app/templates/index.html` — new `id="self-hosted"` section directly
+  after the tool card. Lists only **real** features (AGPLv3, Docker
+  deploy, signed releases + CycloneDX SBOM, audit-log hash chain,
+  PDF/A-2b, EU hosting) per the §7 honesty guardrail. Primary CTA →
+  upstream `docs/self-hosting.md` on GitHub (always available, including
+  on self-host). Secondary CTA → `/enterprise` Compliance Edition,
+  gated by `pricing_enabled` so a self-host deployment doesn't link to
+  its own 404. The pre-existing weak `enterprise@filemorph.io`
+  `mailto:` line is removed — the section supersedes it, and gating the
+  Compliance CTA prevents self-host deployments from advertising the
+  upstream procurement contact as if it were their own.
+- `app/templates/base.html` — ungated "Self-Hosted" nav entry (desktop
+  + mobile) that points at the homepage `#self-hosted` anchor. Anchor
+  navigation needs no JS (CSP-safe). The link works on every
+  deployment because the section is always rendered.
+- Internal link graph: the homepage now has a direct, gated link to
+  `/enterprise`, strengthening the commercial page's inbound equity.
+  Sitemap already covers `/enterprise` when `pricing_page_enabled`.
+
+### Fixed — Homepage tier teaser now reads from the central pricing source
+
+The pricing-overhaul (`feat(pricing)` 153f72d on this branch) made
+`/pricing` deployment-agnostic via `app/core/pricing.py`, but missed the
+homepage tier teaser in `index.html`, which kept hardcoding `Pro €7/mo`,
+`Business €19`, `Free 50 MB`, `anon 20 MB`. `/pricing` therefore said
+`€3`/`€9` while the homepage still said `€7`/`€19` — a fresh drift the
+overhaul was meant to prevent.
+
+- `app/api/routes/pages.py` — `index()` now passes `anon_plan`, `plans`,
+  `saas_prices_configured`, and `price_currency` to the template,
+  mirroring `pricing_page()`'s contract. Cheap (`pricing` helpers read
+  from settings + `quotas.py`, no DB).
+- `app/templates/index.html` — teaser pulls limits from `quotas.py` via
+  `plans.<tier>.max_file_size_mb`/`.api_calls_display` and prices from
+  `PRICE_*_DISPLAY` env via `plans.<tier>.price_display`. When a price
+  isn't configured the `· €N/mo` suffix collapses — a self-host
+  operator who enabled the pricing page without setting display prices
+  no longer inherits filemorph.io's amounts.
+- `tests/test_seo_foundation.py` — eleven new tests guard: section
+  always rendered (both modes), Self-hosting guide link points at the
+  GitHub repo (not `filemorph.io`), nav anchor present on both modes,
+  Compliance CTA gated, teaser reads from configured price, no legacy
+  `€7/mo`/`€19` strings ever reappear.
+
 ### Added — Prometheus metrics endpoint (`/api/v1/metrics`)
 
 Request-path observability for self-hosters and the Compliance Edition.

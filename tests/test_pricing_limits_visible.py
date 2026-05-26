@@ -4,7 +4,7 @@
 A hard regression-guard so the contract on `/pricing` cannot drift
 out of sync with the limiter values in
 ``app/core/concurrency.py::_PER_TIER_CONCURRENCY``. The Pricing
-page is the public claim ("10,000 calls / month, 2 concurrent");
+page is the public claim ("25,000 calls / month, 3 concurrent");
 the limiter is the enforcement; if they disagree, paying users
 hit unexpected 429s.
 
@@ -30,9 +30,9 @@ def pricing_html(client, monkeypatch):
     # Stripe is configured in the dev env that runs the test suite.
     app.state  # access only — no mutation needed
     monkeypatch.setattr(settings, "stripe_secret_key", "sk_test_placeholder")  # gitleaks:allow
-    # Hit /en/pricing so the EN copy ("10,000 calls / month", "2 concurrent")
+    # Hit /en/pricing so the EN copy ("25,000 API calls / month", "3 concurrent")
     # is asserted deterministically. The DE catalog uses German number
-    # formatting ("10.000" with dot) and "gleichzeitig" — the limiter
+    # formatting ("25.000" with dot) and "gleichzeitig" — the limiter
     # contract is the same, the wording is locale-bound.
     res = client.get("/en/pricing")
     assert res.status_code == 200, res.text
@@ -50,9 +50,9 @@ def test_pricing_explains_quota_vs_concurrency(pricing_html):
 @pytest.mark.parametrize(
     "tier,quota_label,concurrent",
     [
-        ("free", "500", _PER_TIER_CONCURRENCY["free"]),
-        ("pro", "10,000", _PER_TIER_CONCURRENCY["pro"]),
-        ("business", "100,000", _PER_TIER_CONCURRENCY["business"]),
+        ("free", "1,000", _PER_TIER_CONCURRENCY["free"]),
+        ("pro", "25,000", _PER_TIER_CONCURRENCY["pro"]),
+        ("business", "200,000", _PER_TIER_CONCURRENCY["business"]),
     ],
 )
 def test_each_tier_lists_quota_concurrent_and_rate(pricing_html, tier, quota_label, concurrent):
