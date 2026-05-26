@@ -14,7 +14,11 @@
 # The installed Python tree lives in ``/opt/venv`` so the runtime stage
 # can ``COPY --from=builder /opt/venv /opt/venv`` in one shot rather than
 # fishing site-packages out of the system Python prefix.
-FROM python:3.12-slim@sha256:ec948fa5f90f4f8907e89f4800cfd2d2e91e391a4bce4a6afa77ba265bc3a2fe AS builder  # 3.12-slim
+# Pinned to python:3.12-slim (tag kept here for human readability; digest is the
+# enforcement). Comment moved off the FROM line because newer BuildKit parsers
+# count trailing comments as a fourth argument and reject the directive with
+# "FROM requires either one or three arguments".
+FROM python:3.12-slim@sha256:ec948fa5f90f4f8907e89f4800cfd2d2e91e391a4bce4a6afa77ba265bc3a2fe AS builder
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -62,7 +66,8 @@ RUN pip install -r requirements.txt
 #     ``curl -f http://localhost:8000/api/v1/health``).
 # ``libssl3`` and ``libffi8`` are already present in python:3.12-slim
 # (Python's _ssl + cffi need them) so we don't reinstall them here.
-FROM python:3.12-slim@sha256:ec948fa5f90f4f8907e89f4800cfd2d2e91e391a4bce4a6afa77ba265bc3a2fe AS base  # 3.12-slim
+# Pinned to python:3.12-slim (same image as builder; digest is the enforcement).
+FROM python:3.12-slim@sha256:ec948fa5f90f4f8907e89f4800cfd2d2e91e391a4bce4a6afa77ba265bc3a2fe AS base
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \

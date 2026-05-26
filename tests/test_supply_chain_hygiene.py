@@ -98,16 +98,29 @@ def test_dockerfile_base_image_is_digest_pinned() -> None:
     assert from_lines, "Dockerfile has no FROM line"
     assert _FROM_DIGEST_RE.search(text), (
         "Dockerfile base image is not pinned by @sha256: digest. Pin it and "
-        "keep the tag in a trailing comment (e.g. `FROM python:3.12-slim"
-        "@sha256:<digest>  # 3.12-slim`) so Dependabot's docker ecosystem "
-        "can still propose digest bumps."
+        "keep the tag in a comment on the line directly above (e.g. "
+        "`# Pinned to python:3.12-slim`\\n`FROM python:3.12-slim@sha256:<digest> "
+        "AS builder`) so Dependabot's docker ecosystem can still propose "
+        "digest bumps."
     )
-    # The Dependabot docker updater needs the tag to live in a comment on
-    # the FROM line; assert that comment is present.
-    from_line = next(line for line in text.splitlines() if line.startswith("FROM "))
-    assert "#" in from_line, (
-        "digest-pinned FROM line must carry a `# <tag>` comment so Dependabot "
-        "knows which tag the digest maps to"
+    # The Dependabot docker updater reads the tag-comment either inline on the
+    # FROM line OR on the line directly above it. Dockerfile syntax does NOT
+    # support trailing comments on directives — BuildKit counts a trailing
+    # `# tag` as a fourth argument and rejects the FROM with `FROM requires
+    # either one or three arguments`. The preceding-line form is therefore the
+    # only one that works with both BuildKit and Dependabot; either form
+    # satisfies this guard, but in practice we use the preceding-line form.
+    lines = text.splitlines()
+    from_idx = next(i for i, line in enumerate(lines) if line.startswith("FROM "))
+    from_line = lines[from_idx]
+    prev_line = lines[from_idx - 1] if from_idx > 0 else ""
+    has_inline_comment = "#" in from_line
+    has_preceding_comment = prev_line.lstrip().startswith("#")
+    assert has_inline_comment or has_preceding_comment, (
+        "digest-pinned FROM line must carry a `# <tag>` comment — either inline "
+        "on the FROM line or on the line directly above it — so Dependabot "
+        "knows which tag the digest maps to. Note: Dockerfile syntax does not "
+        "allow trailing comments on directives; use the preceding-line form."
     )
 
 
