@@ -14,7 +14,7 @@
 # The installed Python tree lives in ``/opt/venv`` so the runtime stage
 # can ``COPY --from=builder /opt/venv /opt/venv`` in one shot rather than
 # fishing site-packages out of the system Python prefix.
-# Pinned to python:3.12-slim (tag kept here for human readability; digest is the
+# Pinned to python:3.14-slim (tag kept here for human readability; digest is the
 # enforcement). Comment moved off the FROM line because newer BuildKit parsers
 # count trailing comments as a fourth argument and reject the directive with
 # "FROM requires either one or three arguments".
@@ -29,7 +29,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Dedicated venv so the runtime COPY is one directory tree (vs.
-# ``/usr/local/lib/python3.12/site-packages`` mixed with system files).
+# ``/usr/local/lib/python3.14/site-packages`` mixed with system files).
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH" \
     PIP_NO_CACHE_DIR=1 \
@@ -64,9 +64,9 @@ RUN pip install -r requirements.txt
 #     pango1.0-tools: WeasyPrint native dependency tree.
 #   - curl: in-container ``HEALTHCHECK`` driver (compose.yml uses
 #     ``curl -f http://localhost:8000/api/v1/health``).
-# ``libssl3`` and ``libffi8`` are already present in python:3.12-slim
+# ``libssl3`` and ``libffi8`` are already present in python:3.14-slim
 # (Python's _ssl + cffi need them) so we don't reinstall them here.
-# Pinned to python:3.12-slim (same image as builder; digest is the enforcement).
+# Pinned to python:3.14-slim (same image as builder; digest is the enforcement).
 FROM python:3.14-slim@sha256:c845af9399020c7e562969a13689e929074a10fd057acd1b1fad06a2fb068e97 AS base
 
 RUN apt-get update && \
