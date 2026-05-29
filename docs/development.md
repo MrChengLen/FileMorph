@@ -298,10 +298,26 @@ All settings can be overridden via environment variables or `.env` (uppercase, s
 
 ## Making a release
 
-1. Update `app_version` in `app/core/config.py`
-2. Update `CHANGELOG.md`
-3. Commit: `git commit -m "chore: release v1.x.0"`
-4. Tag: `git tag v1.x.0`
-5. Push: `git push origin main --tags`
+`main` is branch-protected, so the version bump goes through a PR; the
+**signed** tag is cut afterwards on the merged commit. Release tags must be
+GPG-signed — `.github/workflows/release.yml` rejects unsigned tags (fail-closed),
+and only keys listed in [`release-signing.md`](release-signing.md) verify.
 
-GitHub Actions will automatically build and push the Docker image to GHCR.
+1. On a branch, bump the version in `pyproject.toml` and `app/core/config.py`
+   (e.g. `1.1.0.dev0` → `1.1.0`), and roll `## [Unreleased]` in `CHANGELOG.md`
+   into `## [X.Y.Z] — <date>` with a fresh empty `[Unreleased]` above it.
+2. Open a PR, let CI go green, and merge it to `main`.
+3. Cut the **signed** tag on the merged commit. On Windows do this in **Git Bash**
+   (the GPG agent isn't reachable from PowerShell):
+   ```bash
+   git checkout main && git pull origin main
+   git tag -s vX.Y.Z -m "release vX.Y.Z"   # prompts for the GPG passphrase
+   git verify-tag vX.Y.Z                     # must print "Good signature"
+   git push origin vX.Y.Z
+   ```
+
+The tag push triggers `release.yml` (verifies the signature, publishes the
+GitHub Release with a source tarball + `IMAGE_DIGEST.txt`), `docker.yml`
+(builds + cosign-signs the slim and office images to GHCR) and `sbom.yml`
+(attaches the CycloneDX SBOM). See [`release-signing.md`](release-signing.md)
+for key setup/rotation and `docs/patch-policy.md` for the versioning rules.

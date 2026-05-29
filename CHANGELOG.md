@@ -9,6 +9,12 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+_Nothing yet._
+
+---
+
+## [1.1.0] — 2026-05-29
+
 The Compliance-First strategic pivot (2026-05): FileMorph adds the
 auditability + traceability surface that DACH Behörden, Krankenhäuser,
 and Anwaltskanzleien expect. None of this changes the existing public

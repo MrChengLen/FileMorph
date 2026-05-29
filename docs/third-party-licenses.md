@@ -76,7 +76,7 @@ choice with no code changes; raise it in the pilot conversation if it applies.
 
 ## Native / system libraries in the Docker image
 
-The image (`python:3.12-slim` base) adds, via `apt`, the native pieces the
+The image (`python:3.14-slim` base) adds, via `apt`, the native pieces the
 converters need:
 
 | Component | Licence | How FileMorph reaches it | Implication |
