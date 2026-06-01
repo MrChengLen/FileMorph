@@ -1,11 +1,17 @@
 name: SBOM
 
 # Generates a CycloneDX-JSON Software Bill of Materials for every push to
-# `main` (uploaded as a 90-day workflow artifact) and attaches the SBOM to
-# every published release. The artifact is named
-# `filemorph-{version}.cdx.json` so it lines up with the references in
-# docs/patch-policy.md and the EVB-IT-March-2026 SBOM mandate for Behörden
-# tenders.
+# `main`, uploaded as a 90-day workflow artifact for continuous SBOM tracking.
+# The artifact is named `filemorph-{version}.cdx.json` to line up with the
+# references in docs/patch-policy.md and the EVB-IT-March-2026 SBOM mandate.
+#
+# Release attachment lives in `release.yml`, NOT here: a release published by
+# the built-in GITHUB_TOKEN does not fire the `release: published` event
+# (GitHub suppresses it to avoid recursive runs), so a `release`-triggered
+# attach step here would silently never run. `release.yml` therefore generates
+# and attaches the SBOM in the same job that publishes the release.
+# `workflow_dispatch` stays so a maintainer can regenerate the artifact on
+# demand (e.g. to back-fill a release cut before this split landed).
 #
 # Why "environment" and not "requirements": `cyclonedx-py environment`
 # captures the actual installed graph including transitive dependencies
@@ -16,15 +22,13 @@ name: SBOM
 on:
   push:
     branches: ["main"]
-  release:
-    types: [published]
   workflow_dispatch:
 
 jobs:
   generate-sbom:
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # needed for action-gh-release on `release` events
+      contents: read  # only uploads a workflow artifact; release attach moved to release.yml
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
@@ -44,13 +48,9 @@ jobs:
 
       - name: Determine version label
         id: version
-        run: |
-          if [[ "${{ github.event_name }}" == "release" ]]; then
-            VERSION="${{ github.event.release.tag_name }}"
-          else
-            VERSION="$(git rev-parse --short HEAD)"
-          fi
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+        # main-push + workflow_dispatch only (release attach moved to
+        # release.yml), so the label is always the commit short-SHA.
+        run: echo "version=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Generate CycloneDX SBOM (JSON)
         run: |
@@ -64,9 +64,3 @@ jobs:
           name: sbom-${{ steps.version.outputs.version }}
           path: filemorph-*.cdx.json
           retention-days: 90
-
-      - name: Attach SBOM to release
-        if: github.event_name == 'release'
-        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
-        with:
-          files: filemorph-*.cdx.json

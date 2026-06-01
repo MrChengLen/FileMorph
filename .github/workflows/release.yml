@@ -69,6 +69,30 @@ jobs:
           git archive --format=tar.gz --prefix="filemorph-${TAG}/" \
             -o "filemorph-${TAG}.tar.gz" "$TAG"
 
+      # SBOM is generated HERE, inside the release job, rather than in a
+      # separate `release: published`-triggered workflow. A release published
+      # by the built-in GITHUB_TOKEN does NOT fire the `release` event (GitHub
+      # suppresses it to prevent recursive workflow runs), so a separate
+      # release-triggered SBOM workflow would silently never run — which is
+      # exactly what happened for v1.1.0. Bundling it here guarantees every
+      # release tag ships its CycloneDX SBOM (docs/patch-policy.md promise +
+      # EVB-IT-March-2026 SBOM mandate). `environment` captures the resolved
+      # transitive dependency graph, matching the SBOM workflow's main-push path.
+      - name: Set up Python (for SBOM)
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Generate CycloneDX SBOM
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          pip install -r requirements.txt
+          pip install "cyclonedx-bom>=5,<6"
+          cyclonedx-py environment \
+            --output-file "filemorph-${TAG}.cdx.json" \
+            --output-format JSON
+
       - name: Wait for cosign-signed container image
         # The Docker workflow runs in parallel on the same tag push; give
         # it a head-start so the digest reference is meaningful when the
@@ -108,5 +132,6 @@ jobs:
         with:
           files: |
             filemorph-*.tar.gz
+            filemorph-*.cdx.json
             IMAGE_DIGEST.txt
           generate_release_notes: true
