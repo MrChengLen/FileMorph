@@ -103,7 +103,12 @@ def _mock_send_email(monkeypatch):
 
 
 async def _make_user(
-    *, email: str, tier: TierEnum, customer_id: str, status: str | None = None
+    *,
+    email: str,
+    tier: TierEnum,
+    customer_id: str,
+    status: str | None = None,
+    preferred_lang: str | None = None,
 ) -> User:
     async with _TestSession() as s:
         user = User(
@@ -112,6 +117,7 @@ async def _make_user(
             tier=tier,
             stripe_customer_id=customer_id,
             subscription_status=status,
+            preferred_lang=preferred_lang,
         )
         s.add(user)
         await s.commit()
@@ -177,7 +183,11 @@ def _run_payment_failed(invoice: dict):
 def test_payment_failed_sets_past_due_and_sends_dunning_email(_mock_send_email):
     user = asyncio.run(
         _make_user(
-            email="dun1@example.com", tier=TierEnum.pro, customer_id="cus_dun1", status="active"
+            email="dun1@example.com",
+            tier=TierEnum.pro,
+            customer_id="cus_dun1",
+            status="active",
+            preferred_lang="en",
         )
     )
     _run_payment_failed(_invoice_obj("cus_dun1"))
@@ -186,9 +196,38 @@ def test_payment_failed_sets_past_due_and_sends_dunning_email(_mock_send_email):
     assert reloaded.subscription_status == "past_due"
     assert reloaded.tier == TierEnum.pro  # grace — not downgraded yet
     _mock_send_email.assert_awaited_once()
-    assert "payment failed" in _mock_send_email.await_args.kwargs["subject"].lower()
+    kwargs = _mock_send_email.await_args.kwargs
+    assert "payment failed" in kwargs["subject"].lower()
+    # render_email returns (subject, html, text) — the body carries the plan + email
+    assert "Pro" in kwargs["html"] and "dun1@example.com" in kwargs["html"]
     assert len(_events_by_type("billing.subscription.payment_failed")) == 1
     assert len(_events_by_type("billing.dunning_email_sent")) == 1
+
+
+def test_dunning_email_rendered_in_preferred_lang(_mock_send_email):
+    """PR-i18n-3: a German-preference subscriber gets the dunning mail in German.
+
+    This is the path with no HTTP request to derive a locale from — the
+    webhook reads ``User.preferred_lang`` instead.
+    """
+    user = asyncio.run(
+        _make_user(
+            email="dun-de@example.com",
+            tier=TierEnum.business,
+            customer_id="cus_dunde",
+            status="active",
+            preferred_lang="de",
+        )
+    )
+    _run_payment_failed(_invoice_obj("cus_dunde"))
+    asyncio.run(_reload(user.id))
+    _mock_send_email.assert_awaited_once()
+    kwargs = _mock_send_email.await_args.kwargs
+    assert "fehlgeschlagen" in kwargs["subject"].lower()
+    assert "Die letzte Zahlung für deinen FileMorph" in kwargs["html"]
+    assert 'lang="de"' in kwargs["html"]
+    # The plan name stays a proper noun even in the German body.
+    assert "Business" in kwargs["html"]
 
 
 def test_payment_failed_debounces_second_attempt(_mock_send_email):

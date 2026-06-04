@@ -188,9 +188,12 @@ def test_token_rejects_garbage():
 def test_register_dispatches_verification_email(client, mock_send_email):
     """A successful /register kicks off the verify email and leaves the
     user in the unverified state (email_verified_at IS NULL)."""
+    # Accept-Language pins the email locale to EN — the operator default is
+    # de, so without this header the verification mail renders German.
     res = client.post(
         "/api/v1/auth/register",
         json={"email": "newuser@example.com", "password": "longenough"},
+        headers={"Accept-Language": "en"},
     )
     assert res.status_code == 201, res.text
     mock_send_email.assert_awaited_once()
@@ -199,12 +202,42 @@ def test_register_dispatches_verification_email(client, mock_send_email):
     assert "confirm" in kwargs["subject"].lower()
     assert "/verify-email?token=" in kwargs["html"]
 
-    # email_verified_at starts NULL
+    # email_verified_at starts NULL; preferred_lang seeded from the request
+    # locale (the Accept-Language: en header above).
     async def _check():
         async with _TestSession() as s:
             r = await s.execute(select(User).where(User.email == "newuser@example.com"))
             user = r.scalar_one()
             assert user.email_verified_at is None
+            assert user.preferred_lang == "en"
+
+    asyncio.run(_check())
+
+
+@pytest.mark.parametrize(
+    ("tag", "accept_language", "expected_lang"),
+    [
+        ("de-explicit", "de", "de"),
+        ("en-explicit", "en-US,en;q=0.9", "en"),
+        ("no-header", None, "de"),  # no signal → operator default (LANG_DEFAULT, de)
+    ],
+)
+def test_register_seeds_preferred_lang_from_request_locale(
+    client, mock_send_email, tag, accept_language, expected_lang
+):
+    email = f"reglang-{tag}@example.com"
+    headers = {"Accept-Language": accept_language} if accept_language else {}
+    res = client.post(
+        "/api/v1/auth/register",
+        json={"email": email, "password": "longenough"},
+        headers=headers,
+    )
+    assert res.status_code == 201, res.text
+
+    async def _check():
+        async with _TestSession() as s:
+            r = await s.execute(select(User).where(User.email == email))
+            assert r.scalar_one().preferred_lang == expected_lang
 
     asyncio.run(_check())
 

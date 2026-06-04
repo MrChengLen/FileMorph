@@ -127,9 +127,11 @@ def test_forgot_password_unknown_email_still_200(client, mock_send_email):
 def test_forgot_password_sends_email_when_user_exists(client, mock_send_email):
     asyncio.run(_insert_user(email="real@example.com"))
 
+    # Accept-Language pins the reset-email locale to EN (operator default is de).
     res = client.post(
         "/api/v1/auth/forgot-password",
         json={"email": "real@example.com"},
+        headers={"Accept-Language": "en"},
     )
     assert res.status_code == 200
     mock_send_email.assert_awaited_once()

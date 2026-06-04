@@ -93,6 +93,15 @@ class User(Base):
     email_verified_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    # PR-i18n-3: the language FileMorph sends transactional email to this
+    # user in (``de`` / ``en``). NULL = no explicit preference → fall back
+    # to ``settings.lang_default``. Seeded at registration from the locale
+    # the user signed up in; changeable from the dashboard. Distinct from
+    # the *web-UI* locale, which stays URL-prefix-driven (no cookie) — this
+    # column exists because outbound email is rendered outside any request
+    # context and therefore has no other locale signal (e.g. the dunning
+    # email fired from a Stripe webhook). See ``app/core/i18n.py``.
+    preferred_lang: Mapped[Optional[str]] = mapped_column(String(5), nullable=True)
 
     # Relationships
     api_keys: Mapped[list[ApiKey]] = relationship(
