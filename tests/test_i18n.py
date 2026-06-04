@@ -340,6 +340,7 @@ def test_supported_locale_renders_each_page(client, locale):
         "/impressum",
         "/contact",
         "/verify-email",
+        "/account-deleted",
     ]
     for page in pages:
         r = client.get(f"/{locale}{page}" if page != "/" else f"/{locale}/")
@@ -364,6 +365,8 @@ def test_supported_locale_renders_each_page(client, locale):
 #   - ``Widerrufsrecht``: BGB §356 right-of-withdrawal language; appears
 #     on /de/privacy as part of the consumer-protection clause and is
 #     untranslatable in an EN render.
+#   - ``Dein Konto wurde gelöscht``: the /de/account-deleted heading
+#     (PR-D); renders as "Your account has been deleted" in EN.
 
 
 @pytest.mark.parametrize(
@@ -374,6 +377,7 @@ def test_supported_locale_renders_each_page(client, locale):
         ("/de/impressum", "Verantwortlich"),
         ("/de/security", "Sicherheit"),
         ("/de/contact", "Nachricht senden"),
+        ("/de/account-deleted", "Dein Konto wurde gelöscht"),
     ],
 )
 def test_de_page_renders_german_content(client, path, de_marker):

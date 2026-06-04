@@ -98,6 +98,46 @@ function copyKey() {
   });
 }
 
+// ── Danger zone: account deletion (PR-D) ──────────────────────────────────────
+
+function showDeleteForm() {
+  if (!confirm('This will permanently delete your account, API keys, and cancel any active subscription. Conversion-job records are anonymized. Continue?')) return;
+  document.getElementById('delete-confirm-form').classList.remove('hidden');
+  document.getElementById('delete-account-btn').classList.add('hidden');
+}
+
+function hideDeleteForm() {
+  document.getElementById('delete-confirm-form').classList.add('hidden');
+  document.getElementById('delete-account-btn').classList.remove('hidden');
+  document.getElementById('delete-status').textContent = '';
+}
+
+async function confirmDeleteAccount() {
+  const status = document.getElementById('delete-status');
+  status.textContent = '';
+  const res = await window.FM.authFetch('/api/v1/auth/account', {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      password: document.getElementById('delete-confirm-password').value,
+      confirm_email: document.getElementById('delete-confirm-email').value,
+      confirm_word: document.getElementById('delete-confirm-word').value,
+    }),
+  });
+  if (res.status === 204) {
+    // Drop exactly the three keys the app writes (see privacy.html §6).
+    localStorage.removeItem('fm_access_token');
+    localStorage.removeItem('fm_refresh_token');
+    localStorage.removeItem('filemorph_api_key');
+    window.location.href = '/account-deleted';
+    return;
+  }
+  if (res.status === 401) { window.location.href = '/login'; return; }
+  if (res.status === 400 || res.status === 422) { status.textContent = status.dataset.err400; return; }
+  if (res.status === 409) { status.textContent = status.dataset.err409; return; }
+  status.textContent = status.dataset.err500;
+}
+
 document.addEventListener('DOMContentLoaded', function () {
   loadUser();
   loadKeys();
@@ -105,4 +145,7 @@ document.addEventListener('DOMContentLoaded', function () {
   document.getElementById('copy-key-btn').addEventListener('click', copyKey);
   const langSel = document.getElementById('email-lang');
   if (langSel) langSel.addEventListener('change', function (e) { saveEmailLang(e.target.value); });
+  document.getElementById('delete-account-btn').addEventListener('click', showDeleteForm);
+  document.getElementById('delete-cancel-btn').addEventListener('click', hideDeleteForm);
+  document.getElementById('delete-confirm-submit').addEventListener('click', confirmDeleteAccount);
 });

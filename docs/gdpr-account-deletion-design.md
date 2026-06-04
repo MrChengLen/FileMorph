@@ -1,16 +1,34 @@
 # GDPR Account-Deletion Design
 
-**Status:** Slice c.1 (free path) shipped 2026-05-06; slice c.2
-(paid path with HGB §257 / AO §147 tax retention) is the next
-follow-up. The endpoint, the cascade, the last-admin guard, the
-confirmation email, and the audit-chain integration described in
-§§ 3–9 are live; the Stripe-touched-account branch in § 5.B
-currently returns HTTP 409 directing the user to the operator
-support contact while the deleted_at column + partial unique
-index land.
+**Status:** Slice c.1 (free path) shipped 2026-05-06; slice c.2 (paid
+path with HGB §257 / AO §147 tax retention) shipped 2026-05-12. Both
+paths are live — free / never-paid accounts are hard-deleted; accounts
+linked to Stripe are kept in the restricted state described in § 5.B
+(only ``email`` / Stripe customer id / ``tier`` / ``created_at``
+retained, ``deleted_at`` stamped, everything else nulled or
+sentinelled). The endpoint, the three-field gate, the last-admin
+guard, the cancel-first Stripe handling, the cascade / anonymisation,
+the confirmation email, and the audit-chain integration are all live.
+Code anchors: ``app/api/routes/auth.py::delete_account`` (HTTP contract
++ gates + observability + confirmation email),
+``app/core/account_deletion.py`` (``deletion_mode_for`` +
+``perform_account_deletion`` — the free vs. tax-retained execution),
+``app/core/billing.py::cancel_active_subscriptions`` (the cancel-first
+pass), ``alembic/versions/010_account_deletion_paid_path.py``
+(``users.deleted_at`` + the partial unique index
+``ix_users_email_active``, which replaces the old unconditional
+``UNIQUE`` on ``users.email``),
+``app/templates/emails/account_deleted.{html,txt}`` (the
+``deletion_mode == "tax_retained"`` paragraph),
+``app/templates/dashboard.html`` + ``app/static/js/dashboard.js`` (the
+"Danger zone" flow), ``app/templates/account_deleted.html`` (the
+landing page). The remaining items called out in §§ 5.B + 12 — the
+10-year purge cron, the AVV/DPA template, and a cockpit guard that
+refuses admin mutations on a row with ``deleted_at IS NOT NULL`` —
+stay tracked as separate follow-ups.
 **Audience:** Self-hosters, contributors, and the FileMorph cloud
-operator picking up slice c.2.
-**Last updated:** 2026-05-06 (status row above; body preserved as
+operator.
+**Last updated:** 2026-05-12 (status row above; body preserved as
 the design trail).
 
 ---

@@ -42,6 +42,18 @@
               </ul>
             </td>
           </tr>
+          {% if deletion_mode == 'tax_retained' %}
+          <tr>
+            <td style="font-size:14px; line-height:22px; color:#d1d5db; padding-bottom:18px;">
+              <strong>{{ _('Tax-retained record') }}</strong>
+              <p style="margin:8px 0 0;">
+                {% trans trimmed %}
+                Because your account is linked to a Stripe customer record (you started or completed a paid subscription), German tax law (HGB §257, AO §147) obliges us to retain a minimal invoice-link record — your email address, Stripe customer identifier, and last billing tier — for 10 years from the end of the calendar year of your last payment. After that period it is permanently deleted. This retention is permitted under DSGVO Art. 17(3)(b) (legal-obligation exception); the data is held solely for tax audit and is not processed for any other purpose.
+                {% endtrans %}
+              </p>
+            </td>
+          </tr>
+          {% endif %}
           <tr>
             <td style="font-size:14px; line-height:22px; color:#d1d5db; padding-bottom:18px;">
               {{ _('You can re-register with the same email address at any time. A new registration creates a fresh account with no link to this one.') }}

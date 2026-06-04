@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% import "_components/card.html" as uc %}
 {% import "_components/button.html" as ub %}
+{% import "_components/text_input.html" as ut %}
 {% block title %}{{ _('Dashboard') }} — FileMorph{% endblock %}
 {% block content %}
 <main class="flex-1 max-w-3xl mx-auto w-full px-4 sm:px-6 py-8 space-y-6">
@@ -68,6 +69,30 @@
       <span id="email-lang-status" class="text-xs text-ink-faint" aria-live="polite"
         data-saved="{{ _('Saved') }}" data-error="{{ _('Could not save — please try again.') }}"></span>
     </div>
+  </div>
+  {% endcall %}
+
+  <!-- Danger zone (PR-D) -->
+  {% call uc.card() %}
+  <div class="space-y-3">
+    <div>
+      <h2 class="font-semibold text-red-400">{{ _('Danger zone') }}</h2>
+      <p class="text-xs text-ink-faint mt-0.5">{{ _('Permanently delete your account, API keys, and cancel any active subscription. Conversion-job records are anonymised. This cannot be undone.') }}</p>
+    </div>
+    {{ ub.button(_('Delete account'), id='delete-account-btn', size='sm', variant='danger') }}
+    <div id="delete-confirm-form" class="hidden space-y-3 pt-2">
+      {{ ut.text_input('confirm_email', type='email', label=_('Type your email address to confirm:'), id='delete-confirm-email', autocomplete='email') }}
+      {{ ut.text_input('password', type='password', label=_('Enter your password:'), id='delete-confirm-password', autocomplete='current-password') }}
+      {{ ut.text_input('confirm_word', type='text', label=_('Type the word DELETE to confirm:'), id='delete-confirm-word') }}
+      <div class="flex items-center gap-3">
+        {{ ub.button(_('Confirm deletion'), id='delete-confirm-submit', size='sm', variant='danger', type='button') }}
+        {{ ub.button(_('Cancel'), id='delete-cancel-btn', size='sm', variant='ghost', type='button') }}
+      </div>
+    </div>
+    <span id="delete-status" class="block text-sm text-red-400" aria-live="polite"
+      data-err-400="{{ _('Confirmation did not match. Try again.') }}"
+      data-err-409="{{ _('You are the only active admin. Promote another user to admin before deleting your account.') }}"
+      data-err-500="{{ _('Something went wrong on our end. Your account is unchanged. Please try again.') }}"></span>
   </div>
   {% endcall %}
 

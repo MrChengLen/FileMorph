@@ -127,6 +127,14 @@ async def dashboard_page(request: Request):
     return _render(request, "dashboard.html")
 
 
+@router.get("/account-deleted")
+async def account_deleted_page(request: Request):
+    # Post-deletion landing page (PR-D): the dashboard "Delete account"
+    # flow redirects here after a 204. Not in the nav, not in the sitemap
+    # — there is nothing here to crawl.
+    return _render(request, "account_deleted.html")
+
+
 @router.get("/pricing")
 async def pricing_page(request: Request):
     # Self-host default: no commercial pricing surface at all.

@@ -56,6 +56,12 @@ def _serialize_user(u: User) -> dict:
         "is_active": u.is_active,
         "created_at": u.created_at.isoformat() if u.created_at else None,
         "stripe_customer_id": u.stripe_customer_id,
+        # PR-D: non-NULL on a tax-retained (paid-path-deleted) account —
+        # the row is kept for the 10-year HGB §257 / AO §147 record, not an
+        # admin deactivation. Surfaced so the cockpit can tell the two
+        # apart. (Refusing admin actions on these rows is a tracked
+        # follow-up — see docs/gdpr-account-deletion-design.md § 5.B.)
+        "deleted_at": u.deleted_at.isoformat() if u.deleted_at else None,
     }
 
 

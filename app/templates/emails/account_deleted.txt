@@ -13,7 +13,13 @@ Your FileMorph account {{ email }} was deleted on {{ deleted_at }}. This is a co
 {{ _('What was anonymised') }}
 ------------------------------
   - {{ _('Conversion-job history — your account ID was stripped; the records are retained as anonymous aggregate data under DSGVO Art. 4(1).') }}
-
+{% if deletion_mode == 'tax_retained' %}
+{{ _('Tax-retained record') }}
+------------------------------
+{% trans trimmed %}
+Because your account is linked to a Stripe customer record (you started or completed a paid subscription), German tax law (HGB §257, AO §147) obliges us to retain a minimal invoice-link record — your email address, Stripe customer identifier, and last billing tier — for 10 years from the end of the calendar year of your last payment. After that period it is permanently deleted. This retention is permitted under DSGVO Art. 17(3)(b) (legal-obligation exception); the data is held solely for tax audit and is not processed for any other purpose.
+{% endtrans %}
+{% endif %}
 {{ _('You can re-register with the same email address at any time. A new registration creates a fresh account with no link to this one.') }}
 
 {% trans trimmed support_email=support_email %}

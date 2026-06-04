@@ -23,7 +23,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.sql import func
+from sqlalchemy.sql import func, text
 
 from app.db.base import Base
 
@@ -60,7 +60,12 @@ class User(Base):
     __tablename__ = "users"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    email: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    # Uniqueness is enforced by the partial index ``ix_users_email_active``
+    # (see __table_args__) — an email is unique only among rows with
+    # ``deleted_at IS NULL``. A column-level ``unique=True`` would make the
+    # constraint unconditional and block re-registration after a paid-path
+    # ("tax-retained") delete.
+    email: Mapped[str] = mapped_column(String, nullable=False)
     password_hash: Mapped[str] = mapped_column(String, nullable=False)
     tier: Mapped[TierEnum] = mapped_column(
         Enum(TierEnum, name="tier_enum"), nullable=False, default=TierEnum.free
@@ -102,6 +107,14 @@ class User(Base):
     # context and therefore has no other locale signal (e.g. the dunning
     # email fired from a Stripe webhook). See ``app/core/i18n.py``.
     preferred_lang: Mapped[Optional[str]] = mapped_column(String(5), nullable=True)
+    # PR-D (account-deletion slice c.2): set only on the paid-path
+    # ("tax-retained") delete — the users row is kept in a restricted state
+    # because German tax law (HGB §257, AO §147) obliges a 10-year retention
+    # of the invoice → customer link; DSGVO Art. 17(3)(b) permits it. NULL on
+    # every live account. The (future) purge job hard-deletes rows where
+    # ``deleted_at < NOW() - INTERVAL '10 years 6 months'``. See
+    # ``docs/gdpr-account-deletion-design.md`` §5.B.
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Relationships
     api_keys: Mapped[list[ApiKey]] = relationship(
@@ -112,6 +125,18 @@ class User(Base):
 
     __table_args__ = (
         Index("ix_users_email", "email"),
+        # Partial unique index: an email is unique only among *live* rows.
+        # A tax-retained (paid-path-deleted) row keeps its email for the
+        # 10-year HGB §257 / AO §147 record but no longer occupies the
+        # uniqueness slot, so the same person can re-register. Replaces the
+        # old unconditional UNIQUE on users.email (dropped in migration 010).
+        Index(
+            "ix_users_email_active",
+            "email",
+            unique=True,
+            postgresql_where=text("deleted_at IS NULL"),
+            sqlite_where=text("deleted_at IS NULL"),
+        ),
         Index("ix_users_created_at", "created_at"),
         Index("ix_users_role", "role"),
     )

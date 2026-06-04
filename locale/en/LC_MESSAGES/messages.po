@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-06-04 10:59+0200\n"
+"POT-Creation-Date: 2026-06-04 11:09+0200\n"
 "PO-Revision-Date: 2026-05-07 13:43+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -30,13 +30,6 @@ msgstr ""
 msgid "(vs."
 msgstr ""
 
-msgid ""
-"). The cascade removes your login credentials and API keys; conversion-"
-"job and usage-record entries are anonymised (your account ID is nulled, "
-"the rows are kept as anonymous aggregate data under DSGVO Art. 4(1)). A "
-"confirmation email is sent after the row is gone."
-msgstr ""
-
 msgid "* Unlimited within your self-hosted infrastructure — you run the server."
 msgstr ""
 
@@ -47,6 +40,11 @@ msgid ""
 ", hosted in Frankfurt, EU). Zoho receives the recipient address and the "
 "email contents (including the reset link). Legal basis: Art. 6(1)(b) "
 "GDPR. See"
+msgstr ""
+
+msgid ""
+". To exercise other rights (access, rectification, restriction), contact "
+"the same address."
 msgstr ""
 
 msgid "/mo"
@@ -195,14 +193,13 @@ msgid ""
 "GDPR) in operating a secure and reliable service."
 msgstr ""
 
+msgid "Account deleted"
+msgstr ""
+
 msgid "Account deletion:"
 msgstr ""
 
-msgid ""
-"Accounts that have ever been linked to Stripe cannot use the self-service"
-" path yet — German commercial law (HGB §257, AO §147) requires a 10-year "
-"retention of tax-relevant records under Art. 17(3)(b) GDPR. For these "
-"accounts, contact"
+msgid "Account-deletion design"
 msgstr ""
 
 msgid "Acknowledgement:"
@@ -324,6 +321,17 @@ msgstr ""
 msgid "Batch upload:"
 msgstr ""
 
+msgid ""
+"Because your account is linked to a Stripe customer record (you started "
+"or completed a paid subscription), German tax law (HGB §257, AO §147) "
+"obliges us to retain a minimal invoice-link record — your email address, "
+"Stripe customer identifier, and last billing tier — for 10 years from the"
+" end of the calendar year of your last payment. After that period it is "
+"permanently deleted. This retention is permitted under DSGVO Art. "
+"17(3)(b) (legal-obligation exception); the data is held solely for tax "
+"audit and is not processed for any other purpose."
+msgstr ""
+
 msgid "Behörden · Krankenhäuser · Kanzleien"
 msgstr ""
 
@@ -442,6 +450,9 @@ msgstr ""
 msgid "Confirm Password"
 msgstr ""
 
+msgid "Confirm deletion"
+msgstr ""
+
 msgid "Confirm email"
 msgstr ""
 
@@ -455,6 +466,9 @@ msgid "Confirm your email"
 msgstr ""
 
 msgid "Confirm your email address"
+msgstr ""
+
+msgid "Confirmation did not match. Try again."
 msgstr ""
 
 msgid "Confirming email"
@@ -552,6 +566,14 @@ msgstr ""
 msgid "DOCX · PDF · TXT · MD · XLSX · CSV · JSON"
 msgstr ""
 
+msgid ""
+"DSGVO Art. 17 self-service flow, incl. the HGB §257 / AO §147 tax-"
+"retention edge case ↗"
+msgstr ""
+
+msgid "Danger zone"
+msgstr ""
+
 msgid "Dashboard"
 msgstr ""
 
@@ -559,6 +581,9 @@ msgid "Data Processing Agreement (DPA)"
 msgstr ""
 
 msgid "Deactivated"
+msgstr ""
+
+msgid "Delete account"
 msgstr ""
 
 msgid "Delete failed."
@@ -628,6 +653,9 @@ msgid "Engineering proof before contract"
 msgstr ""
 
 msgid "Enter your email to receive a reset link"
+msgstr ""
+
+msgid "Enter your password:"
 msgstr ""
 
 msgid "Enterprise"
@@ -765,9 +793,6 @@ msgstr ""
 msgid "Free"
 msgstr ""
 
-msgid "Free accounts can be deleted from the API at"
-msgstr ""
-
 msgid "Free engine. Pay only for hosting or a license."
 msgstr ""
 
@@ -893,7 +918,22 @@ msgid ""
 "account creation timestamp, and — once you upgrade to a paid tier — the "
 "Stripe customer identifier that links your account to Stripe. Account "
 "data is persisted in our PostgreSQL database for the lifetime of your "
-"account and erased on deletion request (Art. 17 GDPR)."
+"account. You can delete your account at any time through the dashboard's "
+"\"Delete account\" flow, or by request to privacy@filemorph.io. On "
+"deletion we erase your password hash and API keys, and cancel any active "
+"paid subscription. Conversion-job records are anonymised — your account "
+"ID is removed — and the resulting anonymous rows are retained for "
+"aggregate service-quality analytics; under GDPR Art. 4(1), they no longer"
+" relate to you. Stripe transaction records are retained by Stripe under "
+"their own tax-retention obligations. For accounts that have made at least"
+" one payment, German tax law (HGB §257, AO §147) obliges us to retain a "
+"minimal invoice-link record — your email address, Stripe customer "
+"identifier, and last billing tier — for 10 years from the end of the "
+"calendar year of your last payment; all other personal data is erased on "
+"deletion. This retention is the legal-obligation exception under GDPR "
+"Art. 17(3)(b); the data is held solely for tax audit and is hard-deleted "
+"at the end of the retention period. Erasure otherwise complies with GDPR "
+"Art. 17."
 msgstr ""
 
 msgid ""
@@ -1181,6 +1221,12 @@ msgid "Payments are not yet active. Please check back soon."
 msgstr ""
 
 msgid "Per § 18 (2) MStV: Lennart Seidel, Reetwerder 25b, 21029 Hamburg."
+msgstr ""
+
+msgid ""
+"Permanently delete your account, API keys, and cancel any active "
+"subscription. Conversion-job records are anonymised. This cannot be "
+"undone."
 msgstr ""
 
 msgid "Plans"
@@ -1510,6 +1556,11 @@ msgstr ""
 msgid "Something went wrong on our end. Please try again in a moment."
 msgstr ""
 
+msgid ""
+"Something went wrong on our end. Your account is unchanged. Please try "
+"again."
+msgstr ""
+
 msgid "Sorry, we could not send your message right now."
 msgstr ""
 
@@ -1527,11 +1578,6 @@ msgid "Steps to reproduce, including any required configuration or input files."
 msgstr ""
 
 msgid "Stripe (payments):"
-msgstr ""
-
-msgid ""
-"Stripe may retain records of past transactions independently of our "
-"deletion, to comply with its own legal and tax obligations."
 msgstr ""
 
 #, python-format
@@ -1600,6 +1646,9 @@ msgid ""
 msgstr ""
 
 msgid "Tax status"
+msgstr ""
+
+msgid "Tax-retained record"
 msgstr ""
 
 msgid "Terms of Use"
@@ -1757,6 +1806,12 @@ msgid "Trust basis before contract"
 msgstr ""
 
 msgid "Type it again"
+msgstr ""
+
+msgid "Type the word DELETE to confirm:"
+msgstr ""
+
+msgid "Type your email address to confirm:"
 msgstr ""
 
 msgid "Typical SaaS converters"
@@ -1924,7 +1979,28 @@ msgid ""
 "protection authority."
 msgstr ""
 
+msgid ""
+"You are the only active admin. Promote another user to admin before "
+"deleting your account."
+msgstr ""
+
 msgid "You can also email us directly at"
+msgstr ""
+
+msgid ""
+"You can delete your account at any time from the dashboard (\"Delete "
+"account\" in the Danger zone). The flow asks you to re-enter your email, "
+"password, and the word DELETE before deletion proceeds. Deletion "
+"permanently erases your password hash and API keys; cancels any active "
+"paid subscription; and anonymises your conversion-job history (your "
+"account ID is stripped, the records are retained for analytics). Stripe "
+"retains transaction records independently to comply with its own tax-"
+"retention obligations. If your account has made at least one payment, we "
+"additionally retain a minimal invoice-link record — email, Stripe "
+"customer ID, and last billing tier — for 10 years (HGB §257, AO §147, "
+"permitted under GDPR Art. 17(3)(b)); after that period the record is "
+"permanently deleted. Free accounts that never issued a payment are erased"
+" in full. If you prefer, you can also request deletion by emailing"
 msgstr ""
 
 msgid ""
@@ -1953,6 +2029,12 @@ msgid "You may not use the Service to:"
 msgstr ""
 
 msgid "You pay for accountability, not permission."
+msgstr ""
+
+msgid ""
+"You'll receive a confirmation email shortly. You can re-register at any "
+"time — a new registration creates a fresh account with no link to this "
+"one."
 msgstr ""
 
 msgid ""
@@ -1999,11 +2081,6 @@ msgid "Zoho Mail (transactional email):"
 msgstr ""
 
 msgid "Zoho's privacy policy"
-msgstr ""
-
-msgid ""
-"after a three-field re-confirmation (your password, your email, and the "
-"literal word"
 msgstr ""
 
 msgid "and"
@@ -2251,5 +2328,57 @@ msgstr ""
 #~ msgstr ""
 
 #~ msgid "Using anonymously: up to 20 MB per file."
+#~ msgstr ""
+
+#~ msgid ""
+#~ "). The cascade removes your login "
+#~ "credentials and API keys; conversion-job"
+#~ " and usage-record entries are "
+#~ "anonymised (your account ID is nulled,"
+#~ " the rows are kept as anonymous "
+#~ "aggregate data under DSGVO Art. 4(1))."
+#~ " A confirmation email is sent after"
+#~ " the row is gone."
+#~ msgstr ""
+
+#~ msgid ""
+#~ "Accounts that have ever been linked "
+#~ "to Stripe cannot use the self-"
+#~ "service path yet — German commercial "
+#~ "law (HGB §257, AO §147) requires a"
+#~ " 10-year retention of tax-relevant "
+#~ "records under Art. 17(3)(b) GDPR. For"
+#~ " these accounts, contact"
+#~ msgstr ""
+
+#~ msgid "Free accounts can be deleted from the API at"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "If you register an account, we "
+#~ "store your email address, a bcrypt "
+#~ "hash of your password (never the "
+#~ "plaintext), your subscription tier, your "
+#~ "account creation timestamp, and — once"
+#~ " you upgrade to a paid tier —"
+#~ " the Stripe customer identifier that "
+#~ "links your account to Stripe. Account"
+#~ " data is persisted in our PostgreSQL"
+#~ " database for the lifetime of your"
+#~ " account and erased on deletion "
+#~ "request (Art. 17 GDPR)."
+#~ msgstr ""
+
+#~ msgid ""
+#~ "Stripe may retain records of past "
+#~ "transactions independently of our deletion,"
+#~ " to comply with its own legal "
+#~ "and tax obligations."
+#~ msgstr ""
+
+#~ msgid ""
+#~ "after a three-field re-confirmation "
+#~ "(your password, your email, and the "
+#~ "literal word"
 #~ msgstr ""
 

@@ -187,6 +187,12 @@ def _staged_added_lines() -> list[tuple[str, int, str]]:
         ["git", "diff", "--cached", "-U0", "--no-color", "--diff-filter=ACM"],
         capture_output=True,
         text=True,
+        # Force UTF-8 with replacement: the staged diff can carry non-ASCII
+        # text (the German ``.po`` catalogue) and even raw bytes (a ``.mo``
+        # not marked binary in ``.gitattributes``). The platform default
+        # codec (cp1252 on Windows) would raise ``UnicodeDecodeError`` and
+        # crash the whole hook step; ``errors="replace"`` turns those into
+        # junk lines (which never match a rule) instead of dying.
         encoding="utf-8",
         errors="replace",
         check=False,
