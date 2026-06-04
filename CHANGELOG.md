@@ -9,6 +9,22 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — Account-deletion paid-path (tax-retention, c.2)
+
+Extends the free-path self-service deletion (`DELETE /api/v1/auth/account`)
+with the **paid-account path** required by German commercial law. Accounts
+ever linked to Stripe now get a **restricted delete** instead of a hard
+delete: only `email`, `stripe_customer_id`, `tier`, `created_at` are
+retained, everything else is nulled, `password_hash` becomes a `DELETED:`
+sentinel, and `deleted_at` is set (HGB §257 / AO §147 10-year retention
+under DSGVO Art. 17(3)(b)). New `app/core/account_deletion.py`
+(`deletion_mode_for` + `perform_account_deletion`), migration
+`010_account_deletion_paid_path` (`users.deleted_at` + partial unique index
+`ix_users_email_active`), Stripe cancel-first ordering, a dashboard
+"Danger Zone" + `/account-deleted` page. Lookup queries filter
+`deleted_at IS NULL`. Also fixes `scripts/scope_review.py` to decode the
+staged diff as UTF-8 (was crashing the advisory hook on non-ASCII diffs).
+
 ### Added — Localised transactional email (i18n-3)
 
 All transactional emails (verification, password-reset, account-deletion,

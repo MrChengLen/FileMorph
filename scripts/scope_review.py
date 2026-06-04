@@ -186,6 +186,7 @@ def _staged_added_lines() -> list[tuple[str, int, str]]:
     proc = subprocess.run(
         ["git", "diff", "--cached", "-U0", "--no-color", "--diff-filter=ACM"],
         capture_output=True,
+        text=True,
         # Force UTF-8 with replacement: the staged diff can carry non-ASCII
         # text (the German ``.po`` catalogue) and even raw bytes (a ``.mo``
         # not marked binary in ``.gitattributes``). The platform default
