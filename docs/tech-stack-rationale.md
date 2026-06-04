@@ -82,9 +82,9 @@ trusts the types it gets and does not re-validate.
 | **pydantic-settings** | Loads `Settings(BaseSettings)` from `.env` + environment | Canonical settings live in `app/core/config.py`. Type-checked, single source of truth for env-vars. | dynaconf (more features but heavier), environs (thin wrapper around os.environ) |
 
 The full Cloud-Edition env-var landscape (`DATABASE_URL`,
-`JWT_SECRET`, `STRIPE_*`, `SMTP_*`, `APP_BASE_URL`) lives in
-`app/core/config.py`. `.env.example` currently lists only the
-file-only-edition variables; expanding it is a tracked follow-up.
+`JWT_SECRET`, `STRIPE_*`, `SMTP_*`, `PRICE_*`, `APP_BASE_URL`,
+locale + sweep/quota knobs) lives in `app/core/config.py` and is
+documented in `.env.example`.
 
 A note on validation philosophy: FileMorph validates at the
 *boundary* (where bytes arrive from outside) and trusts the types
@@ -207,11 +207,13 @@ deliberately.
 |---|---|---|---|
 | **stripe** | Stripe Python SDK — Checkout sessions, webhook signature verification, Customer Portal | Stripe is the obvious default for a EU-hosted SaaS in 2026; the Python SDK is the canonical surface. Webhook signatures are verified via `stripe.Webhook.construct_event(...)`. | Paddle (Merchant of Record — handles EU VAT for you, but takes a higher cut; trade-off-discussion not duplicated here), LemonSqueezy (newer MoR, smaller reach) |
 
-**Webhook coverage status.** `customer.subscription.*` and
-`checkout.session.completed` are handled today.
-`invoice.payment_failed` and `invoice.payment_succeeded` are not yet
-wired in. Adding them is a tracked follow-up; they are needed before
-serious dunning behaviour can be implemented.
+**Webhook coverage status.** `customer.subscription.*`,
+`checkout.session.completed`, and `invoice.payment_failed` are handled
+today — the last drives the dunning flow (`_handle_payment_failed`,
+debounced via `subscription_status`). Recovery is detected via the
+`customer.subscription.updated` transition out of a grace status back to
+active, so a separate `invoice.payment_succeeded` handler is
+intentionally not needed.
 
 ---
 
