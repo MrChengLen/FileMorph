@@ -781,3 +781,265 @@ def test_homepage_teaser_no_legacy_hardcoded_prices(client, monkeypatch):
     body = r.text
     assert "€7/mo" not in body, "legacy Pro price string must not reappear"
     assert "€19" not in body, "legacy Business price string must not reappear"
+
+
+# ── SEO/GEO Phase 1 — on-page sharpening, JSON-LD Organization, GEO, /formats ─
+#
+# Sprint pr-seo-geo-foundation. These guards pin the visibility work added to
+# improve organic + AI-answer-engine discovery: keyword-front titles within
+# SERP-truncation limits, a per-page meta-description block, an Organization
+# entity in the JSON-LD, an /llms.txt entry point + AI-bot allowances, and the
+# registry-driven /formats hub. Strategy/rationale lives in
+# docs-internal/seo-geo-strategie-2026.md (gitignored).
+
+
+# Every indexable page in both locales. /pricing + /enterprise need the
+# commercial surface enabled (self-host default 404s them).
+_INDEXABLE_PATHS = [
+    "/",
+    "/en/",
+    "/de/",
+    "/formats",
+    "/en/formats",
+    "/de/formats",
+    "/pricing",
+    "/en/pricing",
+    "/enterprise",
+    "/en/enterprise",
+]
+
+
+def test_all_indexable_pages_title_and_meta_within_serp_limits(client, monkeypatch):
+    """Google truncates the SERP title at ~60 chars and the meta description
+    at ~160. Keyword-rich copy is worthless if it's cut off. Every indexable
+    page, in both locales, must keep title ≤60 and meta ≤160 — this is the
+    discipline that the homepage-only AT-03/04 guards enforced, generalised
+    so /formats, /pricing and /enterprise can't drift out of range either.
+    """
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "pricing_page_enabled", True)
+    for path in _INDEXABLE_PATHS:
+        r = client.get(path)
+        assert r.status_code == 200, f"{path} did not render"
+        tm = re.search(r"<title[^>]*>([^<]+)</title>", r.text, re.IGNORECASE)
+        mm = re.search(
+            r'<meta\s+name=["\']description["\']\s+content=["\']([^"\']+)["\']',
+            r.text,
+            re.IGNORECASE,
+        )
+        assert tm, f"{path} missing <title>"
+        assert mm, f"{path} missing meta description"
+        title, desc = tm.group(1).strip(), mm.group(1).strip()
+        assert len(title) <= 60, f"{path} title {len(title)} > 60: {title!r}"
+        assert len(desc) <= 160, f"{path} meta {len(desc)} > 160: {desc!r}"
+        assert len(title) >= 10 and len(desc) >= 50, f"{path} title/meta too short"
+
+
+def test_homepage_money_keywords_present_both_locales(client):
+    """The high-volume search phrases must appear verbatim in the homepage
+    title — 'file converter' (EN) / 'Dateien ... konvertieren' (DE). The
+    pre-sprint DE title said 'Datei-Konverter', missing the exact-match
+    'Dateien konvertieren' query; this guard keeps the money term in place.
+    """
+    en = client.get("/en/").text
+    de = client.get("/de/").text
+    en_title = re.search(r"<title[^>]*>([^<]+)</title>", en, re.IGNORECASE).group(1).lower()
+    de_title = re.search(r"<title[^>]*>([^<]+)</title>", de, re.IGNORECASE).group(1).lower()
+    assert "file converter" in en_title, f"EN title missing money keyword: {en_title!r}"
+    assert "konvertieren" in de_title and "dateien" in de_title, (
+        f"DE title missing money keyword: {de_title!r}"
+    )
+
+
+def test_meta_description_is_per_page_not_global(client, monkeypatch):
+    """The meta description is a per-page Jinja block (base.html default,
+    overridden per template). Homepage and /pricing must therefore differ —
+    if they're identical, the block was bypassed and every URL ships the
+    same description (a duplicate-content signal)."""
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "pricing_page_enabled", True)
+
+    def desc(path):
+        html = client.get(path).text
+        return re.search(
+            r'<meta\s+name=["\']description["\']\s+content=["\']([^"\']+)["\']',
+            html,
+            re.IGNORECASE,
+        ).group(1)
+
+    assert desc("/en/") != desc("/en/pricing"), "meta description is not per-page"
+
+
+# ── JSON-LD Organization ─────────────────────────────────────────────────────
+
+
+def _jsonld_items(html: str) -> list[dict]:
+    blocks = re.findall(
+        r'<script\s+type=["\']application/ld\+json["\'][^>]*>([\s\S]+?)</script>',
+        html,
+        re.IGNORECASE,
+    )
+    items: list[dict] = []
+    for block in blocks:
+        data = json.loads(block)
+        items.extend(data if isinstance(data, list) else [data])
+    return items
+
+
+def test_jsonld_includes_organization_with_github_sameas(client):
+    """An Organization entity with a `sameAs` link to the GitHub repo helps
+    search engines reconcile FileMorph as a single entity across the web
+    (Knowledge-Graph consolidation). Pin its presence + the sameAs anchor."""
+    items = _jsonld_items(client.get("/").text)
+    orgs = [i for i in items if i.get("@type") == "Organization"]
+    assert orgs, "JSON-LD missing Organization entity"
+    org = orgs[0]
+    assert "github.com/MrChengLen/FileMorph" in str(org.get("sameAs", "")), (
+        "Organization.sameAs must link to the GitHub repo"
+    )
+    assert org.get("logo"), "Organization should declare a logo"
+
+
+def test_jsonld_webapplication_has_featurelist(client):
+    """The WebApplication entity carries a featureList of real, shipping
+    capabilities. Guards against it being dropped and against a future edit
+    advertising a non-feature (the list is hand-maintained, honesty-checked
+    against docs/claims-audit.md)."""
+    items = _jsonld_items(client.get("/").text)
+    webapps = [i for i in items if i.get("@type") == "WebApplication"]
+    assert webapps, "JSON-LD missing WebApplication"
+    feats = webapps[0].get("featureList")
+    assert isinstance(feats, list) and len(feats) >= 5, "WebApplication.featureList too thin"
+    blob = " ".join(feats).lower()
+    # honesty guard — must NOT claim capabilities the engine doesn't have
+    assert "avif" not in blob, "featureList claims AVIF auto-routing (not shipped)"
+    assert "size preview" not in blob and "size-preview" not in blob, (
+        "featureList claims pre-upload size preview (not shipped)"
+    )
+
+
+def test_jsonld_organization_deployment_agnostic():
+    """Organization.url + logo must follow the passed-in base URL, never the
+    hardcoded upstream SaaS host (same contract as the WebApplication guard).
+    The GitHub sameAs is the one allowed constant — it identifies the OSS
+    project itself, which is the same wherever the binary runs."""
+    from app.core.jsonld import build_site_jsonld
+
+    canonical, _ = build_site_jsonld("https://files.example.com")
+    items = json.loads(canonical)
+    org = next(i for i in items if i.get("@type") == "Organization")
+    assert org["url"] == "https://files.example.com"
+    assert org["logo"].startswith("https://files.example.com")
+    assert "filemorph.io" not in canonical
+
+
+# ── GEO foundation: /llms.txt + AI-bot robots ────────────────────────────────
+
+
+def test_llms_txt_serves_markdown_entrypoint(client):
+    """/llms.txt is the emerging AI-agent entry point (llmstxt.org). It must
+    serve as plain text, lead with an H1, and link the always-present core
+    pages (homepage, /formats, /docs) plus the GitHub repo."""
+    r = client.get("/llms.txt")
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("text/plain")
+    body = r.text
+    assert body.lstrip().startswith("# FileMorph"), "llms.txt should open with an H1"
+    assert "/formats" in body, "llms.txt should link the formats hub"
+    assert "/docs" in body, "llms.txt should link the API docs"
+    assert "github.com/MrChengLen/FileMorph" in body
+
+
+def test_llms_txt_deployment_agnostic(client, monkeypatch):
+    """The core-page links in /llms.txt are built from app_base_url, so a
+    self-hoster's own origin is advertised — not the upstream SaaS host."""
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "app_base_url", "https://files.example.com")
+    body = client.get("/llms.txt").text
+    assert "https://files.example.com/formats" in body
+    # only the GitHub repo URL may name the upstream; nothing else
+    assert "filemorph.io" not in body
+
+
+def test_robots_txt_explicitly_allows_ai_crawlers(client):
+    """AI answer engines are explicitly welcomed (already covered by the
+    wildcard, named for intent). ChatGPT (GPTBot) cites via Bing's index and
+    Claude (ClaudeBot) via Brave — naming them documents the decision and
+    survives a future tightening of the wildcard group."""
+    body = client.get("/robots.txt").text
+    for bot in ("GPTBot", "ClaudeBot", "PerplexityBot", "Google-Extended"):
+        assert f"User-agent: {bot}" in body, f"robots.txt should name {bot}"
+    # each named group must (re)state Allow: / — robots.txt is most-specific-wins
+    assert body.count("Allow: /") >= 5
+
+
+# ── /formats hub ─────────────────────────────────────────────────────────────
+
+
+def test_formats_hub_renders_from_registry(client):
+    """The /formats page is built from the live converter registry. It must
+    render the real conversions (e.g. a PNG target badge exists) and the
+    category groupings — a unique-content hub, not a thin/stub page."""
+    r = client.get("/en/formats")
+    assert r.status_code == 200
+    body = r.text
+    assert "Supported file formats" in body
+    assert ">PNG<" in body, "registry-derived format badge missing"
+    assert "Compress to a target size" in body, "compression section missing"
+
+
+def test_formats_hub_reflects_actual_registry(client):
+    """Cross-check: every source format the registry reports must appear on
+    the page (upper-cased). Pins the page to reality so it can't silently
+    drift from what the deployment can actually convert."""
+    from app.converters.registry import get_supported_conversions
+
+    body = client.get("/en/formats").text
+    conversions = get_supported_conversions()
+    assert conversions, "registry empty — converters didn't load"
+    # spot-check a representative, stable subset rather than all (some are
+    # optional, e.g. heic depends on pillow-heif being installed)
+    for src in ("png", "jpg", "pdf", "mp3", "mp4"):
+        if src in conversions:
+            assert f">{src.upper()}<" in body or f"{src.upper()}" in body, (
+                f"registry source {src!r} not surfaced on /formats"
+            )
+
+
+def test_formats_hub_is_ungated_on_self_host(client, monkeypatch):
+    """Unlike /pricing + /enterprise, /formats is public content and must
+    render (200) even when the commercial surface is disabled — it's the
+    sitemap-listed discovery hub for every deployment."""
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "pricing_page_enabled", False)
+    r = client.get("/formats")
+    assert r.status_code == 200
+
+
+def test_formats_hub_deployment_agnostic(client):
+    """The hub ships in the public OSS repo; it must not bake in the upstream
+    SaaS host (links go through localized_url / GitHub, not filemorph.io)."""
+    body = client.get("/en/formats").text
+    assert "filemorph.io" not in body
+
+
+def test_sitemap_includes_formats_hub(client):
+    """/formats is always-on content, so it belongs in the sitemap on every
+    deployment (x-default + de + en variants)."""
+    import xml.etree.ElementTree as ET
+
+    r = client.get("/sitemap.xml")
+    root = ET.fromstring(r.text)
+    ns = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
+    locs = [
+        (u.find("sm:loc", ns).text or "")
+        for u in root.findall("sm:url", ns)
+        if u.find("sm:loc", ns) is not None
+    ]
+    assert any(loc.rstrip("/").endswith("/formats") for loc in locs), (
+        f"sitemap must include /formats; got {locs!r}"
+    )

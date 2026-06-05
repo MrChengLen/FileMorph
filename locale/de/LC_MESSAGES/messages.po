@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-06-04 11:09+0200\n"
+"POT-Creation-Date: 2026-06-04 15:10+0200\n"
 "PO-Revision-Date: 2026-05-08 11:00+0200\n"
 "Last-Translator: FileMorph <hallo@filemorph.io>\n"
 "Language: de\n"
@@ -326,6 +326,9 @@ msgstr "Bewerben →"
 msgid "Architecture overview"
 msgstr "Architektur-Übersicht"
 
+msgid "Are my files private?"
+msgstr "Sind meine Dateien privat?"
+
 msgid "Art. 28 DPA template"
 msgstr "Art. 28 AVV-Vorlage"
 
@@ -337,6 +340,9 @@ msgstr "Mindestens 8 Zeichen"
 
 msgid "Attempt to circumvent rate limits or security controls"
 msgstr "Versuche zu unternehmen, Rate-Limits oder Sicherheitskontrollen zu umgehen"
+
+msgid "Audio"
+msgstr "Audio"
 
 msgid "Audit log + signed releases"
 msgstr "Audit-Log + signierte Releases"
@@ -429,6 +435,12 @@ msgstr ""
 "Mit der Nutzung von FileMorph (dem „Dienst“) stimmst du diesen "
 "Nutzungsbedingungen zu. Falls du nicht zustimmst, nutze den Dienst nicht."
 
+msgid "Can I compress a file to an exact size?"
+msgstr "Kann ich eine Datei auf eine exakte Größe komprimieren?"
+
+msgid "Can I self-host FileMorph or use it as an API?"
+msgstr "Kann ich FileMorph selbst hosten oder als API nutzen?"
+
 msgid "Cancel"
 msgstr "Abbrechen"
 
@@ -473,8 +485,8 @@ msgstr ""
 msgid "Compliance"
 msgstr "Compliance"
 
-msgid "Compliance Edition"
-msgstr "Compliance Edition"
+msgid "Compliance Edition — self-hosted conversion"
+msgstr "Compliance Edition — selbst gehostet"
 
 msgid "Compliance Enterprise"
 msgstr "Compliance Enterprise"
@@ -498,6 +510,12 @@ msgstr ""
 
 msgid "Compress"
 msgstr "Komprimieren"
+
+msgid "Compress to a target size"
+msgstr "Auf eine Zielgröße komprimieren"
+
+msgid "Compress to an exact target size"
+msgstr "Auf eine exakte Zielgröße komprimieren"
 
 msgid "Compression"
 msgstr "Komprimierung"
@@ -593,8 +611,20 @@ msgstr ""
 msgid "Convert"
 msgstr "Konvertieren"
 
+#, python-format
+msgid "Convert %(src)s to"
+msgstr "%(src)s konvertieren in"
+
 msgid "Convert & Compress Files"
 msgstr "Dateien konvertieren & komprimieren"
+
+msgid ""
+"Convert & compress files online free — HEIC, JPG, PNG, WebP, PDF, DOCX, "
+"MP4 & more. Hit an exact target size. No account, open source."
+msgstr ""
+"Dateien kostenlos online konvertieren & komprimieren — HEIC, JPG, PNG, "
+"WebP, PDF, DOCX, MP4 & mehr. Auf exakte Zielgröße. Kein Konto, Open "
+"Source."
 
 msgid "Coordinated disclosure:"
 msgstr "Koordinierte Offenlegung:"
@@ -682,6 +712,9 @@ msgstr "Hosten Sie auch, wenn wir nicht selbst betreiben können?"
 msgid "Documented API endpoints and the web UI."
 msgstr "Dokumentierte API-Endpunkte und die Web-UI."
 
+msgid "Documents"
+msgstr "Dokumente"
+
 msgid "Download Result"
 msgstr "Ergebnis herunterladen"
 
@@ -696,6 +729,9 @@ msgstr "E-Mail-Support"
 
 msgid "EU Online Dispute Resolution:"
 msgstr "Online-Streitbeilegung der EU-Kommission:"
+
+msgid "EU hosting, GDPR-friendly"
+msgstr "EU-Hosting, DSGVO-freundlich"
 
 msgid "EU hosting, German imprint"
 msgstr "EU-Hosting, deutsches Impressum"
@@ -743,6 +779,13 @@ msgid "Equations were simplified"
 msgstr "Formeln wurden vereinfacht"
 
 msgid ""
+"Every conversion FileMorph supports — images, documents, spreadsheets, "
+"audio and video, plus compression to a target size. Free, open source."
+msgstr ""
+"Alle Konvertierungen von FileMorph — Bilder, Dokumente, Tabellen, Audio "
+"und Video, plus Komprimierung auf eine Zielgröße. Kostenlos, Open Source."
+
+msgid ""
 "Every operation in a continuous hash chain. Tampering with an old row "
 "breaks every following one."
 msgstr ""
@@ -764,9 +807,6 @@ msgstr "Fehlerrate (heute)"
 msgid "Feature"
 msgstr "Funktion"
 
-msgid "File Converter & Compressor"
-msgstr "Datei-Konverter & -Kompressor"
-
 msgid "File compression mode"
 msgstr "Datei-Kompressions-Modus"
 
@@ -783,6 +823,14 @@ msgid "FileMorph Compliance Edition"
 msgstr "FileMorph Compliance Edition"
 
 msgid ""
+"FileMorph can shrink a file to an exact target size (for example 5 MB) "
+"using a binary search — useful for upload limits and email attachments."
+msgstr ""
+"FileMorph kann eine Datei per Binärsuche auf eine exakte Zielgröße "
+"verkleinern (zum Beispiel 5 MB) — praktisch für Upload-Limits und E-Mail-"
+"Anhänge."
+
+msgid ""
 "FileMorph closes this gap: the open-source engine covers 16+ format pairs"
 " and runs on your own Hetzner / on-premises / air-gap infrastructure. The"
 " Compliance Edition additionally provides the contracts, SLAs and roadmap"
@@ -793,6 +841,16 @@ msgstr ""
 "Infrastruktur. Die Compliance-Edition liefert zusätzlich die Verträge, "
 "die SLAs und die Roadmap-Garantien, die ein EVB-IT-konformer Einkauf "
 "voraussetzt."
+
+msgid ""
+"FileMorph converts between the formats below and compresses images and "
+"video to an exact target size. Everything runs for free, with no account "
+"— or self-host it under AGPLv3. Pick any pair and start on the"
+msgstr ""
+"FileMorph konvertiert zwischen den folgenden Formaten und komprimiert "
+"Bilder und Videos auf eine exakte Zielgröße. Alles läuft kostenlos und "
+"ohne Konto — oder hoste es selbst unter AGPLv3. Wähle ein beliebiges Paar"
+" und starte im"
 
 msgid ""
 "FileMorph is a file conversion and compression service. The Community "
@@ -812,6 +870,15 @@ msgstr ""
 " Edition erfolgt ohne Garantie und auf eigene Verantwortung. Für den "
 "Betrieb eigener Instanzen gelten die jeweiligen lokalen Gesetze des "
 "Betreibers."
+
+msgid ""
+"FileMorph is open source and the converter registry is plugin-based — new"
+" formats are added with a small Python module. Request one or contribute "
+"it on"
+msgstr ""
+"FileMorph ist Open Source und die Konverter-Registry ist Plugin-basiert —"
+" neue Formate werden mit einem kleinen Python-Modul ergänzt. Wünsche dir "
+"eines oder trage es bei auf"
 
 msgid ""
 "FileMorph is open source software licensed under the GNU Affero General "
@@ -841,6 +908,13 @@ msgstr ""
 msgid "FileMorph operates under German law (Hamburg)."
 msgstr "FileMorph unterliegt deutschem Recht (Hamburg)."
 
+msgid ""
+"FileMorph pricing: the open-source converter is free to self-host. Paid "
+"plans add volume, higher limits and API access."
+msgstr ""
+"FileMorph-Preise: Der Open-Source-Konverter ist kostenlos selbst hostbar."
+" Bezahlte Tarife bieten mehr Volumen, höhere Limits und API-Zugang."
+
 msgid "FileMorph sets"
 msgstr "FileMorph setzt"
 
@@ -851,10 +925,23 @@ msgstr ""
 "FileMorph — Kostenloser Online-Datei-Konverter & -Kompressor. Konvertiere"
 " Bilder, Dokumente, Audio und Video. Datenschutzfreundlich, ohne Account."
 
+msgid ""
+"Files are processed server-side and deleted immediately after conversion "
+"— temporary files use random names and are swept within minutes. Hosting "
+"is in the EU, there are no trackers, and no account is required."
+msgstr ""
+"Dateien werden serverseitig verarbeitet und sofort nach der Konvertierung"
+" gelöscht — temporäre Dateien tragen Zufallsnamen und werden innerhalb "
+"von Minuten entfernt. Das Hosting liegt in der EU, es gibt keine Tracker "
+"und kein Konto ist erforderlich."
+
 msgid "Files are processed server-side and deleted immediately after conversion."
 msgstr ""
 "Dateien werden serverseitig verarbeitet und sofort nach der Konvertierung"
 " gelöscht."
+
+msgid "Files deleted right after conversion"
+msgstr "Dateien direkt nach der Konvertierung gelöscht"
 
 msgid ""
 "Files you upload for conversion or compression are processed entirely "
@@ -905,8 +992,14 @@ msgstr "Passwort vergessen"
 msgid "Forgot password?"
 msgstr "Passwort vergessen?"
 
+msgid "Formats"
+msgstr "Formate"
+
 msgid "Free"
 msgstr "Kostenlos"
+
+msgid "Free Online File Converter & Compressor"
+msgstr "Dateien online konvertieren & komprimieren"
 
 msgid "Free engine. Pay only for hosting or a license."
 msgstr "Kostenlose Engine. Bezahlt wird nur Hosting oder eine Lizenz."
@@ -1132,6 +1225,18 @@ msgstr ""
 "6(1)(b) DSGVO, soweit es einen bestehenden Vertrag betrifft. Wir nutzen "
 "sie nicht für Marketing."
 
+msgid "Images"
+msgstr "Bilder"
+
+msgid ""
+"Images (HEIC, JPG, PNG, WebP, BMP, TIFF, GIF), documents (DOCX, PDF, TXT,"
+" Markdown), spreadsheets (XLSX, CSV, JSON), audio (MP3, WAV, FLAC, OGG, "
+"M4A) and video (MP4, MOV, AVI, MKV, WebM)."
+msgstr ""
+"Bilder (HEIC, JPG, PNG, WebP, BMP, TIFF, GIF), Dokumente (DOCX, PDF, TXT,"
+" Markdown), Tabellen (XLSX, CSV, JSON), Audio (MP3, WAV, FLAC, OGG, M4A) "
+"und Video (MP4, MOV, AVI, MKV, WebM)."
+
 msgid "Images · Documents · Audio · Video · Spreadsheets"
 msgstr "Bilder · Dokumente · Audio · Video · Tabellen"
 
@@ -1169,6 +1274,9 @@ msgstr "Interne Nutzung ist unter AGPL-3.0 bereits kostenlos"
 
 msgid "Internal use is already free under AGPL-3.0."
 msgstr "Interne Nutzung ist unter AGPL-3.0 bereits kostenlos."
+
+msgid "Is FileMorph free?"
+msgstr "Ist FileMorph kostenlos?"
 
 msgid ""
 "Issues that require physical access to a self-hosted server, or social "
@@ -1289,6 +1397,9 @@ msgstr "Name (optional)"
 msgid "Need a DPA & SLA? Compliance Edition →"
 msgstr "DPA & SLA nötig? Zur Compliance Edition →"
 
+msgid "Need a format that isn't listed?"
+msgstr "Fehlt ein Format in der Liste?"
+
 msgid "Never used"
 msgstr "Noch nicht verwendet"
 
@@ -1300,6 +1411,9 @@ msgstr "Weiter →"
 
 msgid "No API keys yet. Create one above."
 msgstr "Noch keine API-Keys. Erstelle oben einen."
+
+msgid "No account required"
+msgstr "Kein Konto erforderlich"
 
 msgid "No account?"
 msgstr "Kein Konto?"
@@ -1336,6 +1450,9 @@ msgstr "Open Source · Self-Hosted"
 msgid "Open dashboard"
 msgstr "Dashboard öffnen"
 
+msgid "Open source (AGPLv3)"
+msgstr "Open Source (AGPLv3)"
+
 msgid ""
 "Open this link to choose a new password (valid for 30 minutes, single-"
 "use):"
@@ -1348,6 +1465,9 @@ msgstr "Betreiber-Mitarbeiter mit der"
 
 msgid "Or open the dashboard manually and click \"Manage billing\":"
 msgstr "Oder öffne das Dashboard manuell und klicke auf „Abrechnung verwalten“:"
+
+msgid "Other"
+msgstr "Sonstige"
 
 msgid "Our pages load"
 msgstr "Unsere Seiten laden"
@@ -1494,6 +1614,9 @@ msgstr ""
 msgid "Pricing"
 msgstr "Preise"
 
+msgid "Pricing — free converter, paid plans"
+msgstr "Preise — Konverter gratis, bezahlte Tarife"
+
 msgid "Priority support (best effort)"
 msgstr "Priorisierter Support (Best Effort)"
 
@@ -1566,6 +1689,9 @@ msgstr ""
 "Fragen zur Löschung oder zu deinen Datenrechten? Kontaktiere <a "
 "href=\"mailto:%(support_email)s\" "
 "style=\"color:#818cf8;\">%(support_email)s</a>."
+
+msgid "REST API included"
+msgstr "REST-API enthalten"
 
 msgid "RFC 9116 · referenced from"
 msgstr "RFC 9116 · referenziert von"
@@ -1720,6 +1846,9 @@ msgstr "Siehe"
 msgid "See all plans →"
 msgstr "Alle Tarife anzeigen →"
 
+msgid "See every supported conversion on the"
+msgstr "Alle unterstützten Konvertierungen findest du auf der"
+
 msgid "See licensing →"
 msgstr "Zur Lizenzierung →"
 
@@ -1731,6 +1860,9 @@ msgstr "Wähle eine oder mehrere Dateien zum Konvertieren oder Komprimieren"
 
 msgid "Self-Hosted"
 msgstr "Self-Hosted"
+
+msgid "Self-hostable (Docker)"
+msgstr "Selbst hostbar (Docker)"
 
 msgid "Self-hosted"
 msgstr "Selbst gehostet"
@@ -1751,6 +1883,13 @@ msgstr ""
 "AGPLv3 kostenlos; die Compliance Edition ergänzt den Vertrag dahinter — "
 "Art. 28 AVV, Support-SLA, signierte Releases und einen haftbaren "
 "Ansprechpartner. EU-Anbieter mit deutschem Impressum."
+
+msgid ""
+"Self-hosted, GDPR-compliant file conversion for public sector, hospitals "
+"and law firms — DPA, SLA, signed releases, audit log."
+msgstr ""
+"Selbst gehostete, DSGVO-konforme Dateikonvertierung für Behörden, "
+"Kliniken und Kanzleien — AVV, SLA, signierte Releases, Audit-Log."
 
 msgid ""
 "Self-hoster-specific deployment misconfiguration that is not caused by "
@@ -1854,6 +1993,9 @@ msgstr "Entschuldigung, deine Nachricht konnte gerade nicht gesendet werden."
 msgid "Source code"
 msgstr "Quellcode"
 
+msgid "Spreadsheets"
+msgstr "Tabellen"
+
 msgid ""
 "Standard tier is enough for most KRITIS requirements (self-hosting, audit"
 " log, signed artefacts). Enterprise becomes relevant once air-gap update "
@@ -1909,6 +2051,12 @@ msgstr "Support"
 
 msgid "Support SLA"
 msgstr "Support-SLA"
+
+msgid "Supported file formats"
+msgstr "Unterstützte Dateiformate"
+
+msgid "Supported file formats & conversions"
+msgstr "Unterstützte Dateiformate & Konvertierungen"
 
 msgid "Supported: HEIC · JPG · PNG · WebP · BMP · TIFF · GIF"
 msgstr "Unterstützt: HEIC · JPG · PNG · WebP · BMP · TIFF · GIF"
@@ -2175,6 +2323,9 @@ msgstr "Gib zur Bestätigung deine E-Mail-Adresse ein:"
 msgid "Typical SaaS converters"
 msgstr "Typische SaaS-Konvertierer"
 
+msgid "Typical cloud converter"
+msgstr "Typischer Cloud-Konverter"
+
 msgid "Typical open-source converters"
 msgstr "Typische Open-Source-Konvertierer"
 
@@ -2214,6 +2365,9 @@ msgstr "Nutzung ohne Konto:"
 
 msgid "Verifying admin access…"
 msgstr "Prüfe Admin-Berechtigung …"
+
+msgid "Video"
+msgstr "Video"
 
 msgid ""
 "We apply a temporary in-memory rate limit (max. 10 requests per minute "
@@ -2357,14 +2511,50 @@ msgstr ""
 msgid "Whether the issue has been disclosed publicly elsewhere."
 msgstr "Ob das Problem bereits anderswo öffentlich offengelegt wurde."
 
+msgid "Which file formats can I convert?"
+msgstr "Welche Dateiformate kann ich konvertieren?"
+
 msgid "Who's a fit"
 msgstr "Wer passt"
+
+msgid "Why FileMorph instead of a typical online converter?"
+msgstr "Warum FileMorph statt eines typischen Online-Konverters?"
 
 msgid "Why a Compliance Edition?"
 msgstr "Warum eine Compliance-Edition?"
 
 msgid "Why →"
 msgstr "Warum →"
+
+msgid ""
+"Yes. FileMorph can compress JPEG and WebP images to a target size (for "
+"example 5 MB) using a binary search, hitting the target within about ±3 "
+"%."
+msgstr ""
+"Ja. FileMorph kann JPEG- und WebP-Bilder per Binärsuche auf eine "
+"Zielgröße komprimieren (zum Beispiel 5 MB) und trifft das Ziel auf etwa "
+"±3 % genau."
+
+msgid ""
+"Yes. FileMorph is open source (AGPLv3) and ships as a one-command Docker "
+"deployment with no feature gates, so your files never leave your own "
+"infrastructure. A REST API is included for programmatic conversion."
+msgstr ""
+"Ja. FileMorph ist Open Source (AGPLv3) und wird als Docker-Deployment mit"
+" einem einzigen Befehl ausgeliefert — ohne Feature-Gates, sodass deine "
+"Dateien deine eigene Infrastruktur nie verlassen. Eine REST-API für die "
+"programmatische Konvertierung ist enthalten."
+
+msgid ""
+"Yes. The conversion and compression engine is free and open source "
+"(AGPLv3). You can convert files without an account, and self-host it at "
+"no cost. Paid hosted plans only add higher volume, larger files and API "
+"quota."
+msgstr ""
+"Ja. Die Konvertierungs- und Komprimierungs-Engine ist kostenlos und Open "
+"Source (AGPLv3). Du kannst Dateien ohne Konto konvertieren und sie "
+"kostenlos selbst hosten. Bezahlte gehostete Tarife bieten lediglich mehr "
+"Volumen, größere Dateien und API-Kontingent."
 
 msgid ""
 "You also have the right to lodge a complaint with your local data "
@@ -2533,6 +2723,12 @@ msgstr "Aufrufe / Monat"
 msgid "concurrent"
 msgstr "gleichzeitig"
 
+msgid "contact form"
+msgstr "Kontaktformular"
+
+msgid "converter"
+msgstr "Konverter"
+
 msgid ""
 "cosign keyless OIDC, cryptographically signed git tags, CycloneDX-JSON "
 "SBOM in every GitHub release."
@@ -2584,6 +2780,9 @@ msgstr "für vollständige Kontaktdaten."
 msgid "for their data processing terms."
 msgstr "für deren Datenverarbeitungs-Bedingungen."
 
+msgid "formats page"
+msgstr "Formate-Seite"
+
 msgid "from"
 msgstr "ab"
 
@@ -2616,6 +2815,12 @@ msgstr "nicht zutreffend"
 msgid "often limited to one area"
 msgstr "häufig auf einen Bereich beschränkt"
 
+msgid "often paid"
+msgstr "oft kostenpflichtig"
+
+msgid "often required"
+msgstr "oft erforderlich"
+
 msgid "often ✓"
 msgstr "häufig ✓"
 
@@ -2642,6 +2847,9 @@ msgstr "oder direkt als Design-Partner bewerben →"
 
 msgid "or click to browse (multi-file supported)"
 msgstr "oder klicken zum Auswählen (Mehrfach-Dateien möglich)"
+
+msgid "or reach us via the"
+msgstr "oder erreiche uns über das"
 
 msgid "per file"
 msgstr "pro Datei"
@@ -2777,6 +2985,9 @@ msgstr "← Zurück"
 
 msgid "← Back to FileMorph"
 msgstr "← Zurück zu FileMorph"
+
+msgid "← Back to converter"
+msgstr "← Zurück zum Konverter"
 
 msgid "← Prev"
 msgstr "← Zurück"

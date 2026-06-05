@@ -19,6 +19,9 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Request
 
+from app.compressors.image import _SUPPORTED_FORMATS as IMAGE_COMPRESS_FMTS
+from app.compressors.video import _SUPPORTED_FORMATS as VIDEO_COMPRESS_FMTS
+from app.converters.registry import get_supported_conversions
 from app.core import pricing as pricing_mod
 from app.core.config import settings
 from app.core.i18n import localized_context
@@ -29,6 +32,48 @@ router = APIRouter(include_in_schema=False)
 
 def _render(request: Request, name: str, **extra):
     return templates.TemplateResponse(request, name, context=localized_context(request, **extra))
+
+
+# /formats hub — bucket the live @register registry by source-format category
+# for display. The page renders whatever the registry actually returns (always
+# accurate), so this map is presentation-only: anything unmapped lands in the
+# "other" bucket rather than vanishing from the page.
+_FORMAT_CATEGORY: dict[str, str] = {}
+for _fmt in ("heic", "heif", "jpg", "jpeg", "png", "webp", "bmp", "tiff", "tif", "gif", "ico"):
+    _FORMAT_CATEGORY[_fmt] = "image"
+for _fmt in ("docx", "txt", "pdf", "md", "markdown", "html", "rtf", "odt", "pdfa"):
+    _FORMAT_CATEGORY[_fmt] = "document"
+for _fmt in ("xlsx", "xls", "csv", "json", "ods"):
+    _FORMAT_CATEGORY[_fmt] = "spreadsheet"
+for _fmt in ("mp3", "wav", "flac", "ogg", "m4a", "aac", "wma", "opus"):
+    _FORMAT_CATEGORY[_fmt] = "audio"
+for _fmt in ("mp4", "avi", "mov", "mkv", "webm", "flv", "wmv"):
+    _FORMAT_CATEGORY[_fmt] = "video"
+
+# Display order of the category buckets on /formats.
+_CATEGORY_ORDER: tuple[str, ...] = (
+    "image",
+    "document",
+    "spreadsheet",
+    "audio",
+    "video",
+    "other",
+)
+
+
+def _grouped_conversions() -> list[tuple[str, list[tuple[str, list[str]]]]]:
+    """Group the live registry by source-format category for the template.
+
+    Shape: ``[(category_key, [(src, [tgts]), ...]), ...]`` in
+    ``_CATEGORY_ORDER`` with empty categories dropped. Sorted so the page is
+    deterministic (review-friendly, stable for the render-snapshot test).
+    """
+    conversions = get_supported_conversions()
+    buckets: dict[str, list[tuple[str, list[str]]]] = {c: [] for c in _CATEGORY_ORDER}
+    for src in sorted(conversions):
+        cat = _FORMAT_CATEGORY.get(src, "other")
+        buckets[cat].append((src, sorted(conversions[src])))
+    return [(cat, buckets[cat]) for cat in _CATEGORY_ORDER if buckets[cat]]
 
 
 @router.get("/")
@@ -48,6 +93,22 @@ async def index(request: Request):
         plans={p.tier: p for p in pricing_mod.saas_plans(locale)},
         saas_prices_configured=pricing_mod.saas_prices_configured(),
         price_currency=pricing_mod.price_currency(),
+    )
+
+
+@router.get("/formats")
+async def formats_page(request: Request):
+    # Ungated, always-present content hub built from the live converter
+    # registry. It's the sitemap-listed landing page for format discovery,
+    # a real unique-content page (not thin), and the anchor for the future
+    # per-pair pages (Phase 2). Category labels are translated in the
+    # template; the data is presentation-only.
+    return _render(
+        request,
+        "formats.html",
+        format_groups=_grouped_conversions(),
+        compress_image=sorted(IMAGE_COMPRESS_FMTS),
+        compress_video=sorted(VIDEO_COMPRESS_FMTS),
     )
 
 

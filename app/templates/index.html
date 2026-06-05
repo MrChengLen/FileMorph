@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 {% import "_components/card.html" as uc %}
 {% import "_components/button.html" as ub %}
-{% block title %}FileMorph — {{ _('File Converter & Compressor') }}{% endblock %}
+{% block title %}{{ _('Free Online File Converter & Compressor') }} | FileMorph{% endblock %}
+{% block meta_description %}{{ _('Convert & compress files online free — HEIC, JPG, PNG, WebP, PDF, DOCX, MP4 & more. Hit an exact target size. No account, open source.') }}{% endblock %}
 {% block content %}
 
 <div class="min-h-full flex flex-col">
@@ -295,6 +296,66 @@
           <a href="{{ localized_url('/register', current_prefix) }}" class="text-xs text-gray-400 hover:text-white">{{ _('Get API Key →') }}</a>
         </div>
       </div>
+
+      <!-- Comparison — only real, verifiable differentiators (CLAUDE.md honesty
+           guardrail; no AVIF-routing / size-preview claims). Plain HTML table,
+           crawlable + AI-extractable (GEO). -->
+      <section class="border border-gray-800 rounded-xl px-5 py-4 space-y-3">
+        <h2 class="text-base font-semibold text-white">{{ _('Why FileMorph instead of a typical online converter?') }}</h2>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="text-gray-500 border-b border-gray-800">
+                <th class="text-left font-medium py-1.5 pr-2"></th>
+                <th class="font-medium py-1.5 px-2">FileMorph</th>
+                <th class="font-medium py-1.5 px-2">{{ _('Typical cloud converter') }}</th>
+              </tr>
+            </thead>
+            <tbody class="text-gray-300">
+              <tr class="border-b border-gray-800/60"><td class="py-1.5 pr-2 text-gray-400">{{ _('Open source (AGPLv3)') }}</td><td class="text-center text-emerald-400">✓</td><td class="text-center text-gray-600">{{ _('rare') }}</td></tr>
+              <tr class="border-b border-gray-800/60"><td class="py-1.5 pr-2 text-gray-400">{{ _('Self-hostable (Docker)') }}</td><td class="text-center text-emerald-400">✓</td><td class="text-center text-gray-600">{{ _('rare') }}</td></tr>
+              <tr class="border-b border-gray-800/60"><td class="py-1.5 pr-2 text-gray-400">{{ _('No account required') }}</td><td class="text-center text-emerald-400">✓</td><td class="text-center text-gray-600">{{ _('often required') }}</td></tr>
+              <tr class="border-b border-gray-800/60"><td class="py-1.5 pr-2 text-gray-400">{{ _('EU hosting, GDPR-friendly') }}</td><td class="text-center text-emerald-400">✓</td><td class="text-center text-gray-600">{{ _('varies') }}</td></tr>
+              <tr class="border-b border-gray-800/60"><td class="py-1.5 pr-2 text-gray-400">{{ _('Files deleted right after conversion') }}</td><td class="text-center text-emerald-400">✓</td><td class="text-center text-gray-600">{{ _('varies') }}</td></tr>
+              <tr class="border-b border-gray-800/60"><td class="py-1.5 pr-2 text-gray-400">{{ _('Compress to an exact target size') }}</td><td class="text-center text-emerald-400">✓</td><td class="text-center text-gray-600">{{ _('rare') }}</td></tr>
+              <tr><td class="py-1.5 pr-2 text-gray-400">{{ _('REST API included') }}</td><td class="text-center text-emerald-400">✓</td><td class="text-center text-gray-600">{{ _('often paid') }}</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="text-xs text-gray-500">
+          {{ _('See every supported conversion on the') }}
+          <a href="{{ localized_url('/formats', current_prefix) }}" class="text-brand hover:underline">{{ _('formats page') }}</a>.
+        </p>
+      </section>
+
+      <!-- FAQ — question-style H3 headings + concise answers. Built for both
+           human readers and AI answer engines (GEO): each answer is
+           self-contained and extractable. -->
+      <section class="border border-gray-800 rounded-xl px-5 py-4 space-y-4">
+        <h2 class="text-base font-semibold text-white">{{ _('Frequently asked questions') }}</h2>
+        <div class="space-y-3 text-xs leading-relaxed">
+          <div>
+            <h3 class="font-semibold text-gray-200">{{ _('Is FileMorph free?') }}</h3>
+            <p class="text-gray-400">{{ _('Yes. The conversion and compression engine is free and open source (AGPLv3). You can convert files without an account, and self-host it at no cost. Paid hosted plans only add higher volume, larger files and API quota.') }}</p>
+          </div>
+          <div>
+            <h3 class="font-semibold text-gray-200">{{ _('Are my files private?') }}</h3>
+            <p class="text-gray-400">{{ _('Files are processed server-side and deleted immediately after conversion — temporary files use random names and are swept within minutes. Hosting is in the EU, there are no trackers, and no account is required.') }}</p>
+          </div>
+          <div>
+            <h3 class="font-semibold text-gray-200">{{ _('Which file formats can I convert?') }}</h3>
+            <p class="text-gray-400">{{ _('Images (HEIC, JPG, PNG, WebP, BMP, TIFF, GIF), documents (DOCX, PDF, TXT, Markdown), spreadsheets (XLSX, CSV, JSON), audio (MP3, WAV, FLAC, OGG, M4A) and video (MP4, MOV, AVI, MKV, WebM).') }}</p>
+          </div>
+          <div>
+            <h3 class="font-semibold text-gray-200">{{ _('Can I compress a file to an exact size?') }}</h3>
+            <p class="text-gray-400">{{ _('Yes. FileMorph can compress JPEG and WebP images to a target size (for example 5 MB) using a binary search, hitting the target within about ±3 %.') }}</p>
+          </div>
+          <div>
+            <h3 class="font-semibold text-gray-200">{{ _('Can I self-host FileMorph or use it as an API?') }}</h3>
+            <p class="text-gray-400">{{ _('Yes. FileMorph is open source (AGPLv3) and ships as a one-command Docker deployment with no feature gates, so your files never leave your own infrastructure. A REST API is included for programmatic conversion.') }}</p>
+          </div>
+        </div>
+      </section>
 
     </div>
   </main>

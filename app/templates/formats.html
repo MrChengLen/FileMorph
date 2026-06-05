@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}{{ _('Supported file formats & conversions') }} | FileMorph{% endblock %}
+{% block meta_description %}{{ _('Every conversion FileMorph supports — images, documents, spreadsheets, audio and video, plus compression to a target size. Free, open source.') }}{% endblock %}
+{% block content %}
+{% set category_labels = {
+  'image': _('Images'),
+  'document': _('Documents'),
+  'spreadsheet': _('Spreadsheets'),
+  'audio': _('Audio'),
+  'video': _('Video'),
+  'other': _('Other'),
+} %}
+<main class="max-w-4xl mx-auto px-6 py-12 space-y-10 text-gray-300 text-sm leading-relaxed">
+
+  <div>
+    <a href="{{ localized_url('/', current_prefix) }}" class="text-sm text-gray-500 hover:text-gray-300 transition-colors">{{ _('← Back to converter') }}</a>
+    <h1 class="text-2xl font-bold mt-4 text-white">{{ _('Supported file formats') }}</h1>
+    <p class="text-gray-400 mt-2 max-w-2xl">
+      {{ _('FileMorph converts between the formats below and compresses images and video to an exact target size. Everything runs for free, with no account — or self-host it under AGPLv3. Pick any pair and start on the') }}
+      <a href="{{ localized_url('/', current_prefix) }}" class="text-brand hover:underline">{{ _('converter') }}</a>.
+    </p>
+  </div>
+
+  <!-- Conversion matrix — rendered from the live @register registry, so this
+       list always reflects exactly what the deployment can actually do. -->
+  {% for cat_key, sources in format_groups %}
+  <section class="space-y-4">
+    <h2 class="text-base font-semibold text-white border-b border-gray-800 pb-2">{{ category_labels.get(cat_key, cat_key) }}</h2>
+    <div class="grid sm:grid-cols-2 gap-x-8 gap-y-4">
+      {% for src, targets in sources %}
+      <div class="space-y-1.5">
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-200">
+          {{ _('Convert %(src)s to') % {'src': src.upper()} }}
+        </h3>
+        <div class="flex flex-wrap gap-1.5">
+          {% for tgt in targets %}
+          <span class="text-xs px-2 py-0.5 rounded border border-gray-800 bg-gray-900 text-gray-400">{{ tgt.upper() }}</span>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endfor %}
+
+  <!-- Compression — surfaced from the compressor modules' supported-format
+       lists (same source the /api/v1/formats endpoint reads). -->
+  <section class="space-y-3">
+    <h2 class="text-base font-semibold text-white border-b border-gray-800 pb-2">{{ _('Compress to a target size') }}</h2>
+    <p class="text-gray-400 max-w-2xl">
+      {{ _('FileMorph can shrink a file to an exact target size (for example 5 MB) using a binary search — useful for upload limits and email attachments.') }}
+    </p>
+    <div class="grid sm:grid-cols-2 gap-x-8 gap-y-4">
+      <div class="space-y-1.5">
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-200">{{ _('Images') }}</h3>
+        <div class="flex flex-wrap gap-1.5">
+          {% for fmt in compress_image %}
+          <span class="text-xs px-2 py-0.5 rounded border border-gray-800 bg-gray-900 text-gray-400">{{ fmt.upper() }}</span>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="space-y-1.5">
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-200">{{ _('Video') }}</h3>
+        <div class="flex flex-wrap gap-1.5">
+          {% for fmt in compress_video %}
+          <span class="text-xs px-2 py-0.5 rounded border border-gray-800 bg-gray-900 text-gray-400">{{ fmt.upper() }}</span>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="space-y-3 border-t border-gray-800 pt-8">
+    <h2 class="text-base font-semibold text-white">{{ _('Need a format that isn\'t listed?') }}</h2>
+    <p class="text-gray-400 max-w-2xl">
+      {{ _('FileMorph is open source and the converter registry is plugin-based — new formats are added with a small Python module. Request one or contribute it on') }}
+      <a href="https://github.com/MrChengLen/FileMorph" target="_blank" rel="noopener noreferrer" class="text-brand hover:underline">GitHub</a>,
+      {{ _('or reach us via the') }}
+      <a href="{{ localized_url('/contact', current_prefix) }}" class="text-brand hover:underline">{{ _('contact form') }}</a>.
+    </p>
+  </section>
+
+</main>
+{% endblock %}
