@@ -9,6 +9,16 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — Social-preview (og-image) logo
+
+The `app/static/og-image.png` social card showed a different, off-brand mark
+(an empty box with two arrows) instead of the real FileMorph logo. Regenerated
+it to use the **same document-tray + download-arrow mark as `favicon.svg`/the
+navbar** (brand indigo `#6366f1`), wordmark and chips unchanged. Added a
+Pillow-only, reproducible generator `scripts/generate_og_image.py` (the asset
+previously had none, which is how it drifted) — re-run it after any logo or
+wording change. Still 1200×630, no SaaS host string baked in.
+
 ### Added — SEO/GEO visibility foundation (Phase 1)
 
 Sharpens organic-search and AI-answer-engine discoverability without touching
