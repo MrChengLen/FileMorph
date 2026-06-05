@@ -11,8 +11,10 @@
   <meta name="theme-color" content="#6366f1" />
   <!-- TODO: add favicon.ico (32x32) and apple-touch-icon.png (180x180) to app/static/ -->
 
-  <!-- B-3: Meta tags and Open Graph -->
-  <meta name="description" content="{{ _('FileMorph — Free online file converter & compressor. Convert images, documents, audio and video. Privacy-respecting, no account required.') }}" />
+  <!-- B-3: Meta tags and Open Graph. The description is a Jinja block so each
+       page can supply its own keyword-targeted text; the default below serves
+       any page that doesn't override it. -->
+  <meta name="description" content="{% block meta_description %}{{ _('FileMorph — Free online file converter & compressor. Convert images, documents, audio and video. Privacy-respecting, no account required.') }}{% endblock %}" />
   <link rel="canonical" href="{{ app_base_url }}{{ request.url.path }}" />
   <!-- i18n: hreflang alternates so Google indexes each language as its own URL.
        x-default points at the unprefixed route, which serves the operator's
@@ -121,6 +123,7 @@
     <div class="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-600">
       <span>{{ _('© 2026 FileMorph — AGPLv3 Open Source') }}</span>
       <nav class="flex flex-wrap items-center justify-center gap-4">
+        <a href="{{ localized_url('/formats', current_prefix) }}" class="hover:text-gray-400 transition-colors">{{ _('Formats') }}</a>
         <a href="{{ localized_url('/privacy', current_prefix) }}" class="hover:text-gray-400 transition-colors">{{ _('Privacy Policy') }}</a>
         <a href="{{ localized_url('/terms', current_prefix) }}" class="hover:text-gray-400 transition-colors">{{ _('Terms of Use') }}</a>
         <a href="{{ localized_url('/impressum', current_prefix) }}" class="hover:text-gray-400 transition-colors">{{ _('Impressum') }}</a>

@@ -19,6 +19,7 @@ from fastapi.responses import PlainTextResponse, Response
 
 from app.core.config import settings
 from app.core.i18n import SUPPORTED_LOCALES, localized_url
+from app.core.jsonld import GITHUB_URL
 
 router = APIRouter()
 
@@ -29,11 +30,27 @@ router = APIRouter()
 # the same page rather than duplicates.
 _BASE_ROUTES: list[tuple[str, str]] = [
     ("/", "1.0"),
+    ("/formats", "0.5"),
     ("/privacy", "0.3"),
     ("/terms", "0.3"),
     ("/impressum", "0.3"),
     ("/contact", "0.3"),
 ]
+
+# AI / LLM crawlers we explicitly welcome. The wildcard ``User-agent: *``
+# group below already allows them; naming each one is an *intent* signal
+# (we want FileMorph surfaced in AI answers) and documents the decision in
+# one place. Note robots.txt group-matching is most-specific-wins: a bot
+# listed here obeys only its own block, so each must restate ``Allow: /``.
+_AI_CRAWLERS: tuple[str, ...] = (
+    "GPTBot",  # OpenAI / ChatGPT
+    "OAI-SearchBot",  # OpenAI search
+    "ChatGPT-User",  # ChatGPT browse-on-demand
+    "ClaudeBot",  # Anthropic / Claude
+    "PerplexityBot",  # Perplexity
+    "Google-Extended",  # Google Gemini / Vertex training + grounding
+    "Applebot-Extended",  # Apple Intelligence
+)
 
 
 def _sitemap_routes() -> list[tuple[str, str]]:
@@ -91,7 +108,58 @@ def _url_entry(loc_url: str, base: str, prio: str, abs_base: str) -> str:
 @router.get("/robots.txt", response_class=PlainTextResponse, include_in_schema=False)
 async def robots_txt() -> str:
     base = settings.app_base_url.rstrip("/")
-    return f"User-agent: *\nAllow: /\n\nSitemap: {base}/sitemap.xml\n"
+    lines = ["User-agent: *", "Allow: /", ""]
+    lines.append("# AI / LLM crawlers — explicitly welcomed (already covered by * above).")
+    for bot in _AI_CRAWLERS:
+        lines.append(f"User-agent: {bot}")
+        lines.append("Allow: /")
+        lines.append("")
+    lines.append(f"Sitemap: {base}/sitemap.xml")
+    lines.append("")
+    return "\n".join(lines)
+
+
+@router.get("/llms.txt", response_class=PlainTextResponse, include_in_schema=False)
+async def llms_txt() -> str:
+    """``/llms.txt`` — the emerging convention for giving AI agents a concise,
+    curated entry point to a site (https://llmstxt.org). It does nothing for
+    Google's AI Overviews (Google has said so explicitly), but ChatGPT,
+    Claude, Perplexity et al. increasingly look for it. Cheap to serve, so we
+    do — listing only routes that exist on *every* deployment (``/pricing``
+    and ``/enterprise`` are gated, so they're omitted to stay deployment-
+    agnostic). English-only by design: it targets crawlers, not end users.
+    """
+    base = settings.app_base_url.rstrip("/")
+    lines = [
+        "# FileMorph",
+        "",
+        "> Free, open-source, privacy-respecting file converter and compressor. "
+        "Convert and compress images, documents, spreadsheets, audio and video in "
+        "the browser or via a REST API. Self-hostable (AGPLv3), EU-hosted, no "
+        "account required.",
+        "",
+        "## Core pages",
+        "",
+        f"- [Convert & compress files]({base}/): the main tool — convert and "
+        "compress files for free, no account",
+        f"- [Supported formats]({base}/formats): the full list of supported "
+        "conversions, grouped by category",
+        f"- [API documentation]({base}/docs): REST API reference for "
+        "programmatic conversion and compression",
+        "",
+        "## About",
+        "",
+        "FileMorph converts images (HEIC, JPG, PNG, WebP, BMP, TIFF, GIF), "
+        "documents (DOCX, PDF, TXT, Markdown), spreadsheets (XLSX, CSV, JSON), "
+        "audio (MP3, WAV, FLAC, OGG, M4A) and video (MP4, MOV, AVI, MKV, WebM). "
+        "It can compress JPEG and WebP images to an exact target size using a "
+        "binary search. Files are processed server-side and deleted immediately "
+        "after conversion; hosting is in the EU and no account is required.",
+        "",
+        f"Open source under AGPLv3: {GITHUB_URL}",
+        "",
+    ]
+    return "\n".join(lines)
 
 
 @router.get("/sitemap.xml", include_in_schema=False)

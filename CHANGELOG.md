@@ -9,6 +9,26 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — SEO/GEO visibility foundation (Phase 1)
+
+Sharpens organic-search and AI-answer-engine discoverability without touching
+the conversion engine. **On-page:** keyword-front, SERP-length-safe titles
+(≤60) and a per-page `meta_description` block in `base.html` (the homepage DE
+title now carries the exact-match phrase "Dateien … konvertieren"); a homepage
+FAQ section (question-style `<h3>` headings) and an honest "FileMorph vs.
+typical cloud converter" comparison table — visible content built for AI
+extractability (GEO). **Structured data:** an `Organization` entity
+(`sameAs` → GitHub) and an honest `featureList` added to the homepage JSON-LD
+(still one CSP-hashed, deployment-agnostic block). **GEO:** a new `/llms.txt`
+entry point (llmstxt.org convention) and explicit AI-crawler allowances in
+`robots.txt` (GPTBot, ClaudeBot, PerplexityBot, Google-Extended, …). **New
+`/formats` hub** that renders the live `@register` converter registry grouped
+by category — a unique-content, ungated, sitemap-listed discovery page (and the
+anchor for future per-pair pages). Fully localised (DE 100 %, drift-check
+green) and deployment-agnostic. Adds 14 regression guards to
+`tests/test_seo_foundation.py`; also clears a stale `Compression`→`Imprint`
+fuzzy entry in the EN catalogue.
+
 ### Added — Account-deletion paid-path (tax-retention, c.2)
 
 Extends the free-path self-service deletion (`DELETE /api/v1/auth/account`)
