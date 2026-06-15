@@ -18,7 +18,7 @@
 # enforcement). Comment moved off the FROM line because newer BuildKit parsers
 # count trailing comments as a fourth argument and reject the directive with
 # "FROM requires either one or three arguments".
-FROM python:3.14-slim@sha256:c845af9399020c7e562969a13689e929074a10fd057acd1b1fad06a2fb068e97 AS builder
+FROM python:3.14-slim@sha256:44dd04494ee8f3b538294360e7c4b3acb87c8268e4d0a4828a6500b1eff50061 AS builder
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -67,7 +67,7 @@ RUN pip install -r requirements.txt
 # ``libssl3`` and ``libffi8`` are already present in python:3.14-slim
 # (Python's _ssl + cffi need them) so we don't reinstall them here.
 # Pinned to python:3.14-slim (same image as builder; digest is the enforcement).
-FROM python:3.14-slim@sha256:c845af9399020c7e562969a13689e929074a10fd057acd1b1fad06a2fb068e97 AS base
+FROM python:3.14-slim@sha256:44dd04494ee8f3b538294360e7c4b3acb87c8268e4d0a4828a6500b1eff50061 AS base
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
