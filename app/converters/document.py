@@ -391,3 +391,85 @@ class MarkdownToPdfConverter(BaseConverter):
         )
         weasyprint.HTML(string=full_html, url_fetcher=_deny_url_fetcher).write_pdf(str(output_path))
         return output_path
+
+
+# ---------------------------------------------------------------------------
+# HTML → PDF  (via WeasyPrint)
+# ---------------------------------------------------------------------------
+# url_fetcher=_deny_url_fetcher is MANDATORY (CLAUDE.md / security.md): a
+# crafted HTML could otherwise pull internal URLs or file:// (SSRF / local
+# file read). WeasyPrint logs and skips each denied resource, so the render
+# still succeeds — it just never fetches anything external.
+@register(("html", "pdf"))
+class HtmlToPdfConverter(BaseConverter):
+    def convert(self, input_path: Path, output_path: Path, **kwargs) -> Path:
+        import weasyprint
+
+        html = input_path.read_text(encoding="utf-8", errors="replace")
+        weasyprint.HTML(string=html, url_fetcher=_deny_url_fetcher).write_pdf(str(output_path))
+        return output_path
+
+
+# ---------------------------------------------------------------------------
+# EML (email) → PDF  (stdlib email parse → HTML → WeasyPrint)
+# ---------------------------------------------------------------------------
+# Renders the common headers + the message body (prefers the text/html part,
+# else the escaped text/plain part). Same mandatory SSRF guard — an email's
+# HTML part routinely references remote tracking pixels / images, which must
+# never be fetched server-side.
+def _eml_to_html(raw: bytes) -> str:
+    """Parse an ``.eml`` (RFC 5322 / MIME) into a self-contained HTML document.
+
+    Pure stdlib (no WeasyPrint) so the escaping / body-selection logic is
+    unit-testable on every host, not just CI. Header values are HTML-escaped;
+    the body prefers the ``text/html`` part (left un-escaped — it *is* HTML,
+    and it's rendered with no JS execution + the SSRF guard downstream) and
+    falls back to the escaped ``text/plain`` part, or a placeholder if empty.
+    """
+    import email
+    import html as html_lib
+    from email import policy
+
+    msg = email.message_from_bytes(raw, policy=policy.default)
+
+    rows = []
+    for key in ("From", "To", "Cc", "Date", "Subject"):
+        val = msg.get(key)
+        if val:
+            rows.append(
+                f"<tr><td class='k'>{html_lib.escape(key)}</td>"
+                f"<td>{html_lib.escape(str(val))}</td></tr>"
+            )
+    header_html = "<table class='hdr'>" + "".join(rows) + "</table>"
+
+    body_part = msg.get_body(preferencelist=("html", "plain"))
+    if body_part is not None and body_part.get_content_type() == "text/html":
+        body_html = body_part.get_content()
+    else:
+        text = body_part.get_content() if body_part is not None else ""
+        body_html = (
+            "<pre>" + html_lib.escape(text) + "</pre>"
+            if text.strip()
+            else "<p>(no readable body)</p>"
+        )
+
+    return (
+        "<!DOCTYPE html><html><head><meta charset='utf-8'>"
+        "<style>body{font-family:sans-serif;margin:2cm;line-height:1.5}"
+        ".hdr{border-collapse:collapse;margin-bottom:1em;font-size:0.9em}"
+        ".hdr td{padding:2px 8px;vertical-align:top}"
+        ".hdr .k{font-weight:bold;color:#444}"
+        "hr{border:none;border-top:1px solid #ccc}"
+        "pre{white-space:pre-wrap;word-wrap:break-word;font-family:inherit}</style>"
+        f"</head><body>{header_html}<hr>{body_html}</body></html>"
+    )
+
+
+@register(("eml", "pdf"))
+class EmlToPdfConverter(BaseConverter):
+    def convert(self, input_path: Path, output_path: Path, **kwargs) -> Path:
+        import weasyprint
+
+        full_html = _eml_to_html(input_path.read_bytes())
+        weasyprint.HTML(string=full_html, url_fetcher=_deny_url_fetcher).write_pdf(str(output_path))
+        return output_path
