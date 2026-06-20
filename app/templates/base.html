@@ -120,17 +120,30 @@
 
   {% block content %}{% endblock %}
   <footer class="border-t border-gray-800 px-6 py-5 mt-auto">
-    <div class="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-600">
-      <span>{{ _('© 2026 FileMorph — AGPLv3 Open Source') }}</span>
-      <nav class="flex flex-wrap items-center justify-center gap-4">
-        <a href="{{ localized_url('/formats', current_prefix) }}" class="hover:text-gray-400 transition-colors">{{ _('Formats') }}</a>
-        <a href="{{ localized_url('/privacy', current_prefix) }}" class="hover:text-gray-400 transition-colors">{{ _('Privacy Policy') }}</a>
-        <a href="{{ localized_url('/terms', current_prefix) }}" class="hover:text-gray-400 transition-colors">{{ _('Terms of Use') }}</a>
-        <a href="{{ localized_url('/impressum', current_prefix) }}" class="hover:text-gray-400 transition-colors">{{ _('Impressum') }}</a>
-        <a href="{{ localized_url('/contact', current_prefix) }}" class="hover:text-gray-400 transition-colors">{{ _('Contact') }}</a>
-        <a href="/docs" target="_blank" class="hover:text-gray-400 transition-colors">{{ _('API Docs') }}</a>
-        <a href="https://github.com/MrChengLen/FileMorph" target="_blank" class="hover:text-gray-400 transition-colors">GitHub ↗</a>
-      </nav>
+    <div class="max-w-4xl mx-auto space-y-4 text-xs text-gray-600">
+      <!-- Popular conversions — surfaces the per-pair pages on every page for
+           the internal link graph + discovery (footer_convert_links is added
+           to every render context in app/core/i18n.py::localized_context). -->
+      <div class="space-y-1.5">
+        <p class="font-semibold uppercase tracking-wider text-gray-600">{{ _('Popular conversions') }}</p>
+        <nav class="flex flex-wrap gap-x-4 gap-y-1 text-gray-500">
+          {% for link in footer_convert_links %}
+          <a href="{{ localized_url(link.path, current_prefix) }}" class="hover:text-gray-300 transition-colors">{{ link.label }}</a>
+          {% endfor %}
+        </nav>
+      </div>
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-gray-800/60 pt-4">
+        <span>{{ _('© 2026 FileMorph — AGPLv3 Open Source') }}</span>
+        <nav class="flex flex-wrap items-center justify-center gap-4">
+          <a href="{{ localized_url('/formats', current_prefix) }}" class="hover:text-gray-400 transition-colors">{{ _('Formats') }}</a>
+          <a href="{{ localized_url('/privacy', current_prefix) }}" class="hover:text-gray-400 transition-colors">{{ _('Privacy Policy') }}</a>
+          <a href="{{ localized_url('/terms', current_prefix) }}" class="hover:text-gray-400 transition-colors">{{ _('Terms of Use') }}</a>
+          <a href="{{ localized_url('/impressum', current_prefix) }}" class="hover:text-gray-400 transition-colors">{{ _('Impressum') }}</a>
+          <a href="{{ localized_url('/contact', current_prefix) }}" class="hover:text-gray-400 transition-colors">{{ _('Contact') }}</a>
+          <a href="/docs" target="_blank" class="hover:text-gray-400 transition-colors">{{ _('API Docs') }}</a>
+          <a href="https://github.com/MrChengLen/FileMorph" target="_blank" class="hover:text-gray-400 transition-colors">GitHub ↗</a>
+        </nav>
+      </div>
     </div>
   </footer>
   <!-- Server-rendered i18n catalogue for the front-end JS layer. Each

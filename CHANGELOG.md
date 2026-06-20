@@ -9,6 +9,16 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — Footer links to the convert-pair pages
+
+The global footer (`base.html`, every page) now has a "Popular conversions"
+row linking all curated `/convert/<src>-to-<tgt>` pages — spreading internal
+link equity to them on every page and aiding discovery (the standard SEO
+footer pattern). Language-neutral arrow labels ("JPG → PDF"), locale-aware
+hrefs; `footer_convert_links` is injected into every render context via
+`app/core/i18n.py::localized_context` (lazy import to avoid the
+i18n↔convert_pairs cycle). Guards in `tests/test_convert_pair_pages.py`.
+
 ### Added — Convert-pair landing pages (`/convert/<src>-to-<tgt>`)
 
 Penalty-safe programmatic SEO pages for the highest-volume conversions
