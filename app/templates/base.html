@@ -122,13 +122,20 @@
   <footer class="border-t border-gray-800 px-6 py-5 mt-auto">
     <div class="max-w-4xl mx-auto space-y-4 text-xs text-gray-600">
       <!-- Popular conversions — surfaces the per-pair pages on every page for
-           the internal link graph + discovery (footer_convert_links is added
-           to every render context in app/core/i18n.py::localized_context). -->
-      <div class="space-y-1.5">
+           the internal link graph + discovery (footer_link_groups is added to
+           every render context in app/core/i18n.py::localized_context). Grouped
+           by target format in a responsive grid so links stack vertically
+           within each column rather than wrapping as a ragged row. -->
+      <div class="space-y-2">
         <p class="font-semibold uppercase tracking-wider text-gray-600">{{ _('Popular conversions') }}</p>
-        <nav class="flex flex-wrap gap-x-4 gap-y-1 text-gray-500">
-          {% for link in footer_convert_links %}
-          <a href="{{ localized_url(link.path, current_prefix) }}" class="hover:text-gray-300 transition-colors">{{ link.label }}</a>
+        <nav class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-6 gap-y-3" aria-label="{{ _('Popular conversions') }}">
+          {% for group in footer_link_groups %}
+          <div class="space-y-1">
+            <p class="text-gray-600 font-medium">{{ group.heading }}</p>
+            {% for link in group.links %}
+            <a href="{{ localized_url(link.path, current_prefix) }}" class="block text-gray-500 hover:text-gray-300 transition-colors">{{ link.label }}</a>
+            {% endfor %}
+          </div>
           {% endfor %}
         </nav>
       </div>

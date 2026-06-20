@@ -24,7 +24,7 @@ from app.compressors.video import _SUPPORTED_FORMATS as VIDEO_COMPRESS_FMTS
 from app.converters.registry import get_supported_conversions
 from app.core import pricing as pricing_mod
 from app.core.config import settings
-from app.core.convert_pairs import format_label, get_pair_content, related_pairs
+from app.core.convert_pairs import accept_attr, format_label, get_pair_content, related_pairs
 from app.core.i18n import localized_context
 from app.core.templates import templates
 
@@ -138,6 +138,7 @@ async def convert_pair_page(request: Request, pair_slug: str):
         related=related,
         preset_source=src,
         preset_target=tgt,
+        preset_accept=accept_attr(src),
     )
 
 

@@ -632,11 +632,49 @@ assert not any("-to-" in s or "-to-" in t for s, t in PAIR_CONTENT), (
 )
 
 
-# Links surfaced in the global footer (every page) — spreads internal link
-# equity to the pair pages and aids discovery. Language-neutral arrow labels
-# (e.g. "JPG → PDF") so they need no translation; the path is localized
-# per-request via localized_url in the template. Order follows PAIR_CONTENT.
-FOOTER_LINKS: list[dict[str, str]] = [
-    {"label": f"{format_label(s)} → {format_label(t)}", "path": f"/convert/{s}-to-{t}"}
-    for (s, t) in PAIR_CONTENT
-]
+# Footer links grouped by target format for a scannable column layout.
+# Each group has a language-neutral heading ("→ PDF", "→ JPG", etc.) and
+# a list of source links — no translation needed, arrow labels only.
+def _build_footer_groups() -> list[dict]:
+    groups: dict[str, dict] = {}
+    for s, t in PAIR_CONTENT:
+        tgt_label = format_label(t)
+        key = tgt_label
+        if key not in groups:
+            groups[key] = {
+                "heading": f"→ {tgt_label}",
+                "links": [],
+            }
+        groups[key]["links"].append({"label": format_label(s), "path": f"/convert/{s}-to-{t}"})
+    return list(groups.values())
+
+
+FOOTER_LINK_GROUPS: list[dict] = _build_footer_groups()
+
+
+# Per-format file-picker accept attribute string.
+# Used by convert_pair_page to scope the <input accept> to the pair's source.
+_ACCEPT: dict[str, str] = {
+    "jpg": ".jpg,.jpeg,image/jpeg",
+    "jpeg": ".jpg,.jpeg,image/jpeg",
+    "png": ".png,image/png",
+    "webp": ".webp,image/webp",
+    "heic": ".heic,.heif,image/heic,image/heif",
+    "heif": ".heic,.heif,image/heic,image/heif",
+    "gif": ".gif,image/gif",
+    "bmp": ".bmp,image/bmp",
+    "tiff": ".tiff,.tif,image/tiff",
+    "tif": ".tiff,.tif,image/tiff",
+    "docx": ".docx",
+    "html": ".html,.htm,text/html",
+    "eml": ".eml,message/rfc822",
+}
+
+
+def accept_attr(fmt: str) -> str:
+    """Return the HTML ``accept`` attribute value for an input scoped to ``fmt``.
+
+    Returns an empty string for unknown formats so the caller can safely
+    omit the attribute when nothing specific is known.
+    """
+    return _ACCEPT.get(fmt.lower(), "")
