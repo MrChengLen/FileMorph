@@ -24,6 +24,7 @@ from app.compressors.video import _SUPPORTED_FORMATS as VIDEO_COMPRESS_FMTS
 from app.converters.registry import get_supported_conversions
 from app.core import pricing as pricing_mod
 from app.core.config import settings
+from app.core.convert_pairs import format_label, get_pair_content, related_pairs
 from app.core.i18n import localized_context
 from app.core.templates import templates
 
@@ -109,6 +110,34 @@ async def formats_page(request: Request):
         format_groups=_grouped_conversions(),
         compress_image=sorted(IMAGE_COMPRESS_FMTS),
         compress_video=sorted(VIDEO_COMPRESS_FMTS),
+    )
+
+
+@router.get("/convert/{pair_slug}")
+async def convert_pair_page(request: Request, pair_slug: str):
+    # Per-pair landing page (Phase 2), e.g. /convert/jpg-to-pdf. The page exists
+    # only when curated content exists in convert_pairs.PAIR_CONTENT AND the
+    # conversion is actually registered — anything else 404s, which structurally
+    # prevents thin auto-generated pages (penalty-safe). The embedded tool is
+    # pre-set to this pair via preset_source/preset_target (read by app.js).
+    src, sep, tgt = pair_slug.lower().partition("-to-")
+    locale = getattr(request.state, "locale", settings.lang_default)
+    pair = get_pair_content(src, tgt, locale) if sep else None
+    if pair is None or tgt not in get_supported_conversions().get(src, []):
+        return templates.TemplateResponse(
+            request, "404.html", context=localized_context(request), status_code=404
+        )
+    related = [
+        {"label": f"{format_label(s)} → {format_label(t)}", "url_path": f"/convert/{s}-to-{t}"}
+        for (s, t) in related_pairs(src, tgt)
+    ]
+    return _render(
+        request,
+        "convert_pair.html",
+        pair=pair,
+        related=related,
+        preset_source=src,
+        preset_target=tgt,
     )
 
 

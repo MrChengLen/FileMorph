@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-06-04 15:10+0200\n"
+"POT-Creation-Date: 2026-06-20 16:59+0200\n"
 "PO-Revision-Date: 2026-05-07 13:43+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -350,9 +350,6 @@ msgid ""
 "auditable."
 msgstr ""
 
-msgid "Best quality"
-msgstr ""
-
 msgid "Billed monthly, cancel anytime"
 msgstr ""
 
@@ -362,15 +359,9 @@ msgstr ""
 msgid "Business"
 msgstr ""
 
-msgid "By quality %"
-msgstr ""
-
 msgid ""
 "By sending, you agree we process your message and email address to "
 "respond. See our"
-msgstr ""
-
-msgid "By target size"
 msgstr ""
 
 msgid ""
@@ -391,9 +382,6 @@ msgid "Choose a password you haven't used before"
 msgstr ""
 
 msgid "Choose audience"
-msgstr ""
-
-msgid "Clear all"
 msgstr ""
 
 msgid "Cloudflare's privacy policy"
@@ -453,9 +441,6 @@ msgid "Compress to an exact target size"
 msgstr ""
 
 msgid "Compression"
-msgstr ""
-
-msgid "Compression mode"
 msgstr ""
 
 msgid "Concurrent slots"
@@ -589,9 +574,6 @@ msgstr ""
 msgid "CycloneDX SBOM per release"
 msgstr ""
 
-msgid "DOCX · PDF · TXT · MD · XLSX · CSV · JSON"
-msgstr ""
-
 msgid ""
 "DSGVO Art. 17 self-service flow, incl. the HGB §257 / AO §147 tax-"
 "retention edge case ↗"
@@ -631,15 +613,6 @@ msgid "Documented API endpoints and the web UI."
 msgstr ""
 
 msgid "Documents"
-msgstr ""
-
-msgid "Download Result"
-msgstr ""
-
-msgid "Drag & drop your files here"
-msgstr ""
-
-msgid "Drop files here or click to browse"
 msgstr ""
 
 msgid "E-mail support"
@@ -718,13 +691,7 @@ msgstr ""
 msgid "Feature"
 msgstr ""
 
-msgid "File compression mode"
-msgstr ""
-
 msgid "File conversion and compression — open source, self-hostable."
-msgstr ""
-
-msgid "File conversion mode"
 msgstr ""
 
 msgid "File too large for your plan. Upgrade or use a smaller file."
@@ -1068,9 +1035,6 @@ msgid ""
 "engineering of an operator."
 msgstr ""
 
-msgid "JPEG / WebP only."
-msgstr ""
-
 msgid "Joined"
 msgstr ""
 
@@ -1120,12 +1084,6 @@ msgid ""
 msgstr ""
 
 msgid "MB per file."
-msgstr ""
-
-msgid "MP4 · MOV · AVI · MKV · WebM"
-msgstr ""
-
-msgid "MP4 · MOV · AVI · MKV · WebM · MP3 · WAV · FLAC · OGG · M4A"
 msgstr ""
 
 msgid "Max file size"
@@ -1367,9 +1325,6 @@ msgstr ""
 msgid "Pro"
 msgstr ""
 
-msgid "Processing…"
-msgstr ""
-
 msgid ""
 "Public authorities, hospitals and law firms often may not process citizen"
 " and client data through public cloud conversion services — the GDPR data"
@@ -1437,6 +1392,9 @@ msgid "Register free for more →"
 msgstr ""
 
 msgid "Registration failed."
+msgstr ""
+
+msgid "Related conversions"
 msgstr ""
 
 msgid "Reporting a vulnerability"
@@ -1557,9 +1515,6 @@ msgstr ""
 msgid "See the Compliance Edition →"
 msgstr ""
 
-msgid "Select one or more files to convert or compress"
-msgstr ""
-
 msgid "Self-Hosted"
 msgstr ""
 
@@ -1656,9 +1611,6 @@ msgid ""
 "IdNr. is held."
 msgstr ""
 
-msgid "Smaller file"
-msgstr ""
-
 msgid "Soft-delete this user (sets is_active=false)?"
 msgstr ""
 
@@ -1731,12 +1683,6 @@ msgstr ""
 msgid "Supported file formats & conversions"
 msgstr ""
 
-msgid "Supported: HEIC · JPG · PNG · WebP · BMP · TIFF · GIF"
-msgstr ""
-
-msgid "Supported: JPG · PNG · WebP · TIFF"
-msgstr ""
-
 msgid "Switch to English"
 msgstr ""
 
@@ -1752,12 +1698,6 @@ msgstr ""
 msgid "Tamper-evident audit-log hash chain"
 msgstr ""
 
-msgid "Target Format"
-msgstr ""
-
-msgid "Target file size"
-msgstr ""
-
 msgid "Target format selection is inconsistent — please reselect your files."
 msgstr ""
 
@@ -1770,6 +1710,9 @@ msgid "Tax status"
 msgstr ""
 
 msgid "Tax-retained record"
+msgstr ""
+
+msgid "Technical details"
 msgstr ""
 
 msgid "Terms of Use"
@@ -2072,6 +2015,9 @@ msgstr ""
 msgid "What's in the Compliance Edition"
 msgstr ""
 
+msgid "When to use this conversion"
+msgstr ""
+
 msgid ""
 "When you request a password reset, we generate a single-use token (valid "
 "for 30 minutes) and send it to your registered email address as a reset "
@@ -2313,9 +2259,6 @@ msgstr ""
 msgid "hint. Large batches are processed sequentially inside the request."
 msgstr ""
 
-msgid "min 0.05 MB"
-msgstr ""
-
 msgid "no API access"
 msgstr ""
 
@@ -2354,9 +2297,6 @@ msgid ""
 msgstr ""
 
 msgid "or apply directly as design partner →"
-msgstr ""
-
-msgid "or click to browse (multi-file supported)"
 msgstr ""
 
 msgid "or reach us via the"
@@ -2461,10 +2401,7 @@ msgstr ""
 msgid "© 2026 FileMorph — AGPLv3 Open Source"
 msgstr ""
 
-msgid "±3% tolerance"
-msgstr ""
-
-msgid "— select a file first —"
+msgid "← All formats"
 msgstr ""
 
 msgid "← Back"

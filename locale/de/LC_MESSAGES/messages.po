@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-06-04 15:10+0200\n"
+"POT-Creation-Date: 2026-06-20 16:59+0200\n"
 "PO-Revision-Date: 2026-05-08 11:00+0200\n"
 "Last-Translator: FileMorph <hallo@filemorph.io>\n"
 "Language: de\n"
@@ -401,9 +401,6 @@ msgstr ""
 "verdrahtet und erzeugt diese Artefakte beim ersten Tag. Alles andere oben"
 " liegt heute im Repository und ist prüfbar."
 
-msgid "Best quality"
-msgstr "Beste Qualität"
-
 msgid "Billed monthly, cancel anytime"
 msgstr "Monatlich abgerechnet, jederzeit kündbar"
 
@@ -415,18 +412,12 @@ msgstr ""
 msgid "Business"
 msgstr "Business"
 
-msgid "By quality %"
-msgstr "Nach Qualität %"
-
 msgid ""
 "By sending, you agree we process your message and email address to "
 "respond. See our"
 msgstr ""
 "Mit dem Absenden stimmst du zu, dass wir deine Nachricht und E-Mail-"
 "Adresse zur Beantwortung verarbeiten. Siehe unsere"
-
-msgid "By target size"
-msgstr "Nach Zielgröße"
 
 msgid ""
 "By using FileMorph (the \"Service\"), you agree to these Terms of Use. If"
@@ -449,9 +440,6 @@ msgstr "Wähle ein Passwort, das du vorher noch nicht verwendet hast"
 
 msgid "Choose audience"
 msgstr "Zielgruppe wählen"
-
-msgid "Clear all"
-msgstr "Alle entfernen"
 
 msgid "Cloudflare's privacy policy"
 msgstr "Cloudflares Datenschutzerklärung"
@@ -519,9 +507,6 @@ msgstr "Auf eine exakte Zielgröße komprimieren"
 
 msgid "Compression"
 msgstr "Komprimierung"
-
-msgid "Compression mode"
-msgstr "Kompressions-Modus"
 
 msgid "Concurrent slots"
 msgstr "Gleichzeitige Slots"
@@ -669,9 +654,6 @@ msgstr "Kriterium"
 msgid "CycloneDX SBOM per release"
 msgstr "CycloneDX-SBOM pro Release"
 
-msgid "DOCX · PDF · TXT · MD · XLSX · CSV · JSON"
-msgstr "DOCX · PDF · TXT · MD · XLSX · CSV · JSON"
-
 msgid ""
 "DSGVO Art. 17 self-service flow, incl. the HGB §257 / AO §147 tax-"
 "retention edge case ↗"
@@ -714,15 +696,6 @@ msgstr "Dokumentierte API-Endpunkte und die Web-UI."
 
 msgid "Documents"
 msgstr "Dokumente"
-
-msgid "Download Result"
-msgstr "Ergebnis herunterladen"
-
-msgid "Drag & drop your files here"
-msgstr "Dateien hier ablegen"
-
-msgid "Drop files here or click to browse"
-msgstr "Dateien hier ablegen oder klicken zum Auswählen"
 
 msgid "E-mail support"
 msgstr "E-Mail-Support"
@@ -807,14 +780,8 @@ msgstr "Fehlerrate (heute)"
 msgid "Feature"
 msgstr "Funktion"
 
-msgid "File compression mode"
-msgstr "Datei-Kompressions-Modus"
-
 msgid "File conversion and compression — open source, self-hostable."
 msgstr "Datei-Konvertierung und -Kompression — Open Source, selbst hostbar."
-
-msgid "File conversion mode"
-msgstr "Datei-Konvertierungs-Modus"
 
 msgid "File too large for your plan. Upgrade or use a smaller file."
 msgstr "Datei zu groß für Ihren Plan. Upgrade oder kleinere Datei verwenden."
@@ -1285,9 +1252,6 @@ msgstr ""
 "Probleme, die physischen Zugriff auf einen selbst gehosteten Server oder "
 "Social Engineering eines Operators erfordern."
 
-msgid "JPEG / WebP only."
-msgstr "Nur JPEG / WebP."
-
 msgid "Joined"
 msgstr "Beigetreten"
 
@@ -1347,12 +1311,6 @@ msgstr ""
 
 msgid "MB per file."
 msgstr "MB pro Datei."
-
-msgid "MP4 · MOV · AVI · MKV · WebM"
-msgstr "MP4 · MOV · AVI · MKV · WebM"
-
-msgid "MP4 · MOV · AVI · MKV · WebM · MP3 · WAV · FLAC · OGG · M4A"
-msgstr "MP4 · MOV · AVI · MKV · WebM · MP3 · WAV · FLAC · OGG · M4A"
 
 msgid "Max file size"
 msgstr "Maximale Dateigröße"
@@ -1626,9 +1584,6 @@ msgstr "Datenschutzerklärung"
 msgid "Pro"
 msgstr "Pro"
 
-msgid "Processing…"
-msgstr "Verarbeitung…"
-
 msgid ""
 "Public authorities, hospitals and law firms often may not process citizen"
 " and client data through public cloud conversion services — the GDPR data"
@@ -1723,6 +1678,9 @@ msgstr "Kostenlos registrieren für mehr →"
 
 msgid "Registration failed."
 msgstr "Registrierung fehlgeschlagen."
+
+msgid "Related conversions"
+msgstr "Verwandte Konvertierungen"
 
 msgid "Reporting a vulnerability"
 msgstr "Eine Sicherheitslücke melden"
@@ -1855,9 +1813,6 @@ msgstr "Zur Lizenzierung →"
 msgid "See the Compliance Edition →"
 msgstr "Zur Compliance Edition →"
 
-msgid "Select one or more files to convert or compress"
-msgstr "Wähle eine oder mehrere Dateien zum Konvertieren oder Komprimieren"
-
 msgid "Self-Hosted"
 msgstr "Self-Hosted"
 
@@ -1966,9 +1921,6 @@ msgstr ""
 "Kleinunternehmer gemäß § 19 UStG — Umsatzsteuer wird nicht ausgewiesen. "
 "Eine USt-IdNr. wird daher nicht geführt."
 
-msgid "Smaller file"
-msgstr "Kleinere Datei"
-
 msgid "Soft-delete this user (sets is_active=false)?"
 msgstr "Nutzer soft-löschen (setzt is_active=false)?"
 
@@ -2058,12 +2010,6 @@ msgstr "Unterstützte Dateiformate"
 msgid "Supported file formats & conversions"
 msgstr "Unterstützte Dateiformate & Konvertierungen"
 
-msgid "Supported: HEIC · JPG · PNG · WebP · BMP · TIFF · GIF"
-msgstr "Unterstützt: HEIC · JPG · PNG · WebP · BMP · TIFF · GIF"
-
-msgid "Supported: JPG · PNG · WebP · TIFF"
-msgstr "Unterstützt: JPG · PNG · WebP · TIFF"
-
 msgid "Switch to English"
 msgstr "Zu Englisch wechseln"
 
@@ -2078,12 +2024,6 @@ msgstr "Manipulationssicheres Audit-Log"
 
 msgid "Tamper-evident audit-log hash chain"
 msgstr "Manipulationssicheres Audit-Log (Hash-Chain)"
-
-msgid "Target Format"
-msgstr "Zielformat"
-
-msgid "Target file size"
-msgstr "Ziel-Dateigröße"
 
 msgid "Target format selection is inconsistent — please reselect your files."
 msgstr "Zielformat-Auswahl inkonsistent — bitte Dateien neu auswählen."
@@ -2100,6 +2040,9 @@ msgstr "Steuerliche Angaben"
 
 msgid "Tax-retained record"
 msgstr "Steuerlich aufzubewahrender Datensatz"
+
+msgid "Technical details"
+msgstr "Technische Details"
 
 msgid "Terms of Use"
 msgstr "Nutzungsbedingungen"
@@ -2483,6 +2426,9 @@ msgstr "Was Sie geben"
 msgid "What's in the Compliance Edition"
 msgstr "Inhalt der Compliance-Edition"
 
+msgid "When to use this conversion"
+msgstr "Wann diese Umwandlung sinnvoll ist"
+
 msgid ""
 "When you request a password reset, we generate a single-use token (valid "
 "for 30 minutes) and send it to your registered email address as a reset "
@@ -2797,9 +2743,6 @@ msgstr ""
 "Hinweis. Große Batches werden sequentiell innerhalb der Anfrage "
 "verarbeitet."
 
-msgid "min 0.05 MB"
-msgstr "min. 0,05 MB"
-
 msgid "no API access"
 msgstr "kein API-Zugriff"
 
@@ -2844,9 +2787,6 @@ msgstr ""
 
 msgid "or apply directly as design partner →"
 msgstr "oder direkt als Design-Partner bewerben →"
-
-msgid "or click to browse (multi-file supported)"
-msgstr "oder klicken zum Auswählen (Mehrfach-Dateien möglich)"
 
 msgid "or reach us via the"
 msgstr "oder erreiche uns über das"
@@ -2974,11 +2914,8 @@ msgstr "{succeeded} von {total} Dateien erfolgreich ({failed} fehlgeschlagen)"
 msgid "© 2026 FileMorph — AGPLv3 Open Source"
 msgstr "© 2026 FileMorph — AGPLv3 Open Source"
 
-msgid "±3% tolerance"
-msgstr "±3% Toleranz"
-
-msgid "— select a file first —"
-msgstr "— erst eine Datei wählen —"
+msgid "← All formats"
+msgstr "← Alle Formate"
 
 msgid "← Back"
 msgstr "← Zurück"

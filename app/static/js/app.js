@@ -12,6 +12,10 @@ let supportedConversions = {};
 let currentMode = 'convert';
 let compressMode = 'quality'; // 'quality' | 'target' — only meaningful in compress mode
 let selectedFiles = [];
+// Per-pair landing pages (/convert/<src>-to-<tgt>) put the target format on
+// #drop-zone's data-preset-target; we pre-select it once the target list is
+// populated. Empty on the homepage. See app/templates/_components/convert_tool.html.
+let presetTarget = '';
 
 const TARGET_SIZE_FORMATS = ['jpg', 'jpeg', 'webp'];
 
@@ -39,6 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const dz = document.getElementById('drop-zone');
   if (dz) {
+    presetTarget = (dz.dataset.presetTarget || '').trim().toLowerCase();
     dz.addEventListener('click', () => document.getElementById('file-input').click());
     dz.addEventListener('keydown', e => {
       if (e.key === 'Enter' || e.key === ' ') document.getElementById('file-input').click();
@@ -369,6 +374,11 @@ function updateTargetFormats(filename) {
     opt.textContent = fmt.toUpperCase();
     select.appendChild(opt);
   });
+  // Per-pair landing page: pre-select the page's target if this file supports
+  // it (e.g. /convert/jpg-to-pdf → "pdf"). Not disabled — the user may change it.
+  if (presetTarget && targets.includes(presetTarget)) {
+    select.value = presetTarget;
+  }
   updateFormatWarning();
 }
 
