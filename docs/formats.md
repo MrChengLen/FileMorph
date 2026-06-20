@@ -151,7 +151,9 @@ rest of the container; the subprocess inherits the container's
 
 ## Audio
 
-All audio conversions use **pydub** with ffmpeg as the backend.
+All audio conversions invoke **ffmpeg** directly — streaming with constant
+memory, with a per-codec quality mapping (VBR for MP3/Vorbis, bitrate for
+AAC/Opus).
 
 ### Conversions
 

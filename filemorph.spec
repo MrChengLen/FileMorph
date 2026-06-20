@@ -4,7 +4,7 @@ PyInstaller spec for FileMorph.
 
 Bundles:
   - Python 3.12 runtime
-  - All pip packages (FastAPI, Pillow, uvicorn, pydub, ffmpeg-python, ...)
+  - All pip packages (FastAPI, Pillow, uvicorn, ffmpeg-python, ...)
   - ffmpeg binary (downloaded by the build workflow, placed at ./ffmpeg/)
   - HTML templates and static files
   - Scripts needed at runtime
@@ -82,7 +82,6 @@ a = Analysis(
         "docx",
         "pypdf",
         "reportlab",
-        "pydub",
         "ffmpeg",
         "multipart",
         "jinja2",
