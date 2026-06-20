@@ -9,6 +9,20 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — image / HTML / email → PDF converters
+
+Three new "to-PDF" conversions, all **zero new dependencies** (Pillow + the
+in-tree WeasyPrint engine). **`image→pdf`** (every supported image format →
+single-page PDF; alpha flattened onto white, EXIF stripped) — useful for turning
+scans/photos into uniform documents. **`html→pdf`** and **`eml→pdf`** (email:
+common headers + body, HTML part preferred) render via WeasyPrint with the
+mandatory `url_fetcher=_deny_url_fetcher` SSRF guard, so remote CSS/images and
+`file://` are never fetched. New converters live in `app/converters/image.py`
+and `document.py` (auto-registered, so they appear on `/formats` +
+`/api/v1/formats`); guards in `tests/test_to_pdf_converters.py` (valid PDF
+output, SSRF-blocked, magic-byte still enforced). `.msg` (Outlook) deferred —
+it would need a new dependency.
+
 ### Fixed — Social-preview (og-image) logo
 
 The `app/static/og-image.png` social card showed a different, off-brand mark

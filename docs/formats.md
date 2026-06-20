@@ -10,13 +10,17 @@ A complete reference of all supported input and output formats, with notes on qu
 
 | From | To | Notes |
 |------|-----|-------|
-| **HEIC / HEIF** | JPG, PNG, WebP, BMP, TIFF, GIF | iPhone / Apple device photos. Requires `libheif` on Linux (included in Docker). |
-| **JPG / JPEG** | PNG, WebP, BMP, TIFF, GIF, ICO | Most common image format. Lossy — converting to PNG does not restore lost detail. |
-| **PNG** | JPG, WebP, BMP, TIFF, GIF, ICO | Lossless. Supports transparency (alpha channel). |
-| **WebP** | JPG, PNG, BMP, TIFF, GIF | Modern web format, excellent quality/size ratio. |
-| **BMP** | JPG, PNG, WebP, TIFF, GIF | Uncompressed, large files. Rarely needed today. |
-| **TIFF / TIF** | JPG, PNG, WebP, BMP, GIF | Used in print and archiving. |
-| **GIF** | JPG, PNG, WebP, BMP, TIFF | Animated GIFs: only the first frame is converted. |
+| **HEIC / HEIF** | JPG, PNG, WebP, BMP, TIFF, GIF, **PDF** | iPhone / Apple device photos. Requires `libheif` on Linux (included in Docker). |
+| **JPG / JPEG** | PNG, WebP, BMP, TIFF, GIF, ICO, **PDF** | Most common image format. Lossy — converting to PNG does not restore lost detail. |
+| **PNG** | JPG, WebP, BMP, TIFF, GIF, ICO, **PDF** | Lossless. Supports transparency (alpha channel). |
+| **WebP** | JPG, PNG, BMP, TIFF, GIF, **PDF** | Modern web format, excellent quality/size ratio. |
+| **BMP** | JPG, PNG, WebP, TIFF, GIF, **PDF** | Uncompressed, large files. Rarely needed today. |
+| **TIFF / TIF** | JPG, PNG, WebP, BMP, GIF, **PDF** | Used in print and archiving. |
+| **GIF** | JPG, PNG, WebP, BMP, TIFF, **PDF** | Animated GIFs: only the first frame is converted. |
+
+> **Image → PDF**: any supported image becomes a single-page PDF (handy for
+> turning scans/photos into uniform documents). Transparency is flattened onto a
+> white background since PDF has no alpha channel; EXIF/GPS metadata is stripped.
 
 > **Note**: Converting from HEIC to any format requires ffmpeg or libheif to be installed.
 > On Windows, `pillow-heif` handles this automatically. On Linux, install `libheif-dev`.
@@ -52,6 +56,8 @@ Re-encode an image at a lower quality to reduce file size without changing forma
 | **PDF** | TXT | Extracts text from each page using PyPDF. Complex layouts (columns, forms) may not extract cleanly. |
 | **Markdown (.md)** | HTML | Converts Markdown to a complete HTML document. Supports tables and fenced code blocks. |
 | **Markdown (.md)** | PDF | Renders Markdown via HTML to PDF using WeasyPrint. Styled with a clean sans-serif font. |
+| **HTML** | PDF | Renders an HTML file to PDF via WeasyPrint. External resources (remote CSS/images, `file://`) are **never fetched** (`url_fetcher` SSRF guard). |
+| **EML (email)** | PDF | Renders an `.eml` email to PDF: common headers (From / To / Cc / Date / Subject) plus the body (HTML part preferred, else plain text). Remote tracking pixels / images are not fetched. `.msg` (Outlook) is not yet supported. |
 
 ### Notes on DOCX → PDF
 

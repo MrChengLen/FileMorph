@@ -98,3 +98,34 @@ for _src in _sources:
 
         _cls = _make_converter(_tgt)
         register((_src, _tgt))(_cls)
+
+
+# ---------------------------------------------------------------------------
+# Image → PDF  (each image becomes a single-page PDF)
+# ---------------------------------------------------------------------------
+# Asymmetric (many image formats → one PDF target), so it can't ride the
+# image↔image loop above. Pillow writes PDF natively, but the PDF encoder has
+# no alpha channel — flatten RGBA/LA/P onto white first (same spirit as the
+# JPEG path), then strip metadata like every other image conversion.
+class _ImageToPdfConverter(BaseConverter):
+    def convert(self, input_path: Path, output_path: Path, **kwargs) -> Path:
+        img = _open_image(input_path)
+        if img.mode in ("RGBA", "LA", "P"):
+            rgba = img.convert("RGBA")
+            background = Image.new("RGB", rgba.size, (255, 255, 255))
+            background.paste(rgba, mask=rgba.split()[-1])
+            img = background
+        elif img.mode != "RGB":
+            img = img.convert("RGB")
+        img = strip_metadata(img)
+        # resolution=150 DPI controls the physical page size Pillow assigns the
+        # single image page — a sensible default for typical phone photos/scans.
+        img.save(output_path, format="PDF", resolution=150.0)
+        return output_path
+
+
+# Register image→pdf for every supported image source (heic/heif only when
+# pillow-heif is installed — _IMAGE_FORMATS already encodes that). One class
+# serves all pairs since the target is always PDF (no per-target closure).
+for _src in _IMAGE_FORMATS:
+    register((_src, "pdf"))(_ImageToPdfConverter)
