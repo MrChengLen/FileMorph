@@ -9,6 +9,23 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — Convert-pair landing pages (`/convert/<src>-to-<tgt>`)
+
+Penalty-safe programmatic SEO pages for the highest-volume conversions
+(`/convert/jpg-to-pdf`, `/convert/heic-to-jpg`, …). Each page **embeds the
+real, working converter pre-set to that pair** — the tool card was extracted
+into a shared `app/templates/_components/convert_tool.html` partial, and
+`app.js` reads `data-preset-target` to pre-select the format (not disabled, so
+the user can still change it). Alongside the tool, each page carries **unique,
+localized (DE/EN) content**: when-to-use, technical/size-amplification notes, a
+visible question-heading FAQ (GEO) and related-pair links. 12 curated pairs to
+start. A page exists **only** when hand-written content lives in
+`app/core/convert_pairs.py` *and* the conversion is registered — anything else
+404s, so there are no thin auto-generated pages (Google 2026 "scaled content
+abuse" safety; measure in Search Console, then scale). The sitemap
+auto-populates the pairs (de/en/x-default + hreflang). New `convert_pair.html`
++ route in `pages.py`; +68 guards in `tests/test_convert_pair_pages.py`.
+
 ### Added — image / HTML / email → PDF converters
 
 Three new "to-PDF" conversions, all **zero new dependencies** (Pillow + the

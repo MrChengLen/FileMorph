@@ -18,6 +18,7 @@ from fastapi import APIRouter
 from fastapi.responses import PlainTextResponse, Response
 
 from app.core.config import settings
+from app.core.convert_pairs import PAIR_CONTENT
 from app.core.i18n import SUPPORTED_LOCALES, localized_url
 from app.core.jsonld import GITHUB_URL
 
@@ -67,6 +68,11 @@ def _sitemap_routes() -> list[tuple[str, str]]:
     if settings.pricing_page_enabled:
         routes.insert(1, ("/pricing", "0.8"))
         routes.insert(2, ("/enterprise", "0.8"))
+    # Per-pair landing pages (Phase 2) — curated, always-present content, so
+    # they're listed on every deployment. _url_entry/_alternate_links emit the
+    # de/en/x-default variants + hreflang automatically.
+    for src, tgt in sorted(PAIR_CONTENT):
+        routes.append((f"/convert/{src}-to-{tgt}", "0.6"))
     return routes
 
 
