@@ -5,7 +5,15 @@ Guards: every curated pair renders in both locales with a working embedded
 tool pre-set to the pair; uncurated/unsupported/malformed slugs 404 (so no
 thin auto-pages); titles/metas stay in SERP range; the sitemap lists the
 pairs with hreflang; the homepage still renders after the tool-card was
-extracted into a shared partial; and pages stay deployment-agnostic.
+extracted into a shared partial; pages stay deployment-agnostic.
+
+UX refactor guards (convert-pair tool constraints):
+- Pair pages show only the source format in the supported-hint, not the
+  full HEIC·JPG·PNG·… list.
+- #file-input carries an ``accept`` attribute scoped to the source format.
+- The Convert/Compress mode toggle is absent on pair pages (convert-only).
+- Homepage still shows the full supported list and the mode toggle.
+- Footer uses the new grouped-by-target layout; all 12 pairs still linked.
 """
 
 from __future__ import annotations
@@ -172,3 +180,78 @@ def test_footer_present_on_pair_pages(client):
     r = client.get("/en/convert/heic-to-jpg")
     assert "Popular conversions" in r.text
     assert 'href="/en/convert/png-to-jpg"' in r.text
+
+
+# ── UX refactor: pair-page tool constraints ──────────────────────────────────
+
+
+def test_pair_page_supported_hint_is_source_only(client):
+    """On a pair page the supported hint shows ONLY the source format (e.g.
+    'JPG' on /convert/jpg-to-pdf), not the full HEIC·JPG·PNG·… list."""
+    r = client.get("/en/convert/jpg-to-pdf")
+    assert r.status_code == 200
+    # Source format present in the scoped hint
+    assert "Supported: JPG" in r.text
+    # Full multi-format list must NOT appear (it's homepage-only)
+    assert "HEIC · JPG · PNG" not in r.text
+
+
+def test_pair_page_file_input_has_scoped_accept(client):
+    """On a pair page #file-input carries an accept attribute for the source
+    format so the OS file picker filters to the right type."""
+    r = client.get("/en/convert/jpg-to-pdf")
+    assert r.status_code == 200
+    assert 'accept=".jpg,.jpeg,image/jpeg"' in r.text
+
+
+def test_pair_page_compress_toggle_absent(client):
+    """The Convert/Compress mode toggle must not appear on pair pages
+    (a conversion pair is convert-only)."""
+    r = client.get("/en/convert/jpg-to-pdf")
+    assert r.status_code == 200
+    assert 'id="btn-mode-compress"' not in r.text
+    assert 'id="btn-mode-convert"' not in r.text
+
+
+def test_homepage_still_has_full_supported_list_and_toggle(client):
+    """The homepage retains the full supported-format list and the mode
+    toggle — only pair pages are constrained."""
+    r = client.get("/en/")
+    assert r.status_code == 200
+    # Full list present
+    assert "HEIC · JPG · PNG" in r.text
+    # Mode toggle present
+    assert 'id="btn-mode-convert"' in r.text
+    assert 'id="btn-mode-compress"' in r.text
+    # No scoped accept on homepage file input
+    assert 'accept="' not in r.text
+
+
+def test_footer_grouped_layout_links_all_pairs(client):
+    """Footer uses the grouped layout (group headings present) and still
+    links all curated pairs — internal link equity is fully preserved."""
+    r = client.get("/en/")
+    assert r.status_code == 200
+    # Group headings use arrow notation
+    assert "→ PDF" in r.text
+    assert "→ JPG" in r.text
+    # Every pair must still be reachable
+    for pair in _PAIRS:
+        assert f'href="/en/convert/{_slug(pair)}"' in r.text, (
+            f"footer missing grouped link for {_slug(pair)}"
+        )
+
+
+def test_convert_tool_partial_is_translated_on_de(client):
+    """Regression guard for the i18n extraction trap: the convert tool lives in
+    a Jinja partial. babel's extractor prunes underscore-prefixed dirs, so the
+    partial must stay in a non-underscore dir (app/templates/partials/) to be
+    extracted — otherwise its `_()` strings silently fall back to English on
+    /de/ (this regressed when the card was first moved into _components/).
+    Assert a tool string is genuinely translated on /de/."""
+    de = client.get("/de/").text
+    assert "Drag & drop your files here" not in de, (
+        "convert-tool partial is not translated on /de/ — is it back in an "
+        "underscore dir, or is babel not scanning app/templates/partials/?"
+    )
+    assert "Unterstützt:" in client.get("/de/convert/jpg-to-pdf").text

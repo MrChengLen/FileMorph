@@ -9,6 +9,27 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — Convert-tool German strings (i18n partial-scan regression)
+
+When the convert tool card was extracted into a Jinja partial under
+`app/templates/_components/`, babel's extractor — which prunes underscore-
+prefixed directories — stopped scanning it, so ~26 tool strings (drag-&-drop,
+"Supported: …", Target Format, Quality, Download Result, …) silently fell back
+to **English on `/de/`**. Moved the content partial to
+`app/templates/partials/convert_tool.html` (scanned normally), documented the
+underscore-dir limitation in `babel.cfg`, recovered the German translations,
+and added a regression test asserting the partial renders translated on `/de/`.
+
+### Changed — Dedicated convert-pair pages + structured footer
+
+- **`/convert/<src>-to-<tgt>` pages are now a focused tool**, not the generic
+  app: the upload shows only the pair's source format, `#file-input` gets an
+  `accept` scoped to it, and the Convert/Compress toggle is hidden (a
+  conversion pair is convert-only). The target stays pre-selected.
+- **Footer "Popular conversions"** is grouped by target format ("→ PDF",
+  "→ JPG", …) in a responsive grid (stacked columns) instead of a ragged inline
+  row — more scannable, same internal-link coverage.
+
 ### Added — Footer links to the convert-pair pages
 
 The global footer (`base.html`, every page) now has a "Popular conversions"

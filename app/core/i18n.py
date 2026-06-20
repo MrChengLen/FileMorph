@@ -379,7 +379,7 @@ def localized_context(request: Request, **extra) -> dict:
 
     # Lazy import: convert_pairs imports this module (normalize_locale), so a
     # top-level import here would be circular. By request time both are loaded.
-    from app.core.convert_pairs import FOOTER_LINKS
+    from app.core.convert_pairs import FOOTER_LINK_GROUPS
 
     locale = getattr(request.state, "locale", None) or resolve_locale(request)
     translator = _load_translations().get(locale) or gettext.NullTranslations()
@@ -392,7 +392,7 @@ def localized_context(request: Request, **extra) -> dict:
         "current_prefix": current_prefix,
         "base_path": base_path(request.url.path),
         "localized_url": localized_url,
-        "footer_convert_links": FOOTER_LINKS,
+        "footer_link_groups": FOOTER_LINK_GROUPS,
         "js_i18n_json": json.dumps(_js_i18n_strings(translator.gettext), ensure_ascii=False),
     }
     ctx.update(extra)

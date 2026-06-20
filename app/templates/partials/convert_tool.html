@@ -3,13 +3,22 @@
    lives in exactly one place. Optional context vars `preset_source` /
    `preset_target` (e.g. on /convert/jpg-to-pdf) are surfaced as data-attributes
    on #drop-zone; app.js reads them and pre-selects the target format. CSP-safe:
-   no inline JS — only data-attributes + addEventListener in app.js. #}
+   no inline JS — only data-attributes + addEventListener in app.js.
+
+   On pair pages (preset_source set):
+   - The Convert/Compress mode toggle is hidden (pair = convert-only).
+   - #supported-convert shows only the pair's source format label.
+   - #file-input gets an `accept` attribute scoped to the source format
+     (preset_accept from convert_pair_page in pages.py). #}
 {% import "_components/card.html" as uc %}
 {% import "_components/button.html" as ub %}
 {% call uc.card() %}
 <div class="space-y-5">
 
-  <!-- Mode Toggle -->
+  {# Mode Toggle — hidden on pair pages (conversion-only context). app.js
+     null-guards all references to #btn-mode-convert / #btn-mode-compress,
+     so removing them when preset_source is set is safe. #}
+  {% if not preset_source %}
   <div class="flex rounded-lg overflow-hidden border border-gray-700 text-sm font-medium">
     <button id="btn-mode-convert"
       class="flex-1 py-2 transition-colors bg-brand text-white"
@@ -18,6 +27,7 @@
       class="flex-1 py-2 transition-colors text-gray-400 hover:text-white"
       aria-pressed="false" aria-label="{{ _('File compression mode') }}">{{ _('Compress') }}</button>
   </div>
+  {% endif %}
 
   <!-- Drop Zone -->
   <div id="drop-zone"
@@ -25,7 +35,10 @@
     data-preset-target="{{ preset_target|default('') }}"
     class="border-2 border-dashed border-gray-700 rounded-xl p-6 sm:p-10 text-center cursor-pointer hover:border-brand transition-colors group"
     role="button" tabindex="0" aria-label="{{ _('Drop files here or click to browse') }}">
+    {# On pair pages scope the file picker to the source format only.
+       Homepage leaves accept unset so the OS shows all files. #}
     <input id="file-input" type="file" multiple class="hidden"
+      {% if preset_source and preset_accept %}accept="{{ preset_accept }}"{% endif %}
       aria-label="{{ _('Select one or more files to convert or compress') }}" />
 
     <div id="drop-idle" class="space-y-2">
@@ -36,6 +49,13 @@
       </svg>
       <p class="text-gray-400">{{ _('Drag & drop your files here') }}</p>
       <p class="text-xs text-gray-600">{{ _('or click to browse (multi-file supported)') }}</p>
+      {# On pair pages show only the source format as the supported hint.
+         On the homepage show the full supported-format list unchanged. #}
+      {% if preset_source %}
+      <p id="supported-convert" class="text-xs text-gray-700 mt-2">
+        {{ _('Supported:') }} {{ preset_source|upper }}
+      </p>
+      {% else %}
       <p id="supported-convert" class="text-xs text-gray-700 mt-2">
         {{ _('Supported: HEIC · JPG · PNG · WebP · BMP · TIFF · GIF') }}<br>
         {{ _('DOCX · PDF · TXT · MD · XLSX · CSV · JSON') }}<br>
@@ -45,6 +65,7 @@
         {{ _('Supported: JPG · PNG · WebP · TIFF') }}<br>
         {{ _('MP4 · MOV · AVI · MKV · WebM') }}
       </p>
+      {% endif %}
     </div>
 
     <div id="drop-selected" class="hidden space-y-2">
