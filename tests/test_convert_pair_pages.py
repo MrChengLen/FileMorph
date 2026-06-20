@@ -146,3 +146,29 @@ def test_homepage_still_has_working_tool(client):
     # homepage-specific sections still present
     assert 'id="self-hosted"' in r.text
     assert "Frequently asked questions" in r.text
+
+
+# ── global footer links (every page) ─────────────────────────────────────────
+
+
+def test_footer_lists_all_pair_pages(client):
+    """The footer (rendered on every page via base.html) links every curated
+    pair — internal link graph + discovery."""
+    r = client.get("/en/")
+    assert r.status_code == 200
+    assert "Popular conversions" in r.text
+    for pair in _PAIRS:
+        assert f'href="/en/convert/{_slug(pair)}"' in r.text, f"footer missing {_slug(pair)}"
+
+
+def test_footer_links_localized(client):
+    r = client.get("/de/")
+    assert "Beliebte Konvertierungen" in r.text
+    assert 'href="/de/convert/jpg-to-pdf"' in r.text
+
+
+def test_footer_present_on_pair_pages(client):
+    """The footer (with the pair links) appears on the pair pages themselves."""
+    r = client.get("/en/convert/heic-to-jpg")
+    assert "Popular conversions" in r.text
+    assert 'href="/en/convert/png-to-jpg"' in r.text

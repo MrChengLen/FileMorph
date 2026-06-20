@@ -630,3 +630,13 @@ def related_pairs(src: str, tgt: str, limit: int = 5) -> list[tuple[str, str]]:
 assert not any("-to-" in s or "-to-" in t for s, t in PAIR_CONTENT), (
     "a PAIR_CONTENT format token contains '-to-' — this breaks /convert/<slug> parsing"
 )
+
+
+# Links surfaced in the global footer (every page) — spreads internal link
+# equity to the pair pages and aids discovery. Language-neutral arrow labels
+# (e.g. "JPG → PDF") so they need no translation; the path is localized
+# per-request via localized_url in the template. Order follows PAIR_CONTENT.
+FOOTER_LINKS: list[dict[str, str]] = [
+    {"label": f"{format_label(s)} → {format_label(t)}", "path": f"/convert/{s}-to-{t}"}
+    for (s, t) in PAIR_CONTENT
+]

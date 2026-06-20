@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-06-20 16:59+0200\n"
+"POT-Creation-Date: 2026-06-20 23:50+0200\n"
 "PO-Revision-Date: 2026-05-08 11:00+0200\n"
 "Last-Translator: FileMorph <hallo@filemorph.io>\n"
 "Language: de\n"
@@ -1558,6 +1558,9 @@ msgstr "Bitte ein Zielformat wählen."
 
 msgid "Please select at least one file."
 msgstr "Bitte mindestens eine Datei wählen."
+
+msgid "Popular conversions"
+msgstr "Beliebte Konvertierungen"
 
 msgid "Price / year"
 msgstr "Preis / Jahr"
