@@ -255,3 +255,17 @@ def test_convert_tool_partial_is_translated_on_de(client):
         "underscore dir, or is babel not scanning app/templates/partials/?"
     )
     assert "Unterstützt:" in client.get("/de/convert/jpg-to-pdf").text
+
+
+def test_pair_page_hides_target_format_dropdown(client):
+    """On a pair page the target is fixed by the URL, so the Target Format
+    label/dropdown must not be shown — but the <select> stays in the DOM
+    (hidden) because app.js reads #target-format. The homepage keeps the
+    labelled, visible dropdown."""
+    pair = client.get("/en/convert/jpg-to-pdf").text
+    home = client.get("/en/").text
+    # Select element stays for app.js, but the visible label is gone on pairs.
+    assert 'id="target-format"' in pair
+    assert ">Target Format<" not in pair
+    # Homepage keeps the labelled dropdown.
+    assert ">Target Format<" in home

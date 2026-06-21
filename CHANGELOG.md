@@ -9,6 +9,18 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed — Hide the Target Format dropdown on convert-pair pages
+
+On `/convert/<src>-to-<tgt>` the target is fixed by the URL, so the "Target
+Format" label + dropdown are no longer shown — the page itself is the choice.
+The `<select id="target-format">` stays in the DOM (hidden) because `app.js`
+reads it for submit, the download-name fallback, and the bandwidth-amplification
+warning (which stays visible). Confirmed **frontend-only** by the
+backend-architect: the conversion reuses the format-agnostic
+`POST /api/v1/convert` (`target_format` from the form), so no backend or
+API-contract change — a per-pair endpoint would just duplicate the
+security/quota pipeline.
+
 ### Fixed — Convert-tool German strings (i18n partial-scan regression)
 
 When the convert tool card was extracted into a Jinja partial under
