@@ -227,18 +227,18 @@ def test_homepage_still_has_full_supported_list_and_toggle(client):
     assert 'accept="' not in r.text
 
 
-def test_footer_grouped_layout_links_all_pairs(client):
-    """Footer uses the grouped layout (group headings present) and still
-    links all curated pairs — internal link equity is fully preserved."""
+def test_footer_grid_shows_explicit_pair_labels(client):
+    """Footer shows explicit, directly-readable 'X → Y' pair labels in a grid
+    (not bare target-grouped headings) and links every curated pair."""
     r = client.get("/en/")
     assert r.status_code == 200
-    # Group headings use arrow notation
-    assert "→ PDF" in r.text
-    assert "→ JPG" in r.text
+    # Explicit, self-explanatory pair labels (grouped mode never had these)
+    assert "JPG → PDF" in r.text
+    assert "HEIC → JPG" in r.text
     # Every pair must still be reachable
     for pair in _PAIRS:
         assert f'href="/en/convert/{_slug(pair)}"' in r.text, (
-            f"footer missing grouped link for {_slug(pair)}"
+            f"footer missing link for {_slug(pair)}"
         )
 
 
