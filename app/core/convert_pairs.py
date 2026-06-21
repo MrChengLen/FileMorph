@@ -632,24 +632,13 @@ assert not any("-to-" in s or "-to-" in t for s, t in PAIR_CONTENT), (
 )
 
 
-# Footer links grouped by target format for a scannable column layout.
-# Each group has a language-neutral heading ("→ PDF", "→ JPG", etc.) and
-# a list of source links — no translation needed, arrow labels only.
-def _build_footer_groups() -> list[dict]:
-    groups: dict[str, dict] = {}
-    for s, t in PAIR_CONTENT:
-        tgt_label = format_label(t)
-        key = tgt_label
-        if key not in groups:
-            groups[key] = {
-                "heading": f"→ {tgt_label}",
-                "links": [],
-            }
-        groups[key]["links"].append({"label": format_label(s), "path": f"/convert/{s}-to-{t}"})
-    return list(groups.values())
-
-
-FOOTER_LINK_GROUPS: list[dict] = _build_footer_groups()
+# Flat list of convert-pair links for the footer "Popular conversions" grid.
+# Explicit "JPG → PDF" labels (language-neutral → no translation) laid out in a
+# multi-column grid so each conversion is directly readable and clickable.
+FOOTER_LINKS: list[dict[str, str]] = [
+    {"label": f"{format_label(s)} → {format_label(t)}", "path": f"/convert/{s}-to-{t}"}
+    for (s, t) in PAIR_CONTENT
+]
 
 
 # Per-format file-picker accept attribute string.

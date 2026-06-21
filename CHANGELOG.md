@@ -9,6 +9,14 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed — Footer "Popular conversions" uses explicit pair labels
+
+Replaced the target-grouped footer layout (a "→ PDF" heading with bare source
+names beneath — hard to parse and sparse) with explicit, directly-readable
+`JPG → PDF` labels in a balanced responsive multi-column grid. Each conversion
+is self-explanatory and one click away; the columns fill the width evenly.
+`convert_pairs.FOOTER_LINKS` (flat) replaces `FOOTER_LINK_GROUPS`.
+
 ### Changed — Hide the Target Format dropdown on convert-pair pages
 
 On `/convert/<src>-to-<tgt>` the target is fixed by the URL, so the "Target
