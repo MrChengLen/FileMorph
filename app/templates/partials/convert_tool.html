@@ -87,9 +87,16 @@
   <!-- Convert: target format -->
   <div id="convert-options" class="space-y-4">
     <div class="space-y-1">
+      {# On a pair page the target is fixed by the URL, so the dropdown is
+         hidden — but the <select> stays in the DOM because app.js reads
+         #target-format (submit, the download-name fallback, and the
+         bandwidth-amplification warning). The homepage shows the labelled
+         dropdown as before. #}
+      {% if not preset_source %}
       <label class="text-sm text-gray-400 font-medium">{{ _('Target Format') }}</label>
+      {% endif %}
       <select id="target-format"
-        class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-brand transition-colors">
+        class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-brand transition-colors{% if preset_source %} hidden{% endif %}">
         <option value="">{{ _('— select a file first —') }}</option>
       </select>
       <!-- S1-B: Bandwidth-amplification hint — shown only when source/target
