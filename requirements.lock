@@ -1286,10 +1286,6 @@ pydantic-settings==2.14.0 \
     --hash=sha256:24285fd4b0e0c06507dd9fdfd331ee23794305352aaec8fc4eb92d4047aeb67d \
     --hash=sha256:fc8d5d692eb7092e43c8647c1c35a3ecd00e040fcf02ed86f4cb5458ca62182e
     # via -r requirements.txt
-pydub==0.25.1 \
-    --hash=sha256:65617e33033874b59d87db603aa1ed450633288aefead953b30bded59cb599a6 \
-    --hash=sha256:980a33ce9949cab2a569606b65674d748ecbca4f0796887fd6f46173a7b0d30f
-    # via -r requirements.txt
 pydyf==0.12.1 \
     --hash=sha256:ea25b4e1fe7911195cb57067560daaa266639184e8335365cc3ee5214e7eaadc \
     --hash=sha256:fbd7e759541ac725c29c506612003de393249b94310ea78ae44cb1d04b220095

@@ -113,6 +113,38 @@ and `document.py` (auto-registered, so they appear on `/formats` +
 output, SSRF-blocked, magic-byte still enforced). `.msg` (Outlook) deferred —
 it would need a new dependency.
 
+### Fixed — Media conversion correctness: per-container codec matrix, direct ffmpeg audio, hard timeouts
+
+The video converter forced `libx264`/`aac` into every container — but the
+WebM muxer only accepts VP9/Opus and ffmpeg has no muxers named `mkv`/`wmv`
+(the real names are `matroska`/`asf`), so **18 of the 42 advertised video
+pairs failed at runtime** with a generic 500. Video output now uses a
+per-container codec matrix (`app/converters/_ffmpeg.py`): WebM → VP9/Opus,
+AVI → MPEG-4/MP3 (legacy-player compatibility), WMV → WMV2/WMA, everything
+else H.264/AAC with `yuv420p` for player compatibility (odd-dimension
+sources are rounded down one pixel instead of failing). The `quality`
+parameter (previously accepted and ignored for media) now drives each
+encoder's native rate control (CRF/qscale/VBR/bitrate).
+
+Audio conversion drops pydub (unmaintained since 2021): it decoded the
+whole file to PCM in RAM (a 100 MB MP3 is >1 GB decoded — an OOM vector
+under the 500 MB Business input cap) and passed the bare extension as the
+ffmpeg output format, **breaking m4a/aac/wma targets** (no such muxers;
+correct: `ipod`/`adts`/`asf`). Audio now invokes ffmpeg directly with
+constant memory and per-codec quality mapping; embedded cover-art streams
+are dropped (consistent with the NEU-C.2 strip-metadata default).
+
+`/compress` for video previously remuxed **everything into MP4 while
+keeping the original extension** (a compressed `.webm` was an MP4 file
+mislabelled as WebM); it now preserves the container and picks codecs from
+the same matrix. Every ffmpeg invocation now runs under a hard timeout
+(`MEDIA_SUBPROCESS_TIMEOUT_SECONDS`, default 600 s) like the LibreOffice
+and ghostscript subprocesses already did — no more unbounded worker-thread
+pinning. New functional smoke matrix (`tests/test_media_smoke.py`)
+generates 1-second clips via ffmpeg `lavfi` in CI and verifies container +
+codecs of every video/audio target with ffprobe (skips cleanly where
+ffmpeg is absent, e.g. local Windows dev).
+
 ### Fixed — Social-preview (og-image) logo
 
 The `app/static/og-image.png` social card showed a different, off-brand mark
