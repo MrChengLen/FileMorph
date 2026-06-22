@@ -56,7 +56,7 @@ class PiiSpan:
 
 def _iban_valid(candidate: str) -> bool:
     """ISO 13616 / ISO 7064 mod-97 check on a (possibly spaced) IBAN string."""
-    iban = candidate.replace(" ", "").upper()
+    iban = re.sub(r"[ .\-]", "", candidate).upper()
     if not 15 <= len(iban) <= 34:
         return False
     rearranged = iban[4:] + iban[:4]
@@ -87,12 +87,18 @@ def _luhn_valid(digits: str) -> bool:
 # ──────────────────────────────────────────────────────────────────────────
 
 _EMAIL_RE = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
-# IBAN written compactly or in conventional 4-char groups (single spaces).
-_IBAN_RE = re.compile(r"\b[A-Z]{2}\d{2}(?:\s?[A-Z0-9]{4})*\s?[A-Z0-9]{1,4}\b")
+# IBAN compact or grouped with space / dot / hyphen separators, any case. The
+# regex form is deliberately wide — the mod-97 check in _iban_valid is the hard
+# filter, so spaced/dotted/hyphenated/lowercase IBANs are caught while non-IBAN
+# look-alikes (version strings, ISBNs, dates) are rejected fail-closed.
+_IBAN_RE = re.compile(r"\b[A-Za-z]{2}\d{2}(?:[ .\-]?[A-Za-z0-9]{4})*[ .\-]?[A-Za-z0-9]{1,4}\b")
 # German/international phone: +49 / 0049 / national leading 0, then separated
 # digits. Deliberately conservative; digit count is checked below.
 _PHONE_RE = re.compile(r"(?<!\d)(?:\+49|0049|0)[\d\s/().\-]{5,16}\d(?!\d)")
-_IPV4_RE = re.compile(r"(?<![\d.])(?:\d{1,3}\.){3}\d{1,3}(?![\d.])")
+# Dotted quad. The trailing lookahead rejects a following digit or "dot+digit"
+# (a longer octet run like 1.2.3.4.5) but allows a sentence-final period, so an
+# IP at the end of a sentence ("...192.168.0.1.") is still caught.
+_IPV4_RE = re.compile(r"(?<![\d.])(?:\d{1,3}\.){3}\d{1,3}(?!\d)(?!\.\d)")
 # 13–19 digits with optional single space/dash separators (card-like runs).
 _CARD_RE = re.compile(r"(?<![\d-])\d(?:[ -]?\d){12,18}(?![\d-])")
 # A three-group date (01.02.2024 / 01/02/2024 / 2024-01-02). The phone pattern's
@@ -136,7 +142,7 @@ def _detect_card(text: str) -> list[PiiSpan]:
     out: list[PiiSpan] = []
     for m in _CARD_RE.finditer(text):
         digits = re.sub(r"\D", "", m.group())
-        if 13 <= len(digits) <= 19 and _luhn_valid(digits):
+        if 13 <= len(digits) <= 19 and _luhn_valid(digits) and len(set(digits)) > 1:
             out.append(PiiSpan(CREDIT_CARD, m.group(), m.start(), m.end(), 1.0))
     return out
 

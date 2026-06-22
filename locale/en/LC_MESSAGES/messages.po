@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-06-22 09:44+0200\n"
+"POT-Creation-Date: 2026-06-22 11:27+0200\n"
 "PO-Revision-Date: 2026-05-07 13:43+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -1161,10 +1161,7 @@ msgstr ""
 msgid "Language"
 msgstr ""
 
-msgid "Last updated: 2026-05-08 · Community + Cloud Edition"
-msgstr ""
-
-msgid "Last updated: 2026-05-12 · Community + Cloud Edition"
+msgid "Last updated: 2026-06-22 · Community + Cloud Edition"
 msgstr ""
 
 msgid "Last used"
@@ -2753,5 +2750,11 @@ msgstr ""
 #~ "redaction recorded in the tamper-evident"
 #~ " hash chain. Free-text names and "
 #~ "PDF are on the roadmap."
+#~ msgstr ""
+
+#~ msgid "Last updated: 2026-05-08 · Community + Cloud Edition"
+#~ msgstr ""
+
+#~ msgid "Last updated: 2026-05-12 · Community + Cloud Edition"
 #~ msgstr ""
 

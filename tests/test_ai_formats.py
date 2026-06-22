@@ -269,3 +269,17 @@ def test_detect_xlsx_surfaces_sheet_name_pii():
     data = _make_xlsx(sheet_title="Kunde leak@x.de", cells=["clean"])
     findings = detect_xlsx(data, None)
     assert any(f["entity_type"] == "EMAIL" for f in findings)
+
+
+# ── detector hardening: lowercase IBAN proven clean at the package level ─────
+
+
+def test_docx_lowercase_iban_does_not_survive():
+    """Recall fix at the package level: a lowercase IBAN in the body is detected,
+    redacted, and the fail-closed gate over the serialized package confirms it is
+    gone — not just at the isolated detector level."""
+    data = _make_docx(paragraphs=["konto de89 3704 0044 0532 0130 00 ende", "clean"])
+    res = redact_docx(data, None, "replace")
+    assert res.verification_passed
+    assert res.data
+    assert not _parts_contain(res.data, "de89 3704 0044 0532 0130 00")

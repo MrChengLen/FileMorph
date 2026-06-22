@@ -199,3 +199,62 @@ def test_merge_collapses_overlapping_spans():
     merged = det.merge_spans(spans, text)
     assert len(merged) == 1
     assert (merged[0].start, merged[0].end) == (0, 5)
+
+
+# ---------------------------------------------------------------------------
+# detector hardening (2026-06-22 audit): recall fixes + FP guards
+# ---------------------------------------------------------------------------
+
+
+def test_detect_ipv4_at_sentence_end():
+    # Recall fix: an IP immediately before a sentence period used to be missed.
+    spans = detect("Zugriff aus 192.168.0.1.")
+    assert [s.entity_type for s in spans] == [IPV4]
+    assert spans[0].value == "192.168.0.1"
+
+
+@pytest.mark.parametrize("text", ["1.2.3.4.5", "192.168.0.1.2"])
+def test_ipv4_five_octet_still_rejected(text):
+    # The sentence-end fix must NOT weaken the longer-octet-run guard.
+    assert detect(text, (IPV4,)) == []
+
+
+def test_detect_iban_lowercase_wins_over_phone():
+    # Recall fix: a lowercase IBAN is now detected (was missed → only a stray
+    # PHONE false-match). Pins that merge_spans keeps IBAN over the phone span.
+    spans = detect("konto de89 3704 0044 0532 0130 00 ende")
+    assert [s.entity_type for s in spans] == [IBAN]
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["DE89-3704-0044-0532-0130-00", "DE89.3704.0044.0532.0130.00"],
+)
+def test_detect_iban_hyphen_and_dot_grouped(text):
+    assert [s.entity_type for s in detect(text, (IBAN,))] == [IBAN]
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Version 1.2.3.4",
+        "01.02.2024",
+        "1.234,56 EUR",
+        "030-1234-5678",
+        "978-3-16-148410-0",
+        "AB12-3456-7890-1234",
+    ],
+)
+def test_iban_separators_no_false_positive(text):
+    # The looser separator regex must not over-match: mod-97 stays the hard filter.
+    assert detect(text, (IBAN,)) == []
+
+
+def test_all_identical_digit_card_rejected():
+    assert detect("0000000000000000", (CREDIT_CARD,)) == []
+    assert [s.entity_type for s in detect(VALID_CARD, (CREDIT_CARD,))] == [CREDIT_CARD]
+
+
+def test_all_zero_invalid_iban_not_card():
+    # Bad-checksum all-zero IBAN no longer slips through as a Luhn-valid card.
+    assert CREDIT_CARD not in [s.entity_type for s in detect("DE00 0000 0000 0000 0000 00")]

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-06-22 09:44+0200\n"
+"POT-Creation-Date: 2026-06-22 11:27+0200\n"
 "PO-Revision-Date: 2026-05-08 11:00+0200\n"
 "Last-Translator: FileMorph <hallo@filemorph.io>\n"
 "Language: de\n"
@@ -952,11 +952,8 @@ msgstr "Kleinunternehmer gemäß §19 UStG — keine Umsatzsteuer ausgewiesen. Z
 msgid "Language"
 msgstr "Sprache"
 
-msgid "Last updated: 2026-05-08 · Community + Cloud Edition"
-msgstr "Stand: 08.05.2026 · Community + Cloud Edition"
-
-msgid "Last updated: 2026-05-12 · Community + Cloud Edition"
-msgstr "Stand: 12.05.2026 · Community + Cloud Edition"
+msgid "Last updated: 2026-06-22 · Community + Cloud Edition"
+msgstr "Stand: 22.06.2026 · Community + Cloud Edition"
 
 msgid "Last used"
 msgstr "Zuletzt verwendet"
