@@ -23,7 +23,7 @@ from starlette.middleware.gzip import GZipMiddleware
 # error before any route module pulls in a converter that calls
 # Image.open(). See module docstring for the rationale.
 import app.core.image_hardening  # noqa: F401  — side-effect import
-from app.api.routes import compress, contact, convert, formats, health, pages, seo
+from app.api.routes import ai, compress, contact, convert, formats, health, pages, seo
 from app.api.routes import auth as auth_route
 from app.api.routes import billing as billing_route
 from app.api.routes import cockpit as cockpit_route
@@ -76,6 +76,13 @@ templates.env.globals["security_contact_email"] = settings.security_contact_emai
 # flags so we can run a "Coming Soon" page between launch and Stripe live.
 templates.env.globals["pricing_enabled"] = bool(settings.pricing_page_enabled)
 templates.env.globals["stripe_enabled"] = bool(settings.stripe_secret_key)
+# AI/redaction visibility: commercial EE add-on, inert (and UI-less) unless enabled.
+# Gates the /redact page, the footer/homepage/pricing/enterprise links, and the
+# client-hydrated eligible-only nav link — so an inert build advertises nothing.
+templates.env.globals["ai_operations_enabled"] = bool(settings.ai_operations_enabled)
+# Eligible paid tiers — surfaced (non-secret) so auth.js can show the /redact nav
+# link only to a logged-in user whose tier may use the feature.
+templates.env.globals["ai_eligible_tiers"] = settings.ai_eligible_tiers_list
 
 # i18n helpers exposed as Jinja globals so base.html can build the
 # language-switcher links and hreflang tags without the route having to
@@ -231,6 +238,9 @@ app.add_middleware(
         "X-FileMorph-Error-Code",
         "X-FileMorph-Final-Quality",
         "X-FileMorph-Warnings",
+        "X-FileMorph-AI-Entities-Redacted",
+        "X-FileMorph-AI-Credits-Cost",
+        "X-FileMorph-AI-Credits-Remaining",
         "X-Output-SHA256",
         "X-Data-Classification",
     ],
@@ -465,6 +475,11 @@ app.include_router(health.router, prefix="/api/v1")
 app.include_router(formats.router, prefix="/api/v1")
 app.include_router(convert.router, prefix="/api/v1")
 app.include_router(compress.router, prefix="/api/v1")
+# AI operations (Enterprise Edition). Router is always mounted but every
+# endpoint is inert (503) unless AI_OPERATIONS_ENABLED is set; the commercial
+# app/ee engine is imported lazily inside the handlers, so a default self-host
+# build never loads it.
+app.include_router(ai.router, prefix="/api/v1")
 app.include_router(contact.router, prefix="/api/v1")  # POST /api/v1/contact
 app.include_router(auth_route.router, prefix="/api/v1")
 app.include_router(keys_route.router, prefix="/api/v1")

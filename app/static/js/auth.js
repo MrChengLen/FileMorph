@@ -109,9 +109,34 @@
     }
   }
 
+  // /redact nav link — shown only to a logged-in user whose tier is eligible
+  // (data-ai-enabled + data-ai-eligible on <body>, set when ai_operations_enabled).
+  // Free/anonymous users never see it (no paywall in the primary nav); the slots
+  // only exist in the DOM on AI-enabled builds.
+  function _renderAiNavLink(user) {
+    const body = document.body;
+    if (!user || !body || !body.dataset.aiEnabled) return;
+    const eligible = (body.dataset.aiEligible || '')
+      .split(',').map((t) => t.trim()).filter(Boolean);
+    if (!eligible.includes(user.tier)) return;
+
+    const label = (window.FM_I18N || {}).redactNav || 'Redact PII';
+    const htmlLang = document.documentElement.lang || '';
+    const localePrefix = htmlLang.startsWith('en') ? '/en' : htmlLang.startsWith('de') ? '/de' : '';
+    const desktop = document.getElementById('nav-ai-slot');
+    if (desktop) {
+      desktop.innerHTML = `<a href="${localePrefix}/redact" class="text-gray-400 hover:text-white transition-colors">${label}</a>`;
+    }
+    const mobile = document.getElementById('nav-ai-slot-mobile');
+    if (mobile) {
+      mobile.innerHTML = `<a href="${localePrefix}/redact" class="block text-gray-400 hover:text-white transition-colors py-2.5">${label}</a>`;
+    }
+  }
+
   async function init() {
     const user = await getUser();
     _renderNavAuth(user);
+    _renderAiNavLink(user);
   }
 
   window.FM = { authFetch, getUser, logout };

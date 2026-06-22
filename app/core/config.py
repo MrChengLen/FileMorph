@@ -202,6 +202,22 @@ class Settings(BaseSettings):
     # convert long forms. Ignored when ``office_engine=mammoth``.
     office_subprocess_timeout_seconds: int = 60
 
+    # AI File Operations (Enterprise Edition — app/ee/, commercial-only; see
+    # app/ee/README.md). Inert unless ai_operations_enabled is set — the same
+    # "inert without env vars" pattern as Stripe/SMTP/audit. This is a
+    # paid-only add-on for the hosted service, NOT an AGPL engine feature.
+    #
+    # Margin-opacity: the only cost-revealing knob is ai_credit_cost_redact,
+    # and it lives HERE (env), never in source. Clients and the repo see only
+    # "credits" — never a model id, token count, or euro cost. filemorph.io
+    # sets the real cost in its private deployment env; the default below is a
+    # neutral unit, not the production figure.
+    ai_operations_enabled: bool = False
+    # Comma-separated tiers allowed to call AI operations (paid-only gate).
+    ai_eligible_tiers: str = "pro,business,enterprise"
+    # Credits charged per redaction apply. Env-driven so the margin stays opaque.
+    ai_credit_cost_redact: int = 1
+
     def model_post_init(self, __context) -> None:
         if not self.api_keys_file:
             self.api_keys_file = _default_keys_file()
@@ -215,6 +231,10 @@ class Settings(BaseSettings):
         if self.cors_origins == "*":
             return ["*"]
         return [o.strip() for o in self.cors_origins.split(",")]
+
+    @property
+    def ai_eligible_tiers_list(self) -> list[str]:
+        return [t.strip() for t in self.ai_eligible_tiers.split(",") if t.strip()]
 
 
 settings = Settings()

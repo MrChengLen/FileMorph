@@ -70,6 +70,10 @@
           <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
           <span>{{ _('All smart-tech: compress-to-target, EXIF strip, PDF/A, integrity hash') }}</span>
         </li>
+        {% if ai_operations_enabled %}<li class="flex items-start gap-2">
+          <span class="text-ink-faint shrink-0 leading-6" aria-hidden="true">+</span>
+          <span class="text-ink-faint">{{ _('PII redaction is a paid add-on (Pro and up)') }}</span>
+        </li>{% endif %}
       </ul>
       <a href="{{ localized_url('/register', current_prefix) }}" class="block text-center py-2.5 rounded-xl border border-hairline hover:border-brand text-gray-300 hover:text-white transition-colors text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
         {{ _('Get started free') }}
@@ -106,6 +110,10 @@
           <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
           <span><strong class="text-white">{{ plans.pro.api_calls_display }} {{ _('API calls / month') }}</strong>, {{ plans.pro.concurrency }} {{ _('concurrent') }}, 10 req/min</span>
         </li>
+        {% if ai_operations_enabled %}<li class="flex items-start gap-2">
+          <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
+          <span><strong class="text-white">{{ _('PII redaction') }}</strong> — {{ plans.pro.ai_credits_display }} {{ _('credits / month') }}</span>
+        </li>{% endif %}
         <li class="flex items-start gap-2">
           <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
           <span>{{ _('E-mail support') }}</span>
@@ -155,6 +163,10 @@
           <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
           <span><strong class="text-white">{{ plans.business.api_calls_display }} {{ _('API calls / month') }}</strong>, {{ plans.business.concurrency }} {{ _('concurrent') }}, 10 req/min</span>
         </li>
+        {% if ai_operations_enabled %}<li class="flex items-start gap-2">
+          <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
+          <span><strong class="text-white">{{ _('PII redaction') }}</strong> — {{ plans.business.ai_credits_display }} {{ _('credits / month') }}</span>
+        </li>{% endif %}
         <li class="flex items-start gap-2">
           <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
           <span>{{ _('30+ formats (images, docs, audio, video)') }}</span>
@@ -239,6 +251,7 @@
           <tr class="border-b border-hairline/50"><td class="py-2 pr-3 text-ink-muted">{{ _('Max file size') }}</td><td class="text-center">{{ plans.free.max_file_size_mb }} MB</td><td class="text-center">{{ plans.pro.max_file_size_mb }} MB</td><td class="text-center">{{ plans.business.max_file_size_mb }} MB</td><td class="text-center">{{ _('self-set') }}</td></tr>
           <tr class="border-b border-hairline/50"><td class="py-2 pr-3 text-ink-muted">{{ _('Batch / request') }}</td><td class="text-center">{{ plans.free.max_files_per_batch }}</td><td class="text-center">{{ plans.pro.max_files_per_batch }}</td><td class="text-center">{{ plans.business.max_files_per_batch }}</td><td class="text-center">250</td></tr>
           <tr class="border-b border-hairline/50"><td class="py-2 pr-3 text-ink-muted">{{ _('API calls / month') }}</td><td class="text-center">{{ plans.free.api_calls_display }}</td><td class="text-center">{{ plans.pro.api_calls_display }}</td><td class="text-center">{{ plans.business.api_calls_display }}</td><td class="text-center">{{ _('unlimited*') }}</td></tr>
+          {% if ai_operations_enabled %}<tr class="border-b border-hairline/50"><td class="py-2 pr-3 text-ink-muted">{{ _('PII redaction (credits / month)') }}</td><td class="text-center">{{ plans.free.ai_credits_display }}</td><td class="text-center">{{ plans.pro.ai_credits_display }}</td><td class="text-center">{{ plans.business.ai_credits_display }}</td><td class="text-center">{{ _('unlimited*') }}</td></tr>{% endif %}
           <tr class="border-b border-hairline/50"><td class="py-2 pr-3 text-ink-muted">{{ _('Concurrent slots') }}</td><td class="text-center">{{ plans.free.concurrency }}</td><td class="text-center">{{ plans.pro.concurrency }}</td><td class="text-center">{{ plans.business.concurrency }}</td><td class="text-center">{{ _('custom') }}</td></tr>
           <tr class="border-b border-hairline/50"><td class="py-2 pr-3 text-ink-muted">{{ _('All formats + smart-tech') }}</td><td class="text-center text-emerald-400">✓</td><td class="text-center text-emerald-400">✓</td><td class="text-center text-emerald-400">✓</td><td class="text-center text-emerald-400">✓</td></tr>
           <tr class="border-b border-hairline/50"><td class="py-2 pr-3 text-ink-muted">{{ _('Self-hosted') }}</td><td class="text-center text-ink-faint">—</td><td class="text-center text-ink-faint">—</td><td class="text-center text-ink-faint">—</td><td class="text-center text-emerald-400">✓</td></tr>
@@ -269,6 +282,12 @@
     </p>
   </div>
   {% endcall %}
+
+  {% if ai_operations_enabled %}
+  <p class="text-center text-xs text-gray-600 max-w-3xl mx-auto">
+    {{ _('* PII redaction finds and removes structured personal data — email addresses, IBANs, phone numbers, IPv4 addresses and credit-card numbers — in TXT, DOCX and XLSX. It does not yet detect free-text names or postal addresses, and PDF is not yet supported. It assists a review; it does not guarantee completeness.') }}
+  </p>
+  {% endif %}
 
   <p class="text-center text-xs text-gray-600">
     {{ _('Kleinunternehmer gemäß §19 UStG — keine Umsatzsteuer ausgewiesen (no VAT charged, small-business rule, §19 German VAT Act). Payments processed by Stripe.') }}

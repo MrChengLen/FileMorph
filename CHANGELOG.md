@@ -9,6 +9,28 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — PII redaction (Enterprise Edition, commercial add-on)
+
+Deterministic, local-CPU PII redaction for UTF-8 text, DOCX and XLSX — detects
+IBAN (mod-97), email, phone, IPv4 and payment-card (Luhn) by regex + checksum,
+no external model call. A mandatory **fail-closed** pass re-scans the *serialized
+output package* (all XML parts — body, metadata, comments, sheet names,
+attributes), so a half-redacted file is never returned. Lives under `app/ee/`
+(commercial-licensed); inert unless `AI_OPERATIONS_ENABLED` is set.
+**Honest limits:** free-text names and postal addresses are not detected yet (no
+NER), and PDF is unsupported (returns 415 — safe PDF redaction must delete the
+text layer, a separate checkpoint; we don't ship a cover-only fake).
+
+### Added — Redaction API + `/redact` tool page
+
+`POST /api/v1/ai/redact/{detect,apply}`: two-phase — `detect` returns a free
+findings preview (open to anonymous/free users); `apply` produces the redacted
+file (paid-tier-gated, credit-metered, atomic charge). CPU work runs off the
+event loop. New `/redact` page (gated on `AI_OPERATIONS_ENABLED`, 404 when off)
+with a free scan → review → download flow, an honest scope notice, footer link,
+homepage/pricing/enterprise surfaces, and an eligible-only nav link. Responses
+are credit-denominated only — never a model id, token count, or euro cost.
+
 ### Changed — Footer "Popular conversions" uses explicit pair labels
 
 Replaced the target-grouped footer layout (a "→ PDF" heading with bare source

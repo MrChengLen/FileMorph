@@ -99,6 +99,24 @@ The endpoints in this section only respond when the Cloud overlay is configured 
 
 For schema details (request bodies, response shapes), open the auto-generated Swagger UI at `/docs` on the live deployment.
 
+### AI operations — PII redaction (Enterprise Edition add-on)
+
+Respond only when `AI_OPERATIONS_ENABLED` is set; otherwise `503 ai_unavailable`.
+Two-phase. See [`pii-redaction.md`](pii-redaction.md) for capability + limits.
+
+| Method | Endpoint | Body | Notes |
+|---|---|---|---|
+| `POST` | `/api/v1/ai/redact/detect` | `file`, `entity_types` (optional CSV) | **Free**, open to anonymous/free. Returns JSON `{findings:[{entity_type,value,location,confidence}], count, credits_estimate, credits_remaining}`. |
+| `POST` | `/api/v1/ai/redact/apply` | `file`, `entity_types` (optional), `mode` (`replace`\|`mask`\|`remove`) | **Paid-tier only, credit-metered.** Returns the redacted file as a download with headers `X-FileMorph-AI-Entities-Redacted`, `X-FileMorph-AI-Credits-Cost`, `X-FileMorph-AI-Credits-Remaining`. |
+
+Supported inputs: UTF-8 text, DOCX, XLSX. Responses are credit-denominated only —
+no model id, token count, or euro cost. Error codes (`X-FileMorph-Error-Code`):
+`ai_unavailable` (503), `ai_plan_required` (403), `ai_credits_exhausted` (402),
+`unsupported_format` (415, incl. PDF by design), `input_too_large` (413),
+`unknown_entity_type` (400), `document_unreadable` (400),
+`redaction_verification_failed` (500, fail-closed — no file returned),
+`output_cap_exceeded` (413).
+
 ---
 
 ### POST `/api/v1/convert`

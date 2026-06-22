@@ -36,6 +36,8 @@ class SaasPlan:
     max_files_per_batch: int
     api_calls_per_month: int | None
     api_calls_display: str  # locale-formatted, e.g. "25,000" / "25.000"
+    ai_credits_per_month: int | None
+    ai_credits_display: str  # locale-formatted PII-redaction credits, "—" when none
     concurrency: int
     storage_days: int | None
 
@@ -73,6 +75,10 @@ def _saas_plan(tier: str, price_display: str, locale: str) -> SaasPlan:
         max_files_per_batch=q.max_files_per_batch,
         api_calls_per_month=q.api_calls_per_month,
         api_calls_display=_fmt(q.api_calls_per_month or 0, locale),
+        ai_credits_per_month=q.ai_credits_per_month,
+        ai_credits_display=(
+            _fmt(q.ai_credits_per_month, locale) if q.ai_credits_per_month else "—"
+        ),
         concurrency=q.concurrency,
         storage_days=q.storage_days,
     )

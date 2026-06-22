@@ -122,6 +122,9 @@ class User(Base):
     )
     file_jobs: Mapped[list[FileJob]] = relationship("FileJob", back_populates="user")
     usage_records: Mapped[list[UsageRecord]] = relationship("UsageRecord", back_populates="user")
+    ai_usage_records: Mapped[list[AiUsageRecord]] = relationship(
+        "AiUsageRecord", back_populates="user"
+    )
 
     __table_args__ = (
         Index("ix_users_email", "email"),
@@ -223,6 +226,47 @@ class UsageRecord(Base):
     # Relationships
     user: Mapped[Optional[User]] = relationship("User", back_populates="usage_records")
     api_key: Mapped[Optional[ApiKey]] = relationship("ApiKey", back_populates="usage_records")
+
+
+class AiUsageRecord(Base):
+    """EE: per-operation AI credit ledger (commercial AI add-on metering).
+
+    One row per charged AI operation. Powers the per-tier monthly AI-credit
+    gate (:mod:`app.core.ai_credits`) and the dashboard balance. Mirrors
+    :class:`UsageRecord` but counts *credits* — the business unit — not raw
+    API calls.
+
+    Margin-opacity: ``credits_charged`` is the only client-facing unit.
+    ``model`` / ``used_llm`` are kept server-side for the operator's own
+    analytics (which model ran, local-vs-LLM) and are never surfaced to the
+    client. The euro price of a credit and the provider token cost live in
+    deployment env + pricing, never in this row — so the row cannot be used to
+    derive the margin.
+    """
+
+    __tablename__ = "ai_usage"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    operation: Mapped[str] = mapped_column(String, nullable=False)
+    credits_charged: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    model: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    used_llm: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    timestamp: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    # Relationships
+    user: Mapped[Optional[User]] = relationship("User", back_populates="ai_usage_records")
+
+    __table_args__ = (
+        Index("ix_ai_usage_user_id_timestamp", "user_id", "timestamp"),
+        Index("ix_ai_usage_operation", "operation"),
+    )
 
 
 class AuditEvent(Base):

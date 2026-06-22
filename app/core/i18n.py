@@ -354,6 +354,41 @@ def _js_i18n_strings(_: gettext.GNUTranslations.gettext) -> dict[str, str]:
         "dashboard": _("Dashboard"),
         "register": _("Register"),
         "signOut": _("Sign Out"),
+        # redact.js — PII redaction tool (/redact). Entity labels are keyed by the
+        # stable detector IDs (redactEntity<TYPE>) so the JS maps them directly.
+        "redactNav": _("Redact PII"),
+        "redactScan": _("Scan for PII"),
+        "redactScanning": _("Scanning…"),
+        "redactApply": _("Redact & download"),
+        "redactApplying": _("Redacting…"),
+        "redactNoFindings": _("No PII detected in this file."),
+        "redactFindings": _("{count} item(s) found"),
+        "redactCreditCost": _("Costs {n} credit per file"),
+        "redactCreditsRemaining": _("{n} credits remaining"),
+        "redactPaidTitle": _("Downloading the redacted file needs a paid plan"),
+        "redactPaidBody": _(
+            "You've seen the findings above. Redacting and downloading the file "
+            "requires a Pro or Business plan."
+        ),
+        "redactInsufficientCredits": _(
+            "Out of redaction credits — upgrade your plan or wait for the monthly reset."
+        ),
+        "redactVerifyFailed": _(
+            "Redaction could not be verified — no file was produced. Please try again."
+        ),
+        "redactUnsupported": _("Unsupported file. Supported: TXT, DOCX, XLSX."),
+        "redactUnavailable": _("Redaction is not available on this deployment."),
+        "redactError": _("Redaction failed. Please try again."),
+        "redactPhoneReview": _("Phone numbers are lower-confidence — review before redacting."),
+        "redactEntityEMAIL": _("Email address"),
+        "redactEntityIBAN": _("IBAN"),
+        "redactEntityPHONE": _("Phone number"),
+        "redactEntityIPV4": _("IPv4 address"),
+        "redactEntityCREDIT_CARD": _("Credit-card number"),
+        "redactRegister": _("Register free"),
+        "redactSeePricing": _("See plans"),
+        "redactDownload": _("Download redacted file"),
+        "redactAnother": _("Redact another file"),
     }
 
 

@@ -57,6 +57,18 @@ repository so that:
 | Retention / erasure | File content: ephemeral — deleted from memory and disk immediately after the output is returned (typically seconds; absolute upper bound a ~10-minute startup/background sweep). `RETENTION_HOURS` defaults to `0`. |
 | TOMs | See [`dpa-tom-annex.md`](dpa-tom-annex.md) |
 
+### A1b — PII redaction (Cloud-Edition add-on; omit if `AI_OPERATIONS_ENABLED` is unset)
+
+| Field | |
+|---|---|
+| Purpose | Assist users in removing structured personal data (email, IBAN, phone, IPv4, payment card) from uploaded TXT / DOCX / XLSX before they share or archive them |
+| Data subjects | Natural persons whose data appears in uploaded files — the feature's purpose means inputs are routinely PII-dense; special-category data (Art. 9) may appear and is processed under the customer's own lawful basis, not certified by the operator |
+| Personal data | Uploaded file content while being processed (in memory; UUID scratch only if needed). Detected values are never logged, stored, or written to the audit trail |
+| Recipients | None — redaction runs locally; no file content is sent to any third party or external model |
+| Third-country transfers | None |
+| Retention / erasure | Inputs and outputs: ephemeral — deleted immediately after the redacted output is returned. The audit entry holds operation metadata only (operation, format, item count, tier), never content or detected values. `RETENTION_HOURS` defaults to `0`. |
+| TOMs | See [`dpa-tom-annex.md`](dpa-tom-annex.md) |
+
 ### A2 — Account, API-key and administrative access management (Cloud features)
 
 | Field | |

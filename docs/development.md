@@ -157,6 +157,12 @@ The `_ensure_loaded()` function in `registry.py` imports all converter modules a
 so their `@register` decorators run. Add new modules to `_ensure_loaded()` when creating
 a new converter file.
 
+> **Note:** the AI / PII-redaction feature under `app/ee/` is **not** a registry
+> converter. It is commercial-licensed (`LicenseRef-FileMorph-Commercial`), lives
+> outside the `@register` plugin model, is lazy-imported only by the gated
+> `app/api/routes/ai.py`, and is inert unless `AI_OPERATIONS_ENABLED` is set —
+> don't try to `@register` a redaction "format". See `docs/pii-redaction.md`.
+
 ---
 
 ## Adding a new converter

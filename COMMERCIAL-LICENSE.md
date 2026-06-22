@@ -61,6 +61,24 @@ product without disclosing your changes.
 
 ---
 
+## Source-available commercial modules (`app/ee/`)
+
+The directory [`app/ee/`](app/ee/) and everything beneath it is licensed
+**solely** under this Commercial License — it is an **explicit exception to the
+AGPL-3.0** that governs the rest of the repository. The source is published
+("source-available") for transparency, security audit, and review, but it is
+**not open source**: you may not use, run, modify, copy, or deploy it without a
+commercial license. This is the established open-core / GitLab-CE-EE pattern.
+
+The AGPL engine is fully functional without `app/ee/`; those modules are gated
+to be inert unless their environment is configured, so a default self-host build
+never executes them. Per the *Operator's reservation* above, the copyright
+holder operates `app/ee/` modules on `filemorph.io` under this Commercial
+License. Each file under `app/ee/` carries the SPDX tag
+`LicenseRef-FileMorph-Commercial`.
+
+---
+
 ## Pricing (indicative — final terms per contract)
 
 The commercial-license offer is structured as a **Compliance Edition** with

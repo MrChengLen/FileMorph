@@ -68,6 +68,10 @@ def _sitemap_routes() -> list[tuple[str, str]]:
     if settings.pricing_page_enabled:
         routes.insert(1, ("/pricing", "0.8"))
         routes.insert(2, ("/enterprise", "0.8"))
+    # /redact is a real, usable tool (the free findings preview), so it's
+    # indexable — but only where the feature exists (AI enabled), else it 404s.
+    if settings.ai_operations_enabled:
+        routes.append(("/redact", "0.7"))
     # Per-pair landing pages (Phase 2) — curated, always-present content, so
     # they're listed on every deployment. _url_entry/_alternate_links emit the
     # de/en/x-default variants + hreflang automatically.
@@ -165,6 +169,17 @@ async def llms_txt() -> str:
         f"Open source under AGPLv3: {GITHUB_URL}",
         "",
     ]
+    # Redaction is a gated Cloud-Edition add-on — list it only where it exists.
+    if settings.ai_operations_enabled:
+        for i, ln in enumerate(lines):
+            if ln.startswith("- [Supported formats]"):
+                lines.insert(
+                    i + 1,
+                    f"- [Redact PII from documents]({base}/redact): detect and remove "
+                    "IBANs, emails, phone numbers, IPv4 addresses and card numbers from "
+                    "TXT, DOCX and XLSX — free findings preview, EU-hosted, no third-party AI",
+                )
+                break
     return "\n".join(lines)
 
 
