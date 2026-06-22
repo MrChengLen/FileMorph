@@ -2,6 +2,10 @@
 
 A complete reference of all supported input and output formats, with notes on quality, limitations, and common use cases.
 
+> **Related — PII redaction** (a structural *morph*, not a conversion): strip
+> IBAN/email/phone/IPv4/card from TXT/DOCX/XLSX. Commercial add-on, separate from
+> the conversions below. See [`pii-redaction.md`](pii-redaction.md).
+
 ---
 
 ## Images

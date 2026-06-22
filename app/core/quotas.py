@@ -47,6 +47,11 @@ class TierQuota:
     max_files_per_batch: int
     output_cap_bytes: int
     concurrency: int
+    # Monthly included AI credits (Enterprise-Edition AI add-on). 0 = no AI
+    # (free/anonymous — AI is paid-only); None = unlimited (enterprise). This
+    # is an included-allotment LIMIT, not a price — the euro value of a credit
+    # and the provider cost live in deployment env, never here.
+    ai_credits_per_month: Optional[int]
 
 
 # Pricing-overhaul 2026-05-25: the free/anonymous limits are deliberately
@@ -66,6 +71,7 @@ QUOTAS: dict[str, TierQuota] = {
         max_files_per_batch=1,
         output_cap_bytes=90 * _MB,
         concurrency=1,
+        ai_credits_per_month=0,
     ),
     "free": TierQuota(
         conversions_per_day=None,
@@ -75,6 +81,7 @@ QUOTAS: dict[str, TierQuota] = {
         max_files_per_batch=10,
         output_cap_bytes=300 * _MB,
         concurrency=1,
+        ai_credits_per_month=0,
     ),
     "pro": TierQuota(
         conversions_per_day=None,
@@ -84,6 +91,7 @@ QUOTAS: dict[str, TierQuota] = {
         max_files_per_batch=50,
         output_cap_bytes=400 * _MB,
         concurrency=3,
+        ai_credits_per_month=200,
     ),
     "business": TierQuota(
         conversions_per_day=None,
@@ -93,6 +101,7 @@ QUOTAS: dict[str, TierQuota] = {
         max_files_per_batch=150,
         output_cap_bytes=500 * _MB,
         concurrency=6,
+        ai_credits_per_month=1000,
     ),
     "enterprise": TierQuota(
         conversions_per_day=None,
@@ -102,6 +111,7 @@ QUOTAS: dict[str, TierQuota] = {
         max_files_per_batch=250,
         output_cap_bytes=500 * _MB,
         concurrency=10,
+        ai_credits_per_month=None,
     ),
 }
 

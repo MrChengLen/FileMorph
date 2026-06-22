@@ -66,6 +66,19 @@
         </div>
       </section>
 
+      {% if ai_operations_enabled %}
+      <!-- PII-redaction teaser — paid Cloud-Edition add-on. Gated on
+           ai_operations_enabled so a self-host / inert build (where /redact 404s)
+           never links it. Free detect preview is the hook; apply is the upsell. -->
+      <section class="border border-gray-800 rounded-xl px-5 py-4 space-y-2">
+        <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">{{ _('Pro feature') }}</p>
+        <h2 class="text-base font-semibold text-white">{{ _('Redact PII before you share a file') }}</h2>
+        <p class="text-xs text-gray-400 leading-relaxed">{{ _('Find and remove IBANs, emails, phone numbers, IP addresses and credit-card numbers from TXT, DOCX and XLSX. Preview every finding for free, then download the redacted file. Runs on our EU servers — no third-party AI — and the file is deleted right after.') }}</p>
+        <p class="text-xs text-gray-600 leading-relaxed">{{ _('Doesn\'t yet detect free-text names or addresses, and PDF isn\'t supported yet — it assists your review, it doesn\'t replace it.') }}</p>
+        <a href="{{ localized_url('/redact', current_prefix) }}" class="inline-block text-sm text-brand hover:underline">{{ _('Try PII redaction →') }}</a>
+      </section>
+      {% endif %}
+
       {% if pricing_enabled %}
       <!-- Tier teaser — commercial offer surface. Limits come from
            quotas.py and the price strings from PRICE_*_DISPLAY env via

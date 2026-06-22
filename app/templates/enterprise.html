@@ -133,6 +133,10 @@
         <h3 class="text-base font-semibold text-white tracking-tight">{{ _('PDF/A-2b output') }}</h3>
         <p class="text-gray-400 leading-relaxed">{{ _('Conformance secured by veraPDF CI gate against a worst-case source PDF — for beA attachments, citizen-application archiving, BSI TR-RESISCAN.') }}</p>
       </div>
+      {% if ai_operations_enabled %}<div class="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-3">
+        <h3 class="text-base font-semibold text-white tracking-tight">{{ _('PII redaction with audit trail') }}</h3>
+        <p class="text-gray-400 leading-relaxed">{{ _('Find and remove structured personal data (email, IBAN, phone, IPv4, card) from TXT, DOCX and XLSX. Deterministic checks (no external AI), a fail-closed verification pass, and every redaction recorded in the tamper-evident hash chain (metadata only, never the values). It assists your review and does not guarantee completeness; free-text names and PDF are on the roadmap.') }}</p>
+      </div>{% endif %}
       <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-3">
         <h3 class="text-base font-semibold text-white tracking-tight">{{ _('Signed releases + SBOM') }}</h3>
         <p class="text-gray-400 leading-relaxed">{{ _('cosign-signed Docker image, cryptographically signed git tags, CycloneDX-JSON SBOM in every release. Aligned with the open-source + SBOM provisions of the EVB-IT reform (March 2026).') }}</p>
@@ -215,6 +219,12 @@
             <td class="px-4 py-3 text-center text-gray-400">{{ _('varies') }}</td>
             <td class="px-4 py-3 text-center text-gray-400">{{ _('varies') }}</td>
           </tr>
+          {% if ai_operations_enabled %}<tr>
+            <td class="px-4 py-3 font-medium">{{ _('PII redaction (audit-logged)') }}</td>
+            <td class="px-4 py-3 text-center text-emerald-400">✓</td>
+            <td class="px-4 py-3 text-center text-gray-400">{{ _('rare') }}</td>
+            <td class="px-4 py-3 text-center text-gray-400">{{ _('varies') }}</td>
+          </tr>{% endif %}
           <tr>
             <td class="px-4 py-3 font-medium">{{ _('Multi-format (image + audio + video + sheet)') }}</td>
             <td class="px-4 py-3 text-center text-emerald-400">✓</td>
@@ -321,6 +331,7 @@
       <ul class="list-disc list-outside ml-5 space-y-2 text-gray-300 leading-relaxed">
         <li>{{ _('External ISO 27001 certification and external pen test are planned as Year-2 roadmap items — both will be implemented as soon as the first paying pilot economically justifies the effort.') }}</li>
         <li>{{ _('Reproducible builds and air-gap update mechanism are also Year-2 (required for the KRITIS variant, not critical in the standard tier).') }}</li>
+        {% if ai_operations_enabled %}<li>{{ _('PII redaction currently covers structured identifiers (email, IBAN, phone, IPv4, card) in TXT/DOCX/XLSX. Free-text names, postal addresses and PDF redaction are roadmap items — we name the gap rather than let an RFP reviewer find it.') }}</li>{% endif %}
         <li>{{ _('We name it because an RFP reviewer would notice anyway — and because we prefer to keep the roadmap transparent rather than embellished.') }}</li>
       </ul>
     </div>

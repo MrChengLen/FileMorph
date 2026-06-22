@@ -26,6 +26,7 @@ from app.core import pricing as pricing_mod
 from app.core.config import settings
 from app.core.convert_pairs import accept_attr, format_label, get_pair_content, related_pairs
 from app.core.i18n import localized_context
+from app.core.redact_content import get_redact_content
 from app.core.templates import templates
 
 router = APIRouter(include_in_schema=False)
@@ -259,6 +260,24 @@ async def enterprise_page(request: Request):
         request,
         "enterprise.html",
         compliance_plans=pricing_mod.compliance_plans(locale),
+    )
+
+
+@router.get("/redact")
+async def redact_page(request: Request):
+    # Commercial EE add-on: a build without ai_operations_enabled serves no
+    # redaction surface at all (the API 503s too) — same gating shape as /pricing.
+    if not settings.ai_operations_enabled:
+        return templates.TemplateResponse(
+            request, "404.html", context=localized_context(request), status_code=404
+        )
+    locale = getattr(request.state, "locale", settings.lang_default)
+    return _render(
+        request,
+        "redact.html",
+        content=get_redact_content(locale),
+        ai_credit_cost=settings.ai_credit_cost_redact,
+        ai_eligible_tiers=settings.ai_eligible_tiers_list,
     )
 
 

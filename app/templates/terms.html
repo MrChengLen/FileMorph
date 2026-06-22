@@ -27,17 +27,20 @@
       <li>{{ _('Attempt to circumvent rate limits or security controls') }}</li>
       <li>{{ _('Use the Service for automated large-scale processing without prior agreement') }}</li>
       <li>{{ _('Infringe third-party intellectual property rights through the files you process') }}</li>
+      {% if ai_operations_enabled %}<li>{{ _('Upload special-category personal data (Art. 9 GDPR — e.g. health, biometric, or data revealing racial/ethnic origin, political opinions or religious beliefs) or criminal-offence data (Art. 10 GDPR) without an appropriate legal basis and the consent or authority required of you as controller. The redaction feature does not relieve you of this obligation.') }}</li>{% endif %}
     </ul>
   </section>
 
   <section class="space-y-3">
     <h2 class="text-base font-semibold text-white">{{ _('4. Disclaimer of Warranties') }}</h2>
     <p>{{ _('The Service is provided "as is" without warranty of any kind, express or implied. We do not guarantee uptime, accuracy of conversion results, or fitness for a particular purpose.') }}</p>
+    {% if ai_operations_enabled %}<p>{{ _('Redaction — scope and no guarantee of anonymization. The redaction feature assists with removing certain structured personal data — currently email addresses, IBANs, phone numbers, IP addresses, and payment-card numbers — detected by deterministic pattern-and-checksum matching. It does not detect or remove free-text personal data such as names, addresses, dates of birth, or other identifiers, and it does not detect every possible format of the supported types. A redacted file is therefore not guaranteed to be fully anonymous or to satisfy any specific legal anonymization or pseudonymization standard. You remain the controller of your documents and are solely responsible for reviewing every redacted file before sharing or publishing it. PDF input is intentionally not supported for redaction.') }}</p>{% endif %}
   </section>
 
   <section class="space-y-3">
     <h2 class="text-base font-semibold text-white">{{ _('5. Limitation of Liability') }}</h2>
     <p>{{ _('To the extent permitted by applicable law, the operator of FileMorph shall not be liable for any direct, indirect, incidental, or consequential damages arising from your use of the Service.') }}</p>
+    {% if ai_operations_enabled %}<p>{{ _('In particular, FileMorph is a processing tool, not legal or compliance advice; you are responsible for verifying that any output (including redacted files) meets your own legal obligations before relying on or disclosing it.') }}</p>{% endif %}
   </section>
 
   <section class="space-y-3">

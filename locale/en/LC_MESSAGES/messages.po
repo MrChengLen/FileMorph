@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-06-21 01:30+0200\n"
+"POT-Creation-Date: 2026-06-22 09:44+0200\n"
 "PO-Revision-Date: 2026-05-07 13:43+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -28,6 +28,14 @@ msgid "(Open the dashboard → \"Manage billing\" → update card.)"
 msgstr ""
 
 msgid "(vs."
+msgstr ""
+
+msgid ""
+"* PII redaction finds and removes structured personal data — email "
+"addresses, IBANs, phone numbers, IPv4 addresses and credit-card numbers —"
+" in TXT, DOCX and XLSX. It does not yet detect free-text names or postal "
+"addresses, and PDF is not yet supported. It assists a review; it does not"
+" guarantee completeness."
 msgstr ""
 
 msgid "* Unlimited within your self-hosted infrastructure — you run the server."
@@ -87,6 +95,9 @@ msgid "2e. API keys:"
 msgstr ""
 
 msgid "2f. Contact form submissions:"
+msgstr ""
+
+msgid "2g. PII redaction (paid add-on):"
 msgstr ""
 
 msgid "3 servers, ≤ 2,000 employees"
@@ -393,6 +404,9 @@ msgstr ""
 msgid "Choose audience"
 msgstr ""
 
+msgid "Clear"
+msgstr ""
+
 msgid "Clear all"
 msgstr ""
 
@@ -560,6 +574,10 @@ msgstr ""
 msgid "Copy this key now — it will not be shown again."
 msgstr ""
 
+#, python-brace-format
+msgid "Costs {n} credit per file"
+msgstr ""
+
 msgid ""
 "Could not load analytics — check server logs. The metrics pipeline may be"
 " misconfigured."
@@ -581,6 +599,9 @@ msgid "Creating account…"
 msgstr ""
 
 msgid "Creating…"
+msgstr ""
+
+msgid "Credit-card number"
 msgstr ""
 
 msgid "Criterion"
@@ -633,10 +654,27 @@ msgstr ""
 msgid "Documents"
 msgstr ""
 
+msgid ""
+"Doesn't yet detect free-text names or addresses, and PDF isn't supported "
+"yet — it assists your review, it doesn't replace it."
+msgstr ""
+
 msgid "Download Result"
 msgstr ""
 
+msgid "Download redacted file"
+msgstr ""
+
+msgid "Downloading the redacted file needs a paid plan"
+msgstr ""
+
+msgid "Drag & drop a file here"
+msgstr ""
+
 msgid "Drag & drop your files here"
+msgstr ""
+
+msgid "Drop a file here or click to browse"
 msgstr ""
 
 msgid "Drop files here or click to browse"
@@ -667,6 +705,9 @@ msgid "Editorial responsibility"
 msgstr ""
 
 msgid "Email"
+msgstr ""
+
+msgid "Email address"
 msgstr ""
 
 msgid "Email language"
@@ -821,6 +862,22 @@ msgid ""
 "form."
 msgstr ""
 
+msgid ""
+"Find and remove IBANs, emails, phone numbers, IP addresses and credit-"
+"card numbers from TXT, DOCX and XLSX. Preview every finding for free, "
+"then download the redacted file. Runs on our EU servers — no third-party "
+"AI — and the file is deleted right after."
+msgstr ""
+
+msgid ""
+"Find and remove structured personal data (email, IBAN, phone, IPv4, card)"
+" from TXT, DOCX and XLSX. Deterministic checks (no external AI), a fail-"
+"closed verification pass, and every redaction recorded in the tamper-"
+"evident hash chain (metadata only, never the values). It assists your "
+"review and does not guarantee completeness; free-text names and PDF are "
+"on the roadmap."
+msgstr ""
+
 msgid "Fix timeline:"
 msgstr ""
 
@@ -931,9 +988,18 @@ msgstr ""
 msgid "How does AGPLv3 behave with citizen-portal integrations?"
 msgstr ""
 
+msgid "How it works"
+msgstr ""
+
 msgid ""
 "I waive my 14-day right of withdrawal and consent to immediate contract "
 "execution pursuant to §356 (5) BGB."
+msgstr ""
+
+msgid "IBAN"
+msgstr ""
+
+msgid "IPv4 address"
 msgstr ""
 
 msgid "If the button doesn't work, copy this URL into your browser:"
@@ -1032,6 +1098,13 @@ msgstr ""
 msgid "Impressum"
 msgstr "Imprint"
 
+msgid ""
+"In particular, FileMorph is a processing tool, not legal or compliance "
+"advice; you are responsible for verifying that any output (including "
+"redacted files) meets your own legal obligations before relying on or "
+"disclosing it."
+msgstr ""
+
 msgid "In scope:"
 msgstr ""
 
@@ -1128,6 +1201,9 @@ msgstr ""
 msgid "MP4 · MOV · AVI · MKV · WebM · MP3 · WAV · FLAC · OGG · M4A"
 msgstr ""
 
+msgid "Mask ****"
+msgstr ""
+
 msgid "Max file size"
 msgstr ""
 
@@ -1182,6 +1258,9 @@ msgstr ""
 msgid "No API keys yet. Create one above."
 msgstr ""
 
+msgid "No PII detected in this file."
+msgstr ""
+
 msgid "No account required"
 msgstr ""
 
@@ -1198,6 +1277,9 @@ msgid "No conversions yet."
 msgstr ""
 
 msgid "No credit card required"
+msgstr ""
+
+msgid "Not covered yet"
 msgstr ""
 
 msgid "Notice"
@@ -1252,6 +1334,11 @@ msgid ""
 " for security, abuse-detection, and debugging."
 msgstr ""
 
+msgid ""
+"Out of redaction credits — upgrade your plan or wait for the monthly "
+"reset."
+msgstr ""
+
 msgid "Out of scope:"
 msgstr ""
 
@@ -1268,6 +1355,28 @@ msgid "PDF/A-2b output"
 msgstr ""
 
 msgid "PDF/A-2b veraPDF-validated"
+msgstr ""
+
+msgid "PII redaction"
+msgstr ""
+
+msgid "PII redaction (audit-logged)"
+msgstr ""
+
+msgid "PII redaction (credits / month)"
+msgstr ""
+
+msgid ""
+"PII redaction currently covers structured identifiers (email, IBAN, "
+"phone, IPv4, card) in TXT/DOCX/XLSX. Free-text names, postal addresses "
+"and PDF redaction are roadmap items — we name the gap rather than let an "
+"RFP reviewer find it."
+msgstr ""
+
+msgid "PII redaction is a paid add-on (Pro and up)"
+msgstr ""
+
+msgid "PII redaction with audit trail"
 msgstr ""
 
 msgid "Page footers were simplified"
@@ -1324,6 +1433,12 @@ msgid ""
 "undone."
 msgstr ""
 
+msgid "Phone number"
+msgstr ""
+
+msgid "Phone numbers are lower-confidence — review before redacting."
+msgstr ""
+
 msgid "Plans"
 msgstr ""
 
@@ -1368,6 +1483,9 @@ msgid "Privacy Policy"
 msgstr ""
 
 msgid "Pro"
+msgstr ""
+
+msgid "Pro feature"
 msgstr ""
 
 msgid "Processing…"
@@ -1424,6 +1542,48 @@ msgstr ""
 msgid "Ready for a 15-minute pilot call?"
 msgstr ""
 
+msgid "Redact & download"
+msgstr ""
+
+msgid "Redact PII"
+msgstr ""
+
+msgid "Redact PII before you share a file"
+msgstr ""
+
+msgid "Redact another file"
+msgstr ""
+
+msgid "Redacting…"
+msgstr ""
+
+msgid "Redaction could not be verified — no file was produced. Please try again."
+msgstr ""
+
+msgid "Redaction failed. Please try again."
+msgstr ""
+
+msgid "Redaction is not available on this deployment."
+msgstr ""
+
+msgid "Redaction mode"
+msgstr ""
+
+msgid ""
+"Redaction — scope and no guarantee of anonymization. The redaction "
+"feature assists with removing certain structured personal data — "
+"currently email addresses, IBANs, phone numbers, IP addresses, and "
+"payment-card numbers — detected by deterministic pattern-and-checksum "
+"matching. It does not detect or remove free-text personal data such as "
+"names, addresses, dates of birth, or other identifiers, and it does not "
+"detect every possible format of the supported types. A redacted file is "
+"therefore not guaranteed to be fully anonymous or to satisfy any specific"
+" legal anonymization or pseudonymization standard. You remain the "
+"controller of your documents and are solely responsible for reviewing "
+"every redacted file before sharing or publishing it. PDF input is "
+"intentionally not supported for redaction."
+msgstr ""
+
 msgid "Redirecting…"
 msgstr ""
 
@@ -1436,6 +1596,9 @@ msgstr ""
 msgid "Register"
 msgstr ""
 
+msgid "Register free"
+msgstr ""
+
 msgid "Register free for more →"
 msgstr ""
 
@@ -1443,6 +1606,12 @@ msgid "Registration failed."
 msgstr ""
 
 msgid "Related conversions"
+msgstr ""
+
+msgid "Remove"
+msgstr ""
+
+msgid "Replace [LABEL]"
 msgstr ""
 
 msgid "Reporting a vulnerability"
@@ -1536,6 +1705,12 @@ msgstr ""
 msgid "Saved"
 msgstr ""
 
+msgid "Scan for PII"
+msgstr ""
+
+msgid "Scanning…"
+msgstr ""
+
 msgid "Scope"
 msgstr ""
 
@@ -1560,7 +1735,13 @@ msgstr ""
 msgid "See licensing →"
 msgstr ""
 
+msgid "See plans"
+msgstr ""
+
 msgid "See the Compliance Edition →"
+msgstr ""
+
+msgid "Select a file to scan for PII"
 msgstr ""
 
 msgid "Select one or more files to convert or compress"
@@ -1737,6 +1918,9 @@ msgstr ""
 msgid "Supported file formats & conversions"
 msgstr ""
 
+msgid "Supported formats"
+msgstr ""
+
 msgid "Supported:"
 msgstr ""
 
@@ -1815,6 +1999,11 @@ msgid ""
 "The FileMorph conversion engine is open source (AGPL-3.0) — self-host it "
 "free, forever, with no feature gates. The plans below are for our hosted "
 "instance and for embedding FileMorph in a closed-source product."
+msgstr ""
+
+msgid ""
+"The PII-redaction add-on is processed on the basis of Art. 6(1)(b) GDPR "
+"(performance of the paid contract)."
 msgstr ""
 
 msgid ""
@@ -1938,6 +2127,9 @@ msgstr ""
 msgid "Trust basis before contract"
 msgstr ""
 
+msgid "Try PII redaction →"
+msgstr ""
+
 msgid "Type it again"
 msgstr ""
 
@@ -1956,6 +2148,9 @@ msgstr ""
 msgid "Typical open-source converters"
 msgstr ""
 
+msgid "Unsupported file. Supported: TXT, DOCX, XLSX."
+msgstr ""
+
 msgid "Update password"
 msgstr ""
 
@@ -1969,6 +2164,15 @@ msgid "Upgrade to Pro"
 msgstr ""
 
 msgid "Upload files that contain malware, exploits, or illegal content"
+msgstr ""
+
+msgid ""
+"Upload special-category personal data (Art. 9 GDPR — e.g. health, "
+"biometric, or data revealing racial/ethnic origin, political opinions or "
+"religious beliefs) or criminal-offence data (Art. 10 GDPR) without an "
+"appropriate legal basis and the consent or authority required of you as "
+"controller. The redaction feature does not relieve you of this "
+"obligation."
 msgstr ""
 
 msgid ""
@@ -2057,6 +2261,9 @@ msgstr ""
 msgid "What is this about?"
 msgstr ""
 
+msgid "What it detects"
+msgstr ""
+
 msgid "What to include in a report"
 msgstr ""
 
@@ -2084,6 +2291,9 @@ msgstr ""
 msgid "What's in the Compliance Edition"
 msgstr ""
 
+msgid "When to use it"
+msgstr ""
+
 msgid "When to use this conversion"
 msgstr ""
 
@@ -2102,6 +2312,21 @@ msgid ""
 "When you upgrade to a paid tier, we create a Stripe customer record "
 "containing your email address and an internal user identifier, then "
 "redirect you to"
+msgstr ""
+
+msgid ""
+"Where your plan includes the redaction feature, files you upload to be "
+"redacted are processed exactly like any other upload — entirely in server"
+" memory, with no persistent storage, and discarded immediately after the "
+"redacted output is returned. Redaction runs locally on our servers; the "
+"file content is never sent to any third party or external model. The "
+"values we detect (e.g. emails, IBANs, phone numbers, IP addresses, "
+"payment-card numbers) are never logged, stored, or written to the audit "
+"trail — the tamper-evident audit record keeps only metadata (the "
+"operation, the file format, the number of items redacted, and your plan "
+"tier), never the document content or any detected value. All processing "
+"takes place on EU-hosted infrastructure. Retention of redaction inputs "
+"and outputs: none."
 msgstr ""
 
 msgid "Whether the issue has been disclosed publicly elsewhere."
@@ -2210,6 +2435,11 @@ msgid ""
 "business day."
 msgstr ""
 
+msgid ""
+"You've seen the findings above. Redacting and downloading the file "
+"requires a Pro or Business plan."
+msgstr ""
+
 #, python-format
 msgid ""
 "Your FileMorph account %(email)s was deleted on %(deleted_at)s. This is a"
@@ -2280,6 +2510,9 @@ msgid ""
 "cosign-signed Docker image, cryptographically signed git tags, CycloneDX-"
 "JSON SBOM in every release. Aligned with the open-source + SBOM "
 "provisions of the EVB-IT reform (March 2026)."
+msgstr ""
+
+msgid "credits / month"
 msgstr ""
 
 msgid ""
@@ -2369,6 +2602,9 @@ msgid ""
 msgstr ""
 
 msgid "or apply directly as design partner →"
+msgstr ""
+
+msgid "or click to browse"
 msgstr ""
 
 msgid "or click to browse (multi-file supported)"
@@ -2470,6 +2706,14 @@ msgid "your JWT session tokens; strictly necessary to keep you signed in."
 msgstr ""
 
 #, python-brace-format
+msgid "{count} item(s) found"
+msgstr ""
+
+#, python-brace-format
+msgid "{n} credits remaining"
+msgstr ""
+
+#, python-brace-format
 msgid "{succeeded} of {total} files succeeded ({failed} failed)"
 msgstr ""
 
@@ -2488,6 +2732,9 @@ msgstr ""
 msgid "← Back"
 msgstr ""
 
+msgid "← Back to Convert"
+msgstr ""
+
 msgid "← Back to FileMorph"
 msgstr ""
 
@@ -2496,4 +2743,15 @@ msgstr ""
 
 msgid "← Prev"
 msgstr ""
+
+#~ msgid ""
+#~ "Find and remove structured personal data"
+#~ " (email, IBAN, phone, IPv4, card) "
+#~ "from TXT, DOCX and XLSX. Deterministic"
+#~ " checks (no external AI), a fail-"
+#~ "closed verification pass, and every "
+#~ "redaction recorded in the tamper-evident"
+#~ " hash chain. Free-text names and "
+#~ "PDF are on the roadmap."
+#~ msgstr ""
 

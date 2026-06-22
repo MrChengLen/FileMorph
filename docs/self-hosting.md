@@ -379,6 +379,27 @@ No restart required — keys are re-read on every request.
 
 ---
 
+## AI file operations (commercial add-on)
+
+PII redaction (`POST /api/v1/ai/redact/{detect,apply}`, the `/redact` page) is a
+commercial **Enterprise-Edition** add-on under `app/ee/` — **not** part of the
+AGPL engine. It is **inert by default**: with `AI_OPERATIONS_ENABLED` unset, the
+engine is never imported, `/redact` returns 404, and the API endpoints return
+`503` (the endpoints still appear in `/docs` — that's expected; they 503 until
+enabled). Configure via three env vars (details + opacity note in `.env.example`):
+
+| Env var | Default | Gates |
+|---|---|---|
+| `AI_OPERATIONS_ENABLED` | `false` | the whole feature (page, API, engine import) |
+| `AI_ELIGIBLE_TIERS` | `pro,business,enterprise` | which paid tiers may run the paid `apply` (free `detect` is open to all) |
+| `AI_CREDIT_COST_REDACT` | `1` | credits charged per `apply` (neutral usage unit; no euro price here) |
+
+AI usage is metered in its own credit unit and is **not** counted against the
+convert/compress `api_calls` monthly quota. Capability, limits and the GDPR
+posture: [`pii-redaction.md`](pii-redaction.md).
+
+---
+
 ## Operational notes
 
 ### Automatic restart

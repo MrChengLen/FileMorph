@@ -94,6 +94,15 @@ physical assets of its own.
   (GPS coordinates, camera serial, photographer name, capture
   timestamps) by default — `app/converters/_metadata.py` (ICC colour
   profile preserved so wide-gamut workflows are not desaturated).
+- PII redaction (Cloud/EE add-on, where `AI_OPERATIONS_ENABLED` is set)
+  processes uploaded documents in memory and writes neither the content nor any
+  detected value to logs or the audit trail; the audit entry records operation
+  metadata and a redacted-item count only — `app/api/routes/ai.py`,
+  `app/ee/ai_ops/`. Redaction runs locally with no external model call.
+  **Honest limit:** it covers structured identifiers (email, IBAN, phone, IPv4,
+  payment card) by deterministic match; free-text identifiers (names, addresses)
+  are out of scope pending NER, and a redacted file is not certified as fully
+  anonymous.
 
 ## II. Integrity (Integrität) — Art. 32(1)(b) GDPR
 

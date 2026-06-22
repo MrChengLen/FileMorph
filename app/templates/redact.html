@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}{{ content.title }} | FileMorph{% endblock %}
+{% block meta_description %}{{ content.meta }}{% endblock %}
+{% block content %}
+
+<div class="min-h-full flex flex-col">
+  <main class="flex-1 flex items-center justify-center p-4 sm:p-6">
+    <div class="w-full max-w-2xl space-y-6">
+
+      <div>
+        <a href="{{ localized_url('/', current_prefix) }}"
+           class="text-sm text-gray-500 hover:text-gray-300 transition-colors">{{ _('← Back to Convert') }}</a>
+      </div>
+
+      <!-- Title -->
+      <div class="text-center space-y-2">
+        <h1 class="text-h-page text-ink">{{ content.h1 }}</h1>
+        <p class="text-ink-muted text-sm">{{ content.hero }}</p>
+      </div>
+
+      <!-- The real, working tool: free findings preview (detect) → paid output (apply) -->
+      {% include "partials/redact_tool.html" %}
+
+      <p class="text-center text-xs text-gray-700 leading-relaxed">{{ content.trust }}</p>
+
+      <!-- What it detects -->
+      <section class="border border-gray-800 rounded-xl px-5 py-4 space-y-2">
+        <h2 class="text-base font-semibold text-white">{{ _('What it detects') }}</h2>
+        <ul class="space-y-1 text-xs text-gray-400 leading-relaxed">
+          {% for label, detail in content.what_detects %}
+          <li><strong class="text-gray-200">{{ label }}</strong> — {{ detail }}</li>
+          {% endfor %}
+        </ul>
+      </section>
+
+      <!-- Supported formats + honest limits -->
+      <section class="border border-gray-800 rounded-xl px-5 py-4 space-y-2">
+        <h2 class="text-base font-semibold text-white">{{ _('Supported formats') }}</h2>
+        <p class="text-xs text-gray-400 leading-relaxed">{{ content.formats }}</p>
+        <h3 class="text-sm font-semibold text-gray-200 pt-1">{{ _('Not covered yet') }}</h3>
+        <p class="text-xs text-gray-400 leading-relaxed">{{ content.not_covered }}</p>
+      </section>
+
+      <!-- How it works -->
+      <section class="border border-gray-800 rounded-xl px-5 py-4 space-y-2">
+        <h2 class="text-base font-semibold text-white">{{ _('How it works') }}</h2>
+        <ol class="space-y-1 text-xs text-gray-400 leading-relaxed list-decimal list-inside">
+          {% for step, text in content.how_it_works %}
+          <li><strong class="text-gray-200">{{ step }}</strong> — {{ text }}</li>
+          {% endfor %}
+        </ol>
+      </section>
+
+      <!-- When to use -->
+      <section class="border border-gray-800 rounded-xl px-5 py-4 space-y-2">
+        <h2 class="text-base font-semibold text-white">{{ _('When to use it') }}</h2>
+        <p class="text-xs text-gray-400 leading-relaxed">{{ content.when }}</p>
+      </section>
+
+      <!-- FAQ — visible question-headings for humans + AI answer engines (GEO) -->
+      <section class="border border-gray-800 rounded-xl px-5 py-4 space-y-4">
+        <h2 class="text-base font-semibold text-white">{{ _('Frequently asked questions') }}</h2>
+        <div class="space-y-3 text-xs leading-relaxed">
+          {% for q, a in content.faq %}
+          <div>
+            <h3 class="font-semibold text-gray-200">{{ q }}</h3>
+            <p class="text-gray-400">{{ a }}</p>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+{% endblock %}
+{% block scripts %}<script src="/static/js/redact.js"></script>{% endblock %}
