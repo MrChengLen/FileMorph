@@ -55,6 +55,7 @@ def _ensure_loaded() -> None:
     import app.converters.audio  # noqa: F401
     import app.converters.document  # noqa: F401
     import app.converters.image  # noqa: F401
+    import app.converters.pdf_pages  # noqa: F401
     import app.converters.pdfa  # noqa: F401
     import app.converters.spreadsheet  # noqa: F401
     import app.converters.video  # noqa: F401

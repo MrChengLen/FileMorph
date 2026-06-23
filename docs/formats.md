@@ -131,6 +131,35 @@ rest of the container; the subprocess inherits the container's
 `no-new-privileges` and dropped capability set from
 `docker-compose.yml`.
 
+### PDF structural operations
+
+Three *morph* operations that reshape an existing PDF rather than convert
+between formats — all pure-Python (pypdf / pikepdf), no external binary.
+
+| Operation | Endpoint | Input → Output | Notes |
+|---|---|---|---|
+| **Page extract** | `POST /api/v1/pdf/extract` | PDF → PDF | Keep a 1-based page selection, e.g. `pages=1-3,5`. Text, fonts and vector content are copied byte-for-byte. |
+| **Split** | `POST /api/v1/pdf/split` | PDF → ZIP | One single-page PDF per page (`page_001.pdf`, …), bundled as a ZIP. |
+| **Compress to target** | `POST /api/v1/pdf/compress` | PDF → PDF | Shrink toward a `target_kb` budget by recompressing embedded raster images. Page count and every glyph are preserved. |
+
+**Honest limits**
+
+- **Compress only shrinks image-heavy PDFs.** The lever is the embedded
+  photos (RGB/grayscale image XObjects re-encoded as JPEG); text, fonts and
+  vector paths are left intact. A text/vector-only PDF — or one whose images
+  are all masks / palette / alpha-bearing — has nothing to grab, so it comes
+  back valid and unchanged-in-content, honestly reported as *not converged*
+  with `0` recompressible images (never a fake compression claim). Images
+  carrying transparency (`/SMask`), stencil/image masks and indexed-palette
+  images are deliberately skipped (JPEG can't carry them faithfully). A
+  document whose images are too large in aggregate to decode safely is also
+  left unchanged rather than risking the worker (a denial-of-service guard).
+- **Split is capped at 10 000 pages.** A larger document is rejected with a
+  clean `400` before any work — splitting it would explode into too many
+  output files.
+- **Extract** rejects an empty / reversed / out-of-range / non-numeric page
+  selection with a `400`; a selection can resolve to at most 10 000 pages.
+
 ---
 
 ## Spreadsheets & Data
