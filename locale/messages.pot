@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph 1.1.0\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-06-22 11:27+0200\n"
+"POT-Creation-Date: 2026-06-22 17:04+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1200,6 +1200,11 @@ msgstr ""
 msgid "Mask ****"
 msgstr ""
 
+msgid ""
+"Mask: each match is replaced with asterisks of equal length, e.g. "
+"**********."
+msgstr ""
+
 msgid "Max file size"
 msgstr ""
 
@@ -1607,7 +1612,15 @@ msgstr ""
 msgid "Remove"
 msgstr ""
 
+msgid "Remove: each match is deleted entirely with no replacement."
+msgstr ""
+
 msgid "Replace [LABEL]"
+msgstr ""
+
+msgid ""
+"Replace: each match is substituted with a placeholder, e.g. [EMAIL] or "
+"[IBAN] — the document stays readable."
 msgstr ""
 
 msgid "Reporting a vulnerability"

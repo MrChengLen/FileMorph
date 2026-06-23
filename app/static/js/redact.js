@@ -114,6 +114,10 @@
           b.classList.toggle('bg-gray-800', !on);
           b.classList.toggle('text-gray-200', !on);
         });
+        // Show the selected mode's always-visible explanation (default: replace).
+        document.querySelectorAll('#redact-mode-desc [data-desc]').forEach((d) => {
+          d.classList.toggle('hidden', d.dataset.desc !== selectedMode);
+        });
       });
     });
   }

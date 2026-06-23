@@ -50,6 +50,14 @@
           class="flex-1 py-2 rounded-lg text-sm border border-gray-700 bg-gray-800 text-gray-200 hover:bg-gray-700"
           aria-pressed="false">{{ _('Remove') }}</button>
       </div>
+      {# Always-visible explanation of the selected mode. redact.js shows the
+         matching span on click; default (replace) is visible on load. aria-live
+         announces the change to screen readers. #}
+      <p id="redact-mode-desc" class="text-xs text-gray-500 leading-snug pt-1" aria-live="polite">
+        <span data-desc="replace">{{ _('Replace: each match is substituted with a placeholder, e.g. [EMAIL] or [IBAN] — the document stays readable.') }}</span>
+        <span data-desc="mask" class="hidden">{{ _('Mask: each match is replaced with asterisks of equal length, e.g. **********.') }}</span>
+        <span data-desc="remove" class="hidden">{{ _('Remove: each match is deleted entirely with no replacement.') }}</span>
+      </p>
     </div>
 
     {{ ub.button(_('Scan for PII'), id='redact-scan-btn', full_width=True) }}
