@@ -9,6 +9,18 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — AVIF image encode + decode
+
+AVIF (AV1-based image format) is now a first-class image format for both
+conversion and compression, via the new `pillow-avif-plugin` dependency
+(libavif bundled in the wheel — no system package). Every `*→avif` and
+`avif→*` pair is registered through the existing generic image converter, and
+AVIF joins the quality- and **target-size**-compression sets (binary search on
+quality, like JPEG/WebP). EXIF/GPS metadata is stripped on every AVIF write,
+matching the existing privacy posture. **Honest note:** AVIF/AV1 encode is more
+CPU-intensive than JPEG/WebP — a single encode is slower, and target-size
+compression runs several encode passes; decoding from AVIF is cheap.
+
 ### Added — PII redaction (Enterprise Edition, commercial add-on)
 
 Deterministic, local-CPU PII redaction for UTF-8 text, DOCX and XLSX — detects

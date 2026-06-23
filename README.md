@@ -130,7 +130,7 @@ a liable EU contact), not permission.
 
 | Category      | Input formats                                                   | Output formats                                |
 |---------------|------------------------------------------------------------------|-----------------------------------------------|
-| **Images**    | HEIC, HEIF, JPG, JPEG, PNG, WebP, BMP, TIFF, GIF, ICO           | JPG, PNG, WebP, BMP, TIFF, GIF, ICO           |
+| **Images**    | HEIC, HEIF, JPG, JPEG, PNG, WebP, AVIF, BMP, TIFF, GIF, ICO     | JPG, PNG, WebP, AVIF, BMP, TIFF, GIF, ICO     |
 | **Documents** | DOCX, TXT, Markdown (`.md`)                                      | PDF, TXT, HTML                                |
 | **PDF**       | PDF                                                              | TXT, PDF/A-2b<sup>†</sup>                     |
 | **Spreadsheets** | XLSX, CSV, JSON                                               | CSV, XLSX, JSON                               |
@@ -138,8 +138,9 @@ a liable EU contact), not permission.
 | **Video**     | MP4, MOV, AVI, MKV, WebM, FLV, WMV                              | MP4, MOV, AVI, MKV, WebM, FLV, WMV           |
 
 **Compression** (quality-based or target-size, no re-encoding format change):
-Images: JPG, PNG, WebP, TIFF · Video: MP4, MOV, AVI, MKV, WebM
+Images: JPG, PNG, WebP, AVIF, TIFF · Video: MP4, MOV, AVI, MKV, WebM
 Compress mode supports both *by quality %* and *by target size MB*.
+Target-size compression covers the lossy image formats (JPEG, WebP, AVIF); AVIF/AV1 encode is more CPU-intensive than JPEG/WebP.
 
 <sup>†</sup> Full PDF/A-2b conformance (passes
 [veraPDF](https://verapdf.org/) validation) requires
