@@ -6,6 +6,17 @@ from PIL import Image
 
 from app.converters._metadata import strip_metadata
 
+# Register pillow-avif-plugin if available. Importing it registers AVIF
+# encode+decode with Pillow; this module imports Pillow independently of the
+# converter, so it must trigger the registration itself. Gate AVIF support on
+# the import succeeding, exactly like the converter does.
+try:
+    import pillow_avif  # noqa: F401
+
+    _avif_available = True
+except ImportError:
+    _avif_available = False
+
 _SUPPORTED_FORMATS = ["jpg", "jpeg", "png", "webp", "tiff", "tif"]
 
 _PIL_FORMAT = {
@@ -17,7 +28,15 @@ _PIL_FORMAT = {
     "tif": "TIFF",
 }
 
+# AVIF is lossy and quality-controlled, so it supports both quality-based and
+# target-size (binary-search-on-quality) compression — added to both sets.
+if _avif_available:
+    _SUPPORTED_FORMATS.append("avif")
+    _PIL_FORMAT["avif"] = "AVIF"
+
 TARGET_SIZE_FORMATS = {"jpg", "jpeg", "webp"}
+if _avif_available:
+    TARGET_SIZE_FORMATS.add("avif")
 
 
 def compress_image(input_path: Path, output_path: Path, quality: int = 85) -> Path:
@@ -47,6 +66,11 @@ def compress_image(input_path: Path, output_path: Path, quality: int = 85) -> Pa
         img.save(output_path, format="PNG", compress_level=compress_level, optimize=True)
     elif pil_fmt == "WEBP":
         img.save(output_path, format="WEBP", quality=quality, method=6)
+    elif pil_fmt == "AVIF":
+        # Lossy; quality 1-100 maps to the AV1 quantizer. speed is the
+        # libavif effort knob (0 slowest/best … 10 fastest); 6 keeps encode
+        # cost reasonable on a request thread while staying well-compressed.
+        img.save(output_path, format="AVIF", quality=quality, speed=6)
     else:
         img.save(output_path, format=pil_fmt)
 
@@ -57,6 +81,8 @@ def _encode_to_bytes(img: Image.Image, pil_fmt: str, quality: int) -> bytes:
     buf = io.BytesIO()
     if pil_fmt == "JPEG":
         img.save(buf, format="JPEG", quality=quality, optimize=True)
+    elif pil_fmt == "AVIF":
+        img.save(buf, format="AVIF", quality=quality, speed=6)
     else:
         img.save(buf, format="WEBP", quality=quality, method=6)
     return buf.getvalue()
@@ -75,13 +101,15 @@ def compress_image_to_target(
     Returns: {"final_quality": int, "achieved_bytes": int,
               "iterations": int, "converged": bool}.
 
-    Only JPEG/WebP supported — PNG/TIFF are lossless and quality does not
-    control size meaningfully. Caller must reject other formats before
-    invoking.
+    Only lossy formats supported (JPEG/WebP/AVIF) — PNG/TIFF are lossless
+    and quality does not control size meaningfully. Caller must reject other
+    formats before invoking.
     """
     ext = input_path.suffix.lstrip(".").lower()
     if ext not in TARGET_SIZE_FORMATS:
-        raise ValueError(f"compress_image_to_target only supports JPEG/WebP, got {ext!r}")
+        raise ValueError(
+            f"compress_image_to_target only supports lossy formats (JPEG/WebP/AVIF), got {ext!r}"
+        )
     pil_fmt = _PIL_FORMAT[ext]
 
     img = Image.open(input_path)

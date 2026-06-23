@@ -14,13 +14,14 @@ A complete reference of all supported input and output formats, with notes on qu
 
 | From | To | Notes |
 |------|-----|-------|
-| **HEIC / HEIF** | JPG, PNG, WebP, BMP, TIFF, GIF, **PDF** | iPhone / Apple device photos. Requires `libheif` on Linux (included in Docker). |
-| **JPG / JPEG** | PNG, WebP, BMP, TIFF, GIF, ICO, **PDF** | Most common image format. Lossy — converting to PNG does not restore lost detail. |
-| **PNG** | JPG, WebP, BMP, TIFF, GIF, ICO, **PDF** | Lossless. Supports transparency (alpha channel). |
-| **WebP** | JPG, PNG, BMP, TIFF, GIF, **PDF** | Modern web format, excellent quality/size ratio. |
-| **BMP** | JPG, PNG, WebP, TIFF, GIF, **PDF** | Uncompressed, large files. Rarely needed today. |
-| **TIFF / TIF** | JPG, PNG, WebP, BMP, GIF, **PDF** | Used in print and archiving. |
-| **GIF** | JPG, PNG, WebP, BMP, TIFF, **PDF** | Animated GIFs: only the first frame is converted. |
+| **HEIC / HEIF** | JPG, PNG, WebP, AVIF, BMP, TIFF, GIF, **PDF** | iPhone / Apple device photos. Requires `libheif` on Linux (included in Docker). |
+| **JPG / JPEG** | PNG, WebP, AVIF, BMP, TIFF, GIF, ICO, **PDF** | Most common image format. Lossy — converting to PNG does not restore lost detail. |
+| **PNG** | JPG, WebP, AVIF, BMP, TIFF, GIF, ICO, **PDF** | Lossless. Supports transparency (alpha channel). |
+| **WebP** | JPG, PNG, AVIF, BMP, TIFF, GIF, **PDF** | Modern web format, excellent quality/size ratio. |
+| **AVIF** | JPG, PNG, WebP, BMP, TIFF, GIF, ICO, **PDF** | AV1-based image format. Best-in-class compression; encode is more CPU-intensive than JPEG/WebP (see note below). |
+| **BMP** | JPG, PNG, WebP, AVIF, TIFF, GIF, **PDF** | Uncompressed, large files. Rarely needed today. |
+| **TIFF / TIF** | JPG, PNG, WebP, AVIF, BMP, GIF, **PDF** | Used in print and archiving. |
+| **GIF** | JPG, PNG, WebP, AVIF, BMP, TIFF, **PDF** | Animated GIFs: only the first frame is converted. |
 
 > **Image → PDF**: any supported image becomes a single-page PDF (handy for
 > turning scans/photos into uniform documents). Transparency is flattened onto a
@@ -38,7 +39,19 @@ Re-encode an image at a lower quality to reduce file size without changing forma
 | JPG | Lossy (JPEG quality 1–100) | Most effective. Quality 75–85 is a good balance. |
 | PNG | Lossless (zlib level 0–9) | PNG is always lossless — "quality" controls compression speed, not visual quality. Smaller effect on file size than JPEG. |
 | WebP | Lossy (quality 1–100) | Excellent compression. Comparable to JPEG but 25–35% smaller. |
+| AVIF | Lossy (quality 1–100) | Best compression ratio of the lossy formats; **target-size** supported (binary search on quality). Encode is more CPU-intensive than JPEG/WebP. |
 | TIFF | Format save (no quality param) | TIFF supports multiple compression algorithms; basic optimization applied. |
+
+> **Target-size compression** (`target_size_kb`) is supported for **JPEG, WebP and
+> AVIF** — the lossy formats where quality controls output size. PNG/TIFF are
+> lossless, so use `quality=` there instead.
+
+> **Note on AVIF / AV1 encode cost**: AVIF uses the AV1 codec, which is
+> significantly more CPU-intensive to encode than JPEG or WebP — a single image
+> can take noticeably longer, and target-size compression runs several encode
+> passes (binary search on quality). Decoding and converting *from* AVIF is cheap;
+> the cost is on the encode (`*→avif`) side. The encoder uses a balanced
+> speed setting to keep request-thread latency reasonable.
 
 **Typical size reduction (JPG at different quality levels)**:
 

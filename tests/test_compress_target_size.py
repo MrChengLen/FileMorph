@@ -181,7 +181,7 @@ def test_png_with_target_size_returns_415(client, auth_headers):
     )
 
     assert res.status_code == 415
-    assert "JPEG and WebP" in res.json()["detail"]
+    assert "JPEG, WebP and AVIF" in res.json()["detail"]
 
 
 def test_target_size_above_tier_cap_is_rejected(client, auth_headers, tmp_path):
