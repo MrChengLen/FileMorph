@@ -16,6 +16,16 @@ try:
 except ImportError:
     _heif_available = False
 
+# Register pillow-avif-plugin if available. Unlike pillow-heif, the import
+# itself registers AVIF with Pillow (open + save) — there is no explicit
+# opener call. Both directions (encode + decode) become available.
+try:
+    import pillow_avif  # noqa: F401
+
+    _avif_available = True
+except ImportError:
+    _avif_available = False
+
 # PIL format identifiers per extension
 _PIL_FORMAT = {
     "jpg": "JPEG",
@@ -28,6 +38,12 @@ _PIL_FORMAT = {
     "gif": "GIF",
     "ico": "ICO",
 }
+
+# AVIF is both readable and writable via pillow-avif-plugin, so — unlike the
+# read-only heic/heif inputs below — it belongs in _PIL_FORMAT and therefore
+# in both the source and target sets the registration loop derives from it.
+if _avif_available:
+    _PIL_FORMAT["avif"] = "AVIF"
 
 _IMAGE_FORMATS = list(_PIL_FORMAT.keys())
 if _heif_available:
@@ -78,9 +94,12 @@ class _ImageConverter(BaseConverter):
         return output_path
 
 
-# Dynamically register all image↔image combinations
+# Dynamically register all image↔image combinations. _targets is derived from
+# _PIL_FORMAT, which holds every format Pillow can *write* here: heic/heif are
+# read-only inputs (in _IMAGE_FORMATS but not _PIL_FORMAT), whereas avif is both
+# readable and writable, so it is in both sets and gets *→avif and avif→* pairs.
 _sources = _IMAGE_FORMATS
-_targets = list(_PIL_FORMAT.keys())  # heic/heif output not supported by Pillow
+_targets = list(_PIL_FORMAT.keys())
 
 for _src in _sources:
     for _tgt in _targets:
