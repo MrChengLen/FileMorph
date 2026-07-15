@@ -9,6 +9,17 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Security — accepted advisory PYSEC-2026-1325 (`ecdsa`, no fix available)
+
+`pip-audit` in CI now ignores PYSEC-2026-1325 (= CVE-2024-23342, the Minerva
+timing side-channel in the `ecdsa` package, pulled in transitively by
+`python-jose`). No fixed release exists and upstream considers side-channel
+attacks out of scope. FileMorph is not affected in practice: all JWTs are
+signed and verified with HS256 only (`app/core/tokens.py`), so the vulnerable
+ECDSA signing/keygen/ECDH paths are never executed. The exception is documented
+next to the ignore flag in `ci.yml` and is re-evaluated at each release;
+migrating off `python-jose` would remove the dependency entirely.
+
 ### Added — PII redaction (Enterprise Edition, commercial add-on)
 
 Deterministic, local-CPU PII redaction for UTF-8 text, DOCX and XLSX — detects
