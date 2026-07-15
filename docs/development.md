@@ -27,7 +27,7 @@ filemorph/
 │   │   ├── image.py             # Image conversions (Pillow + pillow-heif)
 │   │   ├── document.py          # Document conversions (docx, pdf, txt, md)
 │   │   ├── video.py             # Video conversions (ffmpeg-python)
-│   │   ├── audio.py             # Audio conversions (pydub/ffmpeg)
+│   │   ├── audio.py             # Audio conversions (ffmpeg-python)
 │   │   └── spreadsheet.py       # Spreadsheet conversions (openpyxl, csv, json)
 │   ├── compressors/
 │   │   ├── image.py             # Image quality compression (Pillow)

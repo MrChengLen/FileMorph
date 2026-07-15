@@ -218,6 +218,15 @@ class Settings(BaseSettings):
     # Credits charged per redaction apply. Env-driven so the margin stays opaque.
     ai_credit_cost_redact: int = 1
 
+    # Hard upper bound for a single ffmpeg invocation (video/audio
+    # convert + video compress) before it is killed. Bounds the worker
+    # pool the same way the LibreOffice and ghostscript subprocesses
+    # already are — without it a crafted or merely very long media file
+    # pins a worker thread forever. 600 s covers a feature-length SD
+    # transcode on a 4 GB host; raise it if your deployment regularly
+    # converts long or HD footage.
+    media_subprocess_timeout_seconds: int = 600
+
     def model_post_init(self, __context) -> None:
         if not self.api_keys_file:
             self.api_keys_file = _default_keys_file()

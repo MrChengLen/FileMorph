@@ -44,7 +44,7 @@ def data_dir() -> Path:
 
 
 def setup_ffmpeg_path() -> None:
-    """Add bundled ffmpeg to PATH so pydub / ffmpeg-python can find it."""
+    """Add bundled ffmpeg to PATH so ffmpeg-python can find it."""
     if is_frozen():
         ffmpeg_bin = base_dir() / "ffmpeg"
         os.environ["PATH"] = str(ffmpeg_bin) + os.pathsep + os.environ.get("PATH", "")

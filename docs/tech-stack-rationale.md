@@ -111,8 +111,7 @@ single `@register("src", "tgt")` decorator without touching the core.
 | **WeasyPrint** | HTML/CSS → PDF | Used for any HTML-source PDF output (e.g. Markdown → HTML → PDF). SSRF-hardened in `app/converters/document.py` via `url_fetcher=_deny_url_fetcher`. | wkhtmltopdf (deprecated; QtWebKit-based), Puppeteer/Playwright (Node.js + headless Chrome — much heavier) |
 | **markdown** | Markdown → HTML pre-processing for the WeasyPrint pipeline | Stable, predictable output; the dialect FileMorph ships matches what most users expect from a Markdown converter. | mistune (faster but a different feature set), markdown-it-py (CommonMark-strict) |
 | **openpyxl** | XLSX read/write | Pure Python, no Excel install required, predictable on Linux containers. | pandas (heavy dataframe overhead for simple reads), xlsxwriter (write-only) |
-| **ffmpeg-python** | Wrapper around the FFmpeg CLI for audio/video conversion | The FFmpeg binary itself is the workhorse; this library just gives it a typed Python surface. The binary must be available in the deployment image (Dockerfile installs it). | moviepy (heavier abstraction, slower), direct `subprocess.run` (no type hints, more boilerplate) |
-| **pydub** | Audio conversion (MP3/WAV/OGG/...) | Wraps FFmpeg/libav for the audio-only path. Simpler API than driving FFmpeg directly when you don't need video. | librosa (analysis-focused, heavier), soundfile (libsndfile binding, narrower codec coverage) |
+| **ffmpeg-python** | Wrapper around the FFmpeg CLI for audio **and** video conversion | The FFmpeg binary itself is the workhorse; this library just gives it a typed Python surface. The binary must be available in the deployment image (Dockerfile installs it). Audio previously went through pydub, which decoded the whole file to PCM in RAM and passed extensions as muxer names — direct invocation streams with constant memory (see `app/converters/_ffmpeg.py`). | moviepy (heavier abstraction, slower), pydub (unmaintained since 2021; RAM-bound), direct `subprocess.run` (no type hints, more boilerplate) |
 
 **Event-loop discipline.** Every C-binding call (FFmpeg via
 `ffmpeg-python`, WeasyPrint, `pypdf`, large Pillow saves) runs
@@ -243,7 +242,6 @@ libheif) caveats, and the machine-readable SBOM — is in
 | markdown | BSD-3-Clause | Permissive. |
 | openpyxl | MIT | Permissive. |
 | ffmpeg-python | Apache-2.0 (wrapper) over FFmpeg | Wrapper is Apache-2.0; the Docker image ships Debian's **GPL** FFmpeg build, invoked as a *separate program* (does not infect FileMorph's own license). An LGPL-only FFmpeg build is the option for a GPL-free artifact — see [`third-party-licenses.md`](./third-party-licenses.md). |
-| pydub | MIT | Permissive. |
 | python-dotenv | BSD-3-Clause | Permissive. |
 | slowapi | MIT | Permissive. |
 | SQLAlchemy, Alembic | MIT | Permissive. |
