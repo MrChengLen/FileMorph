@@ -9,6 +9,31 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — PDF structural operations (page extract / split / compress-to-target)
+
+Three pure-Python *morph* operations on existing PDFs, each a dedicated
+same-origin route reusing the shared hardening pipeline (magic-byte guard, tier
+caps, output cap, `asyncio.to_thread` offload, UUID temp dir, generic errors):
+
+- **`POST /api/v1/pdf/extract`** (`pages=1-3,5`, 1-based) — write a new PDF with
+  only the selected pages; text/fonts/vector copied intact. Malformed / reversed
+  / out-of-range / non-numeric selections are a clean `400` (no pypdf internals
+  leaked); a selection is capped at 10 000 pages.
+- **`POST /api/v1/pdf/split`** — one single-page PDF per page, bundled as a ZIP
+  (`page_001.pdf`, … zero-padded). Capped at **10 000 pages** (a larger document
+  is a `400` before any work, so a crafted huge-page PDF can't exhaust memory).
+- **`POST /api/v1/pdf/compress`** (`target_kb`) — shrink toward a byte budget by
+  recompressing embedded raster images (binary search on a global JPEG quality);
+  page count and every glyph preserved. **Honest limits:** only image-heavy PDFs
+  shrink — a text/vector-only PDF (or one whose images are all masks / palette /
+  alpha) comes back valid and unchanged, reported `X-FileMorph-Converged: false`
+  / `X-FileMorph-Recompressible-Images: 0` rather than a fake compression claim.
+  Response headers `X-FileMorph-Achieved-Bytes`, `X-FileMorph-Converged`,
+  `X-FileMorph-Recompressible-Images`. A working-set ceiling caps the total
+  decoded pixel area / image count and bails to the unchanged-PDF path instead
+  of decoding a crafted image-bomb PDF (DoS guard mirroring the single-image
+  decompression-bomb hardening).
+
 ### Added — AVIF image encode + decode
 
 AVIF (AV1-based image format) is now a first-class image format for both

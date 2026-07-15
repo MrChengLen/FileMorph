@@ -262,6 +262,107 @@ curl -X POST http://localhost:8000/api/v1/compress \
 
 ---
 
+### POST `/api/v1/pdf/extract`
+
+Write a new PDF containing only a selected page range — a structural *morph*,
+not a format conversion. Text, fonts and vector content are copied intact.
+
+**Authentication**: Required (`X-API-Key` or `Authorization: Bearer`)
+
+**Request**: `multipart/form-data`
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `file` | file | Yes | The source PDF (must be a `.pdf`) |
+| `pages` | string | Yes | 1-based page selection — comma-separated singletons and `a-b` ranges, e.g. `1-3,5`. Sorted + de-duplicated. |
+
+**Response**: `200 OK` (`application/pdf`) — the extracted pages as a download
+(`_pages.pdf` suffix). An empty / reversed (`5-3`) / out-of-range / non-numeric
+selection is a `400`; a non-PDF input is a `422`. A selection may resolve to at
+most 10 000 pages.
+
+```bash
+curl -X POST http://localhost:8000/api/v1/pdf/extract \
+  -H "X-API-Key: YOUR_KEY" \
+  -F "file=@report.pdf" \
+  -F "pages=1-3,5" \
+  --output report_pages.pdf
+```
+
+---
+
+### POST `/api/v1/pdf/split`
+
+Split a PDF into one single-page PDF per page, bundled as a ZIP.
+
+**Authentication**: Required (`X-API-Key` or `Authorization: Bearer`)
+
+**Request**: `multipart/form-data`
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `file` | file | Yes | The source PDF (must be a `.pdf`) |
+
+**Response**: `200 OK` (`application/zip`) — one entry per page
+(`page_001.pdf`, `page_002.pdf`, … zero-padded to the page count's width, so
+entries sort correctly), `_pages.zip` suffix. A non-PDF input is a `422`; a
+document over **10 000 pages** is a `400` (rejected before any work). The
+assembled ZIP must also fit the tier output cap (`413` otherwise).
+
+```bash
+curl -X POST http://localhost:8000/api/v1/pdf/split \
+  -H "X-API-Key: YOUR_KEY" \
+  -F "file=@report.pdf" \
+  --output report_pages.zip
+```
+
+---
+
+### POST `/api/v1/pdf/compress`
+
+Shrink a PDF toward a byte budget by recompressing its embedded raster images.
+Page count and every glyph are preserved; text/fonts/vector content are left
+intact. Honest by design — a PDF with no recompressible images comes back valid
+and unchanged-in-content (see the headers below), never a fake compression
+claim.
+
+**Authentication**: Required (`X-API-Key` or `Authorization: Bearer`)
+
+**Request**: `multipart/form-data`
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `file` | file | Yes | The source PDF (must be a `.pdf`) |
+| `target_kb` | integer | Yes | Target output size in KB (`> 0`). The embedded images are recompressed toward this budget via binary search on a global JPEG quality. |
+
+**Response**: `200 OK` (`application/pdf`) — the compressed PDF as a download
+(`_compressed.pdf` suffix), plus:
+
+| Header | Description |
+|---|---|
+| `X-FileMorph-Achieved-Bytes` | Actual output size in bytes |
+| `X-FileMorph-Converged` | `true` if the output reached the target within tolerance, else `false` |
+| `X-FileMorph-Recompressible-Images` | How many embedded images the engine could recompress (`0` ⇒ nothing to shrink) |
+
+A `target_kb` above the tier output cap is a `413` (rejected before any work);
+a value beyond a 2 GB sanity ceiling, or a non-PDF / corrupt input, is a
+`422` / `400`. A text/vector-only PDF returns `200` with
+`X-FileMorph-Converged: false` and `X-FileMorph-Recompressible-Images: 0`.
+
+```bash
+curl -X POST http://localhost:8000/api/v1/pdf/compress \
+  -H "X-API-Key: YOUR_KEY" \
+  -F "file=@scan.pdf" \
+  -F "target_kb=500" \
+  -D headers.txt \
+  --output scan_compressed.pdf
+
+# headers.txt now carries X-FileMorph-Achieved-Bytes / -Converged /
+# -Recompressible-Images
+```
+
+---
+
 ### POST `/api/v1/convert/batch`
 
 Convert several files in one request. Returns a ZIP archive with all converted outputs.
