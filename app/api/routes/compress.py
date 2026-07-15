@@ -115,7 +115,7 @@ async def _do_compress(
             raise HTTPException(
                 status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
                 detail=(
-                    "Target-size compression supports only JPEG and WebP. "
+                    "Target-size compression supports only JPEG, WebP and AVIF. "
                     "Use quality= for PNG/TIFF."
                 ),
             )
@@ -432,7 +432,7 @@ async def _do_compress_batch(
                 if target_size_kb is not None:
                     if ext not in TARGET_SIZE_FORMATS:
                         raise ValueError(
-                            "Target-size compression supports only JPEG and WebP. "
+                            "Target-size compression supports only JPEG, WebP and AVIF. "
                             "Use quality= for PNG/TIFF."
                         )
                     await asyncio.to_thread(

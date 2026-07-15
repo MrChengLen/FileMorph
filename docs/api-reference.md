@@ -131,7 +131,7 @@ Convert a file from one format to another.
 |---|---|---|---|
 | `file` | file | Yes | The file to convert |
 | `target_format` | string | Yes | Target format extension, e.g. `jpg`, `pdf`, `mp3` |
-| `quality` | integer | No | Quality 1–100 (default: 85). Applies to lossy formats (JPEG, WebP, video) |
+| `quality` | integer | No | Quality 1–100 (default: 85). Applies to lossy formats (JPEG, WebP, AVIF, video) |
 
 **Response**: `200 OK` — the converted file as a download
 
@@ -203,11 +203,11 @@ Reduce a file's size by re-encoding at a lower quality, keeping the same format.
 |---|---|---|---|
 | `file` | file | Yes | The file to compress |
 | `quality` | integer | No | Quality 1 (smallest) – 100 (best). Defaults to 85. Mutually exclusive with `target_size_kb` |
-| `target_size_kb` | integer | No | Target output size in KB. Activates binary-search-on-quality (JPEG/WebP only). Mutually exclusive with `quality` |
+| `target_size_kb` | integer | No | Target output size in KB. Activates binary-search-on-quality (JPEG/WebP/AVIF only). Mutually exclusive with `quality` |
 
-**Supported formats**: JPG, JPEG, PNG, WebP, TIFF · MP4, MOV, AVI, MKV, WebM
+**Supported formats**: JPG, JPEG, PNG, WebP, AVIF, TIFF · MP4, MOV, AVI, MKV, WebM
 
-`target_size_kb` is JPEG/WebP only — PNG/TIFF are lossless and quality does not control size meaningfully. Sending `target_size_kb` with a PNG returns `415`.
+`target_size_kb` is JPEG/WebP/AVIF only — PNG/TIFF are lossless and quality does not control size meaningfully. Sending `target_size_kb` with a PNG returns `415`. AVIF/AV1 encode is more CPU-intensive than JPEG/WebP, and target-size runs several encode passes.
 
 **Response**: `200 OK` — the compressed file as a download (same format, `_compressed` suffix in filename).
 
@@ -325,8 +325,8 @@ Returns all supported conversion and compression formats.
 ```json
 {
   "conversions": {
-    "jpg": ["png", "webp", "bmp", "tiff", "gif"],
-    "heic": ["jpg", "png", "webp"],
+    "jpg": ["png", "webp", "avif", "bmp", "tiff", "gif"],
+    "heic": ["jpg", "png", "webp", "avif"],
     "docx": ["pdf", "txt"],
     "txt": ["pdf"],
     "csv": ["xlsx", "json"],
@@ -334,7 +334,7 @@ Returns all supported conversion and compression formats.
     "mp3": ["wav", "flac", "ogg", "m4a"]
   },
   "compression": {
-    "image": ["jpg", "jpeg", "png", "webp", "tiff"],
+    "image": ["jpg", "jpeg", "png", "webp", "avif", "tiff"],
     "video": ["mp4", "avi", "mov", "mkv", "webm"]
   }
 }
