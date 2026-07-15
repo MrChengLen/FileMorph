@@ -24,6 +24,7 @@ from starlette.middleware.gzip import GZipMiddleware
 # Image.open(). See module docstring for the rationale.
 import app.core.image_hardening  # noqa: F401  — side-effect import
 from app.api.routes import ai, compress, contact, convert, formats, health, pages, seo
+from app.api.routes import pdf_pages as pdf_pages_route
 from app.api.routes import auth as auth_route
 from app.api.routes import billing as billing_route
 from app.api.routes import cockpit as cockpit_route
@@ -475,6 +476,8 @@ app.include_router(health.router, prefix="/api/v1")
 app.include_router(formats.router, prefix="/api/v1")
 app.include_router(convert.router, prefix="/api/v1")
 app.include_router(compress.router, prefix="/api/v1")
+# PDF page-extract + split — same-origin structural ops (Morph > Convert).
+app.include_router(pdf_pages_route.router, prefix="/api/v1")
 # AI operations (Enterprise Edition). Router is always mounted but every
 # endpoint is inert (503) unless AI_OPERATIONS_ENABLED is set; the commercial
 # app/ee engine is imported lazily inside the handlers, so a default self-host
