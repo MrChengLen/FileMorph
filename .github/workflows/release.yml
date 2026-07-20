@@ -79,7 +79,7 @@ jobs:
       # EVB-IT-March-2026 SBOM mandate). `environment` captures the resolved
       # transitive dependency graph, matching the SBOM workflow's main-push path.
       - name: Set up Python (for SBOM)
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
           cache: "pip"
@@ -128,7 +128,7 @@ jobs:
           } > IMAGE_DIGEST.txt
 
       - name: Publish release
-        uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3.0.1
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
         with:
           files: |
             filemorph-*.tar.gz
