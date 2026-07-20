@@ -17,7 +17,7 @@ pillow-heif>=0.15.0
 pillow-avif-plugin>=1.5.5
 python-docx>=1.1.0
 mammoth>=1.12.0
-pypdf>=4.1.0
+pypdf>=6.14.2
 # pikepdf provides the qpdf-backed PDF manipulation FileMorph uses
 # for PDF/A-2b output (NEU-C.1.a). Wheels bundle qpdf; no system
 # package required.
