@@ -300,6 +300,20 @@ function renderFileList() {
       ? `1 file · ${formatBytes(totalBytes)}`
       : `${selectedFiles.length} files · ${formatBytes(totalBytes)} total`;
   }
+  updatePdfToolsHint();
+}
+
+// PDF is a valid *source* here (→ TXT / PDF/A) but no longer a convert
+// *target* (see get_public_conversions() in app/converters/registry.py) —
+// point at the dedicated split/extract/compress tools instead. #pdf-tools-hint
+// is absent on pair pages (partials/convert_tool.html gates it on
+// `preset_source`), hence the null-guard.
+function updatePdfToolsHint() {
+  const hint = document.getElementById('pdf-tools-hint');
+  if (!hint) return;
+  const isPdf = currentMode === 'convert' && selectedFiles.length === 1 &&
+    getExtension(selectedFiles[0].name) === 'pdf';
+  hint.classList.toggle('hidden', !isPdf);
 }
 
 function removeFile(idx) {
@@ -328,6 +342,7 @@ function clearAllFiles(event) {
   document.getElementById('quality-section').classList.add('hidden');
   updateConvertOptionsVisibility();
   updateFormatWarning();
+  updatePdfToolsHint();
   resetResultState();
 }
 

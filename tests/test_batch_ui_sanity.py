@@ -98,6 +98,30 @@ def test_cors_exposes_content_disposition_for_download_filename():
     )
 
 
+def test_cors_exposes_pdf_compress_honesty_headers():
+    """The PDF-tools compress page reads these cross-origin
+    (pdf-tools.js::showCompressHonesty) to show its honest "couldn't reach
+    the target" / "nothing to recompress" notice — same class of bug as
+    Content-Disposition above: an unexposed header is invisible to JS, so the
+    UI would silently fall back to a plain "ready to download" message
+    instead of the honest one."""
+    from starlette.middleware.cors import CORSMiddleware
+
+    from app.main import app
+
+    cors = next(
+        (m for m in app.user_middleware if m.cls is CORSMiddleware),
+        None,
+    )
+    assert cors is not None, "CORSMiddleware no longer registered on the app"
+    expose = cors.kwargs.get("expose_headers") or []
+    for header in ("X-FileMorph-Converged", "X-FileMorph-Recompressible-Images"):
+        assert header in expose, (
+            f"CORSMiddleware must expose {header} so the PDF-tools compress "
+            f"page can read it cross-origin. Currently expose_headers={expose!r}."
+        )
+
+
 def test_csp_connect_src_extends_to_api_base_when_set():
     """If a deployment ships cross-origin upload POSTs (the S1.5 split),
     the CSP `connect-src` MUST allowlist that origin — browsers refuse

@@ -389,6 +389,24 @@ def _js_i18n_strings(_: gettext.GNUTranslations.gettext) -> dict[str, str]:
         "redactSeePricing": _("See plans"),
         "redactDownload": _("Download redacted file"),
         "redactAnother": _("Redact another file"),
+        # pdf-tools.js — /pdf/split, /pdf/extract, /pdf/compress (shared script).
+        # The compress-honesty keys carry the achieved size via a "{size}"
+        # token, substituted the same way as redact's "{count}"/"{n}" tokens.
+        "pdfToolError": _("Something went wrong. Please try again."),
+        "pdfSelectFile": _("Select a PDF file first."),
+        "pdfNotAPdf": _("Please select a PDF file."),
+        "pdfInvalidFile": _("Could not read the PDF. Verify the file is valid."),
+        "pdfInvalidSelection": _(
+            "Invalid page selection. Use 1-based page numbers and ranges, e.g. '1-3,5'."
+        ),
+        "pdfRateLimited": _("Too many requests. Please wait a moment and try again."),
+        "pdfCompressAchieved": _("Compressed to {size} MB"),
+        "pdfCompressNotConverged": _(
+            "Couldn't fully reach your target size — best achieved: {size} MB."
+        ),
+        "pdfCompressNoImages": _(
+            "Nothing to recompress — this PDF has no images that can be shrunk. Size: {size} MB."
+        ),
     }
 
 

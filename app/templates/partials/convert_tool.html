@@ -119,6 +119,21 @@
           target="_blank" rel="noopener"
           class="underline hover:text-sky-200 font-semibold ml-1"></a>
       </p>
+      {# PDF is a valid *source* here (→ TXT / PDF/A) but no longer a target
+         (get_public_conversions() drops the pdf->pdf identity pair — a
+         same-format "conversion" would be a silent no-op re-save). When the
+         selected file is a PDF, point at the dedicated structural-op tools
+         this generic converter doesn't cover. Hidden on pair pages (locked
+         to one non-PDF source) — app.js null-guards the toggle. #}
+      {% if not preset_source %}
+      <p id="pdf-tools-hint"
+        class="hidden text-xs text-sky-300 bg-sky-950/40 border border-sky-900/50 rounded-lg px-3 py-2 leading-relaxed">
+        {{ _('Looking to split, extract pages from, or compress a PDF? Try the dedicated PDF tools:') }}
+        <a href="{{ localized_url('/pdf/split', current_prefix) }}" class="underline hover:text-sky-200 font-semibold">{{ _('Split PDF') }}</a>,
+        <a href="{{ localized_url('/pdf/extract', current_prefix) }}" class="underline hover:text-sky-200 font-semibold">{{ _('Extract PDF pages') }}</a>,
+        <a href="{{ localized_url('/pdf/compress', current_prefix) }}" class="underline hover:text-sky-200 font-semibold">{{ _('Compress PDF') }}</a>
+      </p>
+      {% endif %}
     </div>
   </div>
 

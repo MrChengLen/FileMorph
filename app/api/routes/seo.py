@@ -36,6 +36,11 @@ _BASE_ROUTES: list[tuple[str, str]] = [
     ("/terms", "0.3"),
     ("/impressum", "0.3"),
     ("/contact", "0.3"),
+    # PDF structural-op tools — ungated core OSS feature, so (unlike /redact
+    # below) these are always-on rather than settings-gated.
+    ("/pdf/compress", "0.7"),
+    ("/pdf/split", "0.6"),
+    ("/pdf/extract", "0.6"),
 ]
 
 # AI / LLM crawlers we explicitly welcome. The wildcard ``User-agent: *``
@@ -180,6 +185,20 @@ async def llms_txt() -> str:
                     "TXT, DOCX and XLSX — free findings preview, EU-hosted, no third-party AI",
                 )
                 break
+    # PDF structural operations (split / extract pages / compress) are a
+    # core, always-on OSS feature (unlike the gated redaction add-on above),
+    # so they're listed unconditionally on every deployment.
+    for i, ln in enumerate(lines):
+        if ln.startswith("- [Supported formats]"):
+            lines[i + 1 : i + 1] = [
+                f"- [Split a PDF]({base}/pdf/split): split a multi-page PDF into "
+                "one file per page, bundled as a ZIP",
+                f"- [Extract PDF pages]({base}/pdf/extract): keep only a chosen "
+                "page range from a PDF, e.g. pages 1-3,5",
+                f"- [Compress a PDF]({base}/pdf/compress): shrink a PDF toward a "
+                "target size by recompressing its embedded images",
+            ]
+            break
     return "\n".join(lines)
 
 

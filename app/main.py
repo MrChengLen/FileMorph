@@ -232,6 +232,8 @@ app.add_middleware(
     expose_headers=[
         "Content-Disposition",
         "X-FileMorph-Achieved-Bytes",
+        "X-FileMorph-Converged",
+        "X-FileMorph-Recompressible-Images",
         "X-FileMorph-Batch-Failed",
         "X-FileMorph-Batch-Failures",
         "X-FileMorph-Batch-Succeeded",
