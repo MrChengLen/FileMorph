@@ -654,6 +654,7 @@ _ACCEPT: dict[str, str] = {
     "bmp": ".bmp,image/bmp",
     "tiff": ".tiff,.tif,image/tiff",
     "tif": ".tiff,.tif,image/tiff",
+    "pdf": ".pdf,application/pdf",
     "docx": ".docx",
     "html": ".html,.htm,text/html",
     "eml": ".eml,message/rfc822",

@@ -21,11 +21,12 @@ from fastapi import APIRouter, Request
 
 from app.compressors.image import _SUPPORTED_FORMATS as IMAGE_COMPRESS_FMTS
 from app.compressors.video import _SUPPORTED_FORMATS as VIDEO_COMPRESS_FMTS
-from app.converters.registry import get_supported_conversions
+from app.converters.registry import get_public_conversions, get_supported_conversions
 from app.core import pricing as pricing_mod
 from app.core.config import settings
 from app.core.convert_pairs import accept_attr, format_label, get_pair_content, related_pairs
 from app.core.i18n import localized_context
+from app.core.pdf_tools_content import get_pdf_tool_content
 from app.core.redact_content import get_redact_content
 from app.core.templates import templates
 
@@ -69,8 +70,13 @@ def _grouped_conversions() -> list[tuple[str, list[tuple[str, list[str]]]]]:
     Shape: ``[(category_key, [(src, [tgts]), ...]), ...]`` in
     ``_CATEGORY_ORDER`` with empty categories dropped. Sorted so the page is
     deterministic (review-friendly, stable for the render-snapshot test).
+
+    Uses ``get_public_conversions()`` (identity pairs like ``pdf -> pdf``
+    dropped) — this is a user-facing listing, and a same-format "conversion"
+    would be a silent no-op re-save. ``convert_pair_page`` below still
+    validates against the raw ``get_supported_conversions()`` registry.
     """
-    conversions = get_supported_conversions()
+    conversions = get_public_conversions()
     buckets: dict[str, list[tuple[str, list[str]]]] = {c: [] for c in _CATEGORY_ORDER}
     for src in sorted(conversions):
         cat = _FORMAT_CATEGORY.get(src, "other")
@@ -278,6 +284,27 @@ async def redact_page(request: Request):
         content=get_redact_content(locale),
         ai_credit_cost=settings.ai_credit_cost_redact,
         ai_eligible_tiers=settings.ai_eligible_tiers_list,
+    )
+
+
+@router.get("/pdf/{tool}")
+async def pdf_tool_page(request: Request, tool: str):
+    # Ungated core OSS feature (unlike /redact's commercial gating) — split /
+    # extract / compress ride the same free, no-account Convert/Compress
+    # posture. The content lookup IS the route whitelist: an unknown tool
+    # (e.g. /pdf/rotate) 404s instead of rendering a hollow page.
+    locale = getattr(request.state, "locale", settings.lang_default)
+    content = get_pdf_tool_content(tool, locale)
+    if content is None:
+        return templates.TemplateResponse(
+            request, "404.html", context=localized_context(request), status_code=404
+        )
+    return _render(
+        request,
+        "pdf_tool.html",
+        content=content,
+        tool=tool,
+        pdf_accept=accept_attr("pdf"),
     )
 
 

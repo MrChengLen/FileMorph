@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph 1.1.0\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-06-22 11:27+0200\n"
+"POT-Creation-Date: 2026-07-31 09:16+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -58,6 +58,9 @@ msgid "/mo"
 msgstr ""
 
 msgid "1 server, ≤ 50 employees"
+msgstr ""
+
+msgid "1-based, comma-separated — e.g. 1-3,5 keeps pages 1, 2, 3 and 5."
 msgstr ""
 
 msgid "1. Acceptance"
@@ -459,10 +462,20 @@ msgstr ""
 msgid "Compress"
 msgstr ""
 
+msgid "Compress PDF"
+msgstr ""
+
+msgid "Compress a PDF →"
+msgstr ""
+
 msgid "Compress to a target size"
 msgstr ""
 
 msgid "Compress to an exact target size"
+msgstr ""
+
+#, python-brace-format
+msgid "Compressed to {size} MB"
 msgstr ""
 
 msgid "Compression"
@@ -582,7 +595,14 @@ msgid ""
 " misconfigured."
 msgstr ""
 
+msgid "Could not read the PDF. Verify the file is valid."
+msgstr ""
+
 msgid "Could not save — please try again."
+msgstr ""
+
+#, python-brace-format
+msgid "Couldn't fully reach your target size — best achieved: {size} MB."
 msgstr ""
 
 msgid "Create Account"
@@ -629,6 +649,12 @@ msgstr ""
 msgid "Deactivated"
 msgstr ""
 
+msgid ""
+"Dedicated tools for structural PDF operations the converter above doesn't"
+" do: split every page into its own file, pull out a page range, or shrink"
+" toward a target size by recompressing embedded images."
+msgstr ""
+
 msgid "Delete account"
 msgstr ""
 
@@ -658,7 +684,13 @@ msgid ""
 "yet — it assists your review, it doesn't replace it."
 msgstr ""
 
+msgid "Download PDF"
+msgstr ""
+
 msgid "Download Result"
+msgstr ""
+
+msgid "Download ZIP"
 msgstr ""
 
 msgid "Download redacted file"
@@ -750,6 +782,12 @@ msgid ""
 "External ISO 27001 certification and external pen test are planned as "
 "Year-2 roadmap items — both will be implemented as soon as the first "
 "paying pilot economically justifies the effort."
+msgstr ""
+
+msgid "Extract PDF pages"
+msgstr ""
+
+msgid "Extract pages →"
 msgstr ""
 
 msgid "Failure rate (today)"
@@ -981,6 +1019,9 @@ msgstr ""
 msgid "Hetzner's privacy policy"
 msgstr ""
 
+msgid "Honest limits"
+msgstr ""
+
 msgid "How can we help?"
 msgstr ""
 
@@ -1097,6 +1138,9 @@ msgstr ""
 msgid "Impressum"
 msgstr ""
 
+msgid "In MB — only embedded images can be recompressed."
+msgstr ""
+
 msgid ""
 "In particular, FileMorph is a processing tool, not legal or compliance "
 "advice; you are responsible for verifying that any output (including "
@@ -1132,6 +1176,9 @@ msgstr ""
 msgid "Internal use is already free under AGPL-3.0."
 msgstr ""
 
+msgid "Invalid page selection. Use 1-based page numbers and ranges, e.g. '1-3,5'."
+msgstr ""
+
 msgid "Is FileMorph free?"
 msgstr ""
 
@@ -1149,6 +1196,9 @@ msgstr ""
 msgid ""
 "KRITIS and air-gap variants on request. All tiers include commercial "
 "license, DPA template, signed Docker image and support SLA."
+msgstr ""
+
+msgid "Keep only the pages you choose, e.g. 1-3,5."
 msgstr ""
 
 msgid ""
@@ -1186,6 +1236,11 @@ msgstr ""
 msgid ""
 "Logo mention as pilot customer (optional). Roadmap feedback every four "
 "weeks. Willingness to prioritize feature tickets."
+msgstr ""
+
+msgid ""
+"Looking to split, extract pages from, or compress a PDF? Try the "
+"dedicated PDF tools:"
 msgstr ""
 
 msgid "MB per file."
@@ -1278,7 +1333,16 @@ msgstr ""
 msgid "Not covered yet"
 msgstr ""
 
+#, python-brace-format
+msgid ""
+"Nothing to recompress — this PDF has no images that can be shrunk. Size: "
+"{size} MB."
+msgstr ""
+
 msgid "Notice"
+msgstr ""
+
+msgid "One PDF page per file, bundled as a ZIP."
 msgstr ""
 
 msgid "One click and you're done"
@@ -1341,6 +1405,9 @@ msgstr ""
 msgid "Overview"
 msgstr ""
 
+msgid "PDF tools"
+msgstr ""
+
 msgid "PDF/A-2b (veraPDF CI gate)"
 msgstr ""
 
@@ -1382,6 +1449,9 @@ msgid "Page headers were simplified"
 msgstr ""
 
 msgid "Page not found"
+msgstr ""
+
+msgid "Pages to keep"
 msgstr ""
 
 msgid ""
@@ -1449,6 +1519,9 @@ msgstr ""
 msgid "Please enter a target size in MB."
 msgstr ""
 
+msgid "Please select a PDF file."
+msgstr ""
+
 msgid "Please select a target format."
 msgstr ""
 
@@ -1482,6 +1555,9 @@ msgid "Pro"
 msgstr ""
 
 msgid "Pro feature"
+msgstr ""
+
+msgid "Process another file"
 msgstr ""
 
 msgid "Processing…"
@@ -1653,6 +1729,11 @@ msgstr ""
 msgid "Return to home"
 msgstr ""
 
+msgid ""
+"Returns a ZIP with one PDF per page (page_1.pdf, page_2.pdf, …), capped "
+"at 10,000 pages."
+msgstr ""
+
 msgid "Revoke"
 msgstr ""
 
@@ -1737,6 +1818,12 @@ msgstr ""
 msgid "See the Compliance Edition →"
 msgstr ""
 
+msgid "Select a PDF file"
+msgstr ""
+
+msgid "Select a PDF file first."
+msgstr ""
+
 msgid "Select a file to scan for PII"
 msgstr ""
 
@@ -1807,6 +1894,11 @@ msgstr ""
 msgid "Show last 90 days"
 msgstr ""
 
+msgid ""
+"Shrinks embedded images toward a target size — honestly reports when "
+"there's nothing to recompress."
+msgstr ""
+
 msgid "Sign In"
 msgstr ""
 
@@ -1856,10 +1948,22 @@ msgid ""
 "again."
 msgstr ""
 
+msgid "Something went wrong. Please try again."
+msgstr ""
+
 msgid "Sorry, we could not send your message right now."
 msgstr ""
 
 msgid "Source code"
+msgstr ""
+
+msgid "Split PDF"
+msgstr ""
+
+msgid "Split a PDF →"
+msgstr ""
+
+msgid "Split, extract pages from, or compress a PDF"
 msgstr ""
 
 msgid "Spreadsheets"
@@ -2112,6 +2216,9 @@ msgid "Toggle menu"
 msgstr ""
 
 msgid "Too many attempts. Please try again later."
+msgstr ""
+
+msgid "Too many requests. Please wait a moment and try again."
 msgstr ""
 
 msgid "Top conversion pairs (transforms only)"
@@ -2459,6 +2566,9 @@ msgid "Your account has been deleted"
 msgstr ""
 
 msgid "Your email is now verified."
+msgstr ""
+
+msgid "Your file is ready to download."
 msgstr ""
 
 msgid "Your name"

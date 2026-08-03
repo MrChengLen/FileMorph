@@ -1,0 +1,108 @@
+{# Shared PDF-tool widget for /pdf/split, /pdf/extract, /pdf/compress. CSP-safe:
+   no inline JS — only IDs + data-attributes read by app/static/js/pdf-tools.js.
+   Single-file upload → one POST to /api/v1/pdf/{{ tool }} → download. Per-tool
+   controls are {% if tool == ... %} branches (no class concatenation). Lives
+   in app/templates/partials/ (NOT a _-prefixed dir) so babel picks up the
+   _() chrome strings. Context: content, tool, pdf_accept. #}
+{% import "_components/card.html" as uc %}
+{% import "_components/button.html" as ub %}
+{% call uc.card() %}
+<div id="pdf-tool" class="space-y-5" data-tool="{{ tool }}" data-endpoint="/api/v1/pdf/{{ tool }}">
+
+  <!-- Upload + per-tool controls -->
+  <div id="pdf-step-upload" class="space-y-4">
+    <div id="pdf-drop"
+      class="border-2 border-dashed border-gray-700 rounded-xl p-6 sm:p-10 text-center cursor-pointer hover:border-brand transition-colors group"
+      role="button" tabindex="0" aria-label="{{ _('Drop a file here or click to browse') }}">
+      <input id="pdf-file" type="file" class="hidden"
+        accept="{{ pdf_accept }}"
+        aria-label="{{ _('Select a PDF file') }}" />
+      <div id="pdf-idle" class="space-y-2">
+        <svg class="mx-auto w-10 h-10 text-gray-600 group-hover:text-brand transition-colors"
+          fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+        </svg>
+        <p class="text-gray-400">{{ _('Drag & drop a file here') }}</p>
+        <p class="text-xs text-gray-600">{{ _('or click to browse') }}</p>
+      </div>
+      <div id="pdf-selected" class="hidden space-y-1">
+        <svg class="mx-auto w-10 h-10 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <p id="pdf-filename" class="font-medium text-white text-sm"></p>
+        <button id="pdf-clear" class="text-xs text-gray-600 hover:text-red-400 transition-colors">
+          {{ _('Clear') }}
+        </button>
+      </div>
+    </div>
+
+    {% if tool == 'extract' %}
+    <div class="space-y-1">
+      <label for="pdf-pages" class="text-sm text-gray-400 font-medium">{{ _('Pages to keep') }}</label>
+      <input id="pdf-pages" type="text" placeholder="1-3,5"
+        class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-brand transition-colors" />
+      <p class="text-xs text-gray-600">{{ _("1-based, comma-separated — e.g. 1-3,5 keeps pages 1, 2, 3 and 5.") }}</p>
+      <p id="pdf-pages-warn" class="hidden text-xs text-amber-400 leading-relaxed"></p>
+    </div>
+    {% endif %}
+
+    {% if tool == 'compress' %}
+    <div class="space-y-1">
+      <label for="pdf-target-size" class="text-sm text-gray-400 font-medium">{{ _('Target file size') }}</label>
+      <input id="pdf-target-size" type="number" min="0.05" step="0.1" value="2.0"
+        class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-brand" />
+      <p class="text-xs text-gray-600">{{ _('In MB — only embedded images can be recompressed.') }}</p>
+    </div>
+    {% endif %}
+
+    {% if tool == 'split' %}
+    <p class="text-xs text-gray-600">{{ _('Returns a ZIP with one PDF per page (page_1.pdf, page_2.pdf, …), capped at 10,000 pages.') }}</p>
+    {% endif %}
+
+    {{ ub.button(content.cta, id='pdf-submit', full_width=True) }}
+  </div>
+
+  <!-- Progress -->
+  <div id="pdf-progress" class="hidden text-center space-y-2">
+    <div class="flex items-center justify-center gap-2 text-brand">
+      <svg class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+      </svg>
+      <span class="text-sm" id="pdf-progress-text">{{ _('Processing…') }}</span>
+    </div>
+  </div>
+
+  <!-- Result -->
+  <div id="pdf-result" class="hidden space-y-2">
+    <p id="pdf-result-summary" class="text-sm text-emerald-400 text-center">{{ _('Your file is ready to download.') }}</p>
+    {# Honesty notice for compress (no images to recompress / target not
+       reached) — pre-styled amber, JS only toggles `hidden`. Never shown
+       for split/extract. #}
+    <p id="pdf-honest-note"
+      class="hidden text-xs text-amber-400 bg-amber-950/40 border border-amber-900/50 rounded-lg px-3 py-2 leading-relaxed"></p>
+    <a id="pdf-download" href="#" download
+      class="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-semibold text-white transition-colors text-sm">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+      </svg>
+      {% if tool == 'split' %}
+      <span>{{ _('Download ZIP') }}</span>
+      {% else %}
+      <span>{{ _('Download PDF') }}</span>
+      {% endif %}
+    </a>
+    <button id="pdf-restart" class="block mx-auto text-xs text-gray-600 hover:text-white transition-colors">
+      {{ _('Process another file') }}
+    </button>
+  </div>
+
+  <div id="pdf-error" class="hidden">
+    <p id="pdf-error-text" class="text-red-400 text-sm text-center bg-red-950 rounded-lg py-3 px-4"></p>
+  </div>
+
+</div>
+{% endcall %}

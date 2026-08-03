@@ -152,8 +152,17 @@ between formats — all pure-Python (pypdf / pikepdf), no external binary.
 | Operation | Endpoint | Input → Output | Notes |
 |---|---|---|---|
 | **Page extract** | `POST /api/v1/pdf/extract` | PDF → PDF | Keep a 1-based page selection, e.g. `pages=1-3,5`. Text, fonts and vector content are copied byte-for-byte. |
-| **Split** | `POST /api/v1/pdf/split` | PDF → ZIP | One single-page PDF per page (`page_001.pdf`, …), bundled as a ZIP. |
+| **Split** | `POST /api/v1/pdf/split` | PDF → ZIP | One single-page PDF per page (`page_1.pdf`, …, zero-padded to the page count's width), bundled as a ZIP. |
 | **Compress to target** | `POST /api/v1/pdf/compress` | PDF → PDF | Shrink toward a `target_kb` budget by recompressing embedded raster images. Page count and every glyph are preserved. |
+
+**Web UI:** each operation also has a dedicated, bilingual (DE/EN) page —
+`/pdf/split`, `/pdf/extract`, `/pdf/compress` — ungated, same as the main
+Convert/Compress tool.
+
+Note: the registry's internal `pdf → pdf` identity pair (the page-extract
+engine) is deliberately omitted from the `/api/v1/formats` listing and the
+formats page — it is plumbing, not a conversion a user picks.
+`POST /api/v1/convert` still accepts it (whole-document pass-through).
 
 **Honest limits**
 

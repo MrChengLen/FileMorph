@@ -144,6 +144,9 @@
         <span>{{ _('© 2026 FileMorph — AGPLv3 Open Source') }}</span>
         <nav class="flex flex-wrap items-center justify-center gap-4">
           <a href="{{ localized_url('/formats', current_prefix) }}" class="hover:text-gray-400 transition-colors">{{ _('Formats') }}</a>
+          <a href="{{ localized_url('/pdf/split', current_prefix) }}" class="hover:text-gray-400 transition-colors">{{ _('Split PDF') }}</a>
+          <a href="{{ localized_url('/pdf/extract', current_prefix) }}" class="hover:text-gray-400 transition-colors">{{ _('Extract PDF pages') }}</a>
+          <a href="{{ localized_url('/pdf/compress', current_prefix) }}" class="hover:text-gray-400 transition-colors">{{ _('Compress PDF') }}</a>
           {% if ai_operations_enabled %}<a href="{{ localized_url('/redact', current_prefix) }}" class="hover:text-gray-400 transition-colors">{{ _('Redact PII') }}</a>{% endif %}
           <a href="{{ localized_url('/privacy', current_prefix) }}" class="hover:text-gray-400 transition-colors">{{ _('Privacy Policy') }}</a>
           <a href="{{ localized_url('/terms', current_prefix) }}" class="hover:text-gray-400 transition-colors">{{ _('Terms of Use') }}</a>

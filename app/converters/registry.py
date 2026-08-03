@@ -43,6 +43,23 @@ def get_supported_conversions() -> dict[str, list[str]]:
     return {src: list(tgts) for src, tgts in _supported.items()}
 
 
+def get_public_conversions() -> dict[str, list[str]]:
+    """Return the supported conversions map with same-format ("identity")
+    pairs dropped — sources left with no remaining targets are dropped too.
+
+    Some converters register a ``(fmt, fmt)`` pair for a structural *morph*
+    operation (e.g. ``pdf -> pdf`` backs the page-extract/split/compress
+    routes), which is a legitimate API capability but a silent no-op
+    re-save if offered as a *target* in a user-facing format listing. Used
+    by ``/api/v1/formats`` and the ``/formats`` + convert-tool dropdown; the
+    registry itself (``get_supported_conversions()``) is untouched, so
+    ``/api/v1/convert`` pdf->pdf keeps working exactly as before.
+    """
+    conversions = get_supported_conversions()
+    filtered = {src: [tgt for tgt in tgts if tgt != src] for src, tgts in conversions.items()}
+    return {src: tgts for src, tgts in filtered.items() if tgts}
+
+
 _loaded = False
 
 

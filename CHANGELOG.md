@@ -9,6 +9,33 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — Web UI for the PDF structural-operation tools
+
+Three focused, bilingual (DE/EN) landing pages for the PDF page-extract /
+split / compress-to-target API added above — `/pdf/split`, `/pdf/extract`,
+`/pdf/compress` — each with its own SEO content (distinct search intent per
+tool), an embedded working tool, and an honest-limits / how-it-works / FAQ
+section. Ungated (free, no account, like the main Convert/Compress tool).
+**Honest compress UX:** the result reads `X-FileMorph-Converged` /
+`X-FileMorph-Recompressible-Images` and shows a plain amber notice — with the
+achieved size — when a PDF has nothing to recompress or the target wasn't
+fully reached, rather than claiming a compression that didn't happen; the
+download is offered regardless. Discoverable via the sitemap, `llms.txt`, the
+footer, the homepage, and a new "PDF tools" section on `/formats`.
+
+### Changed — identity conversion pairs hidden from user-facing listings
+
+`GET /api/v1/formats` and the `/formats` page / convert-tool dropdown no
+longer list a same-format pair (e.g. "PDF → PDF") as a *target* — offering it
+was a silent no-op re-save. A new `get_public_conversions()` filters the live
+registry for user-facing listings only; `/api/v1/convert` and the raw
+registry are unaffected (`pdf → pdf` still works via the API and backs the
+page-extract/split/compress routes above). The Convert card shows a hint
+linking to the dedicated PDF tools when the selected file is a PDF.
+`X-FileMorph-Converged` and `X-FileMorph-Recompressible-Images` were added to
+CORS `expose_headers` (same-origin today, but future-proofs the S1.5
+cross-origin upload split) alongside the Web UI change above.
+
 ### Added — PDF structural operations (page extract / split / compress-to-target)
 
 Three pure-Python *morph* operations on existing PDFs, each a dedicated

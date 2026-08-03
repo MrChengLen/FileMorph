@@ -79,6 +79,20 @@
       </section>
       {% endif %}
 
+      <!-- PDF-tools teaser — ungated core OSS feature (unlike the redact
+           teaser above, which is a paid Cloud-Edition add-on). Structural
+           PDF operations the generic converter dropdown doesn't cover. -->
+      <section class="border border-gray-800 rounded-xl px-5 py-4 space-y-2">
+        <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">{{ _('PDF tools') }}</p>
+        <h2 class="text-base font-semibold text-white">{{ _('Split, extract pages from, or compress a PDF') }}</h2>
+        <p class="text-xs text-gray-400 leading-relaxed">{{ _("Dedicated tools for structural PDF operations the converter above doesn't do: split every page into its own file, pull out a page range, or shrink toward a target size by recompressing embedded images.") }}</p>
+        <div class="flex flex-wrap gap-3 pt-1">
+          <a href="{{ localized_url('/pdf/split', current_prefix) }}" class="text-sm text-brand hover:underline">{{ _('Split PDF') }} →</a>
+          <a href="{{ localized_url('/pdf/extract', current_prefix) }}" class="text-sm text-brand hover:underline">{{ _('Extract PDF pages') }} →</a>
+          <a href="{{ localized_url('/pdf/compress', current_prefix) }}" class="text-sm text-brand hover:underline">{{ _('Compress PDF') }} →</a>
+        </div>
+      </section>
+
       {% if pricing_enabled %}
       <!-- Tier teaser — commercial offer surface. Limits come from
            quotas.py and the price strings from PRICE_*_DISPLAY env via
