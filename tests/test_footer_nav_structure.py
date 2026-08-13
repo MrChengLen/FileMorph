@@ -72,17 +72,27 @@ def test_footer_group_headings_render_de(client):
 
 
 def test_footer_tools_group_links(client):
-    """Split/Extract/Compress PDF + Formats are ungated — always present.
-    Redact PII is asserted separately (flag-gated). "All tools →" (/tools,
-    PR 2) is the first link in the group."""
+    """Split/Extract/Compress PDF + Compress-to-size + Formats are ungated —
+    always present. Redact PII is asserted separately (flag-gated). "All
+    tools →" (/tools, PR 2) is the first link in the group; "Compress to
+    size" (/compress, IA rework PR 4) comes right after the PDF entries."""
     footer = _footer(client.get("/en/").text)
-    for path in ("/en/pdf/split", "/en/pdf/extract", "/en/pdf/compress", "/en/formats"):
+    for path in (
+        "/en/pdf/split",
+        "/en/pdf/extract",
+        "/en/pdf/compress",
+        "/en/compress",
+        "/en/formats",
+    ):
         assert f'href="{path}"' in footer, f"Tools group missing {path}"
     assert 'href="/en/tools"' in footer
     tools_group = footer[footer.index('aria-label="Tools"') :]
     assert tools_group.index('href="/en/tools"') < tools_group.index('href="/en/pdf/split"'), (
         '"All tools →" must be the first link in the Tools group'
     )
+    assert tools_group.index('href="/en/pdf/compress"') < tools_group.index(
+        'href="/en/compress"'
+    ), '"Compress to size" must come after the PDF entries'
 
 
 def test_footer_product_group_links(client, pricing_enabled):

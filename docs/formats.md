@@ -44,7 +44,14 @@ Re-encode an image at a lower quality to reduce file size without changing forma
 
 > **Target-size compression** (`target_size_kb`) is supported for **JPEG, WebP and
 > AVIF** — the lossy formats where quality controls output size. PNG/TIFF are
-> lossless, so use `quality=` there instead.
+> lossless, so use `quality=` there instead. Video (`compress_video()`) only
+> takes a quality/CRF re-encode — there is no target-size mode for video.
+
+**Web UI:** the dedicated landing page for this is `/compress` — ungated,
+bilingual (DE/EN), the same embedded Convert/Compress tool as the homepage,
+pre-set to Compress mode. Its own target-size mode toggle is JPEG/WebP only
+(matching what the UI actually offers, a strict subset of the API's
+JPEG/WebP/AVIF); a video file always uses quality-based compression there.
 
 > **Note on AVIF / AV1 encode cost**: AVIF uses the AV1 codec, which is
 > significantly more CPU-intensive to encode than JPEG or WebP — a single image

@@ -43,6 +43,10 @@ _BASE_ROUTES: list[tuple[str, str]] = [
     ("/pdf/compress", "0.7"),
     ("/pdf/split", "0.6"),
     ("/pdf/extract", "0.6"),
+    # Image/video target-size landing page (IA rework PR 4) — ungated,
+    # same priority tier as /pdf/compress per the sitemap ladder in
+    # docs-internal/ia-navigation-konzept.md.
+    ("/compress", "0.7"),
 ]
 
 # AI / LLM crawlers we explicitly welcome. The wildcard ``User-agent: *``
@@ -202,6 +206,17 @@ async def llms_txt() -> str:
                 f"- [Compress a PDF]({base}/pdf/compress): shrink a PDF toward a "
                 "target size by recompressing its embedded images",
             ]
+            break
+    # /compress (IA rework PR 4) is a core, always-on OSS feature (image/video
+    # target-size compression) — inserted right after the PDF compress bullet
+    # above so the two "compress" tools read as a clear pair, not a duplicate.
+    for i, ln in enumerate(lines):
+        if ln.startswith("- [Compress a PDF]"):
+            lines.insert(
+                i + 1,
+                f"- [Compress an image or video]({base}/compress): shrink a JPEG "
+                "or WebP toward an exact target size in MB, or a video by quality",
+            )
             break
     # Per-pair landing pages (Phase 2) — generated from PAIR_CONTENT (the
     # content source of truth) so every curated pair appears here even if

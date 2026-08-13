@@ -149,6 +149,7 @@
               <a href="{{ localized_url('/pdf/split', current_prefix) }}" class="text-gray-500 hover:text-gray-300 transition-colors">{{ _('Split PDF') }}</a>
               <a href="{{ localized_url('/pdf/extract', current_prefix) }}" class="text-gray-500 hover:text-gray-300 transition-colors">{{ _('Extract PDF pages') }}</a>
               <a href="{{ localized_url('/pdf/compress', current_prefix) }}" class="text-gray-500 hover:text-gray-300 transition-colors">{{ _('Compress PDF') }}</a>
+              <a href="{{ localized_url('/compress', current_prefix) }}" class="text-gray-500 hover:text-gray-300 transition-colors">{{ _('Compress to size') }}</a>
               {% if ai_operations_enabled %}<a href="{{ localized_url('/redact', current_prefix) }}" class="text-gray-500 hover:text-gray-300 transition-colors">{{ _('Redact PII') }}</a>{% endif %}
               <a href="{{ localized_url('/formats', current_prefix) }}" class="text-gray-500 hover:text-gray-300 transition-colors">{{ _('Formats') }}</a>
             </nav>

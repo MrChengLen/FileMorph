@@ -1,15 +1,20 @@
-{# Interactive convert/compress tool card. Shared by the homepage (index.html)
-   and the per-pair landing pages (convert_pair.html) so the real, working tool
-   lives in exactly one place. Optional context vars `preset_source` /
-   `preset_target` (e.g. on /convert/jpg-to-pdf) are surfaced as data-attributes
-   on #drop-zone; app.js reads them and pre-selects the target format. CSP-safe:
-   no inline JS — only data-attributes + addEventListener in app.js.
+{# Interactive convert/compress tool card. Shared by the homepage (index.html),
+   the per-pair landing pages (convert_pair.html) and /compress
+   (compress.html) so the real, working tool lives in exactly one place.
+   Optional context vars `preset_source` / `preset_target` (e.g. on
+   /convert/jpg-to-pdf) are surfaced as data-attributes on #drop-zone;
+   app.js reads them and pre-selects the target format. CSP-safe: no
+   inline JS — only data-attributes + addEventListener in app.js.
 
    On pair pages (preset_source set):
    - The Convert/Compress mode toggle is hidden (pair = convert-only).
    - #supported-convert shows only the pair's source format label.
    - #file-input gets an `accept` attribute scoped to the source format
-     (preset_accept from convert_pair_page in pages.py). #}
+     (preset_accept from convert_pair_page in pages.py).
+
+   `preset_mode` (e.g. "compress" on /compress) is likewise surfaced as a
+   data-attribute; app.js calls the existing setMode() on init when it's
+   present, so the page opens in Compress mode without a dedicated JS path. #}
 {% import "_components/card.html" as uc %}
 {% import "_components/button.html" as ub %}
 {% call uc.card() %}
@@ -33,6 +38,7 @@
   <div id="drop-zone"
     data-preset-source="{{ preset_source|default('') }}"
     data-preset-target="{{ preset_target|default('') }}"
+    data-preset-mode="{{ preset_mode|default('') }}"
     class="border-2 border-dashed border-gray-700 rounded-xl p-6 sm:p-10 text-center cursor-pointer hover:border-brand transition-colors group"
     role="button" tabindex="0" aria-label="{{ _('Drop files here or click to browse') }}">
     {# On pair pages scope the file picker to the source format only.
