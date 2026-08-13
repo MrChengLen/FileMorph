@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% import "_components/card.html" as uc %}
+{% block title %}{{ content.title }} | FileMorph{% endblock %}
+{% block meta_description %}{{ content.meta }}{% endblock %}
+{% block content %}
+<main class="max-w-4xl mx-auto px-6 py-12 space-y-10 text-gray-300 text-sm leading-relaxed">
+
+  <div>
+    <a href="{{ localized_url('/', current_prefix) }}" class="text-sm text-gray-500 hover:text-gray-300 transition-colors">{{ _('← Back to converter') }}</a>
+    <h1 class="text-2xl font-bold mt-4 text-white">{{ content.h1 }}</h1>
+    <p class="text-gray-400 mt-2 max-w-2xl">{{ content.hero }}</p>
+  </div>
+
+  <!-- Convert & Compress — the single wide card is the sole discoverability
+       surface for the target-size-compress and multi-file-batch modes,
+       which have no URL of their own (Konsistenzregel #4). -->
+  <section class="space-y-4">
+    <h2 class="text-base font-semibold text-white">{{ _('Convert & compress') }}</h2>
+    {% call uc.card() %}
+    <div class="space-y-2">
+      <h3 class="text-base font-semibold text-ink">{{ content.cards.convert.title }}</h3>
+      <p class="text-sm text-ink-muted leading-relaxed">{{ content.cards.convert.desc }}</p>
+      <a href="{{ localized_url('/', current_prefix) }}" aria-label="{{ _('Open →') }} {{ content.cards.convert.title }}" class="inline-block text-sm text-brand hover:underline">{{ _('Open →') }}</a>
+    </div>
+    {% endcall %}
+  </section>
+
+  <!-- PDF tools — a family of 3 structural operations, so it gets its own
+       h2 section (category threshold: >=2 tools of a family). -->
+  <section class="space-y-4 border-t border-gray-800 pt-8">
+    <h2 class="text-base font-semibold text-white">{{ _('PDF tools') }}</h2>
+    <div class="grid sm:grid-cols-3 gap-6">
+      {% for pdf_tool in ['split', 'extract', 'compress'] %}
+      {% call uc.card() %}
+      <div class="space-y-2">
+        <h3 class="text-base font-semibold text-ink">{{ content.cards[pdf_tool].title }}</h3>
+        <p class="text-sm text-ink-muted leading-relaxed">{{ content.cards[pdf_tool].desc }}</p>
+        <a href="{{ localized_url('/pdf/' ~ pdf_tool, current_prefix) }}" aria-label="{{ _('Open →') }} {{ content.cards[pdf_tool].title }}" class="inline-block text-sm text-brand hover:underline">{{ _('Open →') }}</a>
+      </div>
+      {% endcall %}
+      {% endfor %}
+    </div>
+  </section>
+
+  {% if ai_operations_enabled %}
+  <!-- Privacy tools — commercial Cloud-Edition add-on, gated so a self-host
+       build never renders this section (G5). "(Pro)" is a plain-text title
+       suffix, not badge styling — see app/core/tools_content.py. -->
+  <section class="space-y-4 border-t border-gray-800 pt-8">
+    <h2 class="text-base font-semibold text-white">{{ _('Privacy tools') }}</h2>
+    {% call uc.card() %}
+    <div class="space-y-2">
+      <h3 class="text-base font-semibold text-ink">{{ content.cards.redact.title }}</h3>
+      <p class="text-sm text-ink-muted leading-relaxed">{{ content.cards.redact.desc }}</p>
+      <a href="{{ localized_url('/redact', current_prefix) }}" aria-label="{{ _('Open →') }} {{ content.cards.redact.title }}" class="inline-block text-sm text-brand hover:underline">{{ _('Open →') }}</a>
+    </div>
+    {% endcall %}
+  </section>
+  {% endif %}
+
+  <!-- Reverse cross-link — /formats is the format-first reference matrix,
+       this hub is operations-first; each links back to the other. -->
+  <p class="text-gray-500 text-xs border-t border-gray-800 pt-8">
+    {{ _('Looking up a specific format instead? Browse the') }}
+    <a href="{{ localized_url('/formats', current_prefix) }}" class="text-brand hover:underline">{{ _('conversion matrix →') }}</a>
+  </p>
+
+</main>
+{% endblock %}

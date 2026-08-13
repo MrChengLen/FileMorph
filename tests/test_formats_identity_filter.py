@@ -52,3 +52,47 @@ def test_homepage_has_pdf_tools_hint(client):
     r = client.get("/en/")
     assert r.status_code == 200
     assert 'id="pdf-tools-hint"' in r.text
+
+
+# ── /formats matrix chips: curated pairs are links, others stay spans ───────
+#
+# IA rework PR 2 (docs-internal/ia-navigation-konzept.md): a chip becomes a
+# clickable <a> to its /convert/<src>-to-<tgt> page ONLY when PAIR_CONTENT has
+# real hand-written content for it — everything else stays a plain <span>
+# (honest signal, same anti-thin-content policy this module's other tests
+# guard). png->jpg / jpg->bmp are both core Pillow formats with no optional
+# codec dependency, so they're always present in the registry regardless of
+# which optional converters (e.g. pillow-heif) are installed.
+
+
+def test_curated_pair_chip_is_a_link(client):
+    from app.core.convert_pairs import PAIR_CONTENT
+
+    assert ("png", "jpg") in PAIR_CONTENT, "test assumes png->jpg is curated"
+    r = client.get("/en/formats")
+    assert r.status_code == 200
+    assert '<a href="/en/convert/png-to-jpg"' in r.text
+
+
+def test_uncurated_pair_chip_stays_a_span(client):
+    from app.core.convert_pairs import PAIR_CONTENT
+
+    assert ("jpg", "bmp") not in PAIR_CONTENT, "test assumes jpg->bmp is NOT curated"
+    r = client.get("/en/formats")
+    assert r.status_code == 200
+    assert '<a href="/en/convert/jpg-to-bmp"' not in r.text
+    assert "<span" in r.text and ">BMP<" in r.text
+
+
+def test_formats_page_links_to_tools_hub(client):
+    r = client.get("/en/formats")
+    assert r.status_code == 200
+    main = r.text[r.text.index("<main") : r.text.index("</main>")]
+    assert 'href="/en/tools"' in main
+
+
+def test_tools_hub_links_back_to_formats(client):
+    r = client.get("/en/tools")
+    assert r.status_code == 200
+    main = r.text[r.text.index("<main") : r.text.index("</main>")]
+    assert 'href="/en/formats"' in main

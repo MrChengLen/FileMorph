@@ -142,7 +142,7 @@ Images: JPG, PNG, WebP, AVIF, TIFF · Video: MP4, MOV, AVI, MKV, WebM
 Compress mode supports both *by quality %* and *by target size MB*.
 Target-size compression covers the lossy image formats (JPEG, WebP, AVIF); AVIF/AV1 encode is more CPU-intensive than JPEG/WebP.
 
-**PDF tools:** split a PDF into single-page files, extract a page range, or compress toward a target size — via the web UI (`/pdf/split`, `/pdf/extract`, `/pdf/compress`) or the API; see [docs/formats.md](docs/formats.md#pdf-structural-operations).
+**PDF tools:** split a PDF into single-page files, extract a page range, or compress toward a target size — via the web UI (`/pdf/split`, `/pdf/extract`, `/pdf/compress`) or the API; see [docs/formats.md](docs/formats.md#pdf-structural-operations). All tool pages are listed at `/tools`.
 
 <sup>†</sup> Full PDF/A-2b conformance (passes
 [veraPDF](https://verapdf.org/) validation) requires

@@ -56,6 +56,29 @@
         </div>
       </section>
 
+      <!-- Related tools — de-dead-ending (IA rework PR 2): the sibling PDF
+           tool pages, /formats, and any curated convert pairs that are
+           topically relevant to this operation. -->
+      {% set _pdf_tool_labels = {
+        'split': _('Split PDF'),
+        'extract': _('Extract PDF pages'),
+        'compress': _('Compress PDF'),
+      } %}
+      <section class="border border-gray-800 rounded-xl px-5 py-4 space-y-2">
+        <h2 class="text-base font-semibold text-white">{{ _('Related tools') }}</h2>
+        <div class="flex flex-wrap gap-3 text-xs">
+          {% for other_tool, label in _pdf_tool_labels.items() %}
+          {% if other_tool != tool %}
+          <a href="{{ localized_url('/pdf/' ~ other_tool, current_prefix) }}" class="text-brand hover:underline">{{ label }} →</a>
+          {% endif %}
+          {% endfor %}
+          {% for pair in related_convert_pairs %}
+          <a href="{{ localized_url(pair.url_path, current_prefix) }}" class="text-brand hover:underline">{{ pair.label }}</a>
+          {% endfor %}
+          <a href="{{ localized_url('/formats', current_prefix) }}" class="text-brand hover:underline">{{ _('All formats') }} →</a>
+        </div>
+      </section>
+
     </div>
   </main>
 </div>

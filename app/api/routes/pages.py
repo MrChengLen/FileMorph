@@ -24,11 +24,18 @@ from app.compressors.video import _SUPPORTED_FORMATS as VIDEO_COMPRESS_FMTS
 from app.converters.registry import get_public_conversions, get_supported_conversions
 from app.core import pricing as pricing_mod
 from app.core.config import settings
-from app.core.convert_pairs import accept_attr, format_label, get_pair_content, related_pairs
+from app.core.convert_pairs import (
+    PAIR_CONTENT,
+    accept_attr,
+    format_label,
+    get_pair_content,
+    related_pairs,
+)
 from app.core.i18n import localized_context
 from app.core.pdf_tools_content import get_pdf_tool_content
 from app.core.redact_content import get_redact_content
 from app.core.templates import templates
+from app.core.tools_content import get_tools_content
 
 router = APIRouter(include_in_schema=False)
 
@@ -62,6 +69,24 @@ _CATEGORY_ORDER: tuple[str, ...] = (
     "video",
     "other",
 )
+
+# /pdf/{tool} "Related tools" cross-links (de-dead-ending, IA rework PR 2) —
+# curated PAIR_CONTENT pairs that are topically relevant to each structural
+# PDF operation, on top of the two sibling PDF tool pages. Only pairs that
+# exist in PAIR_CONTENT are ever listed here (no thin auto-links).
+_PDF_TOOL_RELATED_PAIRS: dict[str, tuple[tuple[str, str], ...]] = {
+    "split": (("docx", "pdf"),),
+    "extract": (("docx", "pdf"), ("eml", "pdf")),
+    "compress": (("docx", "pdf"), ("jpg", "pdf")),
+}
+# Import-time guard: an uncurated entry here would render a footer-style
+# link onto a 404 (G5) — fail loud at startup, not silently in prod.
+assert all(pair in PAIR_CONTENT for pairs in _PDF_TOOL_RELATED_PAIRS.values() for pair in pairs), (
+    "_PDF_TOOL_RELATED_PAIRS references an uncurated pair — that link would 404"
+)
+
+# Curated-pair membership for the /formats chip split — computed once.
+_CURATED_PAIRS = frozenset(PAIR_CONTENT)
 
 
 def _grouped_conversions() -> list[tuple[str, list[tuple[str, list[str]]]]]:
@@ -117,7 +142,21 @@ async def formats_page(request: Request):
         format_groups=_grouped_conversions(),
         compress_image=sorted(IMAGE_COMPRESS_FMTS),
         compress_video=sorted(VIDEO_COMPRESS_FMTS),
+        # Curated-pair membership test for the matrix chips — only pairs with
+        # real hand-written content (PAIR_CONTENT) become links; everything
+        # else stays a <span> (honest signal, anti-thin-content policy).
+        curated_pairs=_CURATED_PAIRS,
     )
+
+
+@router.get("/tools")
+async def tools_page(request: Request):
+    # Operations-first hub (IA rework PR 2, docs-internal/ia-navigation-konzept.md)
+    # — ungated and always-on, unlike /redact below. The Redact card inside the
+    # template is itself gated on ai_operations_enabled so a self-host build
+    # never advertises it.
+    locale = getattr(request.state, "locale", settings.lang_default)
+    return _render(request, "tools.html", content=get_tools_content(locale))
 
 
 @router.get("/convert/{pair_slug}")
@@ -299,12 +338,17 @@ async def pdf_tool_page(request: Request, tool: str):
         return templates.TemplateResponse(
             request, "404.html", context=localized_context(request), status_code=404
         )
+    related_convert_pairs = [
+        {"label": f"{format_label(s)} → {format_label(t)}", "url_path": f"/convert/{s}-to-{t}"}
+        for (s, t) in _PDF_TOOL_RELATED_PAIRS.get(tool, ())
+    ]
     return _render(
         request,
         "pdf_tool.html",
         content=content,
         tool=tool,
         pdf_accept=accept_attr("pdf"),
+        related_convert_pairs=related_convert_pairs,
     )
 
 
