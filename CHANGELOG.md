@@ -9,6 +9,28 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — /tools operations hub, /formats becomes format-first (IA rework PR 2)
+
+Second slice of the navigation/IA rework (`docs-internal/ia-navigation-konzept.md`).
+A new `/tools` page is the operations-first counterpart to the format-first
+`/formats` matrix: cards for Convert & Compress (the only place the
+compress-to-target-size and multi-file-batch modes are described, since
+neither has its own URL), the three PDF structural tools, and — gated on
+`ai_operations_enabled` — Redact PII, labelled "(Pro)" as plain text, no
+badge styling. The navbar's "Convert" item is now "Tools" (desktop + mobile)
+and links here; the footer's Tools group gets a new first link, "All tools
+→". `/formats` drops its 3-sub-block "PDF tools" section in favour of one
+cross-link to `/tools` (and vice versa); its conversion-matrix chips are now
+clickable `<a>` links to `/convert/<src>-to-<tgt>` for the 12 curated pairs,
+while uncurated chips stay plain `<span>`s (unchanged honest signal). Each
+`/pdf/{split,extract,compress}` page gets a new "Related tools" block after
+the FAQ, linking its two sibling PDF tools, `/formats`, and 1-2 topically
+relevant curated convert pairs (e.g. compress links `docx-to-pdf` and
+`jpg-to-pdf`) — fixing the previous dead end. `/tools` is listed in the
+sitemap (priority 0.8) and `llms.txt`, which also gains a "Conversions"
+section listing every curated pair URL — both generated from the existing
+registries, not hardcoded.
+
 ### Changed — footer regrouped into Tools/Product/Legal, redact nav-slot removed
 
 First slice of the navigation/IA rework (`docs-internal/ia-navigation-konzept.md`).

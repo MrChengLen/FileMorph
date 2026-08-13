@@ -199,11 +199,37 @@ def test_homepage_teaser_links_to_pdf_tools(client):
         assert f"/pdf/{tool}" in r.text
 
 
-def test_formats_page_links_to_pdf_tools(client):
+def test_formats_page_links_to_pdf_tools_via_tools_hub(client):
+    """IA rework PR 2: /formats no longer links the three PDF tool pages
+    directly (that 3-sub-block section was replaced by a single cross-link
+    to /tools, which is where they're now discoverable)."""
     r = client.get("/en/formats")
     assert r.status_code == 200
+    formats_main = r.text[r.text.index("<main") : r.text.index("</main>")]
+    assert 'href="/en/tools"' in formats_main
+    tools_hub = client.get("/en/tools")
+    assert tools_hub.status_code == 200
+    hub_main = tools_hub.text[tools_hub.text.index("<main") : tools_hub.text.index("</main>")]
     for tool in _TOOLS:
-        assert f"/pdf/{tool}" in r.text
+        assert f"/pdf/{tool}" in hub_main
+
+
+@pytest.mark.parametrize("tool", ["split", "extract", "compress"])
+def test_related_tools_section_links_siblings_and_curated_pairs(client, tool):
+    """De-dead-ending guard: each /pdf/* page links its two sibling tools
+    (never itself) and only PAIR_CONTENT-curated convert pairs (an
+    uncurated entry would 404 — see the import-time assert in pages.py)."""
+    from app.api.routes.pages import _PDF_TOOL_RELATED_PAIRS
+    from app.core.convert_pairs import PAIR_CONTENT
+
+    html = client.get(f"/en/pdf/{tool}").text
+    main = html[html.index("<main") : html.index("</main>")]
+    for sibling in {"split", "extract", "compress"} - {tool}:
+        assert f'href="/en/pdf/{sibling}"' in main
+    assert f'href="/en/pdf/{tool}"' not in main, "Related tools must not link itself"
+    for src, tgt in _PDF_TOOL_RELATED_PAIRS[tool]:
+        assert (src, tgt) in PAIR_CONTENT
+        assert f'href="/en/convert/{src}-to-{tgt}"' in main
 
 
 # ── deployment-agnostic + honest-compress wording ────────────────────────────

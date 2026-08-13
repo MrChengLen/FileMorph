@@ -18,7 +18,7 @@ from fastapi import APIRouter
 from fastapi.responses import PlainTextResponse, Response
 
 from app.core.config import settings
-from app.core.convert_pairs import PAIR_CONTENT
+from app.core.convert_pairs import PAIR_CONTENT, format_label
 from app.core.i18n import SUPPORTED_LOCALES, localized_url
 from app.core.jsonld import GITHUB_URL
 
@@ -31,6 +31,8 @@ router = APIRouter()
 # the same page rather than duplicates.
 _BASE_ROUTES: list[tuple[str, str]] = [
     ("/", "1.0"),
+    # Operations-first hub (IA rework PR 2) — ungated, always-on.
+    ("/tools", "0.8"),
     ("/formats", "0.5"),
     ("/privacy", "0.3"),
     ("/terms", "0.3"),
@@ -157,6 +159,8 @@ async def llms_txt() -> str:
         "",
         f"- [Convert & compress files]({base}/): the main tool — convert and "
         "compress files for free, no account",
+        f"- [All tools]({base}/tools): every FileMorph operation in one place "
+        "— convert, compress, split or extract PDF pages",
         f"- [Supported formats]({base}/formats): the full list of supported "
         "conversions, grouped by category",
         f"- [API documentation]({base}/docs): REST API reference for "
@@ -198,6 +202,21 @@ async def llms_txt() -> str:
                 f"- [Compress a PDF]({base}/pdf/compress): shrink a PDF toward a "
                 "target size by recompressing its embedded images",
             ]
+            break
+    # Per-pair landing pages (Phase 2) — generated from PAIR_CONTENT (the
+    # content source of truth) so every curated pair appears here even if
+    # the footer grid is ever capped to a subset.
+    conversions_section = (
+        ["## Conversions", ""]
+        + [
+            f"- [{format_label(src)} → {format_label(tgt)}]({base}/convert/{src}-to-{tgt})"
+            for src, tgt in PAIR_CONTENT
+        ]
+        + [""]
+    )
+    for i, ln in enumerate(lines):
+        if ln == "## About":
+            lines[i:i] = conversions_section
             break
     return "\n".join(lines)
 

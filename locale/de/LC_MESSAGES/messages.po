@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-13 07:32+0200\n"
+"POT-Creation-Date: 2026-08-13 19:33+0200\n"
 "PO-Revision-Date: 2026-05-08 11:00+0200\n"
 "Last-Translator: FileMorph <hallo@filemorph.io>\n"
 "Language: de\n"
@@ -276,6 +276,9 @@ msgstr ""
 "werden von der FileMorph-Domain ausgeliefert; dein Browser kontaktiert "
 "niemals ein Drittanbieter-CDN zum Rendern der Site."
 
+msgid "All formats"
+msgstr "Alle Formate"
+
 msgid "All formats + smart-tech"
 msgstr "Alle Formate + Smart-Tech"
 
@@ -295,6 +298,9 @@ msgid "All smart-tech: compress-to-target, EXIF strip, PDF/A, integrity hash"
 msgstr ""
 "Alle Smart-Tech-Funktionen: Kompression auf Zielgröße, EXIF-Entfernung, "
 "PDF/A, Integritäts-Hash"
+
+msgid "All tools →"
+msgstr "Alle Tools →"
 
 msgid "Already have an account?"
 msgstr "Hast du schon ein Konto?"
@@ -537,9 +543,6 @@ msgstr "Komprimieren"
 msgid "Compress PDF"
 msgstr "PDF verkleinern"
 
-msgid "Compress a PDF →"
-msgstr "PDF verkleinern →"
-
 msgid "Compress to a target size"
 msgstr "Auf eine Zielgröße komprimieren"
 
@@ -650,6 +653,9 @@ msgstr "%(src)s konvertieren in"
 
 msgid "Convert & Compress Files"
 msgstr "Dateien konvertieren & komprimieren"
+
+msgid "Convert & compress"
+msgstr "Konvertieren & komprimieren"
 
 msgid ""
 "Convert & compress files online free — HEIC, JPG, PNG, WebP, PDF, DOCX, "
@@ -893,9 +899,6 @@ msgstr ""
 
 msgid "Extract PDF pages"
 msgstr "PDF-Seiten extrahieren"
-
-msgid "Extract pages →"
-msgstr "Seiten extrahieren →"
 
 msgid "Failure rate (today)"
 msgstr "Fehlerrate (heute)"
@@ -1459,9 +1462,6 @@ msgstr ""
 "kommerzielle Lizenz, AVV-Vorlage, signiertes Docker-Image und Support-"
 "SLA."
 
-msgid "Keep only the pages you choose, e.g. 1-3,5."
-msgstr "Behalte nur die gewählten Seiten, z. B. 1-3,5."
-
 msgid ""
 "Kleinunternehmer gemäß §19 UStG — keine Umsatzsteuer ausgewiesen (no VAT "
 "charged, small-business rule, §19 German VAT Act). Payments processed by "
@@ -1508,12 +1508,18 @@ msgstr ""
 "Logo-Nennung als Pilotkunde (optional). Roadmap-Feedback alle vier "
 "Wochen. Bereitschaft, Feature-Tickets zu priorisieren."
 
+msgid "Looking for an operation instead of a format? Browse all tools →"
+msgstr "Suchst du einen Vorgang statt eines Formats? Alle Tools ansehen →"
+
 msgid ""
 "Looking to split, extract pages from, or compress a PDF? Try the "
 "dedicated PDF tools:"
 msgstr ""
 "Möchtest du ein PDF aufteilen, Seiten daraus extrahieren oder "
 "verkleinern? Nutze die dedizierten PDF-Tools:"
+
+msgid "Looking up a specific format instead? Browse the"
+msgstr "Suchst du eher ein bestimmtes Format? Hier ist die"
 
 msgid "MB per file."
 msgstr "MB pro Datei."
@@ -1620,9 +1626,6 @@ msgstr ""
 msgid "Notice"
 msgstr "Hinweis"
 
-msgid "One PDF page per file, bundled as a ZIP."
-msgstr "Eine PDF-Seite pro Datei, gebündelt als ZIP."
-
 msgid "One click and you're done"
 msgstr "Ein Klick und du bist fertig"
 
@@ -1649,6 +1652,9 @@ msgid ""
 msgstr ""
 "Öffne diesen Link, um ein neues Passwort festzulegen (30 Minuten gültig, "
 "einmalig verwendbar):"
+
+msgid "Open →"
+msgstr "Öffnen →"
 
 msgid "Operator staff with the"
 msgstr "Betreiber-Mitarbeiter mit der"
@@ -1843,6 +1849,9 @@ msgstr "Bitte mindestens eine Datei wählen."
 msgid "Popular conversions"
 msgstr "Beliebte Konvertierungen"
 
+msgid "Prefer operations over formats?"
+msgstr "Suchst du lieber nach einem Vorgang statt nach einem Format?"
+
 msgid "Price / year"
 msgstr "Preis / Jahr"
 
@@ -1864,6 +1873,9 @@ msgstr "Priorisierter Support (Best Effort)"
 
 msgid "Privacy Policy"
 msgstr "Datenschutzerklärung"
+
+msgid "Privacy tools"
+msgstr "Datenschutz-Tools"
 
 msgid "Pro"
 msgstr "Pro"
@@ -2039,6 +2051,9 @@ msgstr "Registrierung fehlgeschlagen."
 msgid "Related conversions"
 msgstr "Verwandte Konvertierungen"
 
+msgid "Related tools"
+msgstr "Verwandte Tools"
+
 msgid "Remove"
 msgstr "Entfernen"
 
@@ -2180,6 +2195,9 @@ msgstr "Siehe"
 msgid "See all plans →"
 msgstr "Alle Tarife anzeigen →"
 
+msgid "See all tools"
+msgstr "Alle Tools ansehen"
+
 msgid "See every supported conversion on the"
 msgstr "Alle unterstützten Konvertierungen findest du auf der"
 
@@ -2281,13 +2299,6 @@ msgstr "Letzte 7 Tage anzeigen"
 msgid "Show last 90 days"
 msgstr "Letzte 90 Tage anzeigen"
 
-msgid ""
-"Shrinks embedded images toward a target size — honestly reports when "
-"there's nothing to recompress."
-msgstr ""
-"Komprimiert eingebettete Bilder in Richtung einer Zielgröße — meldet "
-"ehrlich, wenn nichts zu rekomprimieren ist."
-
 msgid "Sign In"
 msgstr "Anmelden"
 
@@ -2354,9 +2365,6 @@ msgstr "Quellcode"
 
 msgid "Split PDF"
 msgstr "PDF aufteilen"
-
-msgid "Split a PDF →"
-msgstr "PDF aufteilen →"
 
 msgid "Split, extract pages from, or compress a PDF"
 msgstr "PDF aufteilen, Seiten extrahieren oder verkleinern"
@@ -2703,6 +2711,9 @@ msgstr "Vertrauensbasis vor dem Vertrag"
 
 msgid "Try PII redaction →"
 msgstr "PII-Schwärzung ausprobieren →"
+
+msgid "Try it on the converter →"
+msgstr "Im Konverter ausprobieren →"
 
 msgid "Type it again"
 msgstr "Erneut eingeben"
@@ -3187,6 +3198,9 @@ msgstr "gleichzeitig"
 msgid "contact form"
 msgstr "Kontaktformular"
 
+msgid "conversion matrix →"
+msgstr "Konvertierungsmatrix →"
+
 msgid "converter"
 msgstr "Konverter"
 
@@ -3472,4 +3486,28 @@ msgstr "← Zurück zum Konverter"
 
 msgid "← Prev"
 msgstr "← Zurück"
+
+#~ msgid "Compress a PDF →"
+#~ msgstr "PDF verkleinern →"
+
+#~ msgid "Extract pages →"
+#~ msgstr "Seiten extrahieren →"
+
+#~ msgid "Keep only the pages you choose, e.g. 1-3,5."
+#~ msgstr "Behalte nur die gewählten Seiten, z. B. 1-3,5."
+
+#~ msgid "One PDF page per file, bundled as a ZIP."
+#~ msgstr "Eine PDF-Seite pro Datei, gebündelt als ZIP."
+
+#~ msgid ""
+#~ "Shrinks embedded images toward a target"
+#~ " size — honestly reports when there's"
+#~ " nothing to recompress."
+#~ msgstr ""
+#~ "Komprimiert eingebettete Bilder in Richtung"
+#~ " einer Zielgröße — meldet ehrlich, "
+#~ "wenn nichts zu rekomprimieren ist."
+
+#~ msgid "Split a PDF →"
+#~ msgstr "PDF aufteilen →"
 

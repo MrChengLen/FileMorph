@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph 1.1.0\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-13 07:32+0200\n"
+"POT-Creation-Date: 2026-08-13 19:33+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -248,6 +248,9 @@ msgid ""
 "to render the site."
 msgstr ""
 
+msgid "All formats"
+msgstr ""
+
 msgid "All formats + smart-tech"
 msgstr ""
 
@@ -259,6 +262,9 @@ msgid ""
 msgstr ""
 
 msgid "All smart-tech: compress-to-target, EXIF strip, PDF/A, integrity hash"
+msgstr ""
+
+msgid "All tools →"
 msgstr ""
 
 msgid "Already have an account?"
@@ -465,9 +471,6 @@ msgstr ""
 msgid "Compress PDF"
 msgstr ""
 
-msgid "Compress a PDF →"
-msgstr ""
-
 msgid "Compress to a target size"
 msgstr ""
 
@@ -567,6 +570,9 @@ msgid "Convert %(src)s to"
 msgstr ""
 
 msgid "Convert & Compress Files"
+msgstr ""
+
+msgid "Convert & compress"
 msgstr ""
 
 msgid ""
@@ -788,9 +794,6 @@ msgid ""
 msgstr ""
 
 msgid "Extract PDF pages"
-msgstr ""
-
-msgid "Extract pages →"
 msgstr ""
 
 msgid "Failure rate (today)"
@@ -1203,9 +1206,6 @@ msgid ""
 "license, DPA template, signed Docker image and support SLA."
 msgstr ""
 
-msgid "Keep only the pages you choose, e.g. 1-3,5."
-msgstr ""
-
 msgid ""
 "Kleinunternehmer gemäß §19 UStG — keine Umsatzsteuer ausgewiesen (no VAT "
 "charged, small-business rule, §19 German VAT Act). Payments processed by "
@@ -1246,9 +1246,15 @@ msgid ""
 "weeks. Willingness to prioritize feature tickets."
 msgstr ""
 
+msgid "Looking for an operation instead of a format? Browse all tools →"
+msgstr ""
+
 msgid ""
 "Looking to split, extract pages from, or compress a PDF? Try the "
 "dedicated PDF tools:"
+msgstr ""
+
+msgid "Looking up a specific format instead? Browse the"
 msgstr ""
 
 msgid "MB per file."
@@ -1350,9 +1356,6 @@ msgstr ""
 msgid "Notice"
 msgstr ""
 
-msgid "One PDF page per file, bundled as a ZIP."
-msgstr ""
-
 msgid "One click and you're done"
 msgstr ""
 
@@ -1374,6 +1377,9 @@ msgstr ""
 msgid ""
 "Open this link to choose a new password (valid for 30 minutes, single-"
 "use):"
+msgstr ""
+
+msgid "Open →"
 msgstr ""
 
 msgid "Operator staff with the"
@@ -1539,6 +1545,9 @@ msgstr ""
 msgid "Popular conversions"
 msgstr ""
 
+msgid "Prefer operations over formats?"
+msgstr ""
+
 msgid "Price / year"
 msgstr ""
 
@@ -1557,6 +1566,9 @@ msgid "Priority support (best effort)"
 msgstr ""
 
 msgid "Privacy Policy"
+msgstr ""
+
+msgid "Privacy tools"
 msgstr ""
 
 msgid "Pro"
@@ -1691,6 +1703,9 @@ msgstr ""
 msgid "Related conversions"
 msgstr ""
 
+msgid "Related tools"
+msgstr ""
+
 msgid "Remove"
 msgstr ""
 
@@ -1817,6 +1832,9 @@ msgstr ""
 msgid "See all plans →"
 msgstr ""
 
+msgid "See all tools"
+msgstr ""
+
 msgid "See every supported conversion on the"
 msgstr ""
 
@@ -1908,11 +1926,6 @@ msgstr ""
 msgid "Show last 90 days"
 msgstr ""
 
-msgid ""
-"Shrinks embedded images toward a target size — honestly reports when "
-"there's nothing to recompress."
-msgstr ""
-
 msgid "Sign In"
 msgstr ""
 
@@ -1972,9 +1985,6 @@ msgid "Source code"
 msgstr ""
 
 msgid "Split PDF"
-msgstr ""
-
-msgid "Split a PDF →"
 msgstr ""
 
 msgid "Split, extract pages from, or compress a PDF"
@@ -2248,6 +2258,9 @@ msgid "Trust basis before contract"
 msgstr ""
 
 msgid "Try PII redaction →"
+msgstr ""
+
+msgid "Try it on the converter →"
 msgstr ""
 
 msgid "Type it again"
@@ -2619,6 +2632,9 @@ msgid "concurrent"
 msgstr ""
 
 msgid "contact form"
+msgstr ""
+
+msgid "conversion matrix →"
 msgstr ""
 
 msgid "converter"

@@ -91,14 +91,16 @@ def test_footer_group_headings_render_de(client):
 
 def test_footer_tools_group_links(client):
     """Split/Extract/Compress PDF + Formats are ungated — always present.
-    Redact PII and "Alle Tools →" are asserted separately (flag-gated /
-    deferred to PR 2)."""
+    Redact PII is asserted separately (flag-gated). "All tools →" (/tools,
+    PR 2) is the first link in the group."""
     footer = _footer(client.get("/en/").text)
     for path in ("/en/pdf/split", "/en/pdf/extract", "/en/pdf/compress", "/en/formats"):
         assert f'href="{path}"' in footer, f"Tools group missing {path}"
-    # PR 2 adds the /tools hub — must not link it before the route exists.
-    assert 'href="/en/tools"' not in footer
-    assert 'href="/tools"' not in footer
+    assert 'href="/en/tools"' in footer
+    tools_group = footer[footer.index('aria-label="Tools"') :]
+    assert tools_group.index('href="/en/tools"') < tools_group.index('href="/en/pdf/split"'), (
+        '"All tools →" must be the first link in the Tools group'
+    )
 
 
 def test_footer_product_group_links(client, pricing_enabled):
@@ -190,10 +192,10 @@ def test_nav_ai_slot_ids_gone_even_when_ai_enabled(client, redact_enabled):
 def test_mobile_nav_language_switcher_immediately_before_auth_block(client):
     r = client.get("/en/").text
     menu_start = r.index('id="nav-mobile-menu"')
-    convert_pos = r.index(">Convert<", menu_start)
+    tools_pos = r.index(">Tools<", menu_start)
     switcher_pos = r.index('role="group"', menu_start)
     auth_pos = r.index('id="nav-auth-mobile"', menu_start)
-    assert convert_pos < switcher_pos < auth_pos, (
+    assert tools_pos < switcher_pos < auth_pos, (
         "mobile nav order must be: menu items, then language switcher, then auth"
     )
     # "immediately": no further menu link renders between switcher and auth.
