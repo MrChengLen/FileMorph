@@ -9,6 +9,17 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed — homepage "More tools" section, heading hierarchy fix (IA rework PR 3)
+
+Third slice of the navigation/IA rework (`docs-internal/ia-navigation-konzept.md`).
+The homepage's two separate tool teasers — the gated Redact card and the ungated
+PDF-tools card — are merged into one "More tools" / "Weitere Tools" section: PDF
+Split/Extract/Compress, Redact PII (still gated on `ai_operations_enabled`), and a
+closing "All tools →" link to `/tools` (reusing the same label the footer's Tools
+group already uses). The Plans and For-Developers blocks now use a real `<h2>`
+instead of a decorative eyebrow `<p>` (WCAG 1.3.1 heading hierarchy) — same
+classes, no copy change.
+
 ### Added — /tools operations hub, /formats becomes format-first (IA rework PR 2)
 
 Second slice of the navigation/IA rework (`docs-internal/ia-navigation-konzept.md`).

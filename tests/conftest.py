@@ -71,3 +71,25 @@ def sample_txt(tmp_path) -> Path:
     path = tmp_path / "sample.txt"
     path.write_text("Hello FileMorph!\nLine two.\nLine three.")
     return path
+
+
+@pytest.fixture
+def redact_enabled():
+    """Flip the AI-redaction gate on BOTH surfaces that read it: ``settings``
+    (route-level 404 gate, read per request) and the Jinja global (template
+    ``{% if %}``, set once at import). Shared by the redact-page, footer and
+    homepage test modules — keep the two flips together or pages and their
+    discovery surfaces disagree."""
+    from app.core.config import settings
+    from app.core.templates import templates
+
+    s = settings.__dict__
+    saved_s = {k: s.get(k) for k in ("ai_operations_enabled", "ai_eligible_tiers")}
+    s.update(ai_operations_enabled=True, ai_eligible_tiers="pro,business,enterprise")
+    g = templates.env.globals
+    saved_g = {k: g.get(k) for k in ("ai_operations_enabled", "ai_eligible_tiers")}
+    g["ai_operations_enabled"] = True
+    g["ai_eligible_tiers"] = ["pro", "business", "enterprise"]
+    yield
+    s.update(saved_s)
+    g.update(saved_g)

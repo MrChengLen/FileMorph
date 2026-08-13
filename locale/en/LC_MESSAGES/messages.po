@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-13 19:33+0200\n"
+"POT-Creation-Date: 2026-08-13 20:55+0200\n"
 "PO-Revision-Date: 2026-05-07 13:43+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -657,9 +657,8 @@ msgid "Deactivated"
 msgstr ""
 
 msgid ""
-"Dedicated tools for structural PDF operations the converter above doesn't"
-" do: split every page into its own file, pull out a page range, or shrink"
-" toward a target size by recompressing embedded images."
+"Dedicated tools beyond the converter above: split, extract, or compress a"
+" PDF, and more."
 msgstr ""
 
 msgid "Delete account"
@@ -684,11 +683,6 @@ msgid "Documented API endpoints and the web UI."
 msgstr ""
 
 msgid "Documents"
-msgstr ""
-
-msgid ""
-"Doesn't yet detect free-text names or addresses, and PDF isn't supported "
-"yet — it assists your review, it doesn't replace it."
 msgstr ""
 
 msgid "Download PDF"
@@ -906,13 +900,6 @@ msgid ""
 "server-side and deleted immediately after the converted output is "
 "returned to you. No file content is stored, logged, or retained in any "
 "form."
-msgstr ""
-
-msgid ""
-"Find and remove IBANs, emails, phone numbers, IP addresses and credit-"
-"card numbers from TXT, DOCX and XLSX. Preview every finding for free, "
-"then download the redacted file. Runs on our EU servers — no third-party "
-"AI — and the file is deleted right after."
 msgstr ""
 
 msgid ""
@@ -1291,6 +1278,9 @@ msgid ""
 "starve the whole worker pool — requests past the cap return"
 msgstr ""
 
+msgid "More tools"
+msgstr ""
+
 msgid "Most popular"
 msgstr ""
 
@@ -1575,9 +1565,6 @@ msgstr ""
 msgid "Pro"
 msgstr ""
 
-msgid "Pro feature"
-msgstr ""
-
 msgid "Process another file"
 msgstr ""
 
@@ -1642,9 +1629,6 @@ msgid "Redact & download"
 msgstr ""
 
 msgid "Redact PII"
-msgstr ""
-
-msgid "Redact PII before you share a file"
 msgstr ""
 
 msgid "Redact another file"
@@ -1990,9 +1974,6 @@ msgstr ""
 msgid "Split PDF"
 msgstr ""
 
-msgid "Split, extract pages from, or compress a PDF"
-msgstr ""
-
 msgid "Spreadsheets"
 msgstr ""
 
@@ -2258,9 +2239,6 @@ msgid "Tracking disabled — set"
 msgstr ""
 
 msgid "Trust basis before contract"
-msgstr ""
-
-msgid "Try PII redaction →"
 msgstr ""
 
 msgid "Try it on the converter →"
@@ -2931,5 +2909,44 @@ msgstr ""
 #~ msgstr ""
 
 #~ msgid "Split a PDF →"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "Dedicated tools for structural PDF "
+#~ "operations the converter above doesn't "
+#~ "do: split every page into its own"
+#~ " file, pull out a page range, "
+#~ "or shrink toward a target size by"
+#~ " recompressing embedded images."
+#~ msgstr ""
+
+#~ msgid ""
+#~ "Doesn't yet detect free-text names "
+#~ "or addresses, and PDF isn't supported"
+#~ " yet — it assists your review, "
+#~ "it doesn't replace it."
+#~ msgstr ""
+
+#~ msgid ""
+#~ "Find and remove IBANs, emails, phone "
+#~ "numbers, IP addresses and credit-card"
+#~ " numbers from TXT, DOCX and XLSX. "
+#~ "Preview every finding for free, then "
+#~ "download the redacted file. Runs on "
+#~ "our EU servers — no third-party"
+#~ " AI — and the file is deleted"
+#~ " right after."
+#~ msgstr ""
+
+#~ msgid "Pro feature"
+#~ msgstr ""
+
+#~ msgid "Redact PII before you share a file"
+#~ msgstr ""
+
+#~ msgid "Split, extract pages from, or compress a PDF"
+#~ msgstr ""
+
+#~ msgid "Try PII redaction →"
 #~ msgstr ""
 
