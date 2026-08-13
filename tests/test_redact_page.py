@@ -7,25 +7,6 @@ import). Tests patch BOTH so the enabled and inert states are exercised. Inert i
 the default (no env var), so the disabled-state tests need no fixture.
 """
 
-import pytest
-
-from app.core.config import settings
-from app.core.templates import templates
-
-
-@pytest.fixture
-def redact_enabled():
-    s = settings.__dict__
-    saved_s = {k: s.get(k) for k in ("ai_operations_enabled", "ai_eligible_tiers")}
-    s.update(ai_operations_enabled=True, ai_eligible_tiers="pro,business,enterprise")
-    g = templates.env.globals
-    saved_g = {k: g.get(k) for k in ("ai_operations_enabled", "ai_eligible_tiers")}
-    g["ai_operations_enabled"] = True
-    g["ai_eligible_tiers"] = ["pro", "business", "enterprise"]
-    yield
-    s.update(saved_s)
-    g.update(saved_g)
-
 
 # ── page route gating ──────────────────────────────────────────────────────
 

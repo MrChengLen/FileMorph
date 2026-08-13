@@ -66,30 +66,24 @@
         </div>
       </section>
 
-      {% if ai_operations_enabled %}
-      <!-- PII-redaction teaser — paid Cloud-Edition add-on. Gated on
-           ai_operations_enabled so a self-host / inert build (where /redact 404s)
-           never links it. Free detect preview is the hook; apply is the upsell. -->
+      {# More tools — IA rework PR 3 (docs-internal/ia-navigation-konzept.md):
+         merges what used to be two separate teasers (gated Redact + ungated
+         PDF tools) into one tile row, closed by a link to the full /tools hub.
+         Redact stays gated on ai_operations_enabled — same rule as the
+         footer's Tools group and the /tools hub's Redact card — so a
+         self-host / inert build (where the redact route 404s) never links
+         it. Jinja comment on purpose: never shipped over the wire. #}
       <section class="border border-gray-800 rounded-xl px-5 py-4 space-y-2">
-        <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">{{ _('Pro feature') }}</p>
-        <h2 class="text-base font-semibold text-white">{{ _('Redact PII before you share a file') }}</h2>
-        <p class="text-xs text-gray-400 leading-relaxed">{{ _('Find and remove IBANs, emails, phone numbers, IP addresses and credit-card numbers from TXT, DOCX and XLSX. Preview every finding for free, then download the redacted file. Runs on our EU servers — no third-party AI — and the file is deleted right after.') }}</p>
-        <p class="text-xs text-gray-600 leading-relaxed">{{ _('Doesn\'t yet detect free-text names or addresses, and PDF isn\'t supported yet — it assists your review, it doesn\'t replace it.') }}</p>
-        <a href="{{ localized_url('/redact', current_prefix) }}" class="inline-block text-sm text-brand hover:underline">{{ _('Try PII redaction →') }}</a>
-      </section>
-      {% endif %}
-
-      <!-- PDF-tools teaser — ungated core OSS feature (unlike the redact
-           teaser above, which is a paid Cloud-Edition add-on). Structural
-           PDF operations the generic converter dropdown doesn't cover. -->
-      <section class="border border-gray-800 rounded-xl px-5 py-4 space-y-2">
-        <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">{{ _('PDF tools') }}</p>
-        <h2 class="text-base font-semibold text-white">{{ _('Split, extract pages from, or compress a PDF') }}</h2>
-        <p class="text-xs text-gray-400 leading-relaxed">{{ _("Dedicated tools for structural PDF operations the converter above doesn't do: split every page into its own file, pull out a page range, or shrink toward a target size by recompressing embedded images.") }}</p>
+        <h2 class="text-base font-semibold text-white">{{ _('More tools') }}</h2>
+        <p class="text-xs text-gray-400 leading-relaxed">{{ _('Dedicated tools beyond the converter above: split, extract, or compress a PDF, and more.') }}</p>
         <div class="flex flex-wrap gap-3 pt-1">
           <a href="{{ localized_url('/pdf/split', current_prefix) }}" class="text-sm text-brand hover:underline">{{ _('Split PDF') }} →</a>
           <a href="{{ localized_url('/pdf/extract', current_prefix) }}" class="text-sm text-brand hover:underline">{{ _('Extract PDF pages') }} →</a>
           <a href="{{ localized_url('/pdf/compress', current_prefix) }}" class="text-sm text-brand hover:underline">{{ _('Compress PDF') }} →</a>
+          {% if ai_operations_enabled %}
+          <a href="{{ localized_url('/redact', current_prefix) }}" class="text-sm text-brand hover:underline">{{ _('Redact PII') }} (Pro) →</a>
+          {% endif %}
+          <a href="{{ localized_url('/tools', current_prefix) }}" class="text-sm text-brand hover:underline">{{ _('All tools →') }}</a>
         </div>
       </section>
 
@@ -102,7 +96,7 @@
            PRICE_PRO_DISPLAY), the chip shows only the tier name + limits. -->
       <div class="border border-gray-800 rounded-xl px-5 py-4 space-y-3">
         <div class="flex items-center justify-between">
-          <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">{{ _('Plans') }}</p>
+          <h2 class="text-xs font-semibold uppercase tracking-wider text-gray-500">{{ _('Plans') }}</h2>
           <a href="{{ localized_url('/pricing', current_prefix) }}" class="text-xs text-brand hover:underline">{{ _('See all plans →') }}</a>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-center text-xs">
@@ -132,7 +126,7 @@
 
       <!-- Developer API teaser -->
       <div class="border border-gray-800 rounded-xl px-5 py-4 space-y-2">
-        <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">{{ _('For Developers') }}</p>
+        <h2 class="text-xs font-semibold uppercase tracking-wider text-gray-500">{{ _('For Developers') }}</h2>
         <p class="text-xs text-gray-400">{{ _('Integrate file conversion into your app via REST API. One endpoint, all formats.') }}</p>
         <pre class="text-xs text-emerald-400 bg-gray-900 rounded-lg px-3 py-2 overflow-x-auto font-mono">curl -X POST https://filemorph.io/api/v1/convert \
   -H "X-API-Key: YOUR_KEY" \
