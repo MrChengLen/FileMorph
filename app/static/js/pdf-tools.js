@@ -27,6 +27,10 @@
   // later not-converged/no-images run on the same page load must restore this
   // neutral text instead of sitting under a stale "Compressed to X MB" claim.
   const DEFAULT_SUMMARY = ($('pdf-result-summary') && $('pdf-result-summary').textContent) || '';
+  // Same capture-once pattern for the download-button label — the no-op
+  // compress branch (no recompressible images) relabels it to "Download
+  // unchanged file" so it never implies a compression that didn't happen.
+  const DEFAULT_DOWNLOAD_LABEL = ($('pdf-download-label') && $('pdf-download-label').textContent) || '';
 
   // Translate with {token} substitution.
   function t(key, fallback, vars) {
@@ -44,9 +48,22 @@
     return h;
   }
 
-  function showError(msg) {
+  // Upsell link (Upsell-Regeln): only next to the three quota-error codes
+  // below, only when pricing_enabled — #pdf-error-upsell then doesn't exist
+  // in the DOM at all on a self-host build without a pricing surface, hence
+  // the null-guard.
+  const UPSELL_ERROR_CODES = ['input_too_large', 'output_cap_exceeded', 'target_size_exceeds_cap'];
+
+  function setUpsellVisible(visible) {
+    const link = $('pdf-error-upsell');
+    if (!link) return;
+    link.classList.toggle('hidden', !visible);
+  }
+
+  function showError(msg, code) {
     hide($('pdf-progress'));
     $('pdf-error-text').textContent = msg;
+    setUpsellVisible(UPSELL_ERROR_CODES.includes(code));
     show($('pdf-error'));
   }
 
@@ -172,6 +189,10 @@
     // Restore the neutral summary first — a previous converged run may have
     // overwritten it, and its stale claim must never survive into this run.
     $('pdf-result-summary').textContent = DEFAULT_SUMMARY;
+    // Same restore-first pattern for the download label — only the no-images
+    // branch below overrides it.
+    const label = $('pdf-download-label');
+    if (label) label.textContent = DEFAULT_DOWNLOAD_LABEL;
     const achieved = res.headers.get('X-FileMorph-Achieved-Bytes');
     const converged = res.headers.get('X-FileMorph-Converged');
     const images = res.headers.get('X-FileMorph-Recompressible-Images');
@@ -187,6 +208,8 @@
         { size: mb }
       );
       show(note);
+      // Honest label: never imply a compression that didn't happen.
+      if (label) label.textContent = t('pdfDownloadUnchanged', 'Download unchanged file');
     } else if (converged !== 'true') {
       note.textContent = t(
         'pdfCompressNotConverged',
@@ -223,6 +246,8 @@
       }
       // Server rejects target_kb > 2 GB via form validation (422 with an
       // array detail) — catch it here with the proper message instead.
+      // No error code passed: this is a hard form ceiling no plan can lift,
+      // so the plans upsell must NOT appear (Upsell-Regeln).
       if (mb > 2048) {
         showError(t('errorTargetSizeExceedsCap', 'Target size exceeds the allowed maximum.'));
         return;
@@ -231,6 +256,7 @@
     }
 
     hide($('pdf-error'));
+    setUpsellVisible(false);
     hide($('pdf-result'));
     show($('pdf-progress'));
 
@@ -249,7 +275,7 @@
       if (!res.ok) {
         let data = {};
         try { data = await res.json(); } catch (_) { /* binary/no body */ }
-        showError(errorFromResponse(res, data));
+        showError(errorFromResponse(res, data), res.headers.get('X-FileMorph-Error-Code'));
         return;
       }
 
@@ -279,8 +305,11 @@
       URL.revokeObjectURL(link.href);
       link.removeAttribute('href');
     }
+    const label = $('pdf-download-label');
+    if (label) label.textContent = DEFAULT_DOWNLOAD_LABEL;
     hide($('pdf-result'));
     hide($('pdf-error'));
+    setUpsellVisible(false);
     hide($('pdf-pages-warn'));
   }
 

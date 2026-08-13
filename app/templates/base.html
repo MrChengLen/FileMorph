@@ -46,7 +46,6 @@
   <link rel="stylesheet" href="/static/css/style.css" />
 </head>
 <body class="h-full bg-gray-950 text-gray-100 font-sans" data-api-base="{{ api_base_url }}"
-  data-ai-enabled="{{ 'true' if ai_operations_enabled else '' }}"
   data-ai-eligible="{{ ai_eligible_tiers|join(',') if ai_operations_enabled else '' }}">
 
   <!-- B-4: Shared navbar -->
@@ -65,9 +64,6 @@
     </button>
     <div id="nav-menu" class="hidden md:flex items-center gap-6 text-sm">
       <a href="{{ localized_url('/', current_prefix) }}" class="text-gray-400 hover:text-white transition-colors">{{ _('Convert') }}</a>
-      {# /redact nav link: rendered client-side by auth.js into this slot, only
-         for a logged-in user whose tier is eligible (no wall for free/anon). #}
-      {% if ai_operations_enabled %}<span id="nav-ai-slot" class="contents"></span>{% endif %}
       {# Ungated: points to the always-rendered #self-hosted section on the
          homepage, so the OSS/self-host story is reachable on every
          deployment (incl. self-host where /enterprise 404s). #}
@@ -97,7 +93,14 @@
     </div>
   </nav>
   <div id="nav-mobile-menu" class="hidden md:hidden border-t border-gray-800 bg-gray-950 px-6 py-4 space-y-3 text-sm">
-    <div role="group" aria-label="{{ _('Language') }}" class="flex items-center gap-3 border-b border-gray-800 pb-3 mb-1">
+    <a href="{{ localized_url('/', current_prefix) }}" class="block text-gray-400 hover:text-white transition-colors py-2.5">{{ _('Convert') }}</a>
+    <a href="{{ localized_url('/', current_prefix) }}#self-hosted" class="block text-gray-400 hover:text-white transition-colors py-2.5">{{ _('Self-Hosted') }}</a>
+    {% if pricing_enabled %}<a href="{{ localized_url('/pricing', current_prefix) }}" class="block text-gray-400 hover:text-white transition-colors py-2.5">{{ _('Pricing') }}</a>{% endif %}
+    {% if pricing_enabled %}<a href="{{ localized_url('/enterprise', current_prefix) }}" class="block text-gray-400 hover:text-white transition-colors py-2.5">{{ _('Enterprise') }}</a>{% endif %}
+    <a href="/docs" target="_blank" class="block text-gray-400 hover:text-white transition-colors py-2.5">{{ _('API Docs') }}</a>
+    <a href="https://github.com/MrChengLen/FileMorph" target="_blank"
+       class="block text-gray-400 hover:text-white transition-colors py-2.5">GitHub ↗</a>
+    <div role="group" aria-label="{{ _('Language') }}" class="flex items-center gap-3 border-t border-gray-800 pt-3 mt-1">
       <a href="{{ localized_url(base_path, 'de') }}"
          hreflang="de"
          aria-label="{{ _('Switch to German') }}"
@@ -110,14 +113,6 @@
          {% if locale == 'en' %}aria-current="true"{% endif %}
          class="text-xs uppercase tracking-wider {% if locale == 'en' %}text-white font-semibold{% else %}text-gray-500{% endif %}">EN</a>
     </div>
-    <a href="{{ localized_url('/', current_prefix) }}" class="block text-gray-400 hover:text-white transition-colors py-2.5">{{ _('Convert') }}</a>
-    {% if ai_operations_enabled %}<span id="nav-ai-slot-mobile"></span>{% endif %}
-    <a href="{{ localized_url('/', current_prefix) }}#self-hosted" class="block text-gray-400 hover:text-white transition-colors py-2.5">{{ _('Self-Hosted') }}</a>
-    {% if pricing_enabled %}<a href="{{ localized_url('/pricing', current_prefix) }}" class="block text-gray-400 hover:text-white transition-colors py-2.5">{{ _('Pricing') }}</a>{% endif %}
-    {% if pricing_enabled %}<a href="{{ localized_url('/enterprise', current_prefix) }}" class="block text-gray-400 hover:text-white transition-colors py-2.5">{{ _('Enterprise') }}</a>{% endif %}
-    <a href="/docs" target="_blank" class="block text-gray-400 hover:text-white transition-colors py-2.5">{{ _('API Docs') }}</a>
-    <a href="https://github.com/MrChengLen/FileMorph" target="_blank"
-       class="block text-gray-400 hover:text-white transition-colors py-2.5">GitHub ↗</a>
     <div id="nav-auth-mobile">
       <a href="{{ localized_url('/login', current_prefix) }}" class="block text-gray-400 hover:text-white transition-colors py-2.5">{{ _('Sign In') }}</a>
       <a href="{{ localized_url('/register', current_prefix) }}" class="block text-brand hover:text-white py-2.5">{{ _('Register') }}</a>
@@ -140,21 +135,43 @@
           {% endfor %}
         </nav>
       </div>
-      <div class="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-gray-800/60 pt-4">
-        <span>{{ _('© 2026 FileMorph — AGPLv3 Open Source') }}</span>
-        <nav class="flex flex-wrap items-center justify-center gap-4">
-          <a href="{{ localized_url('/formats', current_prefix) }}" class="hover:text-gray-400 transition-colors">{{ _('Formats') }}</a>
-          <a href="{{ localized_url('/pdf/split', current_prefix) }}" class="hover:text-gray-400 transition-colors">{{ _('Split PDF') }}</a>
-          <a href="{{ localized_url('/pdf/extract', current_prefix) }}" class="hover:text-gray-400 transition-colors">{{ _('Extract PDF pages') }}</a>
-          <a href="{{ localized_url('/pdf/compress', current_prefix) }}" class="hover:text-gray-400 transition-colors">{{ _('Compress PDF') }}</a>
-          {% if ai_operations_enabled %}<a href="{{ localized_url('/redact', current_prefix) }}" class="hover:text-gray-400 transition-colors">{{ _('Redact PII') }}</a>{% endif %}
-          <a href="{{ localized_url('/privacy', current_prefix) }}" class="hover:text-gray-400 transition-colors">{{ _('Privacy Policy') }}</a>
-          <a href="{{ localized_url('/terms', current_prefix) }}" class="hover:text-gray-400 transition-colors">{{ _('Terms of Use') }}</a>
-          <a href="{{ localized_url('/impressum', current_prefix) }}" class="hover:text-gray-400 transition-colors">{{ _('Impressum') }}</a>
-          <a href="{{ localized_url('/contact', current_prefix) }}" class="hover:text-gray-400 transition-colors">{{ _('Contact') }}</a>
-          <a href="/docs" target="_blank" class="hover:text-gray-400 transition-colors">{{ _('API Docs') }}</a>
-          <a href="https://github.com/MrChengLen/FileMorph" target="_blank" class="hover:text-gray-400 transition-colors">GitHub ↗</a>
-        </nav>
+      <div class="border-t border-gray-800/60 pt-4 space-y-4">
+        <p>{{ _('© 2026 FileMorph — AGPLv3 Open Source') }}</p>
+        <!-- Three curated link groups (IA-rework PR 1, docs-internal/ia-navigation-konzept.md).
+             "Alle Tools →" (/tools) lands in PR 2 once the hub route exists — G5 forbids
+             linking a self-host 404. Same label styling as the Popular-conversions heading
+             above (uppercase micro-label <p> + aria-labelled <nav>). -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          <div class="space-y-2">
+            <p class="font-semibold uppercase tracking-wider text-gray-600">{{ _('Tools') }}</p>
+            <nav class="flex flex-col space-y-1" aria-label="{{ _('Tools') }}">
+              <a href="{{ localized_url('/pdf/split', current_prefix) }}" class="text-gray-500 hover:text-gray-300 transition-colors">{{ _('Split PDF') }}</a>
+              <a href="{{ localized_url('/pdf/extract', current_prefix) }}" class="text-gray-500 hover:text-gray-300 transition-colors">{{ _('Extract PDF pages') }}</a>
+              <a href="{{ localized_url('/pdf/compress', current_prefix) }}" class="text-gray-500 hover:text-gray-300 transition-colors">{{ _('Compress PDF') }}</a>
+              {% if ai_operations_enabled %}<a href="{{ localized_url('/redact', current_prefix) }}" class="text-gray-500 hover:text-gray-300 transition-colors">{{ _('Redact PII') }}</a>{% endif %}
+              <a href="{{ localized_url('/formats', current_prefix) }}" class="text-gray-500 hover:text-gray-300 transition-colors">{{ _('Formats') }}</a>
+            </nav>
+          </div>
+          <div class="space-y-2">
+            <p class="font-semibold uppercase tracking-wider text-gray-600">{{ _('Product') }}</p>
+            <nav class="flex flex-col space-y-1" aria-label="{{ _('Product') }}">
+              <a href="{{ localized_url('/', current_prefix) }}#self-hosted" class="text-gray-500 hover:text-gray-300 transition-colors">{{ _('Self-Hosted') }}</a>
+              {% if pricing_enabled %}<a href="{{ localized_url('/pricing', current_prefix) }}" class="text-gray-500 hover:text-gray-300 transition-colors">{{ _('Pricing') }}</a>{% endif %}
+              {% if pricing_enabled %}<a href="{{ localized_url('/enterprise', current_prefix) }}" class="text-gray-500 hover:text-gray-300 transition-colors">{{ _('Enterprise') }}</a>{% endif %}
+              <a href="/docs" target="_blank" class="text-gray-500 hover:text-gray-300 transition-colors">{{ _('API Docs') }}</a>
+              <a href="https://github.com/MrChengLen/FileMorph" target="_blank" class="text-gray-500 hover:text-gray-300 transition-colors">GitHub ↗</a>
+            </nav>
+          </div>
+          <div class="space-y-2">
+            <p class="font-semibold uppercase tracking-wider text-gray-600">{{ _('Legal') }}</p>
+            <nav class="flex flex-col space-y-1" aria-label="{{ _('Legal') }}">
+              <a href="{{ localized_url('/privacy', current_prefix) }}" class="text-gray-500 hover:text-gray-300 transition-colors">{{ _('Privacy Policy') }}</a>
+              <a href="{{ localized_url('/terms', current_prefix) }}" class="text-gray-500 hover:text-gray-300 transition-colors">{{ _('Terms of Use') }}</a>
+              <a href="{{ localized_url('/impressum', current_prefix) }}" class="text-gray-500 hover:text-gray-300 transition-colors">{{ _('Impressum') }}</a>
+              <a href="{{ localized_url('/contact', current_prefix) }}" class="text-gray-500 hover:text-gray-300 transition-colors">{{ _('Contact') }}</a>
+            </nav>
+          </div>
+        </div>
       </div>
     </div>
   </footer>

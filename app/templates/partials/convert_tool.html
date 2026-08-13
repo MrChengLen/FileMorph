@@ -224,8 +224,17 @@
     </a>
   </div>
 
-  <div id="error-section" class="hidden">
+  <div id="error-section" class="hidden text-center space-y-2">
     <p id="error-text" class="text-red-400 text-sm text-center bg-red-950 rounded-lg py-3 px-4"></p>
+    {# Quota-error upsell (Upsell-Regeln, docs-internal/ia-navigation-konzept.md):
+       only next to a real limit, only when pricing_enabled, free alternative
+       named first in #error-text — this link is an addition, not a
+       replacement. Un-hidden by app.js for input_too_large /
+       output_cap_exceeded / target_size_exceeds_cap only. #}
+    {% if pricing_enabled %}
+    <a id="convert-error-upsell" href="{{ localized_url('/pricing', current_prefix) }}"
+      class="hidden inline-block text-xs px-3 py-1.5 rounded-lg border border-gray-700 text-gray-200 hover:border-brand hover:text-white transition-colors">{{ _('See plans and limits →') }}</a>
+    {% endif %}
   </div>
 
 </div>

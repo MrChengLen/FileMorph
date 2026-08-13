@@ -9,6 +9,27 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed — footer regrouped into Tools/Product/Legal, redact nav-slot removed
+
+First slice of the navigation/IA rework (`docs-internal/ia-navigation-konzept.md`).
+The footer's flat link row is now three named, server-rendered groups — Tools
+(Split/Extract/Compress PDF, Redact PII*, Formats), Product (Self-Hosted,
+Pricing*, Enterprise*, API Docs, GitHub), Legal (Privacy, Terms, Impressum,
+Contact) — same label styling as the unchanged "Popular conversions" grid;
+the copyright line moved onto its own line. The client-side-hydrated
+`#nav-ai-slot` / `#nav-ai-slot-mobile` (`auth.js`'s `_renderAiNavLink`) is
+gone: Redact PII is no longer a navbar item, discoverable via the footer
+(flag-gated) and homepage teaser only, so every nav/footer link is now
+server-rendered in the raw HTML (CSP hardening — visibility never depends on
+a client-side fetch). Mobile nav order now matches desktop (language switcher
+moved to just before the auth block). Quota-error states (`input_too_large` /
+`output_cap_exceeded` / `target_size_exceeds_cap`) on the PDF tools and the
+main Convert/Compress tool now show a "See plans and limits →" link next to
+the existing honest error text, only when `pricing_enabled` (self-host builds
+render no element). PDF-compress's "nothing to recompress" outcome now labels
+the download button "Download unchanged file" instead of the default
+"Download PDF", so it never implies a compression that didn't happen.
+
 ### Added — Web UI for the PDF structural-operation tools
 
 Three focused, bilingual (DE/EN) landing pages for the PDF page-extract /

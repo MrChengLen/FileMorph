@@ -238,11 +238,21 @@ _TOOL_SCOPED_IDS = {
 }
 
 
-def test_partial_provides_every_dom_id_the_js_queries(client):
+def test_partial_provides_every_dom_id_the_js_queries(client, monkeypatch):
     """pdf-tools.js has no runtime test — pin its DOM contract instead: every
     id the script queries via $('...') must exist in the rendered page(s) of
     the tool(s) it applies to, so a partial rename cannot break the tool
-    silently."""
+    silently.
+
+    #pdf-error-upsell only renders when ``pricing_enabled`` (self-host builds
+    without a pricing surface render no element at all — pdf-tools.js
+    null-guards it). Force it on here so the DOM contract is checked against
+    the maximal render; the pricing-off case is covered separately by
+    tests/test_footer_nav_structure.py.
+    """
+    from app.core.templates import templates
+
+    monkeypatch.setitem(templates.env.globals, "pricing_enabled", True)
     js_path = Path(__file__).resolve().parents[1] / "app" / "static" / "js" / "pdf-tools.js"
     ids = set(re.findall(r"\$\('([a-z-]+)'\)", js_path.read_text(encoding="utf-8")))
     assert ids, "id-extraction regex matched nothing — did the $ helper change?"
@@ -250,3 +260,24 @@ def test_partial_provides_every_dom_id_the_js_queries(client):
     for dom_id in sorted(ids):
         for tool in _TOOL_SCOPED_IDS.get(dom_id, set(_TOOLS)):
             assert f'id="{dom_id}"' in pages[tool], f"#{dom_id} missing on /pdf/{tool}"
+
+
+def test_every_js_i18n_key_exists_in_catalogue(client):
+    """Companion to the DOM-id contract: every FM_I18N key the tool scripts
+    look up must exist in the served #fm-i18n-strings blob — a typo'd key
+    would silently ship the English fallback literal on /de/."""
+    import json
+
+    static = Path(__file__).resolve().parents[1] / "app" / "static" / "js"
+    used: set[str] = set()
+    for script in ("pdf-tools.js", "app.js"):
+        js = (static / script).read_text(encoding="utf-8")
+        used.update(re.findall(r"\bt\('([A-Za-z0-9]+)'", js))
+        used.update(re.findall(r"FM_I18N\.([A-Za-z0-9]+)", js))
+    used -= {"key"}  # generic accessor in helper docs/comments, not a key
+    html = client.get("/en/").text
+    blob = html[html.index('id="fm-i18n-strings"') :]
+    blob = blob[blob.index(">") + 1 : blob.index("</script>")]
+    served = set(json.loads(blob))
+    missing = sorted(used - served)
+    assert not missing, f"JS references FM_I18N keys absent from the catalogue: {missing}"

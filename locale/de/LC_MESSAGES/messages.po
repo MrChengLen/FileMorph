@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-07-31 09:16+0200\n"
+"POT-Creation-Date: 2026-08-13 07:32+0200\n"
 "PO-Revision-Date: 2026-05-08 11:00+0200\n"
 "Last-Translator: FileMorph <hallo@filemorph.io>\n"
 "Language: de\n"
@@ -793,6 +793,9 @@ msgstr "ZIP herunterladen"
 msgid "Download redacted file"
 msgstr "Geschwärzte Datei herunterladen"
 
+msgid "Download unchanged file"
+msgstr "Unveränderte Datei herunterladen"
+
 msgid "Downloading the redacted file needs a paid plan"
 msgstr "Das Herunterladen der geschwärzten Datei erfordert einen bezahlten Tarif"
 
@@ -909,8 +912,12 @@ msgstr "Datei-Konvertierung und -Kompression — Open Source, selbst hostbar."
 msgid "File conversion mode"
 msgstr "Datei-Konvertierungs-Modus"
 
-msgid "File too large for your plan. Upgrade or use a smaller file."
-msgstr "Datei zu groß für Ihren Plan. Upgrade oder kleinere Datei verwenden."
+msgid ""
+"File too large for your plan. Use a smaller file — or upgrade for larger "
+"uploads."
+msgstr ""
+"Datei zu groß für Ihren Plan. Verwenden Sie eine kleinere Datei — oder "
+"upgraden Sie für größere Uploads."
 
 msgid "FileMorph Compliance Edition"
 msgstr "FileMorph Compliance Edition"
@@ -1472,6 +1479,9 @@ msgstr "Stand: 22.06.2026 · Community + Cloud Edition"
 msgid "Last used"
 msgstr "Zuletzt verwendet"
 
+msgid "Legal"
+msgstr "Rechtliches"
+
 msgid "Legal notice pursuant to § 5 DDG (Germany)."
 msgstr "Angaben gemäß § 5 DDG."
 
@@ -1867,6 +1877,9 @@ msgstr "Weitere Datei verarbeiten"
 msgid "Processing…"
 msgstr "Verarbeitung…"
 
+msgid "Product"
+msgstr "Produkt"
+
 msgid ""
 "Public authorities, hospitals and law firms often may not process citizen"
 " and client data through public cloud conversion services — the GDPR data"
@@ -2175,6 +2188,9 @@ msgstr "Zur Lizenzierung →"
 
 msgid "See plans"
 msgstr "Tarife ansehen"
+
+msgid "See plans and limits →"
+msgstr "Tarife und Limits ansehen →"
 
 msgid "See the Compliance Edition →"
 msgstr "Zur Compliance Edition →"
@@ -2672,6 +2688,9 @@ msgstr "Zu viele Versuche. Bitte versuche es später erneut."
 
 msgid "Too many requests. Please wait a moment and try again."
 msgstr "Zu viele Anfragen. Bitte warte einen Moment und versuche es erneut."
+
+msgid "Tools"
+msgstr "Tools"
 
 msgid "Top conversion pairs (transforms only)"
 msgstr "Top-Format-Paare (nur Transforms)"
