@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-07-31 09:16+0200\n"
+"POT-Creation-Date: 2026-08-13 07:32+0200\n"
 "PO-Revision-Date: 2026-05-07 13:43+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -697,6 +697,9 @@ msgstr ""
 msgid "Download redacted file"
 msgstr ""
 
+msgid "Download unchanged file"
+msgstr ""
+
 msgid "Downloading the redacted file needs a paid plan"
 msgstr ""
 
@@ -806,7 +809,9 @@ msgstr ""
 msgid "File conversion mode"
 msgstr ""
 
-msgid "File too large for your plan. Upgrade or use a smaller file."
+msgid ""
+"File too large for your plan. Use a smaller file — or upgrade for larger "
+"uploads."
 msgstr ""
 
 msgid "FileMorph Compliance Edition"
@@ -1217,6 +1222,9 @@ msgstr ""
 msgid "Last used"
 msgstr ""
 
+msgid "Legal"
+msgstr ""
+
 msgid "Legal notice pursuant to § 5 DDG (Germany)."
 msgstr ""
 
@@ -1564,6 +1572,9 @@ msgstr ""
 msgid "Processing…"
 msgstr ""
 
+msgid "Product"
+msgstr ""
+
 msgid ""
 "Public authorities, hospitals and law firms often may not process citizen"
 " and client data through public cloud conversion services — the GDPR data"
@@ -1816,6 +1827,9 @@ msgid "See licensing →"
 msgstr ""
 
 msgid "See plans"
+msgstr ""
+
+msgid "See plans and limits →"
 msgstr ""
 
 msgid "See the Compliance Edition →"
@@ -2222,6 +2236,9 @@ msgid "Too many attempts. Please try again later."
 msgstr ""
 
 msgid "Too many requests. Please wait a moment and try again."
+msgstr ""
+
+msgid "Tools"
 msgstr ""
 
 msgid "Top conversion pairs (transforms only)"
@@ -2874,5 +2891,8 @@ msgstr ""
 #~ "Returns a ZIP with one PDF per "
 #~ "page (page_001.pdf, page_002.pdf, …), capped"
 #~ " at 10,000 pages."
+#~ msgstr ""
+
+#~ msgid "File too large for your plan. Upgrade or use a smaller file."
 #~ msgstr ""
 

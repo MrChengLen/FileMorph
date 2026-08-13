@@ -19,6 +19,18 @@ let presetTarget = '';
 
 const TARGET_SIZE_FORMATS = ['jpg', 'jpeg', 'webp'];
 
+// Upsell link (Upsell-Regeln, docs-internal/ia-navigation-konzept.md): only
+// next to the three quota-error codes below, only when pricing_enabled —
+// #convert-error-upsell then doesn't exist in the DOM at all on a self-host
+// build without a pricing surface, hence the null-guard.
+const UPSELL_ERROR_CODES = ['input_too_large', 'output_cap_exceeded', 'target_size_exceeds_cap'];
+
+function setConvertErrorUpsell(visible) {
+  const link = document.getElementById('convert-error-upsell');
+  if (!link) return;
+  link.classList.toggle('hidden', !visible);
+}
+
 // ── Initialisation ────────────────────────────────────────────────────────────
 
 async function init() {
@@ -783,7 +795,7 @@ async function submitForm() {
         } else {
           msg = data.detail || 'File too large for your plan.';
         }
-        showError(msg);
+        showError(msg, errCode);
       } else if (res.status === 429) {
         showError('Too many requests. Please wait a moment and try again.');
       } else {
@@ -861,6 +873,7 @@ function showProgress(text) {
   // doesn't display stale warnings while the new request is in flight.
   hideConversionWarnings();
   hideBatchSummary();
+  setConvertErrorUpsell(false);
   document.getElementById('convert-btn').disabled = true;
 }
 
@@ -869,20 +882,23 @@ function showResult() {
   document.getElementById('result-section').classList.remove('hidden');
   document.getElementById('error-section').classList.add('hidden');
   document.getElementById('convert-btn').disabled = false;
+  setConvertErrorUpsell(false);
 }
 
-function showError(msg) {
+function showError(msg, code) {
   document.getElementById('error-text').textContent = msg;
   document.getElementById('progress-section').classList.add('hidden');
   document.getElementById('result-section').classList.add('hidden');
   document.getElementById('error-section').classList.remove('hidden');
   document.getElementById('convert-btn').disabled = false;
+  setConvertErrorUpsell(UPSELL_ERROR_CODES.includes(code));
 }
 
 function resetResultState() {
   document.getElementById('progress-section').classList.add('hidden');
   document.getElementById('result-section').classList.add('hidden');
   document.getElementById('error-section').classList.add('hidden');
+  setConvertErrorUpsell(false);
   document.getElementById('convert-btn').disabled = false;
 }
 

@@ -90,9 +90,9 @@
           d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
       </svg>
       {% if tool == 'split' %}
-      <span>{{ _('Download ZIP') }}</span>
+      <span id="pdf-download-label">{{ _('Download ZIP') }}</span>
       {% else %}
-      <span>{{ _('Download PDF') }}</span>
+      <span id="pdf-download-label">{{ _('Download PDF') }}</span>
       {% endif %}
     </a>
     <button id="pdf-restart" class="block mx-auto text-xs text-gray-600 hover:text-white transition-colors">
@@ -100,8 +100,17 @@
     </button>
   </div>
 
-  <div id="pdf-error" class="hidden">
+  <div id="pdf-error" class="hidden text-center space-y-2">
     <p id="pdf-error-text" class="text-red-400 text-sm text-center bg-red-950 rounded-lg py-3 px-4"></p>
+    {# Quota-error upsell (Upsell-Regeln, docs-internal/ia-navigation-konzept.md):
+       only next to a real limit, only when pricing_enabled, free alternative
+       named first in #pdf-error-text — this link is an addition, not a
+       replacement. Un-hidden by pdf-tools.js for input_too_large /
+       output_cap_exceeded / target_size_exceeds_cap only. #}
+    {% if pricing_enabled %}
+    <a id="pdf-error-upsell" href="{{ localized_url('/pricing', current_prefix) }}"
+      class="hidden inline-block text-xs px-3 py-1.5 rounded-lg border border-gray-700 text-gray-200 hover:border-brand hover:text-white transition-colors">{{ _('See plans and limits →') }}</a>
+    {% endif %}
   </div>
 
 </div>

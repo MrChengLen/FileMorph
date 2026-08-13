@@ -58,9 +58,18 @@ def test_redact_no_cost_structure_leak(client, redact_enabled):
         assert tok not in blob, f"margin/model leak on /redact: {tok!r}"
 
 
-def test_redact_nav_slot_present_when_enabled(client, redact_enabled):
-    # The eligible-only nav link is hydrated client-side into this slot.
-    assert 'id="nav-ai-slot"' in client.get("/en/redact").text
+def test_redact_footer_link_present_when_enabled_no_nav_slot(client, redact_enabled):
+    """IA-rework PR 1: the client-side-hydrated nav slot (auth.js's
+    _renderAiNavLink, eligible-user-only) is gone — every nav/footer link
+    must be server-rendered in the raw HTML (G6 CSP). Redact discoverability
+    now lives in the footer's Tools group, gated only by the flag, so it
+    renders regardless of auth state (there is no auth-conditional branch
+    left in the server-rendered markup at all)."""
+    r = client.get("/en/redact")
+    assert 'id="nav-ai-slot"' not in r.text
+    assert 'id="nav-ai-slot-mobile"' not in r.text
+    footer = r.text[r.text.index("<footer") :]
+    assert 'href="/en/redact"' in footer  # footer Tools-group link
 
 
 # ── discovery surfaces gated together ──────────────────────────────────────
