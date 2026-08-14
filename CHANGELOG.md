@@ -9,6 +9,27 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — /compress landing page (IA rework PR 4)
+
+Final slice of the navigation/IA rework (`docs-internal/ia-navigation-konzept.md`).
+Compress-to-a-target-size — the product's flagship differentiator — gets its own
+URL: `/compress` embeds the same Convert/Compress tool as the homepage, pre-set
+to Compress mode via a `data-preset-mode` attribute (`app.js` calls the existing
+`setMode('compress')` on init when it's present; CSP-safe, no inline JS), plus an
+honest-limits section, a 3-step "how it works", a "when to use it" paragraph, an
+FAQ (one entry states plainly that exact target-size compression only works for
+JPEG/WebP — video and PNG/TIFF compress by quality instead), a "PDFs?" pointer to
+`/pdf/compress`, and a related-tools row. Title/meta deliberately never say
+"pdf" (cannibalization guard — the PDF slice of this query space stays on
+`/pdf/compress`). `/tools` gets a second card, "Compress to a target size",
+next to Convert & Compress; the Convert card's own description no longer
+claims video hits an exact target (it never could — `compress_video()` only
+takes a quality/CRF re-encode) and now only names batch conversion, its one
+remaining URL-less mode. `/formats`' "Compress to a target size" CTA now
+points at `/compress` instead of `/`, and its intro paragraph gets the same
+video-target-size correction. Sitemap (`priority=0.7`, matching `/pdf/compress`)
+and `llms.txt` list the new page in the same commit.
+
 ### Changed — homepage "More tools" section, heading hierarchy fix (IA rework PR 3)
 
 Third slice of the navigation/IA rework (`docs-internal/ia-navigation-konzept.md`).

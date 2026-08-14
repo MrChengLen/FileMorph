@@ -16,7 +16,7 @@
     <a href="{{ localized_url('/', current_prefix) }}" class="text-sm text-gray-500 hover:text-gray-300 transition-colors">{{ _('← Back to converter') }}</a>
     <h1 class="text-2xl font-bold mt-4 text-white">{{ _('Supported file formats') }}</h1>
     <p class="text-gray-400 mt-2 max-w-2xl">
-      {{ _('FileMorph converts between the formats below and compresses images and video to an exact target size. Everything runs for free, with no account — or self-host it under AGPLv3. Pick any pair and start on the') }}
+      {{ _('FileMorph converts between the formats below and compresses images to an exact target size (video too, by quality). Everything runs for free, with no account — or self-host it under AGPLv3. Pick any pair and start on the') }}
       <a href="{{ localized_url('/', current_prefix) }}" class="text-brand hover:underline">{{ _('converter') }}</a>.
       {{ _('Prefer operations over formats?') }}
       <a href="{{ localized_url('/tools', current_prefix) }}" class="text-brand hover:underline">{{ _('See all tools') }}</a>.
@@ -54,8 +54,8 @@
   <section class="space-y-3">
     <h2 class="text-base font-semibold text-white border-b border-gray-800 pb-2">{{ _('Compress to a target size') }}</h2>
     <p class="text-gray-400 max-w-2xl">
-      {{ _('FileMorph can shrink a file to an exact target size (for example 5 MB) using a binary search — useful for upload limits and email attachments.') }}
-      <a href="{{ localized_url('/', current_prefix) }}" class="text-brand hover:underline">{{ _('Try it on the converter →') }}</a>
+      {{ _('FileMorph can shrink a JPEG or WebP image to an exact target size (for example 5 MB) using a binary search — useful for upload limits and email attachments.') }}
+      <a href="{{ localized_url('/compress', current_prefix) }}" class="text-brand hover:underline">{{ _('Try the compressor →') }}</a>
     </p>
     <div class="grid sm:grid-cols-2 gap-x-8 gap-y-4">
       <div class="space-y-1.5">

@@ -11,18 +11,28 @@
     <p class="text-gray-400 mt-2 max-w-2xl">{{ content.hero }}</p>
   </div>
 
-  <!-- Convert & Compress — the single wide card is the sole discoverability
-       surface for the target-size-compress and multi-file-batch modes,
-       which have no URL of their own (Konsistenzregel #4). -->
+  <!-- Convert & Compress — the Convert card is the sole discoverability
+       surface for multi-file batch conversion, a mode with no URL of its
+       own (Konsistenzregel #4). Compress-to-a-target-size graduated to its
+       own card + page (/compress, IA rework PR 4) once it got a URL. -->
   <section class="space-y-4">
     <h2 class="text-base font-semibold text-white">{{ _('Convert & compress') }}</h2>
-    {% call uc.card() %}
-    <div class="space-y-2">
-      <h3 class="text-base font-semibold text-ink">{{ content.cards.convert.title }}</h3>
-      <p class="text-sm text-ink-muted leading-relaxed">{{ content.cards.convert.desc }}</p>
-      <a href="{{ localized_url('/', current_prefix) }}" aria-label="{{ _('Open →') }} {{ content.cards.convert.title }}" class="inline-block text-sm text-brand hover:underline">{{ _('Open →') }}</a>
+    <div class="grid md:grid-cols-2 gap-6">
+      {% call uc.card() %}
+      <div class="space-y-2">
+        <h3 class="text-base font-semibold text-ink">{{ content.cards.convert.title }}</h3>
+        <p class="text-sm text-ink-muted leading-relaxed">{{ content.cards.convert.desc }}</p>
+        <a href="{{ localized_url('/', current_prefix) }}" aria-label="{{ _('Open →') }} {{ content.cards.convert.title }}" class="inline-block text-sm text-brand hover:underline">{{ _('Open →') }}</a>
+      </div>
+      {% endcall %}
+      {% call uc.card() %}
+      <div class="space-y-2">
+        <h3 class="text-base font-semibold text-ink">{{ content.cards.compress_target.title }}</h3>
+        <p class="text-sm text-ink-muted leading-relaxed">{{ content.cards.compress_target.desc }}</p>
+        <a href="{{ localized_url('/compress', current_prefix) }}" aria-label="{{ _('Open →') }} {{ content.cards.compress_target.title }}" class="inline-block text-sm text-brand hover:underline">{{ _('Open →') }}</a>
+      </div>
+      {% endcall %}
     </div>
-    {% endcall %}
   </section>
 
   <!-- PDF tools — a family of 3 structural operations, so it gets its own

@@ -24,6 +24,7 @@ from app.compressors.video import _SUPPORTED_FORMATS as VIDEO_COMPRESS_FMTS
 from app.converters.registry import get_public_conversions, get_supported_conversions
 from app.core import pricing as pricing_mod
 from app.core.config import settings
+from app.core.compress_content import get_compress_content
 from app.core.convert_pairs import (
     PAIR_CONTENT,
     accept_attr,
@@ -157,6 +158,21 @@ async def tools_page(request: Request):
     # never advertises it.
     locale = getattr(request.state, "locale", settings.lang_default)
     return _render(request, "tools.html", content=get_tools_content(locale))
+
+
+@router.get("/compress")
+async def compress_page(request: Request):
+    # Image/video target-size landing page (IA rework PR 4) — ungated core
+    # OSS feature, same posture as /pdf/{tool} below. Embeds the same tool
+    # partial as the homepage, pre-set to Compress mode via preset_mode (a
+    # data-attribute read by app.js — see partials/convert_tool.html).
+    locale = getattr(request.state, "locale", settings.lang_default)
+    return _render(
+        request,
+        "compress.html",
+        content=get_compress_content(locale),
+        preset_mode="compress",
+    )
 
 
 @router.get("/convert/{pair_slug}")

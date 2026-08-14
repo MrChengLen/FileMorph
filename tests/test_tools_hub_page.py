@@ -82,14 +82,17 @@ def test_tools_page_localised(client):
     assert en["h1"] != de["h1"]
 
 
-def test_convert_card_mentions_target_size_and_batch_both_locales():
+def test_convert_card_mentions_batch_both_locales():
     """The Convert & Compress card is the sole discoverability surface for
-    the target-size-compress and multi-file-batch modes (they have no URL
-    of their own) — its description must name both, in each locale."""
+    multi-file batch conversion, a mode with no URL of its own — its
+    description must name it, in each locale. Compress-to-a-target-size used
+    to live here too under the same rule, until IA rework PR 4 gave it a
+    dedicated page (/compress) and its own adjacent card — see
+    test_compress_page.py::test_compress_target_card_links_compress_page."""
     en = TOOLS_CONTENT["en"]["cards"]["convert"]["desc"]
     de = TOOLS_CONTENT["de"]["cards"]["convert"]["desc"]
-    assert "target size" in en and "batch" in en
-    assert "Zielgröße" in de and "Stapelverarbeitung" in de
+    assert "batch" in en
+    assert "Stapelverarbeitung" in de
 
 
 def _main(html: str) -> str:

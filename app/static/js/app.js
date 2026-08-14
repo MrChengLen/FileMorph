@@ -63,6 +63,14 @@ document.addEventListener('DOMContentLoaded', () => {
     dz.addEventListener('dragover', handleDragOver);
     dz.addEventListener('dragleave', handleDragLeave);
     dz.addEventListener('drop', handleDrop);
+
+    // /compress (IA rework PR 4) preselects Compress mode via data-preset-mode
+    // — same data-attribute pattern as data-preset-source/-target above.
+    // Every other page renders an empty attribute, so this is a no-op there.
+    const presetMode = (dz.dataset.presetMode || '').trim().toLowerCase();
+    // Guarded: pair pages omit the mode buttons entirely — an unguarded
+    // setMode would TypeError and abort the whole init handler.
+    if (presetMode === 'compress' && document.getElementById('btn-mode-compress')) setMode('compress');
   }
 
   const fileInput = document.getElementById('file-input');

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph 1.1.0\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-13 20:55+0200\n"
+"POT-Creation-Date: 2026-08-13 22:15+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -471,10 +471,16 @@ msgstr ""
 msgid "Compress PDF"
 msgstr ""
 
+msgid "Compress a PDF →"
+msgstr ""
+
 msgid "Compress to a target size"
 msgstr ""
 
 msgid "Compress to an exact target size"
+msgstr ""
+
+msgid "Compress to size"
 msgstr ""
 
 #, python-brace-format
@@ -814,8 +820,9 @@ msgid "FileMorph Compliance Edition"
 msgstr ""
 
 msgid ""
-"FileMorph can shrink a file to an exact target size (for example 5 MB) "
-"using a binary search — useful for upload limits and email attachments."
+"FileMorph can shrink a JPEG or WebP image to an exact target size (for "
+"example 5 MB) using a binary search — useful for upload limits and email "
+"attachments."
 msgstr ""
 
 msgid ""
@@ -826,9 +833,10 @@ msgid ""
 msgstr ""
 
 msgid ""
-"FileMorph converts between the formats below and compresses images and "
-"video to an exact target size. Everything runs for free, with no account "
-"— or self-host it under AGPLv3. Pick any pair and start on the"
+"FileMorph converts between the formats below and compresses images to an "
+"exact target size (video too, by quality). Everything runs for free, with"
+" no account — or self-host it under AGPLv3. Pick any pair and start on "
+"the"
 msgstr ""
 
 msgid ""
@@ -1422,6 +1430,9 @@ msgid "PDF/A-2b output"
 msgstr ""
 
 msgid "PDF/A-2b veraPDF-validated"
+msgstr ""
+
+msgid "PDFs?"
 msgstr ""
 
 msgid "PII redaction"
@@ -2190,6 +2201,12 @@ msgid ""
 msgstr ""
 
 msgid ""
+"This tool compresses images and video. To shrink a PDF, use the dedicated"
+" PDF compressor instead — it recompresses the images embedded inside the "
+"document."
+msgstr ""
+
+msgid ""
 "Three spots. Six months free. Direct influence on the Compliance Edition "
 "roadmap."
 msgstr ""
@@ -2238,7 +2255,7 @@ msgstr ""
 msgid "Trust basis before contract"
 msgstr ""
 
-msgid "Try it on the converter →"
+msgid "Try the compressor →"
 msgstr ""
 
 msgid "Type it again"

@@ -9,10 +9,18 @@ translated via ``_()`` in the template. See
 operations-first (Convert & compress, PDF tools, Privacy tools) as opposed to
 ``/formats``, which is the format-first reference matrix.
 
-The Convert & Compress card is the sole discoverability surface for two
-tool *modes* that have no URL of their own — compress-to-an-exact-target-size
-and multi-file batch conversion — so its ``desc`` deliberately names both
-(see the Konsistenzregel: "Modi zählen nicht als eigene Operation").
+The Convert & Compress card is the sole discoverability surface for
+multi-file batch conversion, a tool *mode* with no URL of its own — its
+``desc`` deliberately names it (see the Konsistenzregel: "Modi zählen nicht
+als eigene Operation"). Compress-to-an-exact-target-size *did* live under
+that same rule until IA rework PR 4 gave it a dedicated page, ``/compress``
+— it now has its own "Compress to a target size" card right next to this
+one instead. Video is deliberately not claimed here for exact-target
+sizing: ``app/compressors/video.py`` only supports quality-based
+compression (no ``target_bytes``), and the client-side
+``TARGET_SIZE_FORMATS`` gate in ``app/static/js/app.js`` never offers
+target-size mode for a video file — see ``compress_content.py`` for the
+full claims audit.
 
 The Redact card is a commercial Cloud-Edition add-on (see ``redact_content``);
 its title carries a plain-text "(Pro)" suffix — no badge styling — and the
@@ -47,10 +55,16 @@ TOOLS_CONTENT: dict[str, dict] = {
             "convert": {
                 "title": "Convert & compress files",
                 "desc": (
-                    "The main tool — convert between formats, or shrink an "
-                    "image or video to an exact target size in MB using a "
-                    "binary search. Drop in several files at once for batch "
-                    "conversion."
+                    "The main tool — convert between formats, or compress a "
+                    "file. Drop in several files at once for batch conversion."
+                ),
+            },
+            "compress_target": {
+                "title": "Compress to a target size",
+                "desc": (
+                    "Dial in an exact target size in MB for a JPEG or WebP "
+                    "image, or shrink a video by quality — the dedicated "
+                    "tool, with honest limits on which formats hit a target."
                 ),
             },
             "split": {
@@ -99,9 +113,17 @@ TOOLS_CONTENT: dict[str, dict] = {
                 "title": "Dateien konvertieren & komprimieren",
                 "desc": (
                     "Das Haupt-Tool — wandle zwischen Formaten um oder "
-                    "verkleinere ein Bild oder Video per Binärsuche auf eine "
-                    "exakte Zielgröße in MB. Lade mehrere Dateien gleichzeitig "
+                    "komprimiere eine Datei. Lade mehrere Dateien gleichzeitig "
                     "hoch für die Stapelverarbeitung."
+                ),
+            },
+            "compress_target": {
+                "title": "Auf Zielgröße komprimieren",
+                "desc": (
+                    "Für ein JPEG oder WebP eine exakte Größe in MB "
+                    "einstellen, oder ein Video per Qualität verkleinern — "
+                    "das eigene Tool, mit ehrlichem Hinweis, welche Formate "
+                    "eine exakte Zielgröße erreichen."
                 ),
             },
             "split": {
