@@ -28,7 +28,7 @@ markdown>=3.10.2
 openpyxl>=3.1.5
 ffmpeg-python>=0.2.0
 python-dotenv>=1.0.0
-slowapi>=0.1.9
+slowapi>=0.1.10
 Babel>=2.18.0
 
 # ── Auth / Database ───────────────────────────────────────────────
