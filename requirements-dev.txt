@@ -7,7 +7,7 @@ aiosqlite>=0.22.1
 # fences that 0.15.x ignores) and reddened every PR on 2026-07-31 while local
 # runs stayed green. Bump deliberately, together with a repo-wide
 # `ruff format` run in the same PR.
-ruff==0.15.11
+ruff==0.16.3
 pyinstaller>=6.5.0
 pip-audit>=2.10.1
 beautifulsoup4>=4.15.0
