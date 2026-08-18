@@ -9,6 +9,12 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — deterministic QA fixture generator for manual test rounds
+
+`scripts/make_testdata_ia_rework.py` generates seed-stable photo-like image
+fixtures (large JPEG, small WebP, PNG) for hands-on testing of the target-size
+compressor; output goes to a gitignored local folder, only the script ships.
+
 ### Changed — /compress review follow-ups (honest title, no-JS correctness)
 
 The `/compress` page title no longer binds video to exact-target-size
