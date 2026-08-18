@@ -24,13 +24,17 @@
      null-guards all references to #btn-mode-convert / #btn-mode-compress,
      so removing them when preset_source is set is safe. #}
   {% if not preset_source %}
+  {# preset_mode == 'compress' (/compress, IA rework PR 4) server-renders this
+     toggle with Compress already active, so the page is correct before/without
+     JS — app.js's setMode('compress') call on init (data-preset-mode below)
+     becomes pure progressive enhancement instead of a required repaint. #}
   <div class="flex rounded-lg overflow-hidden border border-gray-700 text-sm font-medium">
     <button id="btn-mode-convert"
-      class="flex-1 py-2 transition-colors bg-brand text-white"
-      aria-pressed="true" aria-label="{{ _('File conversion mode') }}">{{ _('Convert') }}</button>
+      class="flex-1 py-2 transition-colors{% if preset_mode == 'compress' %} text-gray-400 hover:text-white{% else %} bg-brand text-white{% endif %}"
+      aria-pressed="{% if preset_mode == 'compress' %}false{% else %}true{% endif %}" aria-label="{{ _('File conversion mode') }}">{{ _('Convert') }}</button>
     <button id="btn-mode-compress"
-      class="flex-1 py-2 transition-colors text-gray-400 hover:text-white"
-      aria-pressed="false" aria-label="{{ _('File compression mode') }}">{{ _('Compress') }}</button>
+      class="flex-1 py-2 transition-colors{% if preset_mode == 'compress' %} bg-brand text-white{% else %} text-gray-400 hover:text-white{% endif %}"
+      aria-pressed="{% if preset_mode == 'compress' %}true{% else %}false{% endif %}" aria-label="{{ _('File compression mode') }}">{{ _('Compress') }}</button>
   </div>
   {% endif %}
 

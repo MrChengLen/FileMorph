@@ -46,7 +46,7 @@ from app.core.i18n import normalize_locale
 #   faq           — list of (question, answer), 3 entries
 COMPRESS_CONTENT: dict[str, dict] = {
     "en": {
-        "title": "Compress an image/video to a target size — free",
+        "title": "Compress a JPEG/WebP to a target size — free",
         "meta": (
             "Shrink a JPG or WebP image to an exact size in MB, or compress a "
             "video — free, no account, EU-hosted, files deleted right after."
@@ -113,7 +113,7 @@ COMPRESS_CONTENT: dict[str, dict] = {
         ],
     },
     "de": {
-        "title": "Bild/Video auf Zielgröße verkleinern — kostenlos",
+        "title": "JPEG/WebP auf Zielgröße verkleinern — kostenlos",
         "meta": (
             "Verkleinere ein JPG oder WebP auf eine exakte Zielgröße in "
             "MB, oder komprimiere ein Video — kostenlos, ohne Konto, "

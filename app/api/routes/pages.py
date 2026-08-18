@@ -23,8 +23,8 @@ from app.compressors.image import _SUPPORTED_FORMATS as IMAGE_COMPRESS_FMTS
 from app.compressors.video import _SUPPORTED_FORMATS as VIDEO_COMPRESS_FMTS
 from app.converters.registry import get_public_conversions, get_supported_conversions
 from app.core import pricing as pricing_mod
-from app.core.config import settings
 from app.core.compress_content import get_compress_content
+from app.core.config import settings
 from app.core.convert_pairs import (
     PAIR_CONTENT,
     accept_attr,
