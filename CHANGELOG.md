@@ -9,6 +9,15 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed — /compress review follow-ups (honest title, no-JS correctness)
+
+The `/compress` page title no longer binds video to exact-target-size
+compression (now "Compress a JPEG/WebP to a target size" / „JPEG/WebP auf
+Zielgröße verkleinern" — video is quality-based, as the page copy already
+said), and the embedded tool's Compress toggle is server-rendered active on
+`/compress`, so the page is correct even before/without JavaScript. Plus a
+README clause with the same video/target-size precision.
+
 ### Added — /compress landing page (IA rework PR 4)
 
 Final slice of the navigation/IA rework (`docs-internal/ia-navigation-konzept.md`).
