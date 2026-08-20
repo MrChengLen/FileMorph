@@ -6,7 +6,7 @@
   <div>
     <a href="{{ localized_url('/', current_prefix) }}" class="text-sm text-gray-500 hover:text-gray-300 transition-colors">{{ _('← Back') }}</a>
     <h1 class="text-2xl font-bold mt-4 text-white">{{ _('Privacy Policy') }}</h1>
-    <p class="text-xs text-gray-500 mt-1">{{ _('Last updated: 2026-06-22 · Community + Cloud Edition') }}</p>
+    <p class="text-xs text-gray-500 mt-1">{{ _('Last updated: 2026-08-18 · Community + Cloud Edition') }}</p>
   </div>
 
   <section class="space-y-3">
@@ -53,14 +53,15 @@
     <p><strong class="text-gray-200">{{ _('Account deletion:') }}</strong> {{ _('You can delete your account at any time from the dashboard ("Delete account" in the Danger zone). The flow asks you to re-enter your email, password, and the word DELETE before deletion proceeds. Deletion permanently erases your password hash and API keys; cancels any active paid subscription; and anonymises your conversion-job history (your account ID is stripped, the records are retained for analytics). Stripe retains transaction records independently to comply with its own tax-retention obligations. If your account has made at least one payment, we additionally retain a minimal invoice-link record — email, Stripe customer ID, and last billing tier — for 10 years (HGB §257, AO §147, permitted under GDPR Art. 17(3)(b)); after that period the record is permanently deleted. Free accounts that never issued a payment are erased in full. If you prefer, you can also request deletion by emailing') }} <a href="mailto:privacy@filemorph.io" class="text-brand hover:underline">privacy@filemorph.io</a>{{ _('. To exercise other rights (access, rectification, restriction), contact the same address.') }}</p>
   </section>
 
-  <section class="space-y-3">
+  <section id="cookies" class="space-y-3">
     <h2 class="text-base font-semibold text-white">{{ _('6. No cookies, no tracking') }}</h2>
-    <p>{{ _('FileMorph sets') }} <strong class="text-gray-200">{{ _('no cookies') }}</strong> {{ _('on its own domain and runs no tracking or analytics scripts. German law (§ 25 TTDSG) treats your browser\'s') }} <code class="text-gray-400">localStorage</code> {{ _('the same as cookies, so the few keys we write there while you are signed in are listed in full:') }}</p>
+    <p>{{ _('FileMorph sets') }} <strong class="text-gray-200">{{ _('no cookies') }}</strong> {{ _('on its own domain and runs no tracking or analytics scripts. German law (§ 25 TDDDG) treats your browser\'s') }} <code class="text-gray-400">localStorage</code> {{ _('the same as cookies, so the few keys we write there while you are signed in are listed in full:') }}</p>
     <ul class="list-disc list-inside space-y-1 text-gray-400">
       <li><code class="text-gray-300">fm_access_token</code> / <code class="text-gray-300">fm_refresh_token</code> — {{ _('your JWT session tokens; strictly necessary to keep you signed in.') }}</li>
       <li><code class="text-gray-300">filemorph_api_key</code> — {{ _('optional; remembers the API key shown in your dashboard across reloads so you don\'t need to paste it again. Cleared on logout.') }}</li>
+      <li><code class="text-gray-300">fm_cookie_notice_dismissed</code> — {{ _('remembers that you closed the informational cookie notice shown to first-time visitors, so it appears only once. The only key ever written while you are not signed in.') }}</li>
     </ul>
-    <p>{{ _('All of them are strictly necessary to provide the signed-in service you requested, so they fall under the exemption in Art. 5(3) ePrivacy Directive / § 25 Abs. 2 Nr. 2 TTDSG — no consent banner is required. If you are not signed in, nothing at all is stored in your browser.') }}</p>
+    <p>{{ _('All of them are strictly necessary for the function you asked for, so they fall under the exemption in Art. 5(3) ePrivacy Directive / § 25 Abs. 2 Nr. 2 TDDDG — no consent banner is required. The cookie notice we show first-time visitors is informational only: it asks for no consent because none is needed. If you are not signed in, nothing is stored in your browser until you dismiss that notice — and then only the dismissal flag listed above.') }}</p>
     <p>{{ _('When you start a paid-tier upgrade, you are redirected to Stripe Checkout on the') }} <code class="text-gray-400">stripe.com</code> {{ _('domain, which sets its own cookies. That is outside FileMorph\'s control and is governed by') }} <a href="https://stripe.com/privacy" class="text-brand hover:underline" target="_blank" rel="noopener noreferrer">{{ _('Stripe\'s privacy policy') }}</a>.</p>
     <p>{{ _('Our pages load') }} <strong class="text-gray-200">{{ _('no external resources') }}</strong>. {{ _('All CSS (including Tailwind), JavaScript, fonts, and images are served from the FileMorph domain; your browser never contacts a third-party CDN to render the site.') }}</p>
   </section>

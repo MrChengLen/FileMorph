@@ -56,3 +56,15 @@ def test_hsts_present_when_request_scheme_is_https(client):
     hsts = r.headers.get("strict-transport-security", "")
     assert "max-age=31536000" in hsts
     assert "includeSubDomains" in hsts
+
+
+def test_no_set_cookie_on_public_pages(client):
+    """privacy.html §6 and the cookie notice both promise that FileMorph
+    sets no cookies on its own domain. Pin that promise for the public
+    HTML pages an anonymous visitor hits: none may emit a Set-Cookie
+    header, or a future middleware/dependency would silently turn it
+    (and the § 25 Abs. 2 Nr. 2 TDDDG consent exemption) false."""
+    for path in ("/", "/tools", "/privacy", "/de/"):
+        r = client.get(path)
+        assert r.status_code == 200, path
+        assert "set-cookie" not in {k.lower() for k in r.headers.keys()}, path

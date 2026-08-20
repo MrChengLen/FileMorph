@@ -24,3 +24,14 @@ input[type="range"] {
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: #111827; }
 ::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
+
+/* Cookie notice (partials/cookie_notice.html) — positioning shim: the
+   committed Tailwind build lacks bottom-0 / inset-x-0. The partial carries
+   those classes in its class list, so the next Tailwind rebuild will emit
+   them and this block can then be removed. */
+#cookie-notice {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+}

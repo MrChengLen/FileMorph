@@ -9,6 +9,28 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — informational cookie notice (no consent dialog) + TDDDG citation refresh
+
+FileMorph needs no cookie banner: the app sets zero HTTP cookies (verified in
+code and against production response headers), loads no third-party resources,
+and until this change wrote `localStorage` only for signed-in sessions — all
+consent-exempt under § 25 Abs. 2 Nr. 2 TDDDG / Art. 5(3) ePrivacy. Instead of a consent dialog
+(nothing to consent to; an Accept/Reject pair would be misleading), first-time
+visitors now get a dismissible informational bar
+(`partials/cookie_notice.html` + `cookie-notice.js`, CSP-safe, no inline JS)
+stating exactly that and deep-linking `/privacy#cookies`. The dismissal is
+remembered per browser in `localStorage` (`fm_cookie_notice_dismissed` — a
+cookie would contradict the claim), so the bar appears exactly once; its
+fixed-bottom rule lives in `style.css` because the committed Tailwind build
+lacks `bottom-0`/`inset-x-0`. The privacy policy documents the new key, and
+all legal citations move from the renamed TTDSG to TDDDG (renamed May 2024,
+§ 25 unchanged) across `privacy.html` and both compliance docs; the vendor
+questionnaire's incorrect "session cookies (Cloud features)" line now
+correctly says localStorage JWTs. New regression guards:
+`test_no_set_cookie_on_public_pages` pins the zero-cookie promise,
+`tests/test_cookie_notice.py` pins presence, dismiss wiring, per-locale
+privacy deep link, and DE/EN texts.
+
 ### Added — deterministic QA fixture generator for manual test rounds
 
 `scripts/make_testdata_ia_rework.py` generates seed-stable photo-like image

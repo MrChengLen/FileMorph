@@ -1,0 +1,20 @@
+{# Informational no-tracking notice — deliberately NOT a consent dialog.
+   FileMorph sets no cookies and loads no third-party resources, so there is
+   nothing to consent to (§ 25 Abs. 2 Nr. 2 TDDDG); this bar only informs and
+   deep-links the privacy policy's cookie section. Hidden by default;
+   cookie-notice.js reveals it until dismissed (localStorage key
+   fm_cookie_notice_dismissed — a cookie here would contradict the claim the
+   notice makes). bottom-0/inset-x-0 are missing from the committed Tailwind
+   build, so style.css carries a #cookie-notice positioning shim; the classes
+   stay in the class list so the next Tailwind rebuild emits them and the shim
+   can be dropped. Lives in partials/ (not _components/) so babel picks up
+   the _() strings. #}
+<div id="cookie-notice" class="hidden fixed bottom-0 inset-x-0 z-50 border-t border-gray-800 bg-gray-900 px-6 py-4" role="region" aria-label="{{ _('Cookie notice') }}">
+  <div class="max-w-4xl mx-auto flex flex-col sm:flex-row sm:items-center gap-3">
+    <p class="text-sm text-gray-300 flex-1">
+      {{ _('FileMorph sets no cookies and runs no tracking. In your browser we store only what is strictly necessary: your sign-in session, and a note that you closed this bar.') }}
+      <a href="{{ localized_url('/privacy', current_prefix) }}#cookies" class="text-brand hover:underline whitespace-nowrap">{{ _('Details') }}</a>
+    </p>
+    <button id="cookie-notice-dismiss" class="shrink-0 px-4 py-1.5 rounded-lg bg-brand hover:bg-brand-dark text-white text-sm font-semibold transition-colors">{{ _('Got it') }}</button>
+  </div>
+</div>

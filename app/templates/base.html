@@ -120,6 +120,7 @@
   </div>
 
   {% block content %}{% endblock %}
+  {% include "partials/cookie_notice.html" %}
   <footer class="border-t border-gray-800 px-6 py-5 mt-auto">
     <div class="max-w-4xl mx-auto space-y-4 text-xs text-gray-600">
       <!-- Popular conversions — surfaces the per-pair pages on every page for
@@ -186,6 +187,7 @@
   <script id="fm-i18n-strings" type="application/json">{{ js_i18n_json | safe }}</script>
   <script src="/static/js/i18n-bootstrap.js"></script>
   <script src="/static/js/nav.js"></script>
+  <script src="/static/js/cookie-notice.js"></script>
   <script src="/static/js/auth.js"></script>
   <script src="/static/js/app.js"></script>
   {% block scripts %}{% endblock %}
