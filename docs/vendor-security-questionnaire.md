@@ -909,7 +909,7 @@ prior-notice rule.
 | Imprint (TMG § 5 / DDG § 5) | `https://filemorph.io/impressum` and `app/templates/impressum.html` |
 | Terms of service | `https://filemorph.io/terms` and `app/templates/terms.html` |
 | Public contact form (DDG § 5 second channel) | `https://filemorph.io/contact` |
-| Cookie / consent posture | No banner — the application uses no analytics, no third-party CDN, no advertising cookies. Session cookies (Cloud features) are strictly-necessary and not subject to consent under TTDSG § 25(2). The reasoning is documented in `app/templates/privacy.html`. |
+| Cookie / consent posture | No consent banner needed and none shown — the application sets no HTTP cookies at all and uses no analytics, no third-party CDN, no advertising cookies. A dismissible, purely informational notice states this to first-time visitors; its dismissal flag and the signed-in JWT tokens live in browser localStorage and are strictly-necessary, not subject to consent under TDDDG § 25(2) (formerly TTDSG). The reasoning is documented in `app/templates/privacy.html`. |
 | Sub-processors | [`docs/sub-processors.md`](./sub-processors.md) |
 | DPA template | [`docs/dpa-template.md`](./dpa-template.md) + [`docs/dpa-tom-annex.md`](./dpa-tom-annex.md) |
 | Records of processing | [`docs/records-of-processing-template.md`](./records-of-processing-template.md) |

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph 1.1.0\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-13 22:15+0200\n"
+"POT-Creation-Date: 2026-08-20 16:52+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -255,10 +255,13 @@ msgid "All formats + smart-tech"
 msgstr ""
 
 msgid ""
-"All of them are strictly necessary to provide the signed-in service you "
-"requested, so they fall under the exemption in Art. 5(3) ePrivacy "
-"Directive / § 25 Abs. 2 Nr. 2 TTDSG — no consent banner is required. If "
-"you are not signed in, nothing at all is stored in your browser."
+"All of them are strictly necessary for the function you asked for, so "
+"they fall under the exemption in Art. 5(3) ePrivacy Directive / § 25 Abs."
+" 2 Nr. 2 TDDDG — no consent banner is required. The cookie notice we show"
+" first-time visitors is informational only: it asks for no consent "
+"because none is needed. If you are not signed in, nothing is stored in "
+"your browser until you dismiss that notice — and then only the dismissal "
+"flag listed above."
 msgstr ""
 
 msgid "All smart-tech: compress-to-target, EXIF strip, PDF/A, integrity hash"
@@ -586,6 +589,9 @@ msgid ""
 "MP4 & more. Hit an exact target size. No account, open source."
 msgstr ""
 
+msgid "Cookie notice"
+msgstr ""
+
 msgid "Coordinated disclosure:"
 msgstr ""
 
@@ -676,6 +682,9 @@ msgid "Design Partner Programme"
 msgstr ""
 
 msgid "Design Partner Programme: 3 spots, 6 months free."
+msgstr ""
+
+msgid "Details"
 msgstr ""
 
 msgid "Do I need the Enterprise tier for KRITIS?"
@@ -886,6 +895,12 @@ msgid "FileMorph sets"
 msgstr ""
 
 msgid ""
+"FileMorph sets no cookies and runs no tracking. In your browser we store "
+"only what is strictly necessary: your sign-in session, and a note that "
+"you closed this bar."
+msgstr ""
+
+msgid ""
 "FileMorph — Free online file converter & compressor. Convert images, "
 "documents, audio and video. Privacy-respecting, no account required."
 msgstr ""
@@ -1017,6 +1032,9 @@ msgid ""
 "action from the FileMorph project. Please avoid privacy violations, "
 "service disruption, and data destruction; test against your own self-"
 "hosted instance whenever possible."
+msgstr ""
+
+msgid "Got it"
 msgstr ""
 
 msgid "Hetzner's privacy policy"
@@ -1211,6 +1229,9 @@ msgid "Language"
 msgstr ""
 
 msgid "Last updated: 2026-06-22 · Community + Cloud Edition"
+msgstr ""
+
+msgid "Last updated: 2026-08-18 · Community + Cloud Edition"
 msgstr ""
 
 msgid "Last used"
@@ -2724,7 +2745,7 @@ msgstr ""
 
 msgid ""
 "on its own domain and runs no tracking or analytics scripts. German law "
-"(§ 25 TTDSG) treats your browser's"
+"(§ 25 TDDDG) treats your browser's"
 msgstr ""
 
 msgid "on request"
@@ -2757,6 +2778,12 @@ msgid "priority"
 msgstr ""
 
 msgid "rare"
+msgstr ""
+
+msgid ""
+"remembers that you closed the informational cookie notice shown to first-"
+"time visitors, so it appears only once. The only key ever written while "
+"you are not signed in."
 msgstr ""
 
 msgid ""
