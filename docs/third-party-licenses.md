@@ -124,8 +124,9 @@ converters need:
   pip install pip-licenses
   pip-licenses --from=mixed --format=markdown --order=license --with-urls
   ```
-  (run inside the project venv, ideally after `pip install -r requirements.lock`
-  for the exact pinned set).
+  (run inside the project venv after
+  `pip install --require-hashes -r requirements.lock` — that is the exact set
+  the image ships, so the scan matches the artifact).
 - **Per-dependency rationale:** [`tech-stack-rationale.md` § License Map](./tech-stack-rationale.md#license-map).
 
 **As of 2026-05-12** a scan of the locked dependency set

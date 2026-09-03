@@ -32,7 +32,10 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.12"
+          # Must match the Dockerfile's base image — the app is only ever
+          # tested on the version it ships on. scripts/check_python_version.py
+          # gates this; see its docstring for the drift it exists to prevent.
+          python-version: "3.14"
           cache: "pip"
 
       - name: Install system dependencies
@@ -48,6 +51,13 @@ jobs:
 
       - name: Format check (ruff)
         run: ruff format --check .
+
+      # One Python version across image, CI, and lockfile. A Dependabot base-image
+      # bump used to move production to a version CI never tested (2b26b49: 3.12 ->
+      # 3.14, undetected for three months). The Dockerfile is the source of truth;
+      # this fails if anything disagrees. See the script's docstring.
+      - name: Python-version consistency gate
+        run: python scripts/check_python_version.py
 
       # Tailwind dynamic-class gate — forbids `class="prefix-{{ x }}-suffix"`
       # patterns that JIT extraction misses, leaving the production bundle
@@ -75,11 +85,70 @@ jobs:
       #   (app/core/tokens.py) — no ECDSA sign/keygen/ECDH path ever runs.
       #   Added 2026-07-15; re-evaluate at each release, drop once we migrate
       #   off python-jose (e.g. PyJWT) or upstream ships a fix.
+      # Audits requirements.lock, not requirements.txt: the lockfile is what the
+      # image installs (Dockerfile: pip install --require-hashes), so it is the
+      # only file whose contents actually reach production. The lockfile-drift
+      # job below guarantees it still corresponds to requirements.txt.
       - name: Dependency vulnerability scan (pip-audit)
-        run: pip-audit -r requirements.txt --ignore-vuln PYSEC-2026-1325
+        run: pip-audit -r requirements.lock --ignore-vuln PYSEC-2026-1325
 
       - name: Run tests
         run: pytest tests/ -v --tb=short
+
+  # requirements.lock is what the image installs, so it has to keep
+  # corresponding to requirements.txt. Before this gate existed it did not:
+  # Dependabot pushed 32 commits to requirements.txt in six months while the
+  # lockfile got 4 (one of them only line endings), leaving it short of four
+  # packages entirely and behind on five more. Recompiling here and diffing is
+  # the only way to notice.
+  #
+  # On drift this fails and uploads the correct lockfile as an artifact — grab
+  # it and commit it, or run the deps-lock workflow to have it committed for
+  # you. Recompiling on the shipped Python version matters: environment markers
+  # resolve differently per version, so a lockfile compiled elsewhere can be
+  # uninstallable in the image.
+  lockfile-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          # Must match the Dockerfile's base image — the gate in lint-and-test
+          # enforces that; the lockfile is only valid for the version it was
+          # compiled on.
+          python-version: "3.14"
+          cache: "pip"
+
+      - name: Install pip-tools
+        run: pip install "pip-tools>=7,<8"
+
+      # Same output filename as the committed file so the generated header
+      # (which echoes the pip-compile command) is identical and the diff shows
+      # only real dependency changes.
+      - name: Recompile the lockfile
+        run: |
+          cp requirements.lock requirements.lock.committed
+          pip-compile --quiet --generate-hashes --output-file=requirements.lock requirements.txt
+
+      - name: Compare
+        id: compare
+        run: |
+          if diff -u requirements.lock.committed requirements.lock; then
+            echo "requirements.lock is in sync with requirements.txt"
+          else
+            echo "::error::requirements.lock does not match requirements.txt. Download the 'requirements-lock-recompiled' artifact and commit it, or run the deps-lock workflow."
+            exit 1
+          fi
+
+      - name: Upload the recompiled lockfile
+        if: failure() && steps.compare.outcome == 'failure'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: requirements-lock-recompiled
+          path: requirements.lock
+          retention-days: 7
 
   secret-scan:
     runs-on: ubuntu-latest

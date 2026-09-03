@@ -9,6 +9,47 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — one Python version, and a lockfile that is actually installed
+
+Two problems, one root cause: nothing compared the places where a version is
+written down.
+
+**Python.** Dependabot bumped the base image from `python:3.12-slim` to
+`python:3.14-slim` on 2026-05-26 (`2b26b49`) — two minor versions in a single
+"deps" commit. Nothing carried the change into the workflows, so for three
+months CI tested 3.12 while production ran 3.14, and `requirements.lock` still
+named the 3.11 it had been compiled with. All five workflows now use the
+shipped version, and `scripts/check_python_version.py` fails CI if the
+Dockerfile, the workflows and the lockfile ever disagree again. The Dockerfile
+is the declared source of truth, since it is what ships.
+
+**Lockfile.** `requirements.lock` was hash-pinned and carefully generated —
+and installed by nobody: all six entry points (Dockerfile, `ci`, `sbom`,
+`release`, `verapdf`, `build-desktop`) installed from `requirements.txt`.
+Dependabot has no concept of it, so it drifted unnoticed: 32 commits to
+`requirements.txt` in six months against 4 to the lockfile, one of those only
+line endings. It ended up missing four packages outright — `mammoth`,
+`pikepdf`, `Babel`, `prometheus-client` — and behind on five more, including
+`uvicorn` (0.46.0 against a `>=0.49.0` constraint). A lockfile with no
+consumer and no gate is decoration that reads as a guarantee.
+
+It is now real: the Dockerfile installs with `pip install --require-hashes -r
+requirements.lock`, `pip-audit` audits the lockfile instead of the manifest
+(the lockfile being what reaches production), a `lockfile-drift` CI job
+recompiles on the shipped Python version and diffs against the committed file
+— uploading the correct one as an artifact when it fails — and a `deps-lock`
+workflow regenerates and commits it on demand. Dependabot's own config now
+documents that its pip PRs turn that gate red until the lockfile follows.
+
+Documentation corrected alongside: `patch-policy.md` claimed direct
+dependencies were "pinned to a specific minor version" (they carry `>=`
+constraints) and treated the lockfile as optional;
+`vendor-security-questionnaire.md` repeated that pinning claim and named the
+wrong `pip-audit` target; the regeneration recipe in
+`third-party-licenses.md` now matches what actually ships. `self-hosting.md`
+gains a "Reproducible builds" section — the gap the internal promise audit
+tracked as M1.
+
 ### Fixed — trusted-proxy guidance pointed at the wrong knob
 
 `security-overview.md` § Operational Hardening told self-hosters that the rate

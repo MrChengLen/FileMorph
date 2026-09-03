@@ -575,12 +575,16 @@ plus offline-update tooling — see
 
 ### 8.2 How are dependency vulnerabilities found?
 
-- **`pip-audit -r requirements.txt`** runs as a blocking CI gate on
-  every push. A finding fails the build until it is either fixed by
+- **`pip-audit -r requirements.lock`** runs as a blocking CI gate on
+  every push — the lockfile, because that is what the image installs. A finding fails the build until it is either fixed by
   bumping the dependency or explicitly ignored via `--ignore-vuln`
   with a named, justified comment.
-- Direct dependencies are pinned in `requirements.txt`. Transitive
-  dependencies are pinned in `requirements.lock` (where used).
+- `requirements.txt` states minimum versions; `requirements.lock`
+  pins every direct and transitive dependency to an exact version
+  plus hash, and the image installs from it with
+  `pip install --require-hashes`. Builds are therefore reproducible
+  from source, and CI blocks any drift between the two files or
+  between the lockfile's Python version and the image's.
 - A CycloneDX SBOM (`filemorph-{version}.cdx.json`) is attached to
   each release so downstream operators can diff their own copy.
 

@@ -151,6 +151,40 @@ trust chain (cosign images + GPG-signed Git tags).
 
 ---
 
+## Reproducible builds
+
+If you build the image yourself rather than pulling it, the build installs
+from `requirements.lock` — not `requirements.txt`:
+
+```dockerfile
+COPY requirements.lock .
+RUN pip install --require-hashes -r requirements.lock
+```
+
+`requirements.lock` is compiled by `pip-compile --generate-hashes` and pins
+every direct and transitive dependency to an exact version plus its wheel
+hash. `--require-hashes` makes pip refuse anything unpinned or unhashed, so
+two builds of the same commit install byte-identical dependencies, and a
+wheel that was re-uploaded or tampered with upstream fails the check rather
+than being installed.
+
+Two consequences worth knowing:
+
+- **The lockfile is Python-version specific.** It is compiled on the same
+  version the base image ships (`FROM python:3.14-slim@sha256:...`), because
+  environment markers resolve differently per version. Building on another
+  Python may fail the hash check. `scripts/check_python_version.py` gates
+  that the image, the CI workflows, and the lockfile all name one version.
+- **Editing `requirements.txt` is not enough.** Recompile the lockfile too,
+  or the build keeps installing the old set. CI's `lockfile-drift` job fails
+  on divergence and uploads the correct lockfile; the `deps-lock` workflow
+  regenerates and commits it.
+
+If you pull the published image instead, you get a stronger guarantee without
+building anything: images are digest-addressed and signed with cosign. Pin the
+digest rather than a tag, and verify it as shown under
+[Verifying signatures](#verifying-signatures) above.
+
 ## Reverse proxy (HTTPS)
 
 Place FileMorph behind a reverse proxy to handle SSL termination, domain routing, and request-body limits.

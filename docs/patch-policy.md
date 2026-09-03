@@ -54,14 +54,20 @@ with the version you need a backport for.
 
 ## Dependency hygiene
 
-`pip-audit -r requirements.txt` runs on every CI build and blocks the
+`pip-audit -r requirements.lock` runs on every CI build and blocks the
 merge on any High or Critical finding. Lower-severity findings are
-batched into the next regular release.
+batched into the next regular release. The lockfile is audited rather
+than the manifest because the lockfile is what the image installs.
 
-We pin direct dependencies in `requirements.txt` to a specific minor
-version and re-evaluate at each release. Indirect dependencies are
-pinned via `requirements.lock` (when present); deployments that need
-deterministic builds should `pip install -r requirements.lock`.
+`requirements.txt` states minimum versions for direct dependencies and
+is the file Dependabot updates. `requirements.lock`, compiled from it
+with `pip-compile --generate-hashes`, pins every direct *and*
+transitive dependency to an exact version plus hash — and it is what
+the Docker image installs, via `pip install --require-hashes`. Two
+builds of the same commit therefore install byte-identical
+dependencies, and a re-uploaded or tampered wheel fails the hash
+check. CI fails if the two files drift apart or if the lockfile was
+compiled on a different Python version than the image ships.
 
 The full dependency manifest is available as a
 [CycloneDX SBOM](https://cyclonedx.org/) attached to each GitHub
