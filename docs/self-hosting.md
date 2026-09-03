@@ -161,7 +161,7 @@ COPY requirements.lock .
 RUN pip install --require-hashes -r requirements.lock
 ```
 
-`requirements.lock` is compiled by `pip-compile --generate-hashes` and pins
+`requirements.lock` is compiled by `uv pip compile --generate-hashes` and pins
 every direct and transitive dependency to an exact version plus its wheel
 hash. `--require-hashes` makes pip refuse anything unpinned or unhashed, so
 two builds of the same commit install byte-identical dependencies, and a
@@ -170,11 +170,18 @@ than being installed.
 
 Two consequences worth knowing:
 
-- **The lockfile is Python-version specific.** It is compiled on the same
-  version the base image ships (`FROM python:3.14-slim@sha256:...`), because
-  environment markers resolve differently per version. Building on another
-  Python may fail the hash check. `scripts/check_python_version.py` gates
-  that the image, the CI workflows, and the lockfile all name one version.
+- **The lockfile targets one Python version.** It is resolved for the version
+  the base image ships (`FROM python:3.14-slim@sha256:...`), because
+  environment markers resolve differently per version. You do not need that
+  interpreter installed to regenerate it — `--python-version` resolves for it
+  from any Python:
+
+  ```bash
+  uv pip compile --generate-hashes --python-version 3.14 --output-file requirements.lock requirements.txt
+  ```
+
+  `scripts/check_python_version.py` gates that the image, the CI workflows and
+  the lockfile all name one version.
 - **Editing `requirements.txt` is not enough.** Recompile the lockfile too,
   or the build keeps installing the old set. CI's `lockfile-drift` job fails
   on divergence and uploads the correct lockfile; the `deps-lock` workflow

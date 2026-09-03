@@ -61,8 +61,8 @@ than the manifest because the lockfile is what the image installs.
 
 `requirements.txt` states minimum versions for direct dependencies and
 is the file Dependabot updates. `requirements.lock`, compiled from it
-with `pip-compile --generate-hashes`, pins every direct *and*
-transitive dependency to an exact version plus hash — and it is what
+with `uv pip compile --generate-hashes --python-version <image>`, pins
+every direct *and* transitive dependency to an exact version plus hash — and it is what
 the Docker image installs, via `pip install --require-hashes`. Two
 builds of the same commit therefore install byte-identical
 dependencies, and a re-uploaded or tampered wheel fails the hash

@@ -5,6 +5,10 @@
 *.py text eol=lf
 *.sh text eol=lf
 *.yml text eol=lf
+# Explicit, not left to text=auto: a CRLF checkout of the lockfile would make
+# the lockfile-drift gate compare Windows-generated against Linux-generated
+# output and never agree. fba1b02 had to renormalize this file once already.
+requirements.lock text eol=lf
 *.yaml text eol=lf
 *.md text eol=lf
 *.html text eol=lf

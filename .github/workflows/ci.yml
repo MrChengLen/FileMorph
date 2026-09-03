@@ -104,9 +104,11 @@ jobs:
   #
   # On drift this fails and uploads the correct lockfile as an artifact — grab
   # it and commit it, or run the deps-lock workflow to have it committed for
-  # you. Recompiling on the shipped Python version matters: environment markers
-  # resolve differently per version, so a lockfile compiled elsewhere can be
-  # uninstallable in the image.
+  # you. The lockfile targets the shipped Python version (markers resolve per
+  # version, so one resolved elsewhere can be uninstallable in the image);
+  # `uv pip compile --python-version` resolves *for* that version without
+  # needing it installed, which is why anyone can regenerate the lockfile from
+  # any machine.
   lockfile-drift:
     runs-on: ubuntu-latest
     steps:
@@ -115,22 +117,27 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          # Must match the Dockerfile's base image — the gate in lint-and-test
-          # enforces that; the lockfile is only valid for the version it was
-          # compiled on.
+          # Any interpreter would do here — uv resolves for the target version
+          # via --python-version. Kept at the shipped version so every workflow
+          # agrees, which the gate in lint-and-test enforces.
           python-version: "3.14"
           cache: "pip"
 
-      - name: Install pip-tools
-        run: pip install "pip-tools>=7,<8"
+      # Pinned exactly, like ruff in requirements-dev.txt: a resolver update can
+      # legitimately produce a different lockfile, which would turn this gate red
+      # with no dependency change behind it. Bump deliberately.
+      - name: Install uv
+        run: pip install "uv==0.12.9"
 
-      # Same output filename as the committed file so the generated header
-      # (which echoes the pip-compile command) is identical and the diff shows
-      # only real dependency changes.
+      # The command must match the one recorded in the committed lockfile's
+      # header verbatim, since uv writes that command into the file. uv also
+      # reads the existing output file as a preference, so unchanged
+      # dependencies keep their pins and a new upstream release does not turn
+      # this gate red on its own.
       - name: Recompile the lockfile
         run: |
           cp requirements.lock requirements.lock.committed
-          pip-compile --quiet --generate-hashes --output-file=requirements.lock requirements.txt
+          uv pip compile --generate-hashes --python-version 3.14 --output-file requirements.lock requirements.txt
 
       - name: Compare
         id: compare

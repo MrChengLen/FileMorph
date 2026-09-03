@@ -9,6 +9,11 @@
 # the one-click alternative so the fix does not depend on someone downloading
 # an artifact by hand.
 #
+# You can also just run it locally — `uv pip compile --python-version` resolves
+# for the shipped interpreter without needing it installed:
+#
+#     uv pip compile --generate-hashes --python-version 3.14 --output-file requirements.lock requirements.txt
+#
 # Why that matters: before these gates existed, Dependabot pushed 32 commits to
 # requirements.txt in six months while the lockfile received 4 (one of them only
 # line endings). It ended up missing four packages outright and behind on five
@@ -52,18 +57,20 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          # Must match the Dockerfile's base image — a lockfile is only valid
-          # for the Python version it was compiled on, because environment
-          # markers resolve per version. scripts/check_python_version.py gates
-          # this.
+          # Any interpreter would do — uv resolves for the target version via
+          # --python-version without needing it installed. Kept at the shipped
+          # version for consistency across workflows, which
+          # scripts/check_python_version.py enforces.
           python-version: "3.14"
           cache: "pip"
 
-      - name: Install pip-tools
-        run: pip install "pip-tools>=7,<8"
+      # Pinned exactly — see the same note in ci.yml's lockfile-drift job.
+      - name: Install uv
+        run: pip install "uv==0.12.9"
 
+      # Must match ci.yml's command and the committed header verbatim.
       - name: Recompile the lockfile
-        run: pip-compile --quiet --generate-hashes --output-file=requirements.lock requirements.txt
+        run: uv pip compile --generate-hashes --python-version 3.14 --output-file requirements.lock requirements.txt
 
       - name: Verify the lockfile installs
         # A lockfile that resolves but cannot install is worse than none, since

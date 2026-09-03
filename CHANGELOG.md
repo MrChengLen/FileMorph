@@ -36,10 +36,22 @@ consumer and no gate is decoration that reads as a guarantee.
 It is now real: the Dockerfile installs with `pip install --require-hashes -r
 requirements.lock`, `pip-audit` audits the lockfile instead of the manifest
 (the lockfile being what reaches production), a `lockfile-drift` CI job
-recompiles on the shipped Python version and diffs against the committed file
-— uploading the correct one as an artifact when it fails — and a `deps-lock`
-workflow regenerates and commits it on demand. Dependabot's own config now
-documents that its pip PRs turn that gate red until the lockfile follows.
+recompiles and diffs against the committed file — uploading the correct one as
+an artifact when it fails — and a `deps-lock` workflow regenerates and commits
+it on demand. Dependabot's own config now documents that its pip PRs turn that
+gate red until the lockfile follows.
+
+The lockfile is now compiled by **uv** rather than pip-compile, pinned to an
+exact version like ruff. pip-compile can only resolve for the interpreter it
+runs on, which is the mechanical reason this drifted in the first place: the
+committed lockfile carried 3.11 because that was somebody's local Python, and
+nobody could regenerate it for the image without installing 3.14 first. `uv pip
+compile --python-version 3.14` resolves *for* the shipped interpreter from any
+machine, so keeping the lockfile current no longer depends on matching the
+image locally. The regenerated lockfile covers 76 packages with 2003 hashes,
+and all 30 direct dependencies now satisfy their constraints — previously five
+did not. `.gitattributes` pins the lockfile to LF so a CRLF checkout cannot
+make the drift gate compare Windows-generated against Linux-generated output.
 
 Documentation corrected alongside: `patch-policy.md` claimed direct
 dependencies were "pinned to a specific minor version" (they carry `>=`
