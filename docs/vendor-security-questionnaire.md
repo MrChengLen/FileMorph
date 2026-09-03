@@ -256,9 +256,18 @@ refers to and attaches to the counter-signed contract.
 
 ### 4.1 In transit
 
-TLS 1.2 or higher between client and reverse proxy; HSTS
-(`Strict-Transport-Security: max-age=31536000; includeSubDomains`)
-emitted on every HTTPS response. The application itself is HTTP-only
+TLS 1.2 or higher between client and reverse proxy. HSTS is served
+per deployment. The managed service at filemorph.io serves
+`Strict-Transport-Security: max-age=15552000` (6 months) from the
+Cloudflare edge on every HTTPS response; `includeSubDomains` is
+deliberately not set, so the policy binds only the hostnames actually
+served through the edge, and the domain is not on the preload list.
+Self-hosted deployments emit no HSTS from the application by default:
+under Docker uvicorn does not trust the proxy's `X-Forwarded-Proto`,
+so the operator sets the header at the proxy (recommended) or names
+the proxy in `FORWARDED_ALLOW_IPS`, in which case the application's
+own `max-age=31536000; includeSubDomains` applies — see
+[`docs/self-hosting.md`](./self-hosting.md). The application itself is HTTP-only
 inside the trust boundary — TLS is terminated at the operator's
 reverse proxy. The deployment template uses Caddy, which provisions
 and renews certificates automatically.
@@ -408,7 +417,7 @@ in [`docs/security-overview.md`](./security-overview.md). Highlights:
   caller from JWT or API key; admin role is DB-rechecked per request.
 - **A02 Cryptographic Failures** — bcrypt for passwords, SHA-256 for
   API keys, constant-time comparison; TLS terminated at the proxy;
-  HSTS emitted.
+  HSTS as described in §4.1.
 - **A03 Injection** — SQLAlchemy parametrised queries throughout; no
   string-built SQL in the codebase.
 - **A04 Insecure Design** — explicit threat model in
@@ -440,7 +449,8 @@ in [`docs/security-overview.md`](./security-overview.md). Highlights:
 - **CORS:** `CORS_ORIGINS` allow-list, never `*` with credentials;
   `expose_headers=["Content-Disposition"]` so cross-origin client
   code can read the download filename.
-- **Defensive headers:** HSTS (HTTPS only), `X-Content-Type-Options:
+- **Defensive headers:** HSTS (deployment-dependent, §4.1),
+  `X-Content-Type-Options:
   nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy:
   strict-origin-when-cross-origin`, `Permissions-Policy` locking out
   camera / microphone / geolocation / payment / USB / FLoC.

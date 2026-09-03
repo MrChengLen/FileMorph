@@ -40,8 +40,9 @@ def test_permissions_policy_disables_camera_mic_geolocation(client):
 
 def test_hsts_present_only_on_https(client):
     """HSTS is meaningful over HTTPS only — TestClient defaults to http,
-    so HSTS must be absent. A self-hoster behind Caddy/nginx with
-    ``X-Forwarded-Proto: https`` gets the header on real traffic."""
+    so HSTS must be absent. A self-hoster behind Caddy/nginx gets the
+    header on real traffic only if uvicorn trusts the proxy's address
+    — see "HSTS behind Docker" in ``docs/self-hosting.md``."""
     r = client.get("/")
     assert r.url.scheme == "http"
     assert "strict-transport-security" not in {k.lower() for k in r.headers.keys()}

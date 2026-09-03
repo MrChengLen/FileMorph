@@ -9,6 +9,38 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — HSTS docs now describe what is actually served
+
+The security docs stated that `security_headers` emits
+`Strict-Transport-Security: max-age=31536000; includeSubDomains` on every HTTPS
+response. It did not. The middleware gates on `request.url.scheme`, which uvicorn
+derives from `X-Forwarded-Proto` — and uvicorn honours that header from
+`127.0.0.1` only unless `--forwarded-allow-ips` widens it. Under Docker the proxy
+reaches the container across the bridge network, so the header was discarded and
+no HSTS ever shipped. The claim was externally falsifiable with a single `curl`,
+which made it a liability in `vendor-security-questionnaire.md` in particular.
+
+filemorph.io now serves `max-age=15552000` (6 months, no `includeSubDomains`, no
+preload) from the Cloudflare edge; `security-overview.md`, `dpa-tom-annex.md` and
+the vendor questionnaire say so, and separate the managed service from the
+self-hosted case. `self-hosting.md` gains an "HSTS behind Docker" section
+documenting both remedies — a proxy-set header (Caddy and nginx snippets), or
+naming the proxy in `FORWARDED_ALLOW_IPS` via `.env` — with an external
+verification command.
+
+The second remedy is documented as a named address or CIDR, never `*`. With `*`
+uvicorn takes the leftmost `X-Forwarded-For` entry, and both documented proxies
+append to the client-supplied header, so any visitor could forge the address
+uvicorn records — through the proxy, with port 8000 closed. That address is the
+rate-limit key (`app/core/rate_limit.py`), the anonymous quota identity, and the
+audit log's `actor_ip`. The section also flags that the shipped compose file
+publishes port 8000 on every host interface.
+
+No behaviour change: the only non-Markdown edit is a docstring in
+`tests/test_security_headers.py` that carried the same corrected-away claim. The
+middleware still emits nothing under Docker, so self-hosters must apply one of
+the two documented remedies.
+
 ### Added — /compress landing page (IA rework PR 4)
 
 Final slice of the navigation/IA rework (`docs-internal/ia-navigation-konzept.md`).
