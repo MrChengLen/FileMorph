@@ -34,7 +34,9 @@ append to the client-supplied header, so any visitor could forge the address
 uvicorn records — through the proxy, with port 8000 closed. That address is the
 rate-limit key (`app/core/rate_limit.py`), the anonymous quota identity, and the
 audit log's `actor_ip`. The section also flags that the shipped compose file
-publishes port 8000 on every host interface.
+publishes port 8000 on every host interface. `.env.example` documents the knob,
+commented out — an empty value would trust no peer at all and break the
+bare-metal setup that works today.
 
 No behaviour change: the only non-Markdown edit is a docstring in
 `tests/test_security_headers.py` that carried the same corrected-away claim. The
