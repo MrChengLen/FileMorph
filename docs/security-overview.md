@@ -163,9 +163,12 @@ regression guard in
 - **PT-002 (Critical).** Non-constant-time API-key comparison was
   replaced with `hmac.compare_digest` in `app/core/security.py`.
 - **PT-006 (High).** Rate-limit bypass via `X-Forwarded-For`
-  spoofing requires the deployment to terminate trust at the
-  reverse proxy. The "Operational Hardening" section below lists
-  the proxy-side configuration that closes this.
+  spoofing. `get_remote_address` reads the socket peer, not the
+  header, so forging `X-Forwarded-For` only bites where uvicorn
+  has been configured to trust it. Item 3 of "Operational
+  Hardening" below covers both that case and the opposite
+  failure mode — the shipped default, where all anonymous
+  traffic shares a single bucket.
 
 ### What is not provided
 
@@ -460,12 +463,23 @@ to be effective. The following list is grouped by importance.
    to the public internet. Caddy and nginx are both well-trodden
    choices; the deployment template in `docs/self-hosting.md`
    uses Caddy.
-3. **Configure trust-proxy correctly.** The rate limiter and any
-   IP-based logging trust the `X-Forwarded-For` header. That
-   header must only be honoured when set by *your* proxy. In
-   nginx, that means `set_real_ip_from <proxy-ip>;`. In Caddy,
-   the `trusted_proxies` directive. Without this, anonymous
-   clients can rotate IPs and bypass the rate limiter.
+3. **Configure trust-proxy correctly.** The rate limiter keys on
+   `request.client.host` — `get_remote_address` reads the socket
+   peer only, never the `X-Forwarded-For` header itself. uvicorn
+   rewrites that value from `X-Forwarded-For`, but only when the
+   peer is covered by `FORWARDED_ALLOW_IPS` (default
+   `127.0.0.1`). Under Docker the proxy reaches the container
+   across the bridge network, so the default never matches and
+   **every anonymous request keys to the same bridge-gateway
+   address — all visitors share one 60/min bucket.** Set
+   `FORWARDED_ALLOW_IPS` to your proxy's address as the container
+   sees it; this is the same knob as "HSTS behind Docker" in
+   [`docs/self-hosting.md`](./self-hosting.md). Never `*`:
+   uvicorn then takes the leftmost, client-supplied hop and the
+   key becomes forgeable through your proxy. Pair it with
+   proxy-side `set_real_ip_from` (nginx) or `trusted_proxies`
+   (Caddy) so the proxy does not pass a client-supplied
+   `X-Forwarded-For` through in the first place.
 4. **Use a strong `JWT_SECRET` (Cloud Edition).** Minimum 32
    bytes of cryptographic randomness. Rotation invalidates all
    active sessions, which is the desired behaviour after a

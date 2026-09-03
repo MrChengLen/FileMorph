@@ -9,6 +9,33 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — trusted-proxy guidance pointed at the wrong knob
+
+`security-overview.md` § Operational Hardening told self-hosters that the rate
+limiter "trusts the `X-Forwarded-For` header" and to close the gap with nginx's
+`set_real_ip_from` or Caddy's `trusted_proxies`. Both halves are wrong for the
+shipped default. `app/core/rate_limit.py` keys on `get_remote_address`, which
+reads `request.client.host` only — never the header (that is slowapi's other
+helper, `get_ipaddr`, which the app does not use). uvicorn rewrites
+`request.client` from `X-Forwarded-For` solely when the peer is covered by
+`FORWARDED_ALLOW_IPS`, default `127.0.0.1`; under Docker the proxy arrives from
+the bridge network, so it never matches. Proxy-side directives cannot move
+uvicorn's trust boundary.
+
+The live consequence is the inverse of the documented one: instead of clients
+rotating IPs to escape the limit, every anonymous request keys to the same
+bridge-gateway address, so all visitors share a single 60/min bucket. Item 3 now
+says that, names `FORWARDED_ALLOW_IPS` as the actual lever, warns against `*`,
+and keeps the proxy-side directives as the complement they are. The PT-006 entry
+that pointed at the old instruction is corrected alongside.
+
+`security-pentest-report.md` gains a post-audit correction note on finding 4,
+which attributes header-reading to the wrong slowapi helper; the original
+finding text is left intact, and the PT-006 residual row now names the real
+knob.
+
+Docs only; no code change.
+
 ### Fixed — HSTS docs now describe what is actually served
 
 The security docs stated that `security_headers` emits
