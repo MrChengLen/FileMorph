@@ -4,6 +4,16 @@ on:
   push:
     branches: ["main"]
     tags: ["v*"]
+  # Manual rebuild. Without this there is no way to produce an image, or to
+  # reach `notify-ops` and the deploy that follows it, other than pushing to
+  # main — and main is protected, so that means opening a PR.
+  #
+  # That gap cost three weeks: OPS_REPO_DISPATCH_PAT expired on 2026-08-20 and
+  # notify-ops failed with HTTP 401 on every run afterwards. Once the token was
+  # replaced there was no way to prove the fix, or to redeploy, without
+  # inventing a code change. A dispatch here rebuilds from the current main and
+  # runs the whole chain, which is also what you want during an incident.
+  workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
