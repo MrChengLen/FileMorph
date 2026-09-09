@@ -37,6 +37,19 @@ jobs:
 
       - name: Install system dependencies
         run: |
+          # The runner image ships an apt source for Google Chrome, which this
+          # project does not use. Its index is intermittently inconsistent and
+          # then fails `apt-get update` with a hash-sum mismatch (exit 100),
+          # taking the whole job down with it — it blocked every PR on
+          # 2026-09-09. Dropping the source first makes the update depend only
+          # on repositories we actually install from.
+          #
+          # Matched by name rather than by a fixed filename: the runner images
+          # have moved between `google-chrome.list` and the deb822
+          # `google-chrome.sources`, and a stale `rm -f` of the wrong one fails
+          # silently — which is exactly how the first attempt at this slipped
+          # through and left the job failing identically.
+          sudo find /etc/apt/sources.list.d -iname '*google*' -delete
           sudo apt-get update
           sudo apt-get install -y ffmpeg ghostscript libheif-dev libcairo2 libpangocairo-1.0-0 libgdk-pixbuf2.0-0
 
