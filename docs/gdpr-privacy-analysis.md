@@ -386,6 +386,7 @@ In `app/api/routes/convert.py` and `app/api/routes/compress.py`, replace the ori
 
 ```python
 import uuid
+
 # Instead of:
 input_path = Path(tmp_dir) / file.filename
 # Use:
@@ -403,6 +404,8 @@ In `app/main.py` lifespan, add:
 
 ```python
 import glob, time
+
+
 async def sweep_stale_temps(max_age_seconds: int = 600):
     pattern = str(Path(tempfile.gettempdir()) / "filemorph_*")
     for tmp_dir in glob.glob(pattern):

@@ -138,6 +138,7 @@ Converters register themselves using the `@register` decorator:
 from app.converters.registry import register
 from app.converters.base import BaseConverter
 
+
 @register(("txt", "pdf"))
 class TxtToPdfConverter(BaseConverter):
     def convert(self, input_path: Path, output_path: Path, **kwargs) -> Path:
@@ -149,8 +150,7 @@ The `register` decorator accepts one or more `(src, tgt)` tuples:
 
 ```python
 @register(("heic", "jpg"), ("heif", "jpg"))
-class HeicToJpgConverter(BaseConverter):
-    ...
+class HeicToJpgConverter(BaseConverter): ...
 ```
 
 The `_ensure_loaded()` function in `registry.py` imports all converter modules at startup
@@ -215,12 +215,12 @@ def _ensure_loaded() -> None:
     if _loaded:
         return
     _loaded = True
-    import app.converters.audio       # noqa: F401
-    import app.converters.document    # noqa: F401
-    import app.converters.ebook       # noqa: F401  ← add this
-    import app.converters.image       # noqa: F401
-    import app.converters.spreadsheet # noqa: F401
-    import app.converters.video       # noqa: F401
+    import app.converters.audio  # noqa: F401
+    import app.converters.document  # noqa: F401
+    import app.converters.ebook  # noqa: F401  ← add this
+    import app.converters.image  # noqa: F401
+    import app.converters.spreadsheet  # noqa: F401
+    import app.converters.video  # noqa: F401
 ```
 
 ### Step 4 — Add dependencies
@@ -231,6 +231,7 @@ Add any new Python packages to `requirements.txt`. Add system-level dependencies
 
 ```python
 # tests/test_convert_ebook.py
+
 
 def test_epub_to_txt(client, auth_headers, tmp_path):
     # Create a minimal EPUB for testing
@@ -261,8 +262,8 @@ Compressors live in `app/compressors/`. Each compressor is a plain function (not
 ```python
 # app/compressors/image.py (existing)
 
-def compress_image(input_path: Path, output_path: Path, quality: int = 85) -> Path:
-    ...
+
+def compress_image(input_path: Path, output_path: Path, quality: int = 85) -> Path: ...
 ```
 
 Add the new format to the `_SUPPORTED_FORMATS` list in the relevant compressor file,
