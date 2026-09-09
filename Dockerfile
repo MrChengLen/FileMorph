@@ -37,11 +37,22 @@ ENV PATH="/opt/venv/bin:$PATH" \
 
 WORKDIR /build
 
-# Layer-cache friendly: requirements first, then the rest. A
-# ``requirements.txt`` edit invalidates this layer; an application-code
-# edit does not (the COPY . . in the runtime stage is a separate layer).
-COPY requirements.txt .
-RUN pip install -r requirements.txt
+# Installs from ``requirements.lock``, not ``requirements.txt``: the lockfile
+# pins exact versions with hashes, so two builds of the same commit install
+# byte-identical dependencies and a compromised or re-uploaded wheel fails the
+# hash check. ``--require-hashes`` makes that a hard requirement rather than a
+# suggestion — pip refuses to install anything unpinned or unhashed.
+#
+# The lockfile must be compiled on the same Python version as the base image
+# above (environment markers resolve per version). ``ci.yml`` gates both that
+# and drift against ``requirements.txt``; the ``deps-lock`` workflow
+# regenerates it. See ``scripts/check_python_version.py``.
+#
+# Layer-cache friendly: the lockfile first, then the rest. A lockfile edit
+# invalidates this layer; an application-code edit does not (the COPY . . in
+# the runtime stage is a separate layer).
+COPY requirements.lock .
+RUN pip install --require-hashes -r requirements.lock
 
 
 # ----------------------------------------------------------------------------

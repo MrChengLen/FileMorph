@@ -8,6 +8,19 @@ aiosqlite>=0.22.1
 # runs stayed green. Bump deliberately, together with a repo-wide
 # `ruff format` run in the same PR.
 ruff==0.15.11
+# Pinned exactly for the same reason as ruff: uv resolves requirements.lock, and
+# a resolver update can legitimately produce a different lockfile — which would
+# turn the lockfile-drift gate red with no dependency change behind it. The CI
+# jobs that recompile the lockfile pin the identical version. Bump deliberately.
+#
+# Regenerate the lockfile with:
+#   uv pip compile --generate-hashes --python-version 3.14 --python-platform x86_64-unknown-linux-gnu --output-file requirements.lock requirements.txt
+# --python-version resolves for the image's interpreter without needing it
+# installed locally; --python-platform does the same for the image's OS, so a
+# lockfile generated on Windows still carries the Linux-only packages (uvloop
+# via uvicorn[standard]). Both must match the CI command exactly, since uv
+# records the invocation in the lockfile header and the drift gate diffs it.
+uv==0.12.9
 pyinstaller>=6.5.0
 pip-audit>=2.10.1
 beautifulsoup4>=4.15.0

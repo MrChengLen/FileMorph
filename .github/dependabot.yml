@@ -7,11 +7,24 @@
 #                    SHA-pinned actions current (Dependabot tracks the
 #                    `# vX.Y` comment to know which version a SHA maps to)
 #  - docker:         the base image in ./Dockerfile — keeps the
-#                    digest-pinned `python:3.12-slim@sha256:...` fresh
+#                    digest-pinned `python:3.14-slim@sha256:...` fresh
 #
 # Weekly cadence (Monday) keeps the PR volume low; pip-audit in ci.yml is
 # the same-day blocking gate for known CVEs, so Dependabot is the
 # "stay current" layer, not the "react to a 0-day" layer.
+#
+# Dependabot only edits requirements.txt — it has no concept of the
+# pip-compile lockfile the image installs from. Every pip PR therefore turns
+# ci.yml's `lockfile-drift` job red until requirements.lock is recompiled:
+# either run the `deps-lock` workflow on the PR branch, or take the lockfile
+# that the failing job uploads as an artifact. That red gate is deliberate —
+# when keeping the lockfile current was invisible manual work, it fell four
+# packages behind.
+#
+# A base-image bump also moves the Python version the app ships on. The
+# `python-version consistency` gate in ci.yml fails until the workflows and
+# the lockfile follow, so such a PR is never mergeable half-done (see
+# scripts/check_python_version.py).
 version: 2
 updates:
   - package-ecosystem: "pip"
