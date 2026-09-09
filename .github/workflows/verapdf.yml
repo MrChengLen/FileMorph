@@ -60,6 +60,13 @@ jobs:
       # would mask the gs path being broken.
       - name: Install system dependencies
         run: |
+          # The runner image ships an apt source for Google Chrome, which this
+          # project does not use. Its index is intermittently inconsistent and
+          # then fails `apt-get update` with a hash-sum mismatch (exit 100),
+          # taking the whole job down with it — it blocked every PR on
+          # 2026-09-09. Dropping the source first makes the update depend only
+          # on repositories we actually install from.
+          sudo rm -f /etc/apt/sources.list.d/google-chrome.list
           sudo apt-get update
           sudo apt-get install -y ghostscript libcairo2 libpangocairo-1.0-0 libgdk-pixbuf2.0-0
 
