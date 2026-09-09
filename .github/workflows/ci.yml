@@ -32,7 +32,10 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.12"
+          # Must match the Dockerfile's base image — the app is only ever
+          # tested on the version it ships on. scripts/check_python_version.py
+          # gates this; see its docstring for the drift it exists to prevent.
+          python-version: "3.14"
           cache: "pip"
 
       - name: Install system dependencies
@@ -62,6 +65,13 @@ jobs:
       - name: Format check (ruff)
         run: ruff format --check .
 
+      # One Python version across image, CI, and lockfile. A Dependabot base-image
+      # bump used to move production to a version CI never tested (2b26b49: 3.12 ->
+      # 3.14, undetected for three months). The Dockerfile is the source of truth;
+      # this fails if anything disagrees. See the script's docstring.
+      - name: Python-version consistency gate
+        run: python scripts/check_python_version.py
+
       # Tailwind dynamic-class gate — forbids `class="prefix-{{ x }}-suffix"`
       # patterns that JIT extraction misses, leaving the production bundle
       # silently incomplete. See scripts/check_template_classes.py docstring.
@@ -88,11 +98,83 @@ jobs:
       #   (app/core/tokens.py) — no ECDSA sign/keygen/ECDH path ever runs.
       #   Added 2026-07-15; re-evaluate at each release, drop once we migrate
       #   off python-jose (e.g. PyJWT) or upstream ships a fix.
+      # Audits requirements.lock, not requirements.txt: the lockfile is what the
+      # image installs (Dockerfile: pip install --require-hashes), so it is the
+      # only file whose contents actually reach production. The lockfile-drift
+      # job below guarantees it still corresponds to requirements.txt.
       - name: Dependency vulnerability scan (pip-audit)
-        run: pip-audit -r requirements.txt --ignore-vuln PYSEC-2026-1325
+        run: pip-audit -r requirements.lock --ignore-vuln PYSEC-2026-1325
 
       - name: Run tests
         run: pytest tests/ -v --tb=short
+
+  # requirements.lock is what the image installs, so it has to keep
+  # corresponding to requirements.txt. Before this gate existed it did not:
+  # Dependabot pushed 32 commits to requirements.txt in six months while the
+  # lockfile got 4 (one of them only line endings), leaving it short of four
+  # packages entirely and behind on five more. Recompiling here and diffing is
+  # the only way to notice.
+  #
+  # On drift this fails and uploads the correct lockfile as an artifact — grab
+  # it and commit it, or run the deps-lock workflow to have it committed for
+  # you. The lockfile targets the shipped Python version (markers resolve per
+  # version, so one resolved elsewhere can be uninstallable in the image);
+  # `uv pip compile --python-version` resolves *for* that version without
+  # needing it installed, which is why anyone can regenerate the lockfile from
+  # any machine.
+  lockfile-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          # Any interpreter would do here — uv resolves for the target version
+          # via --python-version. Kept at the shipped version so every workflow
+          # agrees, which the gate in lint-and-test enforces.
+          python-version: "3.14"
+          cache: "pip"
+
+      # Pinned exactly, like ruff in requirements-dev.txt: a resolver update can
+      # legitimately produce a different lockfile, which would turn this gate red
+      # with no dependency change behind it. Bump deliberately.
+      - name: Install uv
+        run: pip install "uv==0.12.9"
+
+      # The command must match the one recorded in the committed lockfile's
+      # header verbatim, since uv writes that command into the file. uv also
+      # reads the existing output file as a preference, so unchanged
+      # dependencies keep their pins and a new upstream release does not turn
+      # this gate red on its own.
+      #
+      # --python-platform matters as much as --python-version: uvicorn[standard]
+      # pulls uvloop on Linux and not on Windows, so a lockfile resolved on a
+      # developer's Windows box is missing a package the image needs. Pinning
+      # the platform makes the result identical wherever it is generated. This
+      # gate caught exactly that on its first run.
+      - name: Recompile the lockfile
+        run: |
+          cp requirements.lock requirements.lock.committed
+          uv pip compile --generate-hashes --python-version 3.14 --python-platform x86_64-unknown-linux-gnu --output-file requirements.lock requirements.txt
+
+      - name: Compare
+        id: compare
+        run: |
+          if diff -u requirements.lock.committed requirements.lock; then
+            echo "requirements.lock is in sync with requirements.txt"
+          else
+            echo "::error::requirements.lock does not match requirements.txt. Download the 'requirements-lock-recompiled' artifact and commit it, or run the deps-lock workflow."
+            exit 1
+          fi
+
+      - name: Upload the recompiled lockfile
+        if: failure() && steps.compare.outcome == 'failure'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: requirements-lock-recompiled
+          path: requirements.lock
+          retention-days: 7
 
   secret-scan:
     runs-on: ubuntu-latest
