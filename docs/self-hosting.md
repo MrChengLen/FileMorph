@@ -239,6 +239,92 @@ sudo certbot --nginx -d filemorph.example.com
 
 Certbot automatically renews certificates every 90 days.
 
+### HSTS behind Docker
+
+The `security_headers` middleware emits `Strict-Transport-Security`
+only when the request arrives as HTTPS, which uvicorn derives from the
+`X-Forwarded-Proto` header. By default uvicorn honours that header from
+`127.0.0.1` only. The proxy configs above do say `127.0.0.1:8000`, but
+that is the *host* side of the published port: Docker rewrites the
+source address on the way in, so uvicorn inside the container sees the
+bridge gateway (`172.x.0.1`) instead. The header is discarded, and
+**no HSTS reaches the browser** — even though the proxy is terminating
+TLS correctly.
+
+Pick one of the two fixes. Either have the proxy set the header itself,
+which keeps uvicorn's default trust boundary intact:
+
+```caddyfile
+filemorph.example.com {
+    header Strict-Transport-Security "max-age=15552000"
+    # ... reverse_proxy as above
+}
+```
+
+For nginx (Option B), inside the `443` server block. The `always` flag
+matters — without it nginx drops the header on 4xx/5xx responses:
+
+```nginx
+add_header Strict-Transport-Security "max-age=15552000" always;
+```
+
+Or name the peer uvicorn should trust. Put it in `.env` — the compose
+file already reads that file, so no image rebuild is needed and the
+setting survives upgrades:
+
+```env
+FORWARDED_ALLOW_IPS=172.17.0.1
+```
+
+That is the Docker bridge gateway, which is the address the container
+actually sees. Find yours with:
+
+```bash
+docker network inspect bridge -f '{{range .IPAM.Config}}{{.Gateway}}{{end}}'
+```
+
+A CIDR range works too — `FORWARDED_ALLOW_IPS=172.16.0.0/12` — if the
+gateway address is not stable across recreates.
+
+**Do not set `FORWARDED_ALLOW_IPS=*`.** It does not merely widen the
+trust boundary, it changes which hop uvicorn believes: with `*` it
+takes the *leftmost* `X-Forwarded-For` entry, and both proxies above
+append to the client-supplied header (`$proxy_add_x_forwarded_for` in
+nginx, the default in Caddy). Any visitor can then send
+`X-Forwarded-For: 1.2.3.4` *through* your proxy and be recorded as that
+address — closing port 8000 does not prevent it. `request.client.host`
+is the rate-limit key (`app/core/rate_limit.py`), the anonymous quota
+identity, and the `actor_ip` in the audit log, so `*` makes all three
+forgeable. A named address or CIDR walks the chain from the right and
+discards the forged prefix.
+
+This route also commits you to the application's fixed
+`max-age=31536000; includeSubDomains` — the proxy route lets you pick
+the value, this one does not. On an apex domain that locks every
+sibling subdomain into HTTPS-only for a year, non-revocably, so prefer
+the proxy route unless every subdomain already serves HTTPS
+permanently.
+
+Independently of HSTS: the shipped `docker-compose.yml` publishes
+`"8000:8000"`, which binds every host interface — the app is reachable
+on the server's public IP alongside the proxy. Bind it to loopback
+instead, `ports: ["127.0.0.1:8000:8000"]`, so only the local proxy can
+reach it.
+
+Either way, verify from outside afterwards — an HSTS policy you believe
+is active but never ships is worse than none, because it hides the gap:
+
+```bash
+curl -sS -D - -o /dev/null https://filemorph.example.com/ | grep -i strict-transport
+```
+
+On the proxy route, where you pick the value, start with a short
+`max-age` (`15552000`, six months) and leave `includeSubDomains` off
+until every subdomain is confirmed to serve HTTPS permanently.
+Browsers cache the policy whichever route you took, so an over-broad
+HSTS header cannot be withdrawn by changing the server — it expires
+only after `max-age` elapses on each visitor's machine.
+
 ---
 
 ## Restrict to internal network only
