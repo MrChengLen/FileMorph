@@ -9,6 +9,38 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Security — assessed CVE-2026-55073 (WeasyPrint SSRF bypass) as not reachable
+
+`pip-audit` began flagging `weasyprint==69.0` for CVE-2026-55073
+(GHSA-jf6q-chmf-3h3v, MODERATE, CVSS 6.2, `AV:L`), fixed in 70.0. The advisory
+describes an SSRF-protection bypass in the very mechanism FileMorph relies on:
+two `write_pdf()` channels build a fresh default `URLFetcher` instead of the
+document's, so a restrictive `url_fetcher` is silently ignored.
+
+Not reachable here. The bypass exists only for the `xmp_metadata=[url]` and
+`stylesheets=[url]` parameters, and all four `write_pdf()` call sites pass the
+output path alone (`app/converters/document.py` lines 228, 392, 409, 474). The
+advisory's third precondition — forwarding an attacker-influenced URL into
+either parameter — cannot occur.
+
+Taking the fix is blocked by the same API change that the `<70` cap exists for:
+70.0 turns `url_fetcher` from a callable into an object, which breaks
+`_deny_url_fetcher`. The ignore is documented at the pip-audit step in `ci.yml`
+and at the cap in `requirements.txt`, both pointing at the port that lifts it.
+
+### Changed — dependency batch (supersedes five Dependabot PRs)
+
+`fastapi>=0.141.1`, `uvicorn[standard]>=0.52.4`, `alembic>=1.19.2`,
+`ruff==0.16.6`, `uv==0.12.10`, and the base-image digest. Batched into one
+change so the lockfile is recompiled once and the deploy happens once rather
+than five times. Only `alembic` actually moved in the lockfile (1.19.1 ->
+1.19.2); the other constraints were already satisfied by the pinned versions.
+
+The `uv` pin lives in three places — `requirements-dev.txt` and the two
+workflows that recompile the lockfile — and Dependabot only updates the first.
+All three are moved together here; a mismatch would turn the drift gate red
+with no dependency change behind it.
+
 ### Added — informational cookie notice (no consent dialog) + TDDDG citation refresh
 
 FileMorph needs no cookie banner: the app sets zero HTTP cookies (verified in

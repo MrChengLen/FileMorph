@@ -4,8 +4,8 @@
 # so we are not actually vulnerable, but pip-audit correctly flags the version
 # and blocks every CI run. Re-allow once the maintainers ship a clean release
 # (drop the "!= 0.136.3" once 0.136.4+ is on PyPI without the bad dep).
-fastapi>=0.110.0,!=0.136.3
-uvicorn[standard]>=0.49.0
+fastapi!=0.136.3,>=0.141.1
+uvicorn[standard]>=0.52.4
 python-multipart>=0.0.18
 jinja2>=3.1.4
 pydantic>=2.13.4
@@ -32,6 +32,14 @@ reportlab>=4.1.0
 # it. The guard is mandatory (CLAUDE.md, docs/security-overview.md), so this
 # is a deliberate cap until the fetcher is ported to the 70 API, not a
 # workaround to drop silently. Nothing here is unpinned by accident.
+#
+# Note that 70.0 also fixes CVE-2026-55073, an SSRF-protection bypass in
+# exactly this area: two write_pdf() channels ignore the document's
+# url_fetcher. FileMorph is not reachable through it -- none of our
+# write_pdf() calls pass `xmp_metadata` or `stylesheets`, the only two
+# affected parameters -- so the cap costs us nothing today. It does mean the
+# port to the 70 API carries a security benefit and should not sit here
+# indefinitely. ci.yml documents the matching pip-audit ignore.
 weasyprint>=69.0,<70
 markdown>=3.10.2
 openpyxl>=3.1.5
@@ -42,7 +50,7 @@ Babel>=2.18.0
 
 # ── Auth / Database ───────────────────────────────────────────────
 sqlalchemy[asyncio]>=2.0
-alembic>=1.13
+alembic>=1.19.2
 asyncpg>=0.31.0
 python-jose[cryptography]>=3.5.0
 bcrypt>=5.0.0
