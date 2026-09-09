@@ -23,7 +23,16 @@ pypdf>=6.14.2
 # package required.
 pikepdf>=8.0,<11
 reportlab>=4.1.0
-weasyprint>=69.0
+# Capped below 70: WeasyPrint 70 changed the ``url_fetcher`` contract from a
+# plain callable to an object exposing a ``fetch`` method (it now reads
+# ``url_fetcher._fail_on_errors`` before calling it). Our SSRF guard
+# ``app/converters/document.py::_deny_url_fetcher`` is a function, so under 70
+# every HTML/EML/MD -> PDF conversion raises AttributeError and returns 500 --
+# ``test_html_to_pdf_ssrf_blocked`` and ``test_eml_to_pdf_ssrf_blocked`` catch
+# it. The guard is mandatory (CLAUDE.md, docs/security-overview.md), so this
+# is a deliberate cap until the fetcher is ported to the 70 API, not a
+# workaround to drop silently. Nothing here is unpinned by accident.
+weasyprint>=69.0,<70
 markdown>=3.10.2
 openpyxl>=3.1.5
 ffmpeg-python>=0.2.0
