@@ -12,7 +12,7 @@ aiosqlite>=0.22.1
 # Markdown, which 0.15 ignored entirely. Nothing under app/ or tests/ moved; the
 # four docs/*.md files carrying ```python examples did, which is why that
 # reformat rides along in the same commit as this pin.
-ruff==0.16.4
+ruff==0.16.6
 # Pinned exactly for the same reason as ruff: uv resolves requirements.lock, and
 # a resolver update can legitimately produce a different lockfile — which would
 # turn the lockfile-drift gate red with no dependency change behind it. The CI
@@ -25,7 +25,7 @@ ruff==0.16.4
 # lockfile generated on Windows still carries the Linux-only packages (uvloop
 # via uvicorn[standard]). Both must match the CI command exactly, since uv
 # records the invocation in the lockfile header and the drift gate diffs it.
-uv==0.12.9
+uv==0.12.10
 pyinstaller>=6.5.0
 pip-audit>=2.10.1
 beautifulsoup4>=4.15.0

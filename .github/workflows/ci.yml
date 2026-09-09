@@ -102,8 +102,21 @@ jobs:
       # image installs (Dockerfile: pip install --require-hashes), so it is the
       # only file whose contents actually reach production. The lockfile-drift
       # job below guarantees it still corresponds to requirements.txt.
+      # - CVE-2026-55073 (= GHSA-jf6q-chmf-3h3v), MODERATE / CVSS 6.2 (AV:L):
+      #   SSRF-protection bypass in WeasyPrint < 70.0. Two write_pdf() channels
+      #   build a fresh default URLFetcher instead of the document's one, so a
+      #   restrictive `url_fetcher` is silently ignored for `xmp_metadata=[url]`
+      #   and `stylesheets=[url]`. Not reachable in FileMorph: all four
+      #   write_pdf() call sites pass the output path only and never those
+      #   parameters (app/converters/document.py:228, 392, 409, 474), so the
+      #   advisory's third precondition -- forwarding an attacker-influenced
+      #   URL into either -- cannot occur. The fix is 70.0, which we cannot take
+      #   yet: it reworks the url_fetcher contract from a callable to an object
+      #   and would break `_deny_url_fetcher` (see the cap in requirements.txt).
+      #   Re-evaluate when the fetcher is ported; drop this ignore then.
+      #   Added 2026-09-09.
       - name: Dependency vulnerability scan (pip-audit)
-        run: pip-audit -r requirements.lock --ignore-vuln PYSEC-2026-1325
+        run: pip-audit -r requirements.lock --ignore-vuln PYSEC-2026-1325 --ignore-vuln CVE-2026-55073
 
       - name: Run tests
         run: pytest tests/ -v --tb=short
@@ -140,7 +153,7 @@ jobs:
       # legitimately produce a different lockfile, which would turn this gate red
       # with no dependency change behind it. Bump deliberately.
       - name: Install uv
-        run: pip install "uv==0.12.9"
+        run: pip install "uv==0.12.10"
 
       # The command must match the one recorded in the committed lockfile's
       # header verbatim, since uv writes that command into the file. uv also
