@@ -108,9 +108,11 @@ physical assets of its own.
 
 ### Transfer control (Weitergabekontrolle)
 
-- In transit: TLS 1.2+; HSTS emitted when the proxy reports HTTPS —
-  `app/main.py::security_headers`. TLS is terminated at the operator's
-  reverse proxy — `[operator: proxy configuration; certificate
+- In transit: TLS 1.2+; HSTS emitted when the proxy reports HTTPS and
+  uvicorn is configured to trust it —
+  `app/main.py::security_headers`; on filemorph.io the header is served
+  from the Cloudflare edge instead (`max-age=15552000`). TLS is
+  terminated at the operator's reverse proxy — `[operator: proxy configuration; certificate
   management, e.g. Caddy automatic HTTPS]`.
 - CORS is an allow-list, never `*` with credentials — `CORS_ORIGINS`
   environment variable.

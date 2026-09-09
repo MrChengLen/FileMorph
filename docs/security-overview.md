@@ -331,16 +331,29 @@ JavaScript and downloads silently lose their filename.
 ### Defensive headers
 
 All headers below are set by the `security_headers` middleware in
-`app/main.py`. Regression guards live in
-`tests/test_security_headers.py`.
+`app/main.py`, with one caveat for HSTS — see below the table.
+Regression guards live in `tests/test_security_headers.py`.
 
 | Header | Value | Purpose |
 |---|---|---|
-| `Strict-Transport-Security` | `max-age=31536000; includeSubDomains` (HTTPS only) | Force HTTPS on subsequent visits. The middleware reads `request.url.scheme` so the header is only emitted when the proxy reports `X-Forwarded-Proto: https` — adding HSTS to plaintext responses is meaningless and noisy in dev. |
+| `Strict-Transport-Security` | `max-age=31536000; includeSubDomains` when app-emitted (HTTPS only). filemorph.io instead serves `max-age=15552000` (6 months, no `includeSubDomains`) from the Cloudflare edge. | Force HTTPS on subsequent visits. The middleware reads `request.url.scheme` so the header is only emitted when the proxy reports `X-Forwarded-Proto: https` **and** uvicorn trusts that proxy — see the caveat below the table. |
 | `X-Content-Type-Options` | `nosniff` | Prevent MIME-sniffing |
 | `X-Frame-Options` | `DENY` | Defence-in-depth alongside `frame-ancestors` |
 | `Referrer-Policy` | `strict-origin-when-cross-origin` | Limit referrer leakage |
 | `Permissions-Policy` | `camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()` | Lock the converter site out of features it never needs; future XSS or third-party include cannot prompt the user for camera/mic/geolocation. |
+
+**HSTS caveat.** `request.url.scheme` reports `https` only when uvicorn
+accepts the proxy's `X-Forwarded-Proto`, and uvicorn trusts that header
+from `127.0.0.1` alone unless `--forwarded-allow-ips` says otherwise. In
+a Docker deployment the proxy reaches the container across the bridge
+network, so the connection does not originate from `127.0.0.1`, the
+header is discarded, and the middleware emits no HSTS. filemorph.io is
+deployed this way; its HSTS therefore comes from the Cloudflare edge
+rather than from this middleware. Self-hosters behind Docker are in the
+same position — [`docs/self-hosting.md`](./self-hosting.md) covers
+both fixes.
+`tests/test_security_headers.py` exercises the middleware directly and
+does not cover this deployment-level condition.
 
 ### Network-layer change discipline
 
