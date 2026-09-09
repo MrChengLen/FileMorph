@@ -99,6 +99,7 @@ curl -X POST https://api.filemorph.io/api/v1/auth/login \
 ```python
 import requests
 
+
 def login(email: str, password: str) -> dict:
     r = requests.post(
         "https://api.filemorph.io/api/v1/auth/login",
@@ -189,6 +190,7 @@ This section focuses on **handling the response** correctly.
 ```python
 import requests, re
 
+
 def convert(path: str, target_format: str, key: str, quality: int = 85) -> tuple[bytes, str]:
     with open(path, "rb") as f:
         r = requests.post(
@@ -269,6 +271,7 @@ output that lands within ±3 % of the target.
 
 ```python
 import requests
+
 
 def compress_to_target(path: str, target_kb: int, key: str) -> tuple[bytes, int]:
     with open(path, "rb") as f:
@@ -354,6 +357,7 @@ Your client has to inspect Content-Type before parsing.
 
 ```python
 import io, json, zipfile, requests
+
 
 def batch_convert(paths: list[str], targets: list[str], key: str) -> dict:
     files = [("files", (p, open(p, "rb"))) for p in paths]
@@ -545,6 +549,7 @@ the request is wrong; retrying without changes is a waste.
 ```python
 import time, requests
 
+
 def with_backoff(fn, max_attempts: int = 4):
     delay = 1.0
     for attempt in range(max_attempts):
@@ -591,7 +596,9 @@ curl https://api.filemorph.io/api/v1/formats
 
 ```python
 import requests
+
 formats = requests.get("https://api.filemorph.io/api/v1/formats").json()
+
 
 def can_convert(src: str, tgt: str) -> bool:
     return any(p["src"] == src and p["tgt"] == tgt for p in formats["convert"])
