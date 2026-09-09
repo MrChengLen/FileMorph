@@ -1,7 +1,7 @@
 # FileMorph — Data Protection & GDPR Analysis
 
 **Original analysis date:** 2026-04-20
-**Last refreshed:** 2026-05-06
+**Last refreshed:** 2026-09-09
 **Scope:** Community Edition (current `main` branch), Cloud Edition (live), planned Compliance Edition.
 **Analyst:** Automated compliance review
 **Reviewer note:** This document is a technical privacy analysis intended for engineering and legal review. It does not constitute legal advice. Engage a qualified data protection lawyer before launching any paid SaaS tier in the EU.
@@ -37,6 +37,7 @@ historical reasoning trail.
 | `X-Data-Classification` propagation | Closed — BSI-style taxonomy validated in middleware; echoed on responses; recorded in audit-log | `app/core/data_classification.py` |
 | Concurrency limiter (NEU-D.1) | Closed — global semaphore + per-actor tier-bound semaphore; 503 vs 429 with `Retry-After` | `app/core/concurrency.py` |
 | Cosign-signed images + GPG-signed tags | Closed — keyless OIDC sign on image push; `.github/workflows/release.yml` GPG-signs annotated tags | `.github/workflows/docker.yml`, `release.yml` |
+| localStorage keys written without disclosure (ePrivacy Dir. / § 25 TDDDG — the "Cookie notice ⚠️" row in the compliance matrix below, and T-8) | Closed — `/privacy` §6 now enumerates every key the app writes (`fm_access_token`, `fm_refresh_token`, `filemorph_api_key`, `fm_cookie_notice_dismissed`) with purpose and legal basis, and an informational bar deep-links there on first visit. Deliberately **not** a consent dialog: no cookies are set, no third-party resources load, and every key is strictly necessary, so § 25 Abs. 2 Nr. 2 TDDDG exempts them — a fake Accept/Reject choice would misrepresent that. `test_notice_is_not_a_consent_dialog` pins it | `app/templates/privacy.html` §6, `app/templates/partials/cookie_notice.html`, `app/static/js/cookie-notice.js`, `tests/test_cookie_notice.py` |
 
 What is still in flight for the Compliance-Edition push: paid-path
 account-deletion (slice c.2 — `users.deleted_at` partial-unique-index
