@@ -58,7 +58,7 @@ email-validator>=2.3.0
 aiosmtplib>=5.1.2
 
 # ── Payments ─────────────────────────────────────────────────────
-stripe>=8.0
+stripe>=15.6.1
 
 # ── Observability ────────────────────────────────────────────────
 # Prometheus exposition at /api/v1/metrics (gated by METRICS_ENABLED).
