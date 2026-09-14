@@ -9,6 +9,23 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed — dependency batch (supersedes five Dependabot PRs)
+
+`mammoth>=1.12.1`, `pillow-heif>=1.7.0`, `stripe>=15.6.1`, `python-docx>=1.2.0`,
+`ruff==0.16.7`, `uv==0.12.13`. Batched so the lockfile recompiles once and the
+deploy happens once instead of five times.
+
+Only `pillow-heif` moved in the lockfile (1.6.0 -> 1.7.0). Worth noting that
+its constraint had read `>=0.15.0` while the resolved version was already on
+the 1.x line — the bump to `>=1.7.0` corrects a floor that had drifted far
+below what actually ships, rather than introducing a major upgrade. The 11 HEIC
+tests pass.
+
+As before, the `uv` pin is moved in all three places it appears
+(`requirements-dev.txt` and the two workflows that recompile the lockfile);
+Dependabot only edits the first, and a mismatch reddens the drift gate with no
+dependency change behind it.
+
 ### Security — assessed CVE-2026-55073 (WeasyPrint SSRF bypass) as not reachable
 
 `pip-audit` began flagging `weasyprint==69.0` for CVE-2026-55073
