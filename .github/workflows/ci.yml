@@ -153,7 +153,7 @@ jobs:
       # legitimately produce a different lockfile, which would turn this gate red
       # with no dependency change behind it. Bump deliberately.
       - name: Install uv
-        run: pip install "uv==0.12.10"
+        run: pip install "uv==0.12.13"
 
       # The command must match the one recorded in the committed lockfile's
       # header verbatim, since uv writes that command into the file. uv also
