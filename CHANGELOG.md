@@ -9,6 +9,31 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — API keys created in the dashboard were rejected on every upload route
+
+A key minted via `POST /api/v1/keys` (the dashboard) is stored only as a row in
+the `api_keys` table. The gate in front of every upload route
+(`require_api_key` on convert and compress plus their batch variants, the PDF
+tools and AI redaction) checked only the self-host key file, so such a key got
+`401 Invalid API key.` before `get_optional_user` — which did know how to
+resolve it to its owner — ever ran. The documented CLI path (create a key in
+the dashboard, send it as `X-API-Key`) therefore never worked. The regression
+test for that path passed only because it reused the file-store test key.
+
+The gate now accepts a key from the file store (unchanged,
+`hmac.compare_digest`) or, when a database is configured, an active dashboard
+key, looked up by its SHA-256 hash. The gate and `get_optional_user` share one
+helper, `find_active_api_key` in `app/core/security.py`, so both apply one rule
+to dashboard keys. A revoked key, or one whose owner is deactivated, is still
+rejected with 401 rather than falling through to the anonymous tier; the
+helper also checks `deleted_at`, the backstop the Bearer path already had.
+Without `DATABASE_URL` (Community Edition) validation stays file-only. Six new
+test cases in `tests/test_upload_auth_resolution.py`; the batch test now uses
+a DB-only key and asserts 200, because a 401 also lacks the "tier limit" text
+it used to check for. The architecture, security-overview, threat-model,
+vendor-questionnaire and TOM-annex docs no longer say every key is compared in
+constant time.
+
 ### Added — QA fixture generator for the format fixes
 
 `scripts/make_testdata_format_fixes.py` writes byte-stable fixtures for

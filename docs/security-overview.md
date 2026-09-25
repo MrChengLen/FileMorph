@@ -116,11 +116,14 @@ Used by both Community Edition (single static key in
 | Property | Implementation | Code anchor |
 |---|---|---|
 | Storage | SHA-256 hash, never raw | `app/core/security.py` |
-| Comparison | `hmac.compare_digest` (constant-time) | `app/core/security.py::validate_api_key` |
-| Reveal policy | Once, at creation; never logged | `app/api/routes/dashboard.py` (Cloud) |
+| Comparison (file) | `hmac.compare_digest` (constant-time) | `app/core/security.py::validate_api_key` |
+| Comparison (Cloud) | Indexed lookup by SHA-256 hash; revoked keys and deactivated or deleted owners rejected | `app/core/security.py::find_active_api_key` |
+| Reveal policy | Once, at creation; never logged | `app/api/routes/keys.py` (Cloud) |
 
-The Community-Edition single-key path and the Cloud-Edition
-per-user-key path share the same comparison primitive.
+Both paths hash the presented key with SHA-256 before comparing.
+The per-user keys are looked up by that hash rather than compared
+in constant time: a timing leak could reveal at most a stored
+digest, which is useless without a preimage of a 256-bit random key.
 
 ### Password authentication (Cloud Edition)
 
@@ -137,8 +140,8 @@ NIST SP 800-63B §5.1.1.2 as a "memorized secret" hashing primitive.
 ### Why two hashing schemes
 
 API keys are high-entropy (32 random bytes) and are checked on
-every request — fast, constant-time SHA-256 comparison is the right
-trade-off. Passwords are low-entropy and infrequent — bcrypt's
+every request — a fast SHA-256 hash is the right trade-off.
+Passwords are low-entropy and infrequent — bcrypt's
 adaptive cost is the right trade-off. The two paths are
 deliberately separate.
 

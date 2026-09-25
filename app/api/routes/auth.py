@@ -9,7 +9,6 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from pydantic import BaseModel, EmailStr, Field, field_validator
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.core import email as email_mod
 from app.core.account_deletion import deletion_mode_for, perform_account_deletion
@@ -29,8 +28,9 @@ from app.core.tokens import (
 from app.core.config import settings
 from app.core.metrics import increment as metric_increment
 from app.core.rate_limit import limiter
+from app.core.security import find_active_api_key
 from app.db.base import get_db
-from app.db.models import ApiKey, RoleEnum, User
+from app.db.models import RoleEnum, User
 
 logger = logging.getLogger(__name__)
 
@@ -206,14 +206,8 @@ async def get_optional_user(
         except HTTPException:
             pass
     if x_api_key:
-        key_hash = hashlib.sha256(x_api_key.encode()).hexdigest()
-        result = await db.execute(
-            select(ApiKey)
-            .where(ApiKey.key_hash == key_hash, ApiKey.is_active.is_(True))
-            .options(selectinload(ApiKey.user))
-        )
-        api_key = result.scalar_one_or_none()
-        if api_key and api_key.user and api_key.user.is_active:
+        api_key = await find_active_api_key(db, x_api_key)
+        if api_key:
             # Best-effort last-used timestamp; a transient commit failure
             # must not break the request the key was attached to.
             api_key.last_used_at = datetime.now(timezone.utc)

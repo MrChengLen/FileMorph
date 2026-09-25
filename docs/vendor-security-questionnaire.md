@@ -307,7 +307,7 @@ and renews certificates automatically.
 | Use | Primitive | Code anchor |
 |---|---|---|
 | API-key hashing | SHA-256 | `app/core/security.py` |
-| API-key comparison | `hmac.compare_digest` (constant-time) | `app/core/security.py::validate_api_key` |
+| API-key comparison | Key file: `hmac.compare_digest` (constant-time); per-user keys: lookup by SHA-256 hash | `app/core/security.py::validate_api_key`, `::find_active_api_key` |
 | Password hashing | bcrypt, adaptive cost | `app/core/auth.py::hash_password` |
 | Password verification | bcrypt `checkpw` | `app/core/auth.py::verify_password` |
 | Session tokens | JWT HS256, 15-min access + 30-day refresh | `app/core/auth.py::create_access_token` |
@@ -325,11 +325,12 @@ and renews certificates automatically.
 
 ### 5.1 How are end-users authenticated?
 
-Two paths share the same comparison primitive:
+Two paths:
 
 - **API key** (`X-API-Key` header) — single static key for Community
   Edition (`data/api_keys.json`), per-user keys for Cloud Edition.
-  SHA-256 hash, `hmac.compare_digest` for verification.
+  Stored as SHA-256 hashes; the key file is verified with
+  `hmac.compare_digest`, per-user keys by lookup of that hash.
 - **Email + password** (Cloud Edition) — bcrypt hash, short-lived JWT
   (15-min access / 30-day refresh).
 
@@ -416,8 +417,8 @@ in [`docs/security-overview.md`](./security-overview.md). Highlights:
 - **A01 Broken Access Control** — `get_optional_user` resolves the
   caller from JWT or API key; admin role is DB-rechecked per request.
 - **A02 Cryptographic Failures** — bcrypt for passwords, SHA-256 for
-  API keys, constant-time comparison; TLS terminated at the proxy;
-  HSTS as described in §4.1.
+  API keys (constant-time comparison for the key file, hash lookup for
+  per-user keys); TLS terminated at the proxy; HSTS as described in §4.1.
 - **A03 Injection** — SQLAlchemy parametrised queries throughout; no
   string-built SQL in the codebase.
 - **A04 Insecure Design** — explicit threat model in
