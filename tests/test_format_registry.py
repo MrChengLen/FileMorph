@@ -11,24 +11,29 @@ from __future__ import annotations
 from app.converters.registry import get_supported_conversions
 
 # Formats specifically advertised on the homepage drop-zone help text
-# (`app/templates/index.html`). If a homepage edit adds a format here,
-# extend this list and ensure a converter is registered for it.
+# (`app/templates/partials/convert_tool.html`). If a homepage edit adds a
+# format here, extend this list and ensure a converter is registered for it.
 _HOMEPAGE_ADVERTISED = {
     # images
     "heic",
+    "heif",
     "jpg",
     "jpeg",
     "png",
     "webp",
+    "avif",
     "bmp",
     "tiff",
     "tif",
     "gif",
+    "ico",
     # documents
     "docx",
     "pdf",
     "txt",
     "md",
+    "html",
+    "eml",
     # spreadsheets
     "xlsx",
     "csv",
@@ -39,12 +44,17 @@ _HOMEPAGE_ADVERTISED = {
     "avi",
     "mkv",
     "webm",
+    "flv",
+    "wmv",
     # audio
     "mp3",
     "wav",
     "flac",
     "ogg",
     "m4a",
+    "aac",
+    "wma",
+    "opus",
 }
 
 

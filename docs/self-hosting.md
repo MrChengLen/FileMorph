@@ -128,12 +128,13 @@ docker pull ghcr.io/mrchenglen/filemorph:office
 docker compose -f docker-compose.yml -f docker-compose.office.yml up -d
 ```
 
-The overlay sets `FILEMORPH_OFFICE_ENGINE=auto` (the default — route
-complex DOCX through LibreOffice, simple ones through mammoth). To
-force every conversion through LibreOffice, set
-`FILEMORPH_OFFICE_ENGINE=libreoffice` in your `.env` (recommended in
-the office image when you never want the fallback — it makes a missing
-`soffice` fail loud instead of silently degrading).
+The engine defaults to `FILEMORPH_OFFICE_ENGINE=auto` (route complex
+DOCX through LibreOffice, simple ones through mammoth); the overlay
+deliberately doesn't set it, so your `.env` decides. To force every
+conversion through LibreOffice, set `FILEMORPH_OFFICE_ENGINE=libreoffice`
+in your `.env` (recommended in the office image when you never want the
+fallback — it makes a missing `soffice` fail loud instead of silently
+degrading).
 
 ### Verifying signatures
 

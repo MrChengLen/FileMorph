@@ -206,7 +206,8 @@ def convert(path: str, target_format: str, key: str, quality: int = 85) -> tuple
     # display, but you can save under any name you want.
     cd = r.headers.get("Content-Disposition", "")
     m = re.search(r'filename="([^"]+)"', cd)
-    suggested = m.group(1) if m else f"output.{target_format}"
+    ext = "pdf" if target_format == "pdfa" else target_format  # PDF/A is a .pdf
+    suggested = m.group(1) if m else f"output.{ext}"
     return r.content, suggested
 ```
 
@@ -214,6 +215,8 @@ def convert(path: str, target_format: str, key: str, quality: int = 85) -> tuple
 
 - `Content-Type: application/octet-stream`
 - `Content-Disposition: attachment; filename="<original-stem>.<target-ext>"`
+  (PDF/A is the exception: `target_format=pdfa` returns
+  `<original-stem>_pdfa.pdf`, since PDF/A is a PDF profile, not a file extension)
 - Body: the converted file, raw bytes.
 
 **Quality semantics** vary by format:

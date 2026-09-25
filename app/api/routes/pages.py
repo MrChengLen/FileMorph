@@ -50,9 +50,22 @@ def _render(request: Request, name: str, **extra):
 # accurate), so this map is presentation-only: anything unmapped lands in the
 # "other" bucket rather than vanishing from the page.
 _FORMAT_CATEGORY: dict[str, str] = {}
-for _fmt in ("heic", "heif", "jpg", "jpeg", "png", "webp", "bmp", "tiff", "tif", "gif", "ico"):
+for _fmt in (
+    "heic",
+    "heif",
+    "jpg",
+    "jpeg",
+    "png",
+    "webp",
+    "avif",
+    "bmp",
+    "tiff",
+    "tif",
+    "gif",
+    "ico",
+):
     _FORMAT_CATEGORY[_fmt] = "image"
-for _fmt in ("docx", "txt", "pdf", "md", "markdown", "html", "rtf", "odt", "pdfa"):
+for _fmt in ("docx", "txt", "pdf", "md", "markdown", "html", "htm", "eml", "rtf", "odt", "pdfa"):
     _FORMAT_CATEGORY[_fmt] = "document"
 for _fmt in ("xlsx", "xls", "csv", "json", "ods"):
     _FORMAT_CATEGORY[_fmt] = "spreadsheet"

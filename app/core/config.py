@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.compat import data_dir
@@ -194,7 +195,16 @@ class Settings(BaseSettings):
     #   - ``mammoth``: always use the pure-Python path; never invoke
     #     LibreOffice. Recommended for self-hosters who run the slim image
     #     and explicitly accept the fidelity ceiling for predictability.
-    office_engine: str = "auto"
+    #
+    # Env var: ``FILEMORPH_OFFICE_ENGINE`` — the name the docs, .env.example
+    # and the converter's error message use. The unprefixed ``OFFICE_ENGINE``
+    # (the only name this field used to read) stays accepted; the documented
+    # name wins when both are set in the same source (process env still
+    # beats .env).
+    office_engine: str = Field(
+        default="auto",
+        validation_alias=AliasChoices("FILEMORPH_OFFICE_ENGINE", "OFFICE_ENGINE"),
+    )
 
     # Hard upper bound on how long a single ``soffice --convert-to`` call
     # may run before we kill it. 60 s is comfortable for a 100-page Word

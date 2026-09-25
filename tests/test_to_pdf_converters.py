@@ -92,22 +92,37 @@ def test_html_to_pdf(client, auth_headers, tmp_path):
 
 
 @_skip_no_weasyprint
-def test_html_to_pdf_ssrf_blocked(client, auth_headers, tmp_path, monkeypatch):
+@pytest.mark.parametrize("encoding", ["utf-8", "cp1252"], ids=["str-path", "bytes-path"])
+def test_html_to_pdf_ssrf_blocked(client, auth_headers, tmp_path, monkeypatch, encoding):
     """HTML referencing remote/file resources must NOT trigger an outbound
-    fetch — url_fetcher=_deny_url_fetcher is mandatory."""
+    fetch — url_fetcher=_deny_url_fetcher is mandatory. Runs for both input
+    paths: UTF-8 is decoded to str, anything else reaches WeasyPrint as bytes
+    (see _html_source); every resource URL must go through the guard."""
     import socket
+
+    import app.converters.document as document
 
     def _block(self, addr, *args, **kwargs):
         raise AssertionError(f"unexpected outbound network call to {addr!r}")
 
     monkeypatch.setattr(socket.socket, "connect", _block)
 
+    guarded: list[str] = []
+    deny = document._deny_url_fetcher
+
+    def _spy(url, **kwargs):
+        guarded.append(url)
+        return deny(url, **kwargs)
+
+    monkeypatch.setattr(document, "_deny_url_fetcher", _spy)
+
     p = tmp_path / "evil.html"
-    p.write_text(
-        "<!DOCTYPE html><html><head>"
-        "<link rel='stylesheet' href='http://169.254.169.254/x.css'>"
-        "</head><body><img src='file:///etc/passwd'><p>hi</p></body></html>",
-        encoding="utf-8",
+    p.write_bytes(
+        (
+            "<!DOCTYPE html><html><head>"
+            "<link rel='stylesheet' href='http://169.254.169.254/x.css'>"
+            "</head><body><img src='file:///etc/passwd'><p>Grüße</p></body></html>"
+        ).encode(encoding)
     )
     with p.open("rb") as f:
         res = client.post(
@@ -118,6 +133,8 @@ def test_html_to_pdf_ssrf_blocked(client, auth_headers, tmp_path, monkeypatch):
         )
     assert res.status_code == 200, res.text
     assert res.content[:5] == b"%PDF-"
+    assert any("169.254.169.254" in u for u in guarded), guarded
+    assert any(u.startswith("file:") for u in guarded), guarded
 
 
 # ── eml → pdf (stdlib email + WeasyPrint) ────────────────────────────────────
@@ -320,3 +337,85 @@ def test_eml_to_html_no_body_fallback():
 
     out = _eml_to_html(_eml_bytes(subject="s", plain="   "))
     assert "(no readable body)" in out
+
+
+# ── .htm must be a registered alias of html → pdf (runs everywhere) ────────
+#
+# The /convert/html-to-pdf file picker's accept attribute offers `.htm`
+# (app/core/convert_pairs.py _ACCEPT["html"]), but only `("html", "pdf")` was
+# registered — picking a `.htm` file was a dead end. `.htm` must resolve to
+# the same HtmlToPdfConverter class (same SSRF-guarded url_fetcher).
+
+
+def test_htm_is_registered_as_html_alias(client):
+    from app.converters.document import HtmlToPdfConverter
+    from app.converters.registry import get_converter
+
+    assert isinstance(get_converter("htm", "pdf"), HtmlToPdfConverter)
+
+    r = client.get("/api/v1/formats")
+    assert r.status_code == 200
+    assert "pdf" in r.json()["conversions"].get("htm", [])
+
+
+@_skip_no_weasyprint
+def test_htm_to_pdf(client, auth_headers, tmp_path):
+    p = tmp_path / "page.htm"
+    p.write_text(
+        "<!DOCTYPE html><html><body><h1>Hello</h1><p>FileMorph</p></body></html>",
+        encoding="utf-8",
+    )
+    with p.open("rb") as f:
+        res = client.post(
+            "/api/v1/convert",
+            headers=auth_headers,
+            files={"file": ("page.htm", f, "text/html")},
+            data={"target_format": "pdf"},
+        )
+    assert res.status_code == 200, res.text
+    assert res.content[:5] == b"%PDF-"
+    assert 'filename="page.pdf"' in res.headers.get("content-disposition", "")
+
+
+# ── non-UTF-8 HTML keeps its characters ─────────────────────────────────────
+#
+# Word's "Save as Web Page" writes windows-1252 `.htm`. Decoding every upload
+# as UTF-8 with errors="replace" turned each umlaut into U+FFFD while the
+# conversion still reported success. _html_source() hands non-UTF-8 input to
+# WeasyPrint as bytes so its parser honours the BOM / <meta charset>.
+
+_WORD_HTM = (
+    '<html><head><meta http-equiv=Content-Type content="text/html; charset=windows-1252">'
+    "</head><body><p>Straße Ärger</p></body></html>"
+)
+
+
+def test_html_source_decodes_utf8():
+    from app.converters.document import _html_source
+
+    assert _html_source("<p>Straße</p>".encode("utf-8")) == "<p>Straße</p>"
+
+
+def test_html_source_keeps_non_utf8_as_bytes():
+    from app.converters.document import _html_source
+
+    raw = _WORD_HTM.encode("cp1252")
+    assert _html_source(raw) == raw
+
+
+@_skip_no_weasyprint
+def test_windows_1252_htm_keeps_umlauts(client, auth_headers):
+    res = client.post(
+        "/api/v1/convert",
+        headers=auth_headers,
+        files={"file": ("brief.htm", _WORD_HTM.encode("cp1252"), "text/html")},
+        data={"target_format": "pdf"},
+    )
+    assert res.status_code == 200, res.text
+
+    from pypdf import PdfReader
+
+    reader = PdfReader(BytesIO(res.content))
+    extracted = "\n".join((pg.extract_text() or "") for pg in reader.pages)
+    assert "Straße" in extracted and "Ärger" in extracted
+    assert "�" not in extracted

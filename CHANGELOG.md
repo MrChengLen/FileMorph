@@ -9,6 +9,65 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — QA fixture generator for the format fixes
+
+`scripts/make_testdata_format_fixes.py` writes byte-stable fixtures for
+checking the fixes below by hand: a text PDF for the PDF/A download name, and
+a windows-1252 `.htm` plus a UTF-8 `.html` with umlauts. Output goes to a
+gitignored local folder; only the script ships.
+
+### Fixed — `FILEMORPH_OFFICE_ENGINE` was silently ignored
+
+The docs, the office compose overlay and the runtime error message all name
+the DOCX → PDF engine variable `FILEMORPH_OFFICE_ENGINE`, but the settings class
+only read `OFFICE_ENGINE`, so following the docs did nothing. Both names are
+accepted now; `FILEMORPH_OFFICE_ENGINE` is the documented one and wins if both
+are set in the same place, so set only one. `.env.example` lists it
+(commented out, default `auto`).
+
+The office overlay (`docker-compose.office.yml`) also pinned
+`FILEMORPH_OFFICE_ENGINE=auto` under `environment:`, which Compose ranks above
+the `.env` file. It no longer sets the variable, so the value in your `.env`
+reaches the app under either name.
+
+**Check your deployment:** if you set `FILEMORPH_OFFICE_ENGINE=libreoffice` or
+`=mammoth` (in `.env` or the container environment), that value takes effect
+with this change; until now you were running `auto`. `libreoffice` needs an
+image with LibreOffice (`filemorph:office`) — on the slim image every DOCX → PDF
+conversion would fail.
+
+### Fixed — five places where the app said one thing and did another
+
+- **PDF/A results download as `.pdf`.** `pdf → pdfa` used the target token as
+  the file extension, so a converted `Vertrag.pdf` arrived as `Vertrag.pdfa`,
+  which no operating system opens as a PDF. The download is now
+  `Vertrag_pdfa.pdf`: PDF/A is a PDF profile, and the `_pdfa` suffix follows the
+  `_compressed` / `_pages` convention for outputs that share their source's
+  extension, so the archival copy doesn't collide with the original in the
+  Downloads folder. Covers the single download, the batch ZIP entries and the
+  browser's fallback name (used when a proxy strips `Content-Disposition`).
+- **The 413 hint named a stale free-tier limit.** Anonymous uploads over the cap
+  were told "Register free to upload up to 50 MB" on `/convert` and
+  `/compress`, while the free tier allows 100 MB. The number is now read from
+  `app/core/quotas.py`, so the hint follows the quota instead of drifting.
+- **The drop zone's "Supported:" lists were incomplete.** The homepage caption
+  left out AVIF, HEIF, ICO, HTML, EML, FLV, WMV, AAC, WMA and OPUS (compress
+  mode: AVIF). Both lists now match `/api/v1/formats`; only the "Supported:"
+  label is translated, the format names are plain text. A new test compares
+  the rendered captions (DE and EN) with the live API, so a converter added
+  without a caption update fails CI.
+- **`/formats` filed AVIF and EML under "Other".** They now sit under Images and
+  Documents; a test fails when a registered source format has no category.
+- **`.htm` on `/convert/html-to-pdf` was a dead end.** The file picker offered
+  `.htm`, but no converter accepted it, so the user got stuck at "Please select
+  a target format". `.htm` is now an alias of HTML → PDF (same converter class,
+  same SSRF-guarded `url_fetcher`) and `/api/v1/formats` lists it; a test
+  checks that every extension a pair page's picker offers actually converts.
+  Because `.htm` is what Word's "Save as Web Page" writes — in windows-1252 —
+  HTML input that isn't UTF-8 now goes to WeasyPrint as bytes, so its
+  `<meta charset>` is honoured. Until now every umlaut in such a file came out
+  as `�` in a conversion reported as successful (this affected `.html` too).
+
 ### Fixed — stale Tailwind bundle rebuilt; CI now rejects a stale one
 
 The committed bundle (`tailwind.625748cf.css`) had last been rebuilt in May,
@@ -87,7 +146,7 @@ document's, so a restrictive `url_fetcher` is silently ignored.
 
 Not reachable here. The bypass exists only for the `xmp_metadata=[url]` and
 `stylesheets=[url]` parameters, and all four `write_pdf()` call sites pass the
-output path alone (`app/converters/document.py` lines 228, 392, 409, 474). The
+output path alone (`app/converters/document.py` lines 228, 392, 426, 491). The
 advisory's third precondition — forwarding an attacker-influenced URL into
 either parameter — cannot occur.
 

@@ -396,16 +396,33 @@ class MarkdownToPdfConverter(BaseConverter):
 # ---------------------------------------------------------------------------
 # HTML → PDF  (via WeasyPrint)
 # ---------------------------------------------------------------------------
+def _html_source(raw: bytes) -> str | bytes:
+    """Decode an uploaded HTML file for WeasyPrint.
+
+    UTF-8 (the common case) is decoded here. Anything else is returned as
+    bytes, so WeasyPrint's parser honours the BOM / ``<meta charset>`` (with
+    its windows-1252 fallback) — e.g. Word's "Save as Web Page" ``.htm``,
+    which is windows-1252 and used to come out with every umlaut replaced by
+    U+FFFD. Pure stdlib, so it is unit-testable on every host, not just CI.
+    """
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return raw
+
+
 # url_fetcher=_deny_url_fetcher is MANDATORY (CLAUDE.md / security.md): a
 # crafted HTML could otherwise pull internal URLs or file:// (SSRF / local
 # file read). WeasyPrint logs and skips each denied resource, so the render
-# still succeeds — it just never fetches anything external.
-@register(("html", "pdf"))
+# still succeeds — it just never fetches anything external. ``.htm`` is the
+# same format under its short extension (the /convert/html-to-pdf picker
+# offers it), so it shares this class and its guard.
+@register(("html", "pdf"), ("htm", "pdf"))
 class HtmlToPdfConverter(BaseConverter):
     def convert(self, input_path: Path, output_path: Path, **kwargs) -> Path:
         import weasyprint
 
-        html = input_path.read_text(encoding="utf-8", errors="replace")
+        html = _html_source(input_path.read_bytes())
         weasyprint.HTML(string=html, url_fetcher=_deny_url_fetcher).write_pdf(str(output_path))
         return output_path
 

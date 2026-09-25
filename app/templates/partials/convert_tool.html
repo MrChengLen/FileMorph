@@ -60,20 +60,22 @@
       <p class="text-gray-400">{{ _('Drag & drop your files here') }}</p>
       <p class="text-xs text-gray-600">{{ _('or click to browse (multi-file supported)') }}</p>
       {# On pair pages show only the source format as the supported hint.
-         On the homepage show the full supported-format list unchanged. #}
+         On the homepage both lists must match /api/v1/formats — enforced
+         by tests/test_homepage_drop_zone_modes.py. #}
       {% if preset_source %}
       <p id="supported-convert" class="text-xs text-gray-700 mt-2">
         {{ _('Supported:') }} {{ preset_source|upper }}
       </p>
       {% else %}
       <p id="supported-convert" class="text-xs text-gray-700 mt-2">
-        {{ _('Supported: HEIC · JPG · PNG · WebP · BMP · TIFF · GIF') }}<br>
-        {{ _('DOCX · PDF · TXT · MD · XLSX · CSV · JSON') }}<br>
-        {{ _('MP4 · MOV · AVI · MKV · WebM · MP3 · WAV · FLAC · OGG · M4A') }}
+        {{ _('Supported:') }} HEIC · HEIF · JPG · PNG · WebP · AVIF · BMP · TIFF · GIF · ICO<br>
+        DOCX · PDF · TXT · MD · HTML · EML · XLSX · CSV · JSON<br>
+        MP4 · MOV · AVI · MKV · WebM · FLV · WMV<br>
+        MP3 · WAV · FLAC · OGG · M4A · AAC · WMA · OPUS
       </p>
       <p id="supported-compress" class="hidden text-xs text-gray-700 mt-2">
-        {{ _('Supported: JPG · PNG · WebP · TIFF') }}<br>
-        {{ _('MP4 · MOV · AVI · MKV · WebM') }}
+        {{ _('Supported:') }} JPG · PNG · WebP · AVIF · TIFF<br>
+        MP4 · MOV · AVI · MKV · WebM
       </p>
       {% endif %}
     </div>

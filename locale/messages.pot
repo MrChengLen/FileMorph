@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph 1.1.0\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-20 16:52+0200\n"
+"POT-Creation-Date: 2026-09-25 14:36+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -647,9 +647,6 @@ msgstr ""
 msgid "CycloneDX SBOM per release"
 msgstr ""
 
-msgid "DOCX · PDF · TXT · MD · XLSX · CSV · JSON"
-msgstr ""
-
 msgid ""
 "DSGVO Art. 17 self-service flow, incl. the HGB §257 / AO §147 tax-"
 "retention edge case ↗"
@@ -1274,12 +1271,6 @@ msgid "Looking up a specific format instead? Browse the"
 msgstr ""
 
 msgid "MB per file."
-msgstr ""
-
-msgid "MP4 · MOV · AVI · MKV · WebM"
-msgstr ""
-
-msgid "MP4 · MOV · AVI · MKV · WebM · MP3 · WAV · FLAC · OGG · M4A"
 msgstr ""
 
 msgid "Mask ****"
@@ -2059,12 +2050,6 @@ msgid "Supported formats"
 msgstr ""
 
 msgid "Supported:"
-msgstr ""
-
-msgid "Supported: HEIC · JPG · PNG · WebP · BMP · TIFF · GIF"
-msgstr ""
-
-msgid "Supported: JPG · PNG · WebP · TIFF"
 msgstr ""
 
 msgid "Switch to English"
