@@ -3,7 +3,7 @@
 
 Self-contained, mirrors the pattern in ``test_cockpit_admin.py``: spins up an
 in-memory SQLite, overrides ``get_db``, and runs assertions through the
-existing ``client`` fixture.
+existing ``client`` fixture (the concurrency test uses its own file DB).
 
 What's covered
 --------------
@@ -18,12 +18,13 @@ What's covered
 from __future__ import annotations
 
 import asyncio
+import logging
 from datetime import date, datetime, timezone
 
 import pytest
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.pool import NullPool, StaticPool
 
 from app.api.routes.auth import get_current_user
 from app.core.auth import hash_password
@@ -270,27 +271,54 @@ def test_increment_accepts_documented_key_shapes():
 # ── Concurrency: composite-PK + atomic UPSERT under parallel writers ────────
 
 
-def test_increment_is_safe_under_concurrent_callers():
+def test_increment_is_safe_under_concurrent_callers(tmp_path, caplog):
     """50 concurrent increments on the same (date, key) must converge to 50.
 
-    Each caller opens its own session — same pattern production uses, where
-    the page-view middleware and a route-handler may both fire simultaneously.
-    A non-atomic implementation (read-then-write) would lose increments under
-    parallel writers; the test asserts the UPSERT semantics hold.
+    Each caller opens its own session on its own connection — same pattern
+    production uses, where the page-view middleware and a route-handler may
+    both fire simultaneously. A non-atomic implementation (read-then-write)
+    would lose increments under parallel writers; the test asserts the UPSERT
+    semantics hold (SQLite branch; the Postgres ON CONFLICT path is not
+    exercised here).
+
+    Not on the module's StaticPool engine: that hands every session the same
+    connection, so all writers share one transaction and one session's
+    pool-return rollback can discard another's pending UPDATE — a harness
+    artefact SQLAlchemy 2.1's aiosqlite adapter exposes (9-48 of 50 in CI).
+    A file database with NullPool gives each session a real connection; the
+    SQLite busy timeout serialises the writers. ``increment()`` swallows DB
+    errors, so the log is checked first: a lock timeout on a slow runner then
+    fails as itself instead of looking like a lost increment.
     """
+    caplog.set_level(logging.WARNING, logger="app.core.metrics")
     N = 50
+    engine = create_async_engine(
+        f"sqlite+aiosqlite:///{(tmp_path / 'metrics.db').as_posix()}",
+        connect_args={"check_same_thread": False, "timeout": 30},
+        poolclass=NullPool,
+    )
+    session_factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
     async def _one_writer():
-        async with _TestSession() as s:
+        async with session_factory() as s:
             await increment("page_views", db=s)
 
     async def _run():
-        await asyncio.gather(*[_one_writer() for _ in range(N)])
-        async with _TestSession() as s:
-            row = (
-                await s.execute(select(DailyMetric).where(DailyMetric.metric_key == "page_views"))
-            ).scalar_one()
-            assert row.count == N
+        try:
+            async with engine.begin() as conn:
+                await conn.run_sync(DailyMetric.__table__.create)
+            await asyncio.gather(*[_one_writer() for _ in range(N)])
+            failures = [r.getMessage() for r in caplog.records if r.name == "app.core.metrics"]
+            assert not failures, f"increment() logged DB errors: {failures[:3]}"
+            async with session_factory() as s:
+                row = (
+                    await s.execute(
+                        select(DailyMetric).where(DailyMetric.metric_key == "page_views")
+                    )
+                ).scalar_one()
+                assert row.count == N
+        finally:
+            await engine.dispose()
 
     asyncio.run(_run())
 

@@ -9,6 +9,27 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — metrics concurrency test runs each writer on its own connection
+
+SQLAlchemy 2.1.0 (released 2026-09-24) turned
+`test_daily_metrics.py::test_increment_is_safe_under_concurrent_callers` red on
+every branch: 50 concurrent increments of one counter landed at 9 to 48. CI
+installs `requirements.txt` unpinned, so it picked 2.1.0 up by itself; the
+image installs `requirements.lock`, so production is still on 2.0.52.
+
+The cause was the test harness, not `app/core/metrics.py`. The test ran its 50
+sessions on the module's shared in-memory engine, whose `StaticPool` hands
+every session the same connection — so all writers shared one transaction, and
+since 2.1's aiosqlite adapter one session's pool-return rollback can land
+between another's `UPDATE` and `COMMIT` and discard it. On 2.0.x the same
+harness ran all 50 writes in one transaction with a single commit, so it never
+exercised concurrent writers at all. Production never shares a connection
+between sessions. The test now uses a file database with `NullPool`, so each
+session has a real connection and the SQLite busy timeout serialises the
+writers; it passes on 2.0.x and 2.1.0, still fails a non-atomic read-then-write
+implementation, and checks the log first so a lock timeout fails as itself.
+No version cap needed.
+
 ### Changed — dependency batch (supersedes five Dependabot PRs)
 
 `mammoth>=1.12.1`, `pillow-heif>=1.7.0`, `stripe>=15.6.1`, `python-docx>=1.2.0`,
