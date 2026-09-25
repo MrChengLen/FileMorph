@@ -41,8 +41,10 @@ physical assets of its own.
 
 ### System access control (Zugangskontrolle)
 
-- API authentication: keys stored as SHA-256 hashes (never raw);
-  validation via `hmac.compare_digest` (constant-time) — `app/core/security.py`.
+- API authentication: keys stored as SHA-256 hashes (never raw); the
+  key file is validated via `hmac.compare_digest` (constant-time),
+  per-user keys by lookup of that hash, revoked keys are rejected —
+  `app/core/security.py`.
 - Password authentication (Cloud features): bcrypt with an adaptive cost
   factor — `app/core/auth.py`.
 - Session tokens: short-lived JWTs, 15-minute access / 30-day refresh —

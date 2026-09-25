@@ -51,10 +51,12 @@ Every conversion or compression request follows the same path:
    `Referrer-Policy` of `strict-origin-when-cross-origin`.
 3. **Upload-size guard** rejects any POST with a `Content-Length` above
    `MAX_UPLOAD_SIZE_MB` (default 2000) before the body is read.
-4. **Authentication.** API requests carry an `X-API-Key` header validated by
-   `validate_api_key()` in `app/core/security.py` — a SHA-256 +
-   `hmac.compare_digest` constant-time check against the `api_keys.json` file
-   (Community Edition) or the `api_keys` table (Cloud Edition). Web-UI flows
+4. **Authentication.** API requests carry an `X-API-Key` header, accepted by
+   `require_api_key` (`app/api/deps.py`) if it is in the `api_keys.json` file
+   (Community Edition; `validate_api_key()`, a SHA-256 + `hmac.compare_digest`
+   constant-time check) or is an active key in the `api_keys` table (Cloud
+   Edition; `find_active_api_key()`, a lookup by SHA-256 hash). Both live in
+   `app/core/security.py`. Web-UI flows
    use JWT bearer tokens issued by the auth router and carried in the
    `Authorization: Bearer` header; the browser keeps them in `localStorage`,
    not a cookie — FileMorph sets **no cookies** (see `privacy.html` §6).

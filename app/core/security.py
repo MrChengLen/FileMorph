@@ -5,7 +5,12 @@ import json
 import secrets
 from pathlib import Path
 
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
 from app.core.config import settings
+from app.db.models import ApiKey
 
 
 def _keys_path() -> Path:
@@ -50,6 +55,29 @@ def validate_api_key(key: str) -> bool:
         if hmac.compare_digest(key_hash, stored):
             valid = True
     return valid
+
+
+async def find_active_api_key(db: AsyncSession, key: str) -> ApiKey | None:
+    """Return the dashboard-minted ``ApiKey`` for ``key`` with its owner
+    loaded, or ``None`` if it is unknown, revoked, or the owner is
+    deactivated or deleted.
+
+    These keys live in the DB ``api_keys`` table, not the file store above,
+    and are looked up by SHA-256 digest rather than compared in constant
+    time: a timing leak could reveal at most a stored digest, useless without
+    a preimage of a 256-bit random key.
+    """
+    result = await db.execute(
+        select(ApiKey)
+        .where(ApiKey.key_hash == _hash_key(key), ApiKey.is_active.is_(True))
+        .options(selectinload(ApiKey.user))
+    )
+    api_key = result.scalar_one_or_none()
+    owner = api_key.user if api_key else None
+    # ``deleted_at`` is defence-in-depth, as in ``get_current_user``.
+    if owner is not None and owner.is_active and owner.deleted_at is None:
+        return api_key
+    return None
 
 
 def revoke_api_key(key: str) -> bool:
