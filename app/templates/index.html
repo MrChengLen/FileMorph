@@ -184,8 +184,10 @@
             <p class="text-gray-400">{{ _('Files are processed server-side and deleted immediately after conversion — temporary files use random names and are swept within minutes. Hosting is in the EU, there are no trackers, and no account is required.') }}</p>
           </div>
           <div>
+            {# The format list must match the converter registry — pinned (EN + DE)
+               by tests/test_format_lists_match_registry.py. #}
             <h3 class="font-semibold text-gray-200">{{ _('Which file formats can I convert?') }}</h3>
-            <p class="text-gray-400">{{ _('Images (HEIC, JPG, PNG, WebP, BMP, TIFF, GIF), documents (DOCX, PDF, TXT, Markdown), spreadsheets (XLSX, CSV, JSON), audio (MP3, WAV, FLAC, OGG, M4A) and video (MP4, MOV, AVI, MKV, WebM).') }}</p>
+            <p class="text-gray-400">{{ _('Images (HEIC, HEIF, JPG, PNG, WebP, AVIF, BMP, TIFF, GIF, ICO), documents (DOCX, PDF, TXT, Markdown, HTML, EML), spreadsheets (XLSX, CSV, JSON), audio (MP3, WAV, FLAC, OGG, M4A, AAC, WMA, Opus) and video (MP4, MOV, AVI, MKV, WebM, FLV, WMV).') }}</p>
           </div>
           <div>
             <h3 class="font-semibold text-gray-200">{{ _('Can I compress a file to an exact size?') }}</h3>

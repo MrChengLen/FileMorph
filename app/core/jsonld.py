@@ -63,14 +63,17 @@ def build_site_jsonld(app_base_url: str) -> tuple[str, str]:
     safe to compile once.
     """
     base = app_base_url.rstrip("/") or "http://localhost:8000"
-    # Honest feature list — only capabilities that actually ship (see
-    # docs/claims-audit.md). No AVIF auto-routing / pre-upload size-preview.
+    # Honest feature list — only capabilities that actually ship (guarded by
+    # tests/test_seo_foundation.py::test_jsonld_webapplication_has_featurelist).
+    # AVIF is a real conversion format, but there is no AVIF/WebP auto-routing
+    # and no pre-upload size-preview. The "Convert …" lists must match the
+    # converter registry (tests/test_format_lists_match_registry.py).
     feature_list = [
-        "Convert images (HEIC, JPG, PNG, WebP, BMP, TIFF, GIF)",
-        "Convert documents (DOCX, PDF, TXT, Markdown)",
+        "Convert images (HEIC, HEIF, JPG, PNG, WebP, AVIF, BMP, TIFF, GIF, ICO)",
+        "Convert documents (DOCX, PDF, TXT, Markdown, HTML, EML)",
         "Convert spreadsheets (XLSX, CSV, JSON)",
-        "Convert audio (MP3, WAV, FLAC, OGG, M4A)",
-        "Convert video (MP4, MOV, AVI, MKV, WebM)",
+        "Convert audio (MP3, WAV, FLAC, OGG, M4A, AAC, WMA, Opus)",
+        "Convert video (MP4, MOV, AVI, MKV, WebM, FLV, WMV)",
         "Compress images to an exact target size",
         "No account required",
         "Self-hostable via Docker",

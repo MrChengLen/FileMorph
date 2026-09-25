@@ -913,8 +913,13 @@ def test_jsonld_webapplication_has_featurelist(client):
     feats = webapps[0].get("featureList")
     assert isinstance(feats, list) and len(feats) >= 5, "WebApplication.featureList too thin"
     blob = " ".join(feats).lower()
-    # honesty guard — must NOT claim capabilities the engine doesn't have
-    assert "avif" not in blob, "featureList claims AVIF auto-routing (not shipped)"
+    # honesty guard — must NOT claim capabilities the engine doesn't have.
+    # AVIF is a real conversion format since 2026-07, so it may appear inside
+    # a "Convert images (…)" format list — nowhere else: Accept-header
+    # auto-routing to AVIF/WebP still doesn't ship.
+    assert "avif" not in re.sub(r"\([^)]*\)", "", blob), (
+        "featureList claims AVIF auto-routing (not shipped)"
+    )
     assert "size preview" not in blob and "size-preview" not in blob, (
         "featureList claims pre-upload size preview (not shipped)"
     )

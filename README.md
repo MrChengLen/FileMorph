@@ -36,10 +36,12 @@ FileMorph is an open-source file conversion service with two interfaces:
 │     │     Drag & drop your files here         │         │
 │     │   or click to browse  (multi-file)      │         │
 │     │                                         │         │
-│     │  HEIC · JPG · PNG · WebP · BMP · TIFF   │         │
-│     │  GIF · DOCX · PDF · TXT · MD · XLSX     │         │
-│     │  CSV · JSON · MP4 · MOV · AVI · MKV     │         │
-│     │  WebM · MP3 · WAV · FLAC · OGG · M4A    │         │
+│     │  HEIC · HEIF · JPG · PNG · WebP · AVIF  │         │
+│     │  BMP · TIFF · GIF · ICO · DOCX · PDF    │         │
+│     │  TXT · MD · HTML · EML · XLSX · CSV     │         │
+│     │  JSON · MP4 · MOV · AVI · MKV · WebM    │         │
+│     │  FLV · WMV · MP3 · WAV · FLAC · OGG     │         │
+│     │  M4A · AAC · WMA · OPUS                 │         │
 │     └─────────────────────────────────────────┘         │
 │                                                         │
 │     Target Format:  [ JPG                  ▼ ]          │
@@ -130,8 +132,9 @@ a liable EU contact), not permission.
 
 | Category      | Input formats                                                   | Output formats                                |
 |---------------|------------------------------------------------------------------|-----------------------------------------------|
-| **Images**    | HEIC, HEIF, JPG, JPEG, PNG, WebP, AVIF, BMP, TIFF, GIF, ICO     | JPG, PNG, WebP, AVIF, BMP, TIFF, GIF, ICO     |
+| **Images**    | HEIC, HEIF, JPG, JPEG, PNG, WebP, AVIF, BMP, TIFF, GIF, ICO     | JPG, PNG, WebP, AVIF, BMP, TIFF, GIF, ICO, PDF |
 | **Documents** | DOCX, TXT, Markdown (`.md`)                                      | PDF, TXT, HTML                                |
+| **Web & email** | HTML, EML                                                      | PDF                                           |
 | **PDF**       | PDF                                                              | TXT, PDF/A-2b<sup>†</sup>                     |
 | **Spreadsheets** | XLSX, CSV, JSON                                               | CSV, XLSX, JSON                               |
 | **Audio**     | MP3, WAV, FLAC, OGG, M4A, AAC, WMA, Opus                        | MP3, WAV, FLAC, OGG, M4A, AAC, WMA, Opus     |

@@ -9,6 +9,25 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — FAQ, `/llms.txt`, JSON-LD and README listed an outdated set of formats
+
+The homepage FAQ answer "Which file formats can I convert?" (DE and EN), the
+format sentence in `/llms.txt`, the JSON-LD `featureList` and the README's
+drop-zone mockup still named the formats from before HEIF, AVIF, ICO, HTML,
+EML, FLV, WMV, AAC, WMA and Opus were added, so the homepage FAQ contradicted
+the drop-zone caption above it. All of them now list every format
+`/api/v1/formats` accepts. The README's "Supported Formats" table was missing
+HTML and EML (now a row of their own, since they only convert to PDF) and PDF
+as an image output. The lists stay hand-written (the FAQ answer is translated,
+the README is static Markdown), and a new test compares each one with the
+converter registry, so a new input format added without updating them fails CI
+with the stale list named.
+
+The JSON-LD honesty test used to reject the word "AVIF" anywhere in the feature
+list — it was written before AVIF conversion existed. AVIF may now appear in a
+format list in brackets; anywhere else the test still rejects it, because
+automatic AVIF/WebP output routing still doesn't ship.
+
 ### Fixed — API keys created in the dashboard were rejected on every upload route
 
 A key minted via `POST /api/v1/keys` (the dashboard) is stored only as a row in

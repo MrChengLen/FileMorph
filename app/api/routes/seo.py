@@ -172,9 +172,12 @@ async def llms_txt() -> str:
         "",
         "## About",
         "",
-        "FileMorph converts images (HEIC, JPG, PNG, WebP, BMP, TIFF, GIF), "
-        "documents (DOCX, PDF, TXT, Markdown), spreadsheets (XLSX, CSV, JSON), "
-        "audio (MP3, WAV, FLAC, OGG, M4A) and video (MP4, MOV, AVI, MKV, WebM). "
+        # The format list must match the converter registry — pinned by
+        # tests/test_format_lists_match_registry.py.
+        "FileMorph converts images (HEIC, HEIF, JPG, PNG, WebP, AVIF, BMP, TIFF, GIF, "
+        "ICO), documents (DOCX, PDF, TXT, Markdown, HTML, EML), spreadsheets (XLSX, "
+        "CSV, JSON), audio (MP3, WAV, FLAC, OGG, M4A, AAC, WMA, Opus) and video (MP4, "
+        "MOV, AVI, MKV, WebM, FLV, WMV). "
         "It can compress JPEG and WebP images to an exact target size using a "
         "binary search. Files are processed server-side and deleted immediately "
         "after conversion; hosting is in the EU and no account is required.",
