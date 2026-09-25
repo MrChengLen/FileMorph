@@ -9,6 +9,13 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — QA fixture generator for the format fixes
+
+`scripts/make_testdata_format_fixes.py` writes byte-stable fixtures for
+checking the fixes below by hand: a text PDF for the PDF/A download name, and
+a windows-1252 `.htm` plus a UTF-8 `.html` with umlauts. Output goes to a
+gitignored local folder; only the script ships.
+
 ### Fixed — `FILEMORPH_OFFICE_ENGINE` was silently ignored
 
 The docs, the office compose overlay and the runtime error message all name
