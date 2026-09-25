@@ -232,6 +232,7 @@ function setFiles(files) {
 
   document.getElementById('drop-idle').classList.add('hidden');
   document.getElementById('drop-selected').classList.remove('hidden');
+  setQuickActionsVisible(false);
   renderFileList();
 
   // Single-file flow: populate the standalone dropdown from the first file's
@@ -329,6 +330,16 @@ function renderFileList() {
 // point at the dedicated split/extract/compress tools instead. #pdf-tools-hint
 // is absent on pair pages (partials/convert_tool.html gates it on
 // `preset_source`), hence the null-guard.
+// Homepage quick-action chips (partials/quick_actions.html) are an idle-state
+// shortcut: once files are chosen they would sit between the file list and
+// the Convert button, so hide them until the selection is cleared again.
+// Server-rendered, so the links stay in the initial HTML. Null-guarded —
+// only the homepage renders #quick-actions.
+function setQuickActionsVisible(visible) {
+  const nav = document.getElementById('quick-actions');
+  if (nav) nav.classList.toggle('hidden', !visible);
+}
+
 function updatePdfToolsHint() {
   const hint = document.getElementById('pdf-tools-hint');
   if (!hint) return;
@@ -358,6 +369,7 @@ function clearAllFiles(event) {
   document.getElementById('file-input').value = '';
   document.getElementById('drop-idle').classList.remove('hidden');
   document.getElementById('drop-selected').classList.add('hidden');
+  setQuickActionsVisible(true);
   document.getElementById('target-format').innerHTML =
     '<option value="">— select a file first —</option>';
   document.getElementById('quality-section').classList.add('hidden');

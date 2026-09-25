@@ -96,6 +96,12 @@
     </div>
   </div>
 
+  {# Homepage-only quick actions (partials/quick_actions.html) — gated on
+     show_quick_actions (set only by pages.py::index) so /compress and the
+     12 /convert/<pair> pages, which also render this shared partial, don't
+     get self-links or diluted chip rows. #}
+  {% if show_quick_actions %}{% include "partials/quick_actions.html" %}{% endif %}
+
   <!-- Convert: target format -->
   <div id="convert-options" class="space-y-4">
     <div class="space-y-1">

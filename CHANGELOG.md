@@ -9,6 +9,30 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed — homepage shows seven quick actions; "More tools" box removed
+
+Before a file was chosen, the homepage's tool card offered no concrete
+operation — just the Convert/Compress toggle and an empty target-format
+dropdown — and on the homepage the PDF tools (split, extract, compress)
+appeared only as small text links in a "More tools" box below the fold (plus
+the footer). This is the first visible step of surfacing operations earlier.
+
+The tool card now shows, under the drop zone, seven secondary "chip" links
+under an "Or choose directly" label — Compress PDF, JPG to PDF, Word to PDF,
+Split PDF, Extract PDF pages, HEIC to JPG and Compress image (KB/MB) —
+followed by an "All tools →" link. All seven point at pages that already
+exist; "(KB/MB)" signals file size, not pixel dimensions. They render only on
+the homepage — the same tool card is shared by `/compress` and the 12
+`/convert/<pair>` pages, which would otherwise show self-links — and step
+aside while files are selected, returning when the selection is cleared. The
+"More tools" box is gone; its links now live in the chips and the "All tools"
+link. The subline above the tool gains "PDF". Redact is no longer teased on
+the homepage — it still appears in the footer and on /tools when AI
+operations are enabled.
+
+`scripts/i18n.py update` now passes `--ignore-obsolete`, so removed strings
+are dropped from the catalogs instead of piling up as `#~` blocks.
+
 ### Fixed — FAQ, `/llms.txt`, JSON-LD and README listed an outdated set of formats
 
 The homepage FAQ answer "Which file formats can I convert?" (DE and EN), the

@@ -57,7 +57,7 @@ def test_redact_footer_link_present_when_enabled_no_nav_slot(client, redact_enab
 
 
 def test_footer_and_seo_surfaces_present_when_enabled(client, redact_enabled):
-    assert "/redact" in client.get("/en/").text  # footer link + homepage teaser
+    assert "/redact" in client.get("/en/").text  # footer link (no homepage teaser)
     assert "/redact" in client.get("/sitemap.xml").text
     assert "/redact" in client.get("/llms.txt").text
 
