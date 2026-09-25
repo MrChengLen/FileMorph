@@ -9,6 +9,51 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — CI tests, and the SBOM lists, the versions the image ships
+
+The image installs `requirements.lock`. Four workflows still installed
+`requirements.txt`, whose `>=` ranges resolve to the newest releases, so what
+they tested or described was not what ships.
+
+- **Tests.** `lint-and-test` ran against whatever was newest on PyPI — that is
+  how SQLAlchemy 2.1.0 failed a test on every branch while production stayed
+  on 2.0.52. It now installs with the lockfile as a constraints file, so every
+  runtime package is at its shipped version. The dev-only tools (pytest, ruff,
+  uv, aiosqlite, …) are not in the lockfile and resolve as before; a dependency
+  they share with the app stays at the locked version. The constraints are the
+  lockfile's pins without their hashes, because pip turns on `--require-hashes`
+  for the whole install as soon as one constraint carries a hash. A
+  `requirements.txt` floor raised past the locked version (the usual
+  Dependabot pip PR) now fails this job's install as well as `lockfile-drift`;
+  recompiling the lockfile fixes both.
+- **The early warning stays.** The unpinned run caught SQLAlchemy 2.1 before
+  any lockfile bump would have pulled it in. It now runs in the new
+  `deps-latest` workflow — weekly on Mondays and on demand — and gates nothing.
+- **SBOM.** `sbom.yml`, and `release.yml` for the copy attached to releases,
+  built the SBOM from the runner's Python after `pip install -r
+  requirements.txt` plus the CycloneDX generator. The one produced for main
+  at `1d7bad6` listed 106 packages against 77 in the lockfile: 19 locked
+  packages at a version the image does not contain (SQLAlchemy 2.1.1 instead
+  of 2.0.52), plus 28 that belong to the generator (`cyclonedx-bom` and its
+  dependencies) — whose install had also downgraded `packaging` to 25.0,
+  while the image ships 26.3. Both workflows now install the lockfile into a
+  fresh venv exactly as the Dockerfile does, install the generator outside it,
+  and point `cyclonedx-py environment` at that venv. (`cyclonedx-py requirements
+  requirements.lock` reads the hashed lockfile fine, but its SBOM has no
+  licence data and no dependency graph.) An SBOM from before this change can
+  list extra packages and versions ahead of the image.
+- **veraPDF.** The PDF/A-2b gate built its fixture with the newest pikepdf; it
+  now installs the lockfile the way the image does.
+
+`build-desktop.yml` still installs `requirements.txt`: it builds on Windows,
+and the lockfile is resolved for Linux.
+
+`tests/test_supply_chain_hygiene.py` pins all four, so none of them can
+quietly go back to the manifest. Also: `.github/workflows/docker.yml` had been
+committed with CRLF line endings (an API commit in PR #129) despite
+`*.yml text eol=lf`, so every checkout showed it as modified. It is
+renormalized to LF; no content change.
+
 ### Changed — homepage shows seven quick actions; "More tools" box removed
 
 Before a file was chosen, the homepage's tool card offered no concrete

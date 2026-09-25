@@ -79,8 +79,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ghostscript libcairo2 libpangocairo-1.0-0 libgdk-pixbuf2.0-0
 
+      # The image's install (Dockerfile), so the fixture is built with the
+      # package versions that actually ship — pikepdf above all.
+      # requirements.txt would resolve its `>=` ranges to the newest releases.
       - name: Install Python dependencies
-        run: pip install -r requirements.txt
+        run: pip install --require-hashes -r requirements.lock
 
       - name: Generate PDF/A fixture via PdfToPdfaConverter
         run: python scripts/verapdf_check.py
