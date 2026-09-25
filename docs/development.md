@@ -324,7 +324,7 @@ and only keys listed in [`release-signing.md`](release-signing.md) verify.
    ```
 
 The tag push triggers `release.yml` (verifies the signature, publishes the
-GitHub Release with a source tarball + `IMAGE_DIGEST.txt`), `docker.yml`
-(builds + cosign-signs the slim and office images to GHCR) and `sbom.yml`
-(attaches the CycloneDX SBOM). See [`release-signing.md`](release-signing.md)
+GitHub Release with a source tarball, the CycloneDX SBOM and
+`IMAGE_DIGEST.txt`) and `docker.yml` (builds + cosign-signs the slim and
+office images to GHCR). See [`release-signing.md`](release-signing.md)
 for key setup/rotation and `docs/patch-policy.md` for the versioning rules.

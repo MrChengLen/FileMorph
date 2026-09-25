@@ -70,10 +70,15 @@ dependencies, and a re-uploaded or tampered wheel fails the hash
 check. CI fails if the two files drift apart or if the lockfile was
 compiled on a different Python version than the image ships.
 
-The full dependency manifest is available as a
+The full Python dependency manifest is available as a
 [CycloneDX SBOM](https://cyclonedx.org/) attached to each GitHub
-release as `filemorph-{version}.cdx.json`. Use it for vulnerability
-scanning against your existing CVE pipeline.
+release as `filemorph-{version}.cdx.json`. It is generated from a
+clean environment installed from `requirements.lock` exactly the way
+the image installs it, so it lists the application's Python
+dependencies at the versions the image ships. System packages from
+the base image and `apt` (FFmpeg, Ghostscript, LibreOffice) are not
+in it. Use it for vulnerability scanning against your existing CVE
+pipeline.
 
 ## Release announcements
 

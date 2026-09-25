@@ -14,12 +14,13 @@
 # "stay current" layer, not the "react to a 0-day" layer.
 #
 # Dependabot only edits requirements.txt — it has no concept of the
-# pip-compile lockfile the image installs from. Every pip PR therefore turns
-# ci.yml's `lockfile-drift` job red until requirements.lock is recompiled:
-# either run the `deps-lock` workflow on the PR branch, or take the lockfile
-# that the failing job uploads as an artifact. That red gate is deliberate —
-# when keeping the lockfile current was invisible manual work, it fell four
-# packages behind.
+# pip-compile lockfile the image installs from. A pip PR that raises a floor
+# past the locked version therefore turns ci.yml's `lockfile-drift` job red
+# until requirements.lock is recompiled — and `lint-and-test` too, whose
+# install is constrained to the lockfile. Either run the `deps-lock` workflow
+# on the PR branch, or take the lockfile that `lockfile-drift` uploads as an
+# artifact. Those red gates are deliberate — when keeping the lockfile current
+# was invisible manual work, it fell four packages behind.
 #
 # A base-image bump also moves the Python version the app ships on. The
 # `python-version consistency` gate in ci.yml fails until the workflows and

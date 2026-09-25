@@ -15,7 +15,10 @@ silently undo it:
     repo-wide default (OpenSSF Scorecard "Token-Permissions");
   * ``.github/dependabot.yml`` exists and covers all three ecosystems we
     pin manually (``pip`` / ``github-actions`` / ``docker``) so the pins
-    above don't rot.
+    above don't rot;
+  * what CI tests, validates and publishes is the lockfile's dependency set —
+    the test job installs with the lockfile as constraints, and the SBOM and
+    veraPDF workflows install it the way the image does.
 
 This is a tripwire, not a substitute for the server-side Scorecard run /
 review: the per-job permissions check here is a heuristic (it asserts a
@@ -54,6 +57,12 @@ def _workflow_files() -> list[Path]:
     files = sorted(_WORKFLOW_DIR.glob("*.yml")) + sorted(_WORKFLOW_DIR.glob("*.yaml"))
     assert files, f"no workflow files found under {_WORKFLOW_DIR}"
     return files
+
+
+def _workflow_code(name: str) -> str:
+    """A workflow's text without its comment lines, which quote old commands."""
+    lines = (_WORKFLOW_DIR / name).read_text(encoding="utf-8").splitlines()
+    return "\n".join(line for line in lines if not line.lstrip().startswith("#"))
 
 
 def test_workflow_dir_exists() -> None:
@@ -187,6 +196,83 @@ def test_lockfile_is_hash_pinned_and_matches_the_image_python() -> None:
         f"requirements.lock targets Python {header.group(1)} but the image ships "
         f"{version.group(1)}. Regenerate it for the shipped version; markers "
         f"resolve differently per version."
+    )
+
+
+def test_ci_tests_run_against_the_locked_versions() -> None:
+    """lint-and-test installs with the lockfile as constraints.
+
+    requirements-dev.txt pulls in requirements.txt, whose ``>=`` ranges
+    resolve to the newest releases — that is how CI came to test SQLAlchemy
+    2.1.0 while the image shipped 2.0.52. The unpinned install is the early
+    warning in ``deps-latest.yml``, not the gate.
+    """
+    text = _workflow_code("ci.yml")
+    installs = [
+        line.strip()
+        for line in text.splitlines()
+        if re.search(r"pip install .*-r requirements(-dev)?\.txt", line)
+    ]
+    assert installs, "ci.yml no longer installs requirements-dev.txt — update this guard"
+    for line in installs:
+        assert re.search(r"\s-c\s", line), (
+            f"ci.yml installs a manifest without constraints: {line!r}. "
+            f"Tests would run against the newest releases, not what the image ships."
+        )
+    assert re.search(r"requirements\.lock.*>.*constraints", text), (
+        "ci.yml's constraints are no longer derived from requirements.lock"
+    )
+
+
+def test_deps_latest_mirrors_lint_and_test() -> None:
+    """deps-latest differs from lint-and-test only in the pinning.
+
+    Otherwise a system package or pytest option added to ci.yml alone turns the
+    weekly run red, and its header tells the reader to blame an upstream
+    release.
+    """
+    ci, latest = _workflow_code("ci.yml"), _workflow_code("deps-latest.yml")
+    for pattern in (r"apt-get install -y .*", r"pytest tests/.*"):
+        assert re.findall(pattern, latest) == re.findall(pattern, ci), (
+            f"deps-latest.yml and ci.yml disagree on `{pattern}` — keep them in step"
+        )
+
+
+@pytest.mark.parametrize("workflow", ["sbom.yml", "release.yml", "verapdf.yml"])
+def test_workflow_installs_what_the_image_ships(workflow: str) -> None:
+    """The SBOM lists, and veraPDF validates, the image's dependency set.
+
+    Installing requirements.txt resolves its ``>=`` ranges to the newest
+    releases: the SBOM published from main listed 19 of the 77 shipped
+    packages at versions the image does not contain.
+    """
+    text = _workflow_code(workflow)
+    assert "install --require-hashes -r requirements.lock" in text, (
+        f"{workflow} does not install requirements.lock the way the Dockerfile does"
+    )
+    assert not re.search(r"-r requirements(-dev)?\.txt", text), (
+        f"{workflow} installs the manifest — its `>=` ranges resolve to versions "
+        f"the image does not ship. Install requirements.lock with --require-hashes."
+    )
+
+
+@pytest.mark.parametrize("workflow", ["sbom.yml", "release.yml"])
+def test_sbom_describes_the_lockfile_venv_only(workflow: str) -> None:
+    """``cyclonedx-py environment`` reads the lockfile venv, not its own.
+
+    Without an interpreter argument it describes the Python it runs in, which
+    holds the generator too: 28 packages of its own in the SBOM, and a
+    ``packaging`` its install had downgraded below the shipped version.
+    """
+    text = _workflow_code(workflow)
+    target = re.search(r'cyclonedx-py environment\s+"?([^\s"\\]+)/bin/python', text)
+    assert target, f"{workflow}: cyclonedx-py environment is not given a venv to describe"
+    venv = re.escape(target.group(1))
+    assert re.search(venv + r'/bin/pip"? install --require-hashes -r requirements\.lock', text), (
+        f"{workflow}: the venv the SBOM describes is not the one requirements.lock is installed into"
+    )
+    assert len(re.findall(venv + r'/bin/pip"? install', text)) == 1, (
+        f"{workflow}: something besides requirements.lock is installed into the SBOM's venv"
     )
 
 
