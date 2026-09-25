@@ -23,7 +23,8 @@ import xml.etree.ElementTree as ET
 
 import pytest
 
-from app.core.convert_pairs import PAIR_CONTENT
+from app.converters.registry import get_public_conversions
+from app.core.convert_pairs import PAIR_CONTENT, accept_attr
 
 _PAIRS = sorted(PAIR_CONTENT)
 
@@ -193,7 +194,7 @@ def test_pair_page_supported_hint_is_source_only(client):
     # Source format present in the scoped hint
     assert "Supported: JPG" in r.text
     # Full multi-format list must NOT appear (it's homepage-only)
-    assert "HEIC · JPG · PNG" not in r.text
+    assert "HEIC · HEIF · JPG · PNG" not in r.text
 
 
 def test_pair_page_file_input_has_scoped_accept(client):
@@ -219,7 +220,7 @@ def test_homepage_still_has_full_supported_list_and_toggle(client):
     r = client.get("/en/")
     assert r.status_code == 200
     # Full list present
-    assert "HEIC · JPG · PNG" in r.text
+    assert "HEIC · HEIF · JPG · PNG" in r.text
     # Mode toggle present
     assert 'id="btn-mode-convert"' in r.text
     assert 'id="btn-mode-compress"' in r.text
@@ -269,3 +270,27 @@ def test_pair_page_hides_target_format_dropdown(client):
     assert ">Target Format<" not in pair
     # Homepage keeps the labelled dropdown.
     assert ">Target Format<" in home
+
+
+# ── file picker must never offer an extension the tool can't convert ───────
+
+
+def test_pair_page_accept_extensions_are_all_convertible():
+    """Every extension token in a pair page's file-picker `accept` attribute
+    must actually convert to that pair's target — otherwise the OS picker
+    lets the user choose a file the tool then refuses: a dead end. Checked
+    against the public listing, which is what the tool's dropdown offers."""
+    conversions = get_public_conversions()
+    offenders = []
+    for src, tgt in PAIR_CONTENT:
+        for token in accept_attr(src).split(","):
+            token = token.strip()
+            if not token.startswith("."):
+                continue  # MIME tokens (e.g. "image/jpeg") aren't extensions
+            ext = token.lstrip(".")
+            if tgt not in conversions.get(ext, []):
+                offenders.append((src, tgt, ext))
+    assert not offenders, (
+        f"pair-page file picker accepts an extension with no registered "
+        f"converter to the pair's target — dead end for the user: {offenders}"
+    )

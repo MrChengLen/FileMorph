@@ -87,7 +87,7 @@ async def _do_compress(
             detail=f"Compression not supported for '.{ext}'. Supported: {IMAGE_FMTS + VIDEO_FMTS}",
         )
 
-    # Tier-based file size enforcement (anonymous: 20 MB, free: 50, pro: 100, business: 500).
+    # Tier-based file size enforcement (per-tier limits: app/core/quotas.py).
     # ``tier`` is passed in from the wrapper that already acquired the
     # NEU-D.1 concurrency slot — keep it identical so cap-enforcement
     # and capacity-accounting agree on the caller's tier.
@@ -95,9 +95,10 @@ async def _do_compress(
     if file.size is not None and file.size > quota.max_file_size_bytes:
         limit_mb = quota.max_file_size_bytes // (1024 * 1024)
         if user is None:
+            free_mb = get_quota("free").max_file_size_bytes // _MB
             detail = (
                 f"File too large ({limit_mb} MB max for anonymous). "
-                "Register free to upload up to 50 MB."
+                f"Register free to upload up to {free_mb} MB."
             )
         else:
             detail = f"File too large ({limit_mb} MB max for your plan). Upgrade for larger files."

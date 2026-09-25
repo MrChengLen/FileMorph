@@ -148,9 +148,10 @@ function setMode(mode) {
   }
 
   // Drop-zone help text differs per mode: convert covers all source formats,
-  // compress is limited to JPG/PNG/WebP/TIFF + MP4/AVI/MOV/MKV/WebM. The
-  // server rejects mismatches anyway, but showing the right list up-front
-  // keeps users from uploading e.g. an MP3 only to see a 422.
+  // compress only covers the image/video formats listed under `compression`
+  // in /api/v1/formats. The server rejects mismatches anyway, but showing
+  // the right list up-front keeps users from uploading e.g. an MP3 only to
+  // see a 422.
   const supConv = document.getElementById('supported-convert');
   const supComp = document.getElementById('supported-compress');
   if (supConv && supComp) {
@@ -367,6 +368,10 @@ function clearAllFiles(event) {
 }
 
 // ── Format helpers ────────────────────────────────────────────────────────────
+
+// PDF/A is a PDF profile, not a file extension — OSes only open `.pdf`.
+// Mirrors `_DOWNLOAD_SUFFIX` in app/api/routes/convert.py.
+const DOWNLOAD_SUFFIX = { pdfa: '_pdfa.pdf' };
 
 // File types where quality slider is relevant
 const QUALITY_TYPES = ['jpg', 'jpeg', 'png', 'webp', 'mp4', 'avi', 'mov', 'mkv', 'webm'];
@@ -819,10 +824,12 @@ async function submitForm() {
     // strips it), still produce a correctly-extensioned filename. The target
     // extension is known client-side: convert mode → the target-format
     // dropdown; compress mode → the source extension (output format matches).
+    // PDF/A needs the `_pdfa.pdf` suffix rather than a literal `.pdfa`
+    // extension — see DOWNLOAD_SUFFIX above.
     const outputExt = currentMode === 'convert'
       ? document.getElementById('target-format').value
       : getExtension(selectedFiles[0].name);
-    const fallbackName = isBatch ? 'filemorph-batch.zip' : `result.${outputExt}`;
+    const fallbackName = isBatch ? 'filemorph-batch.zip' : `result${DOWNLOAD_SUFFIX[outputExt] || '.' + outputExt}`;
     const filename = nameMatch ? nameMatch[1] : fallbackName;
 
     const url = URL.createObjectURL(blob);

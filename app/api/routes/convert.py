@@ -41,6 +41,17 @@ router = APIRouter()
 # Trigger converter registration on module load
 _ensure_loaded()
 
+# Target formats whose token is not a file extension. PDF/A is a PDF profile
+# (ISO 19005) that OSes only open as ``.pdf``; the ``_pdfa`` stem suffix follows
+# the ``_compressed`` / ``_pages`` convention for outputs that share their
+# source's extension. app/static/js/app.js mirrors this map for its fallback
+# download name.
+_DOWNLOAD_SUFFIX: dict[str, str] = {"pdfa": "_pdfa.pdf"}
+
+
+def _download_name(original_stem: str, tgt_ext: str) -> str:
+    return safe_download_name(original_stem + _DOWNLOAD_SUFFIX.get(tgt_ext, f".{tgt_ext}"))
+
 
 @router.post("/convert", tags=["Convert"], dependencies=[Depends(require_api_key)])
 @limiter.limit("10/minute")
@@ -78,7 +89,7 @@ async def _do_convert(
     except UnsupportedConversionError as e:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(e))
 
-    # Tier-based file size enforcement (anonymous: 20 MB, free: 50, pro: 100, business: 500)
+    # Tier-based file size enforcement (per-tier limits: app/core/quotas.py).
     # ``tier`` is passed in from the wrapper that already acquired the
     # NEU-D.1 concurrency slot — keep it identical to the slot's tier
     # so cap-enforcement and capacity-accounting agree on who the
@@ -87,9 +98,10 @@ async def _do_convert(
     if file.size is not None and file.size > quota.max_file_size_bytes:
         limit_mb = quota.max_file_size_bytes // (1024 * 1024)
         if user is None:
+            free_mb = get_quota("free").max_file_size_bytes // _MB
             detail = (
                 f"File too large ({limit_mb} MB max for anonymous). "
-                "Register free to upload up to 50 MB."
+                f"Register free to upload up to {free_mb} MB."
             )
         else:
             detail = f"File too large ({limit_mb} MB max for your plan). Upgrade for larger files."
@@ -200,7 +212,7 @@ async def _do_convert(
         # BackgroundTask runs after the response body is fully sent, so temp
         # cleanup is deferred but still guaranteed. On any error path below
         # (or above, before this block), the except handler cleans up sync.
-        download_name = safe_download_name(f"{original_stem}.{tgt_ext}")
+        download_name = _download_name(original_stem, tgt_ext)
         output_size_bytes = output_disk_size
 
         # NEU-B.2: integrity hash for downstream auditors / eDiscovery /
@@ -390,7 +402,7 @@ async def _do_convert_batch(
         original_stem = Path(upload.filename or "result").stem
         src_ext = Path(upload.filename or "").suffix.lstrip(".").lower()
         size_in = upload.size or 0
-        out_name = safe_download_name(f"{original_stem}.{tgt_ext}")
+        out_name = _download_name(original_stem, tgt_ext)
 
         try:
             if not src_ext:

@@ -9,6 +9,38 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — five places where the app said one thing and did another
+
+- **PDF/A results download as `.pdf`.** `pdf → pdfa` used the target token as
+  the file extension, so a converted `Vertrag.pdf` arrived as `Vertrag.pdfa`,
+  which no operating system opens as a PDF. The download is now
+  `Vertrag_pdfa.pdf`: PDF/A is a PDF profile, and the `_pdfa` suffix follows the
+  `_compressed` / `_pages` convention for outputs that share their source's
+  extension, so the archival copy doesn't collide with the original in the
+  Downloads folder. Covers the single download, the batch ZIP entries and the
+  browser's fallback name (used when a proxy strips `Content-Disposition`).
+- **The 413 hint named a stale free-tier limit.** Anonymous uploads over the cap
+  were told "Register free to upload up to 50 MB" on `/convert` and
+  `/compress`, while the free tier allows 100 MB. The number is now read from
+  `app/core/quotas.py`, so the hint follows the quota instead of drifting.
+- **The drop zone's "Supported:" lists were incomplete.** The homepage caption
+  left out AVIF, HEIF, ICO, HTML, EML, FLV, WMV, AAC, WMA and OPUS (compress
+  mode: AVIF). Both lists now match `/api/v1/formats`; only the "Supported:"
+  label is translated, the format names are plain text. A new test compares
+  the rendered captions (DE and EN) with the live API, so a converter added
+  without a caption update fails CI.
+- **`/formats` filed AVIF and EML under "Other".** They now sit under Images and
+  Documents; a test fails when a registered source format has no category.
+- **`.htm` on `/convert/html-to-pdf` was a dead end.** The file picker offered
+  `.htm`, but no converter accepted it, so the user got stuck at "Please select
+  a target format". `.htm` is now an alias of HTML → PDF (same converter class,
+  same SSRF-guarded `url_fetcher`) and `/api/v1/formats` lists it; a test
+  checks that every extension a pair page's picker offers actually converts.
+  Because `.htm` is what Word's "Save as Web Page" writes — in windows-1252 —
+  HTML input that isn't UTF-8 now goes to WeasyPrint as bytes, so its
+  `<meta charset>` is honoured. Until now every umlaut in such a file came out
+  as `�` in a conversion reported as successful (this affected `.html` too).
+
 ### Fixed — stale Tailwind bundle rebuilt; CI now rejects a stale one
 
 The committed bundle (`tailwind.625748cf.css`) had last been rebuilt in May,
@@ -87,7 +119,7 @@ document's, so a restrictive `url_fetcher` is silently ignored.
 
 Not reachable here. The bypass exists only for the `xmp_metadata=[url]` and
 `stylesheets=[url]` parameters, and all four `write_pdf()` call sites pass the
-output path alone (`app/converters/document.py` lines 228, 392, 409, 474). The
+output path alone (`app/converters/document.py` lines 228, 392, 426, 491). The
 advisory's third precondition — forwarding an attacker-influenced URL into
 either parameter — cannot occur.
 

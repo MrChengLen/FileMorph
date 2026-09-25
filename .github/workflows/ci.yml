@@ -140,7 +140,7 @@ jobs:
       #   restrictive `url_fetcher` is silently ignored for `xmp_metadata=[url]`
       #   and `stylesheets=[url]`. Not reachable in FileMorph: all four
       #   write_pdf() call sites pass the output path only and never those
-      #   parameters (app/converters/document.py:228, 392, 409, 474), so the
+      #   parameters (app/converters/document.py:228, 392, 426, 491), so the
       #   advisory's third precondition -- forwarding an attacker-influenced
       #   URL into either -- cannot occur. The fix is 70.0, which we cannot take
       #   yet: it reworks the url_fetcher contract from a callable to an object

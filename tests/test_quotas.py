@@ -1,7 +1,12 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Tier quota enforcement — file size limits."""
 
+import dataclasses
 import io
+
+import pytest
+
+from app.core.quotas import QUOTAS, _MB
 
 
 def test_anonymous_upload_over_30mb_rejected(client, auth_headers):
@@ -49,3 +54,62 @@ def test_anonymous_compress_over_30mb_rejected(client, auth_headers):
     assert res.status_code == 413
     assert "30 MB" in res.json()["detail"]
     assert res.headers.get("X-FileMorph-Error-Code") == "input_too_large"
+
+
+# ── 413 hint must name the real free-tier limit, not a stale hardcoded one ──
+#
+# The anonymous-tier 413 on /convert and /compress tells the caller to
+# "Register free to upload up to X MB" — X must come from
+# QUOTAS["free"].max_file_size_bytes, not a number baked into the string.
+# The anonymous cap is shrunk to 1 MB here purely to keep the test payload
+# small; the free-tier number under test is read straight from QUOTAS.
+
+_ENDPOINTS = [
+    ("/api/v1/convert", {"target_format": "png"}),
+    ("/api/v1/compress", {"quality": 80}),
+]
+
+
+@pytest.mark.parametrize("endpoint, extra_data", _ENDPOINTS, ids=["convert", "compress"])
+def test_anonymous_413_names_free_tier_limit_from_quotas(
+    client, auth_headers, monkeypatch, endpoint, extra_data
+):
+    monkeypatch.setitem(
+        QUOTAS, "anonymous", dataclasses.replace(QUOTAS["anonymous"], max_file_size_bytes=1 * _MB)
+    )
+    big = b"\xff\xd8\xff\xe0" + b"\x00" * (2 * _MB)
+    res = client.post(
+        endpoint,
+        headers=auth_headers,
+        files={"file": ("big.jpg", big, "image/jpeg")},
+        data=extra_data,
+    )
+    assert res.status_code == 413
+    assert res.headers.get("X-FileMorph-Error-Code") == "input_too_large"
+    detail = res.json()["detail"]
+    free_mb = QUOTAS["free"].max_file_size_bytes // _MB
+    assert f"Register free to upload up to {free_mb} MB." in detail
+    assert "50 MB" not in detail
+
+
+@pytest.mark.parametrize("endpoint, extra_data", _ENDPOINTS, ids=["convert", "compress"])
+def test_anonymous_413_free_limit_is_derived_not_hardcoded(
+    client, auth_headers, monkeypatch, endpoint, extra_data
+):
+    """Bumping the free-tier limit must change the hint text — proving the
+    number is read from QUOTAS at request time, not baked into the string."""
+    monkeypatch.setitem(
+        QUOTAS, "anonymous", dataclasses.replace(QUOTAS["anonymous"], max_file_size_bytes=1 * _MB)
+    )
+    monkeypatch.setitem(
+        QUOTAS, "free", dataclasses.replace(QUOTAS["free"], max_file_size_bytes=123 * _MB)
+    )
+    big = b"\xff\xd8\xff\xe0" + b"\x00" * (2 * _MB)
+    res = client.post(
+        endpoint,
+        headers=auth_headers,
+        files={"file": ("big.jpg", big, "image/jpeg")},
+        data=extra_data,
+    )
+    assert res.status_code == 413
+    assert "up to 123 MB" in res.json()["detail"]

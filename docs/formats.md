@@ -80,7 +80,7 @@ JPEG/WebP/AVIF); a video file always uses quality-based compression there.
 | **PDF** | TXT | Extracts text from each page using PyPDF. Complex layouts (columns, forms) may not extract cleanly. |
 | **Markdown (.md)** | HTML | Converts Markdown to a complete HTML document. Supports tables and fenced code blocks. |
 | **Markdown (.md)** | PDF | Renders Markdown via HTML to PDF using WeasyPrint. Styled with a clean sans-serif font. |
-| **HTML** | PDF | Renders an HTML file to PDF via WeasyPrint. External resources (remote CSS/images, `file://`) are **never fetched** (`url_fetcher` SSRF guard). |
+| **HTML / HTM** | PDF | Renders an HTML file to PDF via WeasyPrint. External resources (remote CSS/images, `file://`) are **never fetched** (`url_fetcher` SSRF guard). |
 | **EML (email)** | PDF | Renders an `.eml` email to PDF: common headers (From / To / Cc / Date / Subject) plus the body (HTML part preferred, else plain text). Remote tracking pixels / images are not fetched. `.msg` (Outlook) is not yet supported. |
 
 ### Notes on DOCX → PDF
