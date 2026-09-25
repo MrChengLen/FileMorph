@@ -447,9 +447,9 @@ async def validation_error_handler(request: Request, exc: RequestValidationError
 # S1-B: Long-lived cache for content-hashed assets, short revalidate for the
 # rest. Regex matches `.abc12345.` or `-abc12345.` — 8+ hex chars sandwiched
 # between a separator and the extension dot, the convention emitted by
-# esbuild/vite/rollup hash-suffix builds. Matches nothing in the current repo
-# (static files are plain), so today everything takes the 5-min branch; the
-# immutable branch activates the day a bundler is introduced.
+# esbuild/vite/rollup hash-suffix builds. Today that is the Tailwind bundle
+# (`tailwind.<sha>.css`, scripts/build-tailwind.sh), which takes the immutable
+# branch; every other static file is plain and takes the 5-min branch.
 _HASHED_ASSET = re.compile(r"[-.][a-f0-9]{8,}\.")
 
 
