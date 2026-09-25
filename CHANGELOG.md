@@ -9,6 +9,36 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — stale Tailwind bundle rebuilt; CI now rejects a stale one
+
+The committed bundle (`tailwind.625748cf.css`) had last been rebuilt in May,
+so every utility class a template or script started using afterwards never
+reached the browser — 46 of them. Visible effects on the live site: the
+footer's "Popular conversions" grid stopped at three columns and had no
+gaps; the homepage's self-hosting checklist (and grids on `/formats` and
+`/pricing`) never went two-column; the "How it works" steps on `/compress`,
+the PDF tools and `/redact` had no numbers; the converter's notice boxes
+(DOCX engine notice, PDF-tools hint, conversion warnings) and the green
+batch summary lost their tinted background, border and text colour; and
+`bottom-0`/`inset-x-0` were missing, which is why the cookie notice needed a
+positioning shim in `style.css`. The rebuild (`tailwind.8be3407b.css`) emits
+all of them; the shim is removed. The only class dropped, `grid-cols-3`, is
+no longer used anywhere.
+
+Root cause: `docs/tailwind-build-setup.md` described a CI step that rebuilds
+the bundle and fails on a difference, but it was never added to `ci.yml`. It
+is now the `Tailwind bundle freshness gate`; a failing run attaches its own
+bundle as the `tailwind-bundle-ci-built` artifact. Because CI now downloads
+and runs the Tailwind CLI on every run, `scripts/build-tailwind.sh` verifies
+each download against SHA-256 pins from the v3.4.17 release's
+`sha256sums.txt` before it becomes executable (a mismatching binary in
+`.tools/` is re-downloaded, a mismatching download is deleted), and `curl -f`
+makes an HTTP error fail loudly instead of saving an error page as the binary.
+
+Also fixed: the "Compare plans" heading on `/pricing` used `text-h-section`,
+a class that does not exist (the token is `text-h-sect`), so it rendered as
+plain body text.
+
 ### Fixed — metrics concurrency test runs each writer on its own connection
 
 SQLAlchemy 2.1.0 (released 2026-09-24) turned

@@ -78,6 +78,38 @@ jobs:
       - name: Template class gate
         run: python scripts/check_template_classes.py
 
+      # Tailwind bundle freshness gate — rebuild the purged bundle from the
+      # committed templates/JS and fail if it differs from the committed one.
+      # A stale bundle silently drops every utility class added since the last
+      # manual rebuild: from May to September 2026 about 46 classes the
+      # templates used (grid columns, gaps, list numbering, bottom-0, …) never
+      # rendered. The script pins the CLI version and verifies its SHA-256
+      # before running it. A deleted old bundle shows up as a tracked change and
+      # a new one as untracked, so `status --porcelain` catches either; the
+      # status runs on its own line so a git failure aborts instead of passing.
+      # On failure the CI-built bundle is uploaded — useful when a local build
+      # differs (Tailwind also scans untracked template files, CI never sees them).
+      - name: Tailwind bundle freshness gate
+        id: tailwind
+        run: |
+          bash scripts/build-tailwind.sh
+          changes="$(git status --porcelain -- app/static/css/)"
+          if [ -n "$changes" ]; then
+            printf '%s\n' "$changes"
+            echo "::error::The committed Tailwind bundle is stale. Run 'bash scripts/build-tailwind.sh' and commit app/static/css/ (the CI-built bundle is attached as an artifact)."
+            exit 1
+          fi
+
+      - name: Upload the CI-built Tailwind bundle
+        if: failure() && steps.tailwind.outcome == 'failure'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: tailwind-bundle-ci-built
+          path: |
+            app/static/css/tailwind.*.css
+            !app/static/css/tailwind.input.css
+          retention-days: 7
+
       # i18n drift gate — re-extract the .pot from current sources and fail
       # if it differs from the committed file. Catches a developer who added
       # `_('...')` calls but forgot `python scripts/i18n.py extract` before
