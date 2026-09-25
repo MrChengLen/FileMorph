@@ -88,6 +88,9 @@ JPEG/WebP/AVIF); a video file always uses quality-based compression there.
 DOCX → PDF runs through a **complexity router** that picks one of two
 engines per conversion. Routing is controlled by the
 `FILEMORPH_OFFICE_ENGINE` environment variable; the default is `auto`.
+The older unprefixed name `OFFICE_ENGINE` is still accepted; set only one
+of the two (if both are set in the same place, `FILEMORPH_OFFICE_ENGINE`
+wins).
 
 #### Two engines
 

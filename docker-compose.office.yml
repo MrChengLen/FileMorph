@@ -28,11 +28,11 @@ services:
     build:
       # Override the slim ``target: base`` from the parent compose file.
       target: office
-    environment:
-      # ``auto`` (default) routes only complex DOCX to LibreOffice; simple
-      # docs still take the fast pure-Python path. Set ``libreoffice`` to
-      # force every conversion through soffice (slower but predictable
-      # high-fidelity); ``mammoth`` falls back to the pure-Python path even
-      # though LibreOffice is installed (useful for A/B comparing the two
-      # engines on the same image).
-      - FILEMORPH_OFFICE_ENGINE=auto
+    # Engine routing is set in your .env, not here — an ``environment:`` entry
+    # in this file would override the .env value. FILEMORPH_OFFICE_ENGINE:
+    # ``auto`` (default) routes only complex DOCX to LibreOffice; simple
+    # docs still take the fast pure-Python path. Set ``libreoffice`` to
+    # force every conversion through soffice (slower but predictable
+    # high-fidelity); ``mammoth`` falls back to the pure-Python path even
+    # though LibreOffice is installed (useful for A/B comparing the two
+    # engines on the same image).

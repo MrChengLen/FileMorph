@@ -9,6 +9,26 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — `FILEMORPH_OFFICE_ENGINE` was silently ignored
+
+The docs, the office compose overlay and the runtime error message all name
+the DOCX → PDF engine variable `FILEMORPH_OFFICE_ENGINE`, but the settings class
+only read `OFFICE_ENGINE`, so following the docs did nothing. Both names are
+accepted now; `FILEMORPH_OFFICE_ENGINE` is the documented one and wins if both
+are set in the same place, so set only one. `.env.example` lists it
+(commented out, default `auto`).
+
+The office overlay (`docker-compose.office.yml`) also pinned
+`FILEMORPH_OFFICE_ENGINE=auto` under `environment:`, which Compose ranks above
+the `.env` file. It no longer sets the variable, so the value in your `.env`
+reaches the app under either name.
+
+**Check your deployment:** if you set `FILEMORPH_OFFICE_ENGINE=libreoffice` or
+`=mammoth` (in `.env` or the container environment), that value takes effect
+with this change; until now you were running `auto`. `libreoffice` needs an
+image with LibreOffice (`filemorph:office`) — on the slim image every DOCX → PDF
+conversion would fail.
+
 ### Fixed — five places where the app said one thing and did another
 
 - **PDF/A results download as `.pdf`.** `pdf → pdfa` used the target token as
