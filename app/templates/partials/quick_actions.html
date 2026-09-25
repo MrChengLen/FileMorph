@@ -1,0 +1,95 @@
+{# Homepage quick actions (docs-internal/operations-visibility-konzept.md,
+   section "Startseite"): 7 secondary chip links shown before any file is
+   picked, replacing the old "More tools" box further down the page. Every
+   chip targets an existing page — IA rule "every promoted operation has a
+   URL first" — so nothing here teases an unbuilt feature. Server-rendered,
+   no JS involved, so link visibility can never differ from the initial
+   HTML (IA invariant G6). Redact is a paid/gated operation and is
+   deliberately never one of these idle chips (product-ux.md #3 — free
+   path before any upsell); it stays in the footer and on /tools when
+   ai_operations_enabled is set. #}
+<nav id="quick-actions" aria-labelledby="quick-actions-label" class="space-y-3">
+  <div class="flex items-center gap-3">
+    <span id="quick-actions-label" class="text-xs font-semibold uppercase tracking-wider text-gray-400">
+      {{ _('Or choose directly') }}
+    </span>
+    <span class="flex-1 h-px bg-gray-800" aria-hidden="true"></span>
+  </div>
+  <ul class="flex flex-wrap gap-2">
+    <li>
+      <a href="{{ localized_url('/pdf/compress', current_prefix) }}"
+        class="inline-flex items-center gap-2 min-h-11 px-3 py-2 rounded-lg border border-gray-700 bg-gray-900 text-sm font-medium text-gray-200 hover:border-brand hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+        <svg class="w-4 h-4 text-brand-light" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+            d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25" />
+        </svg>
+        {{ _('Compress PDF') }}
+      </a>
+    </li>
+    <li>
+      <a href="{{ localized_url('/convert/jpg-to-pdf', current_prefix) }}"
+        class="inline-flex items-center gap-2 min-h-11 px-3 py-2 rounded-lg border border-gray-700 bg-gray-900 text-sm font-medium text-gray-200 hover:border-brand hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+        <svg class="w-4 h-4 text-brand-light" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+            d="M2.25 15.75l5.16-5.16a2.25 2.25 0 013.18 0l5.16 5.16m-1.5-1.5l1.41-1.41a2.25 2.25 0 013.18 0l2.91 2.91M3.75 19.5h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5z" />
+        </svg>
+        {{ _('JPG to PDF') }}
+      </a>
+    </li>
+    <li>
+      <a href="{{ localized_url('/convert/docx-to-pdf', current_prefix) }}"
+        class="inline-flex items-center gap-2 min-h-11 px-3 py-2 rounded-lg border border-gray-700 bg-gray-900 text-sm font-medium text-gray-200 hover:border-brand hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+        <svg class="w-4 h-4 text-brand-light" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+            d="M14 2.5H6.5A1.5 1.5 0 005 4v16a1.5 1.5 0 001.5 1.5h11A1.5 1.5 0 0019 20V7.5L14 2.5z" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+            d="M14 2.5v5h5M8.5 12.5l1.2 5 1.8-4 1.8 4 1.2-5" />
+        </svg>
+        {{ _('Word to PDF') }}
+      </a>
+    </li>
+    <li>
+      <a href="{{ localized_url('/pdf/split', current_prefix) }}"
+        class="inline-flex items-center gap-2 min-h-11 px-3 py-2 rounded-lg border border-gray-700 bg-gray-900 text-sm font-medium text-gray-200 hover:border-brand hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+        <svg class="w-4 h-4 text-brand-light" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+            d="M6 9a3 3 0 100-6 3 3 0 000 6zM6 21a3 3 0 100-6 3 3 0 000 6zM20 4L8.12 15.88M14.47 14.48L20 20M8.12 8.12L12 12" />
+        </svg>
+        {{ _('Split PDF') }}
+      </a>
+    </li>
+    <li>
+      <a href="{{ localized_url('/pdf/extract', current_prefix) }}"
+        class="inline-flex items-center gap-2 min-h-11 px-3 py-2 rounded-lg border border-gray-700 bg-gray-900 text-sm font-medium text-gray-200 hover:border-brand hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+        <svg class="w-4 h-4 text-brand-light" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+            d="M8 7V4.5A1.5 1.5 0 019.5 3h9A1.5 1.5 0 0120 4.5v12a1.5 1.5 0 01-1.5 1.5H16M4 8.5A1.5 1.5 0 015.5 7h9A1.5 1.5 0 0116 8.5v11a1.5 1.5 0 01-1.5 1.5h-9A1.5 1.5 0 014 19.5z" />
+        </svg>
+        {{ _('Extract PDF pages') }}
+      </a>
+    </li>
+    <li>
+      <a href="{{ localized_url('/convert/heic-to-jpg', current_prefix) }}"
+        class="inline-flex items-center gap-2 min-h-11 px-3 py-2 rounded-lg border border-gray-700 bg-gray-900 text-sm font-medium text-gray-200 hover:border-brand hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+        <svg class="w-4 h-4 text-brand-light" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+            d="M2.25 15.75l5.16-5.16a2.25 2.25 0 013.18 0l5.16 5.16m-1.5-1.5l1.41-1.41a2.25 2.25 0 013.18 0l2.91 2.91M3.75 19.5h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5z" />
+        </svg>
+        {{ _('HEIC to JPG') }}
+      </a>
+    </li>
+    <li>
+      <a href="{{ localized_url('/compress', current_prefix) }}"
+        class="inline-flex items-center gap-2 min-h-11 px-3 py-2 rounded-lg border border-gray-700 bg-gray-900 text-sm font-medium text-gray-200 hover:border-brand hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+        <svg class="w-4 h-4 text-brand-light" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+            d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25" />
+        </svg>
+        {{ _('Compress image (KB/MB)') }}
+      </a>
+    </li>
+  </ul>
+  <p>
+    <a href="{{ localized_url('/tools', current_prefix) }}" class="rounded text-sm font-semibold text-brand-light hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">{{ _('All tools →') }}</a>
+  </p>
+</nav>

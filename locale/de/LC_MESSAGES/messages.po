@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-25 19:23+0200\n"
+"POT-Creation-Date: 2026-09-25 19:53+0200\n"
 "PO-Revision-Date: 2026-05-08 11:00+0200\n"
 "Last-Translator: FileMorph <hallo@filemorph.io>\n"
 "Language: de\n"
@@ -551,6 +551,9 @@ msgstr "PDF verkleinern"
 msgid "Compress a PDF →"
 msgstr "PDF verkleinern →"
 
+msgid "Compress image (KB/MB)"
+msgstr "Bild verkleinern (KB/MB)"
+
 msgid "Compress to a target size"
 msgstr "Auf eine Zielgröße komprimieren"
 
@@ -756,13 +759,6 @@ msgstr "Auftragsverarbeitungs-Vertrag (AVV)"
 
 msgid "Deactivated"
 msgstr "Deaktiviert"
-
-msgid ""
-"Dedicated tools beyond the converter above: split, extract, or compress a"
-" PDF, and more."
-msgstr ""
-"Spezielle Tools zusätzlich zum Konverter oben: PDF aufteilen, Seiten "
-"extrahieren, PDF verkleinern — und mehr."
 
 msgid "Delete account"
 msgstr "Konto löschen"
@@ -1206,6 +1202,9 @@ msgstr ""
 msgid "Got it"
 msgstr "Verstanden"
 
+msgid "HEIC to JPG"
+msgstr "HEIC in JPG"
+
 msgid "Hetzner's privacy policy"
 msgstr "Hetzners Datenschutzerklärung"
 
@@ -1388,8 +1387,8 @@ msgstr ""
 " (MP3, WAV, FLAC, OGG, M4A, AAC, WMA, Opus) und Video (MP4, MOV, AVI, "
 "MKV, WebM, FLV, WMV)."
 
-msgid "Images · Documents · Audio · Video · Spreadsheets"
-msgstr "Bilder · Dokumente · Audio · Video · Tabellen"
+msgid "Images · PDF · Documents · Audio · Video · Spreadsheets"
+msgstr "Bilder · PDF · Dokumente · Audio · Video · Tabellen"
 
 msgid "Impressum"
 msgstr "Impressum"
@@ -1458,6 +1457,9 @@ msgstr ""
 
 msgid "JPEG / WebP only."
 msgstr "Nur JPEG / WebP."
+
+msgid "JPG to PDF"
+msgstr "JPG in PDF"
 
 msgid "Joined"
 msgstr "Beigetreten"
@@ -1563,9 +1565,6 @@ msgstr ""
 "Begrenzung, damit ein Batch nicht den ganzen Worker-Pool blockiert — "
 "Anfragen über dem Limit erhalten"
 
-msgid "More tools"
-msgstr "Weitere Tools"
-
 msgid "Most popular"
 msgstr "Am beliebtesten"
 
@@ -1666,6 +1665,9 @@ msgstr "Öffnen →"
 
 msgid "Operator staff with the"
 msgstr "Betreiber-Mitarbeiter mit der"
+
+msgid "Or choose directly"
+msgstr "Oder direkt wählen"
 
 msgid "Or open the dashboard manually and click \"Manage billing\":"
 msgstr "Oder öffne das Dashboard manuell und klicke auf „Abrechnung verwalten“:"
@@ -2989,6 +2991,9 @@ msgstr "Warum eine Compliance-Edition?"
 
 msgid "Why →"
 msgstr "Warum →"
+
+msgid "Word to PDF"
+msgstr "Word in PDF"
 
 msgid ""
 "Yes. FileMorph can compress JPEG and WebP images to a target size (for "

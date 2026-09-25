@@ -13,7 +13,7 @@
       <div class="text-center space-y-2">
         <h1 class="text-h-page text-ink">{{ _('Convert & Compress Files') }}</h1>
         <p class="text-ink-muted text-sm">
-          {{ _('Images · Documents · Audio · Video · Spreadsheets') }}
+          {{ _('Images · PDF · Documents · Audio · Video · Spreadsheets') }}
         </p>
       </div>
 
@@ -63,27 +63,6 @@
           <a href="{{ localized_url('/enterprise', current_prefix) }}"
              class="text-xs text-brand hover:underline">{{ _('Need a DPA & SLA? Compliance Edition →') }}</a>
           {% endif %}
-        </div>
-      </section>
-
-      {# More tools — IA rework PR 3 (docs-internal/ia-navigation-konzept.md):
-         merges what used to be two separate teasers (gated Redact + ungated
-         PDF tools) into one tile row, closed by a link to the full /tools hub.
-         Redact stays gated on ai_operations_enabled — same rule as the
-         footer's Tools group and the /tools hub's Redact card — so a
-         self-host / inert build (where the redact route 404s) never links
-         it. Jinja comment on purpose: never shipped over the wire. #}
-      <section class="border border-gray-800 rounded-xl px-5 py-4 space-y-2">
-        <h2 class="text-base font-semibold text-white">{{ _('More tools') }}</h2>
-        <p class="text-xs text-gray-400 leading-relaxed">{{ _('Dedicated tools beyond the converter above: split, extract, or compress a PDF, and more.') }}</p>
-        <div class="flex flex-wrap gap-3 pt-1">
-          <a href="{{ localized_url('/pdf/split', current_prefix) }}" class="text-sm text-brand hover:underline">{{ _('Split PDF') }} →</a>
-          <a href="{{ localized_url('/pdf/extract', current_prefix) }}" class="text-sm text-brand hover:underline">{{ _('Extract PDF pages') }} →</a>
-          <a href="{{ localized_url('/pdf/compress', current_prefix) }}" class="text-sm text-brand hover:underline">{{ _('Compress PDF') }} →</a>
-          {% if ai_operations_enabled %}
-          <a href="{{ localized_url('/redact', current_prefix) }}" class="text-sm text-brand hover:underline">{{ _('Redact PII') }} (Pro) →</a>
-          {% endif %}
-          <a href="{{ localized_url('/tools', current_prefix) }}" class="text-sm text-brand hover:underline">{{ _('All tools →') }}</a>
         </div>
       </section>
 

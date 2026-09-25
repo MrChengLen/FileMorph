@@ -97,7 +97,9 @@ def cmd_update() -> int:
         rc = cmd_extract()
         if rc:
             return rc
-    return _pybabel(["update", "-i", str(POT_FILE), "-d", str(LOCALE_DIR)])
+    # --ignore-obsolete: removed msgids are dropped instead of kept as "#~"
+    # blocks (the catalogs carry none since c8fc734; they only add noise).
+    return _pybabel(["update", "--ignore-obsolete", "-i", str(POT_FILE), "-d", str(LOCALE_DIR)])
 
 
 def cmd_compile() -> int:

@@ -140,6 +140,10 @@ async def index(request: Request):
         plans={p.tier: p for p in pricing_mod.saas_plans(locale)},
         saas_prices_configured=pricing_mod.saas_prices_configured(),
         price_currency=pricing_mod.price_currency(),
+        # Homepage-only chip row inside the shared convert_tool.html partial
+        # (docs-internal/operations-visibility-konzept.md) — no other route
+        # sets this.
+        show_quick_actions=True,
     )
 
 
