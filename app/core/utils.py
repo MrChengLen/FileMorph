@@ -17,9 +17,9 @@ def safe_download_name(stem: str, suffix: str = "", max_len: int = 200) -> str:
     leaves no room for the stem. The cut runs after NFKD + filtering, which
     both change the length.
     """
-    # Normalise each part once — NFKD is quadratic on long runs of combining
-    # marks. Same result as cleaning the joined name: route suffixes start
-    # with "." or "_", so NFKD's reordering can't cross the join.
+    # Each part is normalised once. Same result as cleaning the joined name:
+    # route suffixes start with "." or "_", so NFKD's reordering can't cross
+    # the join.
     tail = _clean(suffix)
     name = (_clean(stem) + tail).strip(". ") or "result"
     if len(name) <= max_len:
