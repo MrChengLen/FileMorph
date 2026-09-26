@@ -9,6 +9,22 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — `docker.yml` stored with CRLF line endings; CI now rejects CRLF files
+
+`.github/workflows/docker.yml` had been stored with Windows line endings (CRLF)
+since the manual-rebuild change (`f72dedc`), although `.gitattributes` pins YAML
+to LF. GitHub runs the workflow either way, so nothing broke, but the next
+ordinary edit would have converted all 117 lines and shown up as a whole-file
+diff that hides the lines actually changed. The file is back to LF; its content
+is unchanged (`git diff -w` is empty).
+
+`.gitattributes` only normalises line endings when git itself stages a file. A
+commit made through the GitHub API stores exactly the bytes it is sent, and a
+file read from a Windows checkout can carry CRLF, which is how
+`requirements.lock` once turned into a 3725-line diff. `tests/test_line_endings.py`
+now fails CI when any tracked text file is stored with CRLF, so the next one is
+caught in its own pull request rather than by whoever edits the file after it.
+
 ### Fixed — long upload names lost their file extension on download
 
 `safe_download_name()` cut the finished download name to 200 characters, so an
