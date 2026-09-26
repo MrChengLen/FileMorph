@@ -230,7 +230,7 @@ async def _do_compress(
         # BackgroundTask runs after the response body is fully sent, so temp
         # cleanup is deferred but still guaranteed. On any error path below
         # (or above, before this block), the except handler cleans up sync.
-        download_name = safe_download_name(f"{original_stem}_compressed.{ext}")
+        download_name = safe_download_name(original_stem, f"_compressed.{ext}")
         output_size_bytes = output_disk_size
         amplification_ratio = (
             round(output_size_bytes / input_size_bytes, 3) if input_size_bytes > 0 else None
@@ -405,7 +405,7 @@ async def _do_compress_batch(
         original_stem = Path(upload.filename or "result").stem
         ext = Path(upload.filename or "").suffix.lstrip(".").lower()
         size_in = upload.size or 0
-        out_name = safe_download_name(f"{original_stem}_compressed.{ext}")
+        out_name = safe_download_name(original_stem, f"_compressed.{ext}")
 
         try:
             if not ext:

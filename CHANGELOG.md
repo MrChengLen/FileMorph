@@ -9,6 +9,24 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — long upload names lost their file extension on download
+
+`safe_download_name()` cut the finished download name to 200 characters, so an
+upload whose name without extension ran past about 185–196 characters came
+back as `….pn`, `…_pdfa.pd`, without any extension, or ending in one taken
+from inside the name (`….exe`) — a file the OS could not open, or would treat
+as the wrong type. Names that NFKD normalisation lengthens hit this much
+sooner: a Hangul syllable becomes two or three characters (한 → 3), so Korean
+file names of about 70 characters were already affected. The helper now
+receives the stem and the suffix the route appends (`.png`, `_pdfa.pdf`,
+`_compressed.jpg`, `_pages.zip`, `.redacted.<ext>`) separately and shortens
+only the stem, after sanitising; the shortened stem no longer ends in a stray
+dot or space. Convert and compress (single and batch), the PDF
+extract/split/compress tools and AI redaction all pass their suffix this way.
+Any name that already fit in 200 characters comes out exactly as before. New
+tests send a 250-character name through each of those routes and cover the
+Hangul case in `tests/test_core.py`.
+
 ### Changed — homepage shows seven quick actions; "More tools" box removed
 
 Before a file was chosen, the homepage's tool card offered no concrete

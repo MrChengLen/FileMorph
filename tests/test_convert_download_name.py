@@ -71,6 +71,20 @@ def test_pdfa_batch_zip_entry_is_named_pdf(client, auth_headers, stub_pdfa_conve
     assert zf.namelist() == ["Vertrag_pdfa.pdf"]
 
 
+def test_pdfa_long_stem_keeps_pdfa_suffix(client, auth_headers, stub_pdfa_converter):
+    """A stem past ~191 characters cut ``_pdfa.pdf`` to ``_pdfa.pd`` — only
+    the stem may be shortened (see tests/test_download_name_length.py)."""
+    res = client.post(
+        "/api/v1/convert",
+        headers=auth_headers,
+        files={"file": ("a" * 250 + ".pdf", b"%PDF-1.4\n%stub\n", "application/pdf")},
+        data={"target_format": "pdfa"},
+    )
+    assert res.status_code == 200, res.text
+    expected = "a" * 191 + "_pdfa.pdf"
+    assert f'filename="{expected}"' in res.headers.get("content-disposition", "")
+
+
 def test_regular_target_keeps_plain_extension(client, auth_headers, sample_jpg):
     """Guards the default branch: a target with no ``_DOWNLOAD_SUFFIX`` entry
     must keep using the plain ``<stem>.<tgt_ext>`` name, unchanged."""

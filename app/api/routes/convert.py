@@ -50,7 +50,7 @@ _DOWNLOAD_SUFFIX: dict[str, str] = {"pdfa": "_pdfa.pdf"}
 
 
 def _download_name(original_stem: str, tgt_ext: str) -> str:
-    return safe_download_name(original_stem + _DOWNLOAD_SUFFIX.get(tgt_ext, f".{tgt_ext}"))
+    return safe_download_name(original_stem, _DOWNLOAD_SUFFIX.get(tgt_ext, f".{tgt_ext}"))
 
 
 @router.post("/convert", tags=["Convert"], dependencies=[Depends(require_api_key)])
