@@ -295,6 +295,19 @@ def test_route_compress_image_pdf(client, auth_headers):
     assert "doc_compressed.pdf" in res.headers.get("content-disposition", "")
 
 
+def test_route_compress_long_name_keeps_suffix(client, auth_headers):
+    # An over-long stem is shortened; "_compressed.pdf" survives intact.
+    res = client.post(
+        "/api/v1/pdf/compress",
+        headers=auth_headers,
+        files={"file": ("d" * 250 + ".pdf", _image_pdf_bytes(), _PDF_MIME)},
+        data={"target_kb": "200"},
+    )
+    assert res.status_code == 200, res.text
+    expected = "d" * 185 + "_compressed.pdf"
+    assert f'filename="{expected}"' in res.headers.get("content-disposition", "")
+
+
 def test_route_compress_shrinks_below_source(client, auth_headers):
     source = _image_pdf_bytes(dim=1400, quality=98)
     res = client.post(

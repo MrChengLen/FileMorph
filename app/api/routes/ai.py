@@ -347,7 +347,7 @@ async def redact_apply(
         )
 
         original_stem = Path(file.filename or "document").stem
-        download_name = safe_download_name(f"{original_stem}.redacted.{out_ext}")
+        download_name = safe_download_name(original_stem, f".redacted.{out_ext}")
 
         # Cockpit signal (fire-and-forget) — count only, never content.
         await metric_increment(f"ai-redact.{out_ext}")
