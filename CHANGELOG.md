@@ -9,6 +9,14 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — QA fixture generator for the batch ZIP names
+
+`scripts/make_testdata_batch_zip_names.py` writes byte-stable fixtures for
+checking the batch-ZIP fix below by hand: three small images whose PNG names
+collide, a CSV that converts to `manifest.json`, and a file with a `.jpg` name
+that fails to convert. Output goes to a gitignored local folder; only the
+script ships.
+
 ### Fixed — batch ZIPs could contain two files with the same name
 
 When two files in a batch produce the same output name, the later one gets a
