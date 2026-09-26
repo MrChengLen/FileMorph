@@ -9,6 +9,43 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — security docs named `requirements.txt` as the CVE-scan target
+
+Since 2026-09-09 (PR #112) CI has run `pip-audit -r requirements.lock`: the
+lockfile pins every direct and transitive Python dependency to an exact version
+and hash, and it is what the image installs, while `requirements.txt` states
+only version ranges. Four public docs kept quoting
+`pip-audit -r requirements.txt` — among them the DPA's TOM annex, which a
+procurement reviewer reads as a statement of fact — and several, §11.4 of the
+vendor questionnaire included, said dependencies were pinned in
+`requirements.txt`.
+
+Corrected: `dpa-tom-annex.md` (supply-chain controls), `security-overview.md`
+(self-hoster checklist item 5, CVE history, update cadence),
+`security-pentest-report.md` (resolution status), `tech-stack-rationale.md`
+and §11.4 of `vendor-security-questionnaire.md`. Self-hosters who fork are now
+told to recompile `requirements.lock` and audit that, and `development.md`
+says to recompile it after adding a package. Two more stale claims in the same
+lists are gone: `security-overview.md` still called `pip-audit` a non-blocking
+check, and it and the questionnaire listed Dependabot as "on the backlog",
+although Dependabot (configured in `.github/dependabot.yml`) has opened weekly
+update PRs since May. Both now also say that Dependabot does not touch the
+lockfile, so a Python update reaches the image once the lockfile is
+recompiled.
+
+The two docs corrected in PR #112 each kept one inaccurate sentence.
+`patch-policy.md` said the audit blocks the merge on High and Critical
+findings, implying lower severities pass; `pip-audit` has no severity
+threshold, so any finding fails the build until it is fixed or waived with
+`--ignore-vuln`, as the Moderate CVE-2026-55073 was. §8.2 of the questionnaire
+said CI blocks any drift between `requirements.txt` and the lockfile; the
+`lockfile-drift` job flags drift without blocking a merge, and the sentence now
+says so.
+
+`tests/test_supply_chain_hygiene.py` now fails if `ci.yml` stops auditing the
+lockfile, or if a tracked doc under `docs/` or a top-level `.md` file quotes a
+`pip-audit -r` target other than `requirements.lock`.
+
 ### Added — QA fixture generator for the batch ZIP names
 
 `scripts/make_testdata_batch_zip_names.py` writes byte-stable fixtures for

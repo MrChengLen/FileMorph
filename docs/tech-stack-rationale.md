@@ -4,9 +4,10 @@ Why FileMorph picks the libraries it picks. This doc is for OSS
 contributors and self-hosters who want to read or extend the code —
 not a marketing pitch and not a tutorial. Each library gets three to
 five lines: **what** it does in this project, **why** it was chosen,
-and the closest **alternative** (with the trade-off). Specific
-versions live in `requirements.txt`; that file is the source of truth
-and changes faster than this one.
+and the closest **alternative** (with the trade-off). Version
+ranges live in `requirements.txt` and the exact versions the image
+installs in `requirements.lock`; those files are the source of truth
+and change faster than this one.
 
 If you are looking for **how to install** the stack, see
 [`installation.md`](installation.md). For **how to deploy**, see
@@ -289,12 +290,20 @@ without having to read the changelog backwards.
 The bar for new dependencies is "this earns its weight". The
 workflow:
 
-1. **Pin in `requirements.txt`** with a `>=` constraint. Strict
-   pins (`==`) are reserved for libraries with known breaking
-   changes between minor versions.
-2. **Run `pip-audit -r requirements.txt`** — a new dependency must
-   not introduce open High/Critical CVEs. The audit step is part of
-   the CI pipeline (non-blocking, but reviewed).
+1. **Add it to `requirements.txt`** with a `>=` constraint. Upper
+   caps (`<N`) are reserved for libraries with a known breaking
+   change, with a comment in `requirements.txt` saying why (e.g.
+   `weasyprint<70`). Then recompile `requirements.lock`
+   (command under "Reproducible builds" in
+   [`self-hosting.md`](self-hosting.md)): the image installs only
+   from the lockfile, and CI's `lockfile-drift` job fails until it
+   matches `requirements.txt`.
+2. **Run `pip-audit -r requirements.lock`** with the `--ignore-vuln`
+   IDs from `.github/workflows/ci.yml` — CI runs the same audit as a
+   blocking gate, so a new dependency must not add a finding. On
+   Windows, add `--disable-pip`: the lockfile is resolved for the
+   Linux image, and the flag audits its hashed pins without
+   installing them.
 3. **Add an entry to this file** under the right category — what,
    why, alternative. Future contributors will read this before they
    read the source.
@@ -366,7 +375,8 @@ so the same arguments don't have to be relitigated every six months.
 - [`self-hosting.md`](self-hosting.md) — how to deploy
 - [`development.md`](development.md) — local dev loop
 - [`formats.md`](formats.md) — which converter handles which format
-- `requirements.txt` — authoritative version pins
+- `requirements.txt` — version ranges of the direct dependencies
+- `requirements.lock` — the exact, hash-pinned versions the image installs
 - `app/converters/` — the plugin registry
 - `app/core/config.py` — the canonical Settings class
 - `docs/security-overview.md` — security posture and self-hoster

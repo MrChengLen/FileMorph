@@ -205,12 +205,22 @@ physical assets of its own.
 
 ### Software supply-chain controls
 
-- `pip-audit -r requirements.txt` is a blocking CI gate; direct
-  dependencies are pinned; a CycloneDX SBOM (`filemorph-{version}.cdx.json`)
-  is attached to each release; container images are cosign-signed
-  (keyless OIDC); Git tags are GPG-signed; patch timelines per
-  [`patch-policy.md`](patch-policy.md) (Critical 7 days / High 30 days /
-  Medium-Low next regular release); third-party-license posture in
+- Python dependencies: `requirements.lock` pins every direct and
+  transitive dependency to an exact version and hash, and the image
+  installs from it with `pip install --require-hashes`
+  (`requirements.txt` states version ranges, not exact pins) —
+  `Dockerfile`.
+- `pip-audit -r requirements.lock` is a blocking CI gate. It checks the
+  pinned versions the image installs (not `pip` itself or the base
+  image's OS packages), and a finding passes only if waived by an
+  `--ignore-vuln` entry justified in a comment —
+  `.github/workflows/ci.yml`; regression guard for the audit target:
+  `tests/test_supply_chain_hygiene.py`.
+- A CycloneDX SBOM (`filemorph-{version}.cdx.json`) is attached to each
+  release; container images are cosign-signed (keyless OIDC); Git tags
+  are GPG-signed; patch timelines per [`patch-policy.md`](patch-policy.md)
+  (Critical 7 days / High 30 days / Medium-Low next regular release);
+  third-party-license posture in
   [`third-party-licenses.md`](third-party-licenses.md).
 - `[operator: dependency-update cadence on the running deployment; how
   SBOM diffs are reviewed before deploying]`.
