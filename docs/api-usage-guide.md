@@ -470,6 +470,13 @@ both → `a.png`), the second one gets `_1` appended (`a_1.png`), the
 third `_2` (`a_2.png`), and so on. The order in `files[]` decides
 which wins the unsuffixed name.
 
+A name already in the ZIP is never reused. An input whose own output
+name is `a_1.png` becomes `a_1_1.png` if an earlier duplicate took
+`a_1.png`, and an output named `manifest.json` becomes
+`manifest_1.json` when the ZIP carries the batch report (at least one
+file failed). Use the `X-FileMorph-Batch-Failed` header, not the file
+name, to tell whether a report is present.
+
 ---
 
 ## Tier Quotas & Discovery

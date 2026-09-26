@@ -45,7 +45,10 @@ def build_batch_zip(
     returned to the caller for logging.
 
     Duplicate output names are disambiguated by numeric suffix so ZIP
-    entries remain unique.
+    entries remain unique: ``a.png``, ``a_1.png``, ``a_2.png``. A name
+    already in the ZIP — ``manifest.json`` or any earlier entry,
+    suffixed or not — is never reused; the next free suffix is taken
+    instead. Failed files do not take a name.
     """
     succeeded = sum(1 for r in results if r.status == "ok")
     failed = len(results) - succeeded
@@ -63,6 +66,8 @@ def build_batch_zip(
     }
 
     buf = io.BytesIO()
+    # Name of every entry written so far -> last suffix tried for inputs of that name.
+    used: dict[str, int] = {}
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         if failed > 0:
             manifest = {
@@ -79,18 +84,17 @@ def build_batch_zip(
                 ],
             }
             zf.writestr("manifest.json", json.dumps(manifest, indent=2))
-        used: dict[str, int] = {}
+            used["manifest.json"] = 0
         for r in results:
             if r.status != "ok" or r.content is None:
                 continue
             name = r.name
-            if name in used:
-                used[name] += 1
-                stem, dot, ext = name.rpartition(".")
-                suffix = f"_{used[name]}"
-                name = f"{stem}{suffix}{dot}{ext}" if dot else f"{name}{suffix}"
-            else:
-                used[name] = 0
+            stem, dot, ext = name.rpartition(".")
+            while name in used:
+                used[r.name] += 1
+                suffix = f"_{used[r.name]}"
+                name = f"{stem}{suffix}{dot}{ext}" if dot else f"{r.name}{suffix}"
+            used[name] = 0
             zf.writestr(name, r.content)
 
     return buf.getvalue(), summary
