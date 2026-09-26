@@ -452,6 +452,13 @@ Common per-file `error_message` values:
   converter for that pair.
 - `"File type not permitted."` — magic-byte filter rejected the
   upload (executable / script content).
+- `"The file is not UTF-8 text. Re-save it as UTF-8 …"` — a Markdown,
+  CSV or JSON file in another encoding (e.g. Excel's default CSV export
+  on Windows). Single-file `/convert` returns the same message as a
+  `400` with `X-FileMorph-Error-Code: invalid_input`.
+- `"Conversion failed. Verify the file is valid."` (compress:
+  `"Compression failed. …"`) — any other error while processing that
+  file, e.g. corrupt content. The details stay in the server log.
 
 ### Duplicate filenames
 

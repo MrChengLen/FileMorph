@@ -9,6 +9,29 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Security — batch error messages no longer echo library internals
+
+`/api/v1/convert/batch` and `/api/v1/compress/batch` returned the text of any
+`ValueError` as the file's error message. Library exceptions are ValueErrors
+too, so a Markdown file that isn't UTF-8 put the decoder's text (codec, byte,
+offset) into the per-file message, the `X-FileMorph-Batch-Failures` header and
+`manifest.json`; invalid JSON did the same with the parser's position
+(CWE-209, low). Only the routes' own messages (e.g. "File too large …", "File
+type not permitted.", "Output too large …") and hints a converter writes for
+the user reach the client now. Everything else reads "Conversion failed. Verify
+the file is valid." (compress: "Compression failed. …"), with the details in
+the server log. The `/api/v1/pdf/*` routes already worked this way.
+
+A Markdown, CSV or JSON file that isn't UTF-8 (Excel's default CSV export on
+Windows, for one) gets a message naming the fix ("Re-save it as UTF-8 …"): per
+file in a batch, and from single-file `/convert` as a `400` with
+`X-FileMorph-Error-Code: invalid_input` instead of a generic `500` that API
+clients would retry. The JSON → CSV hint "JSON must be a non-empty array of
+objects", until now only visible in a batch, is returned the same way. A
+leading byte-order mark, which Excel's "CSV UTF-8" always writes, is dropped
+now instead of ending up in the first column name (CSV → JSON / XLSX) or
+failing a JSON file.
+
 ### Fixed — `docker.yml` stored with CRLF line endings; CI now rejects CRLF files
 
 `.github/workflows/docker.yml` had been stored with Windows line endings (CRLF)

@@ -78,8 +78,8 @@ JPEG/WebP/AVIF); a video file always uses quality-based compression there.
 | **DOCX** | TXT | Extracts plain text from all paragraphs. Formatting (bold, tables) is lost. |
 | **TXT** | PDF | Creates a clean PDF with Helvetica font, A4 page size. |
 | **PDF** | TXT | Extracts text from each page using PyPDF. Complex layouts (columns, forms) may not extract cleanly. |
-| **Markdown (.md)** | HTML | Converts Markdown to a complete HTML document. Supports tables and fenced code blocks. |
-| **Markdown (.md)** | PDF | Renders Markdown via HTML to PDF using WeasyPrint. Styled with a clean sans-serif font. |
+| **Markdown (.md)** | HTML | Converts Markdown to a complete HTML document. Supports tables and fenced code blocks. The file must be UTF-8 text. |
+| **Markdown (.md)** | PDF | Renders Markdown via HTML to PDF using WeasyPrint. Styled with a clean sans-serif font. The file must be UTF-8 text. |
 | **HTML / HTM** | PDF | Renders an HTML file to PDF via WeasyPrint. External resources (remote CSS/images, `file://`) are **never fetched** (`url_fetcher` SSRF guard). |
 | **EML (email)** | PDF | Renders an `.eml` email to PDF: common headers (From / To / Cc / Date / Subject) plus the body (HTML part preferred, else plain text). Remote tracking pixels / images are not fetched. `.msg` (Outlook) is not yet supported. |
 
@@ -199,9 +199,9 @@ formats page — it is plumbing, not a conversion a user picks.
 | From | To | Notes |
 |------|-----|-------|
 | **XLSX** | CSV | Exports the active (first) sheet. Only cell values, no formatting or formulas. |
-| **CSV** | XLSX | All data imported into a single sheet. No type detection — all values are stored as text. |
-| **CSV** | JSON | Headers become keys. Result is a JSON array of objects. |
-| **JSON** | CSV | Input must be a JSON array of objects with consistent keys. Nested values are flattened as strings. |
+| **CSV** | XLSX | All data imported into a single sheet. No type detection — all values are stored as text. The file must be UTF-8 text. |
+| **CSV** | JSON | Headers become keys. Result is a JSON array of objects. The file must be UTF-8 text. |
+| **JSON** | CSV | Input must be a JSON array of objects with consistent keys. Nested values are flattened as strings. The file must be UTF-8 text. |
 
 **Common use cases**:
 - Export Excel data for Python/pandas analysis (XLSX → CSV)

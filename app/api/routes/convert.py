@@ -14,10 +14,11 @@ from starlette.background import BackgroundTask
 
 from app.api.deps import require_api_key
 from app.api.routes.auth import get_optional_user
-from app.converters.base import UnsupportedConversionError
+from app.converters.base import InvalidInputError, UnsupportedConversionError
 from app.converters.registry import _ensure_loaded, get_converter
 from app.core.audit import record_event as audit_record
 from app.core.batch import (
+    BatchFileError,
     BatchFileResult,
     batch_error_response,
     batch_summary_headers,
@@ -165,6 +166,16 @@ async def _do_convert(
                     "use excessive memory. Reduce the image size and retry."
                 ),
                 headers={"X-FileMorph-Error-Code": "decompression_bomb"},
+            )
+        except InvalidInputError as exc:
+            # The converter named a problem the user can fix (e.g. a text file
+            # that isn't UTF-8). Its message is caller-safe; a 400 tells the
+            # user what to change, where the generic 500 was a dead end.
+            logger.info("invalid input rejected: %s -> %s (%s)", src_ext, tgt_ext, exc)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(exc),
+                headers={"X-FileMorph-Error-Code": "invalid_input"},
             )
         except Exception:
             # A-3: Log full exception server-side, return generic message to client
@@ -406,10 +417,10 @@ async def _do_convert_batch(
 
         try:
             if not src_ext:
-                raise ValueError("Cannot determine source format from filename.")
+                raise BatchFileError("Cannot determine source format from filename.")
             if size_in > quota.max_file_size_bytes:
                 limit_mb = quota.max_file_size_bytes // (1024 * 1024)
-                raise ValueError(f"File too large ({limit_mb} MB max for your plan).")
+                raise BatchFileError(f"File too large ({limit_mb} MB max for your plan).")
             converter = get_converter(src_ext, tgt_ext)
 
             tmp_dir = tempfile.mkdtemp(prefix="fm_")
@@ -424,7 +435,7 @@ async def _do_convert_batch(
                 with open(input_path, "rb") as f:
                     header = f.read(16)
                 if any(header.startswith(sig) for sig in BLOCKED_MAGIC):
-                    raise ValueError("File type not permitted.")
+                    raise BatchFileError("File type not permitted.")
 
                 await asyncio.to_thread(converter.convert, input_path, output_path, quality=quality)
 
@@ -433,7 +444,7 @@ async def _do_convert_batch(
                 if output_disk_size > quota.output_cap_bytes:
                     cap_mb = quota.output_cap_bytes // _MB
                     out_mb = output_disk_size // _MB
-                    raise ValueError(
+                    raise BatchFileError(
                         f"Output too large ({out_mb} MB > {cap_mb} MB cap). "
                         "Try WebP/AVIF or upgrade your plan."
                     )
@@ -461,7 +472,11 @@ async def _do_convert_batch(
             )
             metric_counts["failures.convert"] = metric_counts.get("failures.convert", 0) + 1
             record_conversion("convert_batch", src_ext, tgt_ext, "failure")
-        except ValueError as e:
+        except (BatchFileError, InvalidInputError) as e:
+            # Only messages written for the client: this route's own checks and
+            # fixable input problems a converter named. Library ValueErrors
+            # (UnicodeDecodeError, JSONDecodeError, some Pillow errors) carry
+            # internals, so they take the generic branch below (CWE-209).
             results.append(
                 BatchFileResult(
                     name=out_name, status="error", size_in=size_in, error_message=str(e)
@@ -476,7 +491,7 @@ async def _do_convert_batch(
                     name=out_name,
                     status="error",
                     size_in=size_in,
-                    error_message="Conversion failed.",
+                    error_message="Conversion failed. Verify the file is valid.",
                 )
             )
             metric_counts["failures.convert"] = metric_counts.get("failures.convert", 0) + 1

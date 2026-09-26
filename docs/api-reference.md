@@ -504,7 +504,7 @@ All errors return JSON with a `detail` field:
 
 | HTTP Status | Meaning |
 |---|---|
-| `400 Bad Request` | Missing or malformed request data (e.g. filename without extension) |
+| `400 Bad Request` | Missing or malformed request data (e.g. filename without extension), or file content that has to be fixed first — e.g. a Markdown, CSV or JSON file that isn't UTF-8 (`X-FileMorph-Error-Code: invalid_input`; `detail` names the fix) |
 | `401 Unauthorized` | Missing or invalid `X-API-Key` / `Authorization: Bearer` |
 | `403 Forbidden` | Authenticated but role/tier doesn't permit the action (e.g. non-admin hitting `/cockpit/*`) |
 | `413 Content Too Large` | File exceeds `MAX_UPLOAD_SIZE_MB` (default: 100 MB) |

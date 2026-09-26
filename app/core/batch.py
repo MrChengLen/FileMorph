@@ -10,6 +10,14 @@ from dataclasses import dataclass
 from typing import Literal
 
 
+class BatchFileError(Exception):
+    """A per-file batch rejection written for the client (e.g. size, magic bytes).
+
+    Batch routes report ``str(exc)`` for it; any other exception is logged and
+    reported generically, since library errors carry internals (CWE-209).
+    """
+
+
 @dataclass
 class BatchFileResult:
     """Per-file outcome of a batch operation."""

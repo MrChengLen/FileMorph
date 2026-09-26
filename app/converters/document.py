@@ -8,7 +8,7 @@ import subprocess
 import zipfile
 from pathlib import Path
 
-from app.converters.base import BaseConverter
+from app.converters.base import BaseConverter, read_utf8_text
 from app.converters.registry import register
 
 logger = logging.getLogger(__name__)
@@ -367,7 +367,7 @@ class MarkdownToHtmlConverter(BaseConverter):
     def convert(self, input_path: Path, output_path: Path, **kwargs) -> Path:
         import markdown
 
-        src = input_path.read_text(encoding="utf-8")
+        src = read_utf8_text(input_path)
         html = markdown.markdown(src, extensions=["tables", "fenced_code"])
         output_path.write_text(f"<!DOCTYPE html><html><body>{html}</body></html>", encoding="utf-8")
         return output_path
@@ -382,7 +382,7 @@ class MarkdownToPdfConverter(BaseConverter):
         import markdown
         import weasyprint
 
-        src = input_path.read_text(encoding="utf-8")
+        src = read_utf8_text(input_path)
         html = markdown.markdown(src, extensions=["tables", "fenced_code"])
         full_html = (
             "<!DOCTYPE html><html><head>"
