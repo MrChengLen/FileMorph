@@ -9,6 +9,37 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — batch ZIPs could contain two files with the same name
+
+When two files in a batch produce the same output name, the later one gets a
+numeric suffix (`a.png`, `a_1.png`, `a_2.png`). The counter only knew the
+original names, so a suffixed name that was already taken went into the ZIP a
+second time: files that became `a.png`, `a.png` and `a_1.png` came out as
+`a.png`, `a_1.png`, `a_1.png`, and unzipping could keep only one of the two
+`a_1.png`. An output named `manifest.json` in a batch with a failed file
+clashed the same way with the report of that name. `build_batch_zip` now
+tracks every name it has written and never reuses one — the third file above
+becomes `a_1_1.png`, the output named `manifest.json` becomes
+`manifest_1.json` (it keeps its name when no file failed, since there is no
+report then). Plain duplicates are named as before, and a failed file still
+takes no name. The API guide's "Duplicate filenames" section describes the
+rule and points API clients to the `X-FileMorph-Batch-Failed` header, rather
+than the file name, to tell whether a report is present. New unit tests in
+`tests/test_batch_zip.py`.
+
+### Fixed — a plan change did not change the concurrency limit until a restart
+
+How many requests a user (or, when anonymous, an IP) may run at once depends
+on the plan: Free 1, Pro 3, Business 6. That limit was fixed when the server
+first saw the user and kept until the next restart, so a user who upgraded
+from Free to Pro still got `429` on their second parallel request, and a
+downgraded user kept the higher limit. The workaround the code comment
+suggested — minting a new API key — did not help, because the limit is tracked
+per user, not per key. The limit is now checked on every request and follows a
+plan change on the next one. Requests still running at that moment give their
+slot back to the old limit, so they cannot raise the new one. Two new tests in
+`tests/test_concurrency.py`.
+
 ### Fixed — docs quoted tier limits from before the pricing overhaul
 
 The API usage guide's tier table and the API reference's monthly-quota table
