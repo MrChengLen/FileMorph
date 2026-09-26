@@ -185,7 +185,7 @@ def test_png_with_target_size_returns_415(client, auth_headers):
 
 
 def test_target_size_above_tier_cap_is_rejected(client, auth_headers, tmp_path):
-    """Anonymous tier output cap (~50 MB) must fence target_size requests
+    """Anonymous tier output cap (90 MB) must fence target_size requests
     before any encoding work. 999_999 KB ≈ 977 MB > anonymous cap."""
     jpg = _photo_jpeg(tmp_path, size=300)
 

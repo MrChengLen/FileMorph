@@ -113,7 +113,7 @@ class Settings(BaseSettings):
     temp_sweep_max_age_minutes: int = 10
 
     # NEU-D.1 capacity guard. The pricing page advertises monthly
-    # call quotas (10k Pro / 100k Business); without a parallelism
+    # call quotas (25k Pro / 200k Business); without a parallelism
     # cap a single 25-file batch can OOM the worker on a 4 GB box.
     # The semaphore in app/core/concurrency.py enforces a global
     # cap and a per-actor cap on /convert + /compress. These three

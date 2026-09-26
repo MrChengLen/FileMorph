@@ -10,24 +10,35 @@ and Business the old concurrency caps. These tests read the numbers back out
 of the markdown and compare them with the code, so the next quota change fails
 CI until the docs follow.
 
+The same goes for the status codes and error messages the docs quote: those
+tests call the route and look for its answer in the markdown.
+
 A "not found" failure means a sentence was reworded: check the new wording
 against the code, then update the pattern here.
 """
 
 from __future__ import annotations
 
+import dataclasses
 import io
+import json
 import re
 import zipfile
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 
+from app.api.routes.auth import get_optional_user
+from app.api.routes.convert import _download_name
 from app.core.batch import BatchFileResult, build_batch_zip
+from app.core.concurrency import ConcurrencyExhausted
 from app.core.config import Settings
 from app.core.quotas import _MB, QUOTAS
+from app.main import app
 
 DOCS = Path(__file__).resolve().parent.parent / "docs"
+ROUTES = DOCS.parent / "app" / "api" / "routes"
 
 
 def _text(doc: str) -> str:
@@ -35,11 +46,20 @@ def _text(doc: str) -> str:
 
 
 def _section(doc: str, heading: str) -> str:
-    """The text under the line ``heading`` in ``docs/<doc>``, up to the next heading."""
+    """The text under the line ``heading`` in ``docs/<doc>``, up to the next heading.
+
+    A ``#`` line inside a fenced code block is a shell comment, not a heading."""
     text = _text(doc)
     assert f"\n{heading}\n" in text, f"{doc}: heading {heading!r} not found"
     body = text[text.index(f"\n{heading}\n") + len(heading) + 2 :]
-    return body.split("\n#", 1)[0]
+    lines, fenced = [], False
+    for line in body.split("\n"):
+        if line.startswith("```"):
+            fenced = not fenced
+        elif line.startswith("#") and not fenced:
+            break
+        lines.append(line)
+    return "\n".join(lines)
 
 
 def _first_table(markdown: str) -> list[dict[str, str]]:
@@ -167,3 +187,160 @@ def test_api_guide_duplicate_name_example_matches_build_batch_zip():
     paragraph = _section("api-usage-guide.md", "### Duplicate filenames").strip().split("\n\n")[0]
     for name in names[1:]:
         assert f"`{name}`" in paragraph, f"the guide's duplicate-name example lacks {name}"
+
+
+# ── Status codes and error messages ──────────────────────────────────────────
+
+
+def _flat(doc: str) -> str:
+    """``docs/<doc>`` with its line wraps undone, so a quote may span lines."""
+    return " ".join(_text(doc).split())
+
+
+def _with_placeholders(message: str) -> str:
+    """A route's error message with its sizes written the way the guide writes them."""
+    message = re.sub(r"\(\d+ MB > \d+ MB cap\)", "(N MB > M MB cap)", message)
+    return re.sub(r"\(\d+ MB max for your plan\)", "(N MB max for your plan)", message)
+
+
+def _upload(client, auth_headers, path: str, content: bytes, **data):
+    field = "files" if path.endswith("/batch") else "file"
+    files = [(field, ("a.jpg", content, "image/jpeg"))]
+    return client.post(path, headers=auth_headers, files=files, data=data)
+
+
+def test_api_guide_quotes_the_output_cap_messages(client, auth_headers, sample_jpg, monkeypatch):
+    # A one-byte cap makes every output too large; the test key is anonymous.
+    tiny = dataclasses.replace(QUOTAS["anonymous"], output_cap_bytes=1)
+    monkeypatch.setitem(QUOTAS, "anonymous", tiny)
+    jpg = sample_jpg.read_bytes()
+    convert = _upload(client, auth_headers, "/api/v1/convert", jpg, target_format="png")
+    batch = _upload(client, auth_headers, "/api/v1/convert/batch", jpg, target_formats="png")
+    compress = _upload(client, auth_headers, "/api/v1/compress", jpg, quality="85")
+    assert (convert.status_code, batch.status_code, compress.status_code) == (413, 422, 413)
+
+    guide = _flat("api-usage-guide.md")
+    assert "Output too large;" not in guide, "the guide still quotes the old wording"
+    # A batch file's error_message is quoted in full ...
+    batch_message = _with_placeholders(batch.json()["files"][0]["error_message"])
+    assert f'"{batch_message}"' in guide
+    # ... the single-file 413s by the sentence they share, plus /compress's hint.
+    shared = "Output too large (N MB > M MB cap)."
+    assert f'"{shared}"' in guide
+    for response in (convert, compress):
+        assert _with_placeholders(response.json()["detail"]).startswith(shared)
+    compress_hint = _with_placeholders(compress.json()["detail"])[len(shared) :].strip()
+    assert f'"{compress_hint}"' in guide
+
+
+def test_api_guide_quotes_the_file_size_message(client, auth_headers, sample_jpg, monkeypatch):
+    # A signed-in free user whose plan allows one byte per file.
+    tiny = dataclasses.replace(QUOTAS["free"], max_file_size_bytes=1)
+    monkeypatch.setitem(QUOTAS, "free", tiny)
+    user = MagicMock()
+    user.tier.value = "free"
+    app.dependency_overrides[get_optional_user] = lambda: user
+    try:
+        r = _upload(
+            client, auth_headers, "/api/v1/convert", sample_jpg.read_bytes(), target_format="png"
+        )
+    finally:
+        app.dependency_overrides.pop(get_optional_user, None)
+    assert r.status_code == 413
+    assert f'"{_with_placeholders(r.json()["detail"])}"' in _flat("api-usage-guide.md")
+
+
+def test_docs_quote_the_batch_length_mismatch_status(client, auth_headers, sample_jpg):
+    # One file, two targets.
+    r = _upload(
+        client,
+        auth_headers,
+        "/api/v1/convert/batch",
+        sample_jpg.read_bytes(),
+        target_formats=["png", "png"],
+    )
+    assert r.status_code == 422
+    layout = " ".join(_section("api-usage-guide.md", "### Multipart layout").split())
+    assert f"Mismatch → `{r.status_code} " in layout
+    reference = _section("api-reference.md", "### POST `/api/v1/convert/batch`")
+    assert "applied to all" not in reference, "one target_formats value is not broadcast"
+    # So both batch examples send one target per file.
+    for section in (layout, reference):
+        assert section.count('"files=@') == section.count('"target_formats=')
+
+
+def test_api_guide_manifest_example_matches_the_route(client, auth_headers, sample_jpg):
+    # A target no converter has fails the only file: 422 with the manifest shape.
+    r = _upload(
+        client, auth_headers, "/api/v1/convert/batch", sample_jpg.read_bytes(), target_formats="xyz"
+    )
+    assert r.status_code == 422
+    body = r.json()
+    section = _section("api-usage-guide.md", "### Manifest schema")
+    example = json.loads(section.split("```json\n", 1)[1].split("```", 1)[0])
+    assert set(example["summary"]) == set(body["summary"])
+    assert example["summary"]["operation"] == body["summary"]["operation"]
+    # manifest.json (partial success) has the example's keys; the 422 body
+    # leaves out size_out.
+    ok = BatchFileResult(name="a.png", status="ok", size_in=1, size_out=1, content=b"x")
+    failed = BatchFileResult(name="b.png", status="error", size_in=1, error_message="x")
+    zip_bytes, _summary = build_batch_zip([ok, failed], operation="convert", duration_ms=0)
+    manifest = json.loads(zipfile.ZipFile(io.BytesIO(zip_bytes)).read("manifest.json"))
+    for entry in example["files"]:
+        assert set(entry) == set(manifest["files"][0]), entry["name"]
+        assert set(entry) - {"size_out"} == set(body["files"][0]), entry["name"]
+    # Entries are named after the output: the multipart example's files and targets.
+    layout = _section("api-usage-guide.md", "### Multipart layout")
+    sources = re.findall(r'"files=@([^"]+)"', layout)
+    targets = re.findall(r'"target_formats=([^"]+)"', layout)
+    expected = [_download_name(Path(src).stem, tgt) for src, tgt in zip(sources, targets)]
+    assert [entry["name"] for entry in example["files"]] == expected
+
+
+def test_docs_quote_the_magic_byte_rejection(client, auth_headers):
+    r = _upload(client, auth_headers, "/api/v1/convert", b"MZ" + bytes(64), target_format="png")
+    assert (r.status_code, r.json()["detail"]) == (400, "File type not permitted.")
+    for doc, pattern in [
+        ("architecture.md", r"PHP prefixes are rejected with HTTP (\d+)"),
+        ("threat-model.md", r"before any decoder runs; HTTP (\d+) returned"),
+        ("api-usage-guide.md", r'Rejected with `(\d+) "File type not permitted\."`'),
+    ]:
+        found = re.findall(pattern, _flat(doc))
+        assert found, f"{doc}: the magic-byte rejection sentence was not found"
+        assert {int(code) for code in found} == {r.status_code}, doc
+
+
+def test_api_guide_format_discovery_matches_the_route(client):
+    section = _section("api-usage-guide.md", "## Format Discovery — `GET /api/v1/formats`")
+    keys = set(client.get("/api/v1/formats").json())
+    read = set(re.findall(r'formats\["(\w+)"\]', section))
+    assert read, "api-usage-guide.md: the /formats example was not found"
+    assert read <= keys, f"the example reads {sorted(read - keys)}; /formats has {sorted(keys)}"
+    # The endpoint is free of quota, not of the rate limit.
+    source = (ROUTES / "formats.py").read_text(encoding="utf-8")
+    limit = re.search(r'@limiter\.limit\("(\d+)/minute"\)', source)
+    assert limit, "formats.py: the @limiter.limit decorator was not found"
+    quoted = re.findall(r"(\d+) requests/min per client IP", " ".join(section.split()))
+    assert quoted == [limit.group(1)]
+
+
+def test_self_hosting_does_not_promise_no_rate_limits():
+    """The per-IP limits are route decorators, so every instance runs them."""
+    why = " ".join(_section("self-hosting.md", "## Why self-host?").split())
+    assert "no rate limit" not in why.lower()
+    assert "`@limiter.limit(...)` decorators in `app/api/routes/*.py`" in why
+    assert any("@limiter.limit(" in p.read_text(encoding="utf-8") for p in ROUTES.glob("*.py"))
+
+
+def test_api_reference_retry_after_row_matches_the_code():
+    rows = _first_table(_section("api-reference.md", "## Response Headers"))
+    set_on = next((row["Set on"] for row in rows if row["Header"] == "`Retry-After`"), None)
+    assert set_on is not None, "api-reference.md: the Retry-After header row was not found"
+    # Global cap → 503, per-actor cap → 429; the monthly-quota 429 is pinned
+    # in tests/test_monthly_quota.py, slowapi's header-less 429 in
+    # tests/test_rate_limit.py.
+    for scope in ("global", "per_actor"):
+        exc = ConcurrencyExhausted(scope=scope, retry_after_seconds=5)
+        assert exc.headers["Retry-After"] == "5"
+        assert f"`{exc.status_code}" in set_on, f"the row leaves out {exc.status_code}"
+    assert "except the rate limiter's (slowapi" in set_on
