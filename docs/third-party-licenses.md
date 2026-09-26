@@ -53,7 +53,6 @@ GitHub release; feed that to your scanner. The summary by licence class:
 | **Weak / file-level copyleft** — MPL-2.0 | `pikepdf` (PDF/A-2b output) — its wheels also bundle **qpdf**, which is Apache-2.0; `certifi` (CA bundle, transitive) | OK in a proprietary product: you must make the source of *the MPL-2.0 files* available (these are shipped unmodified, so pointing at the upstream sdist suffices) and you can't sublicense those files under other terms; the rest of your product is unaffected. |
 | **Tri-licensed, pick-one** — GPLv2+ / LGPLv2+ / MPL-1.1 | `pyphen` (hyphenation, transitive via WeasyPrint) | Choose the LGPLv2+ or MPL-1.1 arm; not a constraint. |
 | **Flagged for automated scanners** — wheel metadata declares GPLv2 | `pillow-heif` (HEIC input) | See the dedicated note below — an automated `pip-licenses`/SBOM scan **will** surface this; the explanation and mitigations matter. |
-| **Build-time only — not in the runtime image, not a runtime dependency** — GPLv2 (with bundling exception) | `pyinstaller` + `pyinstaller-hooks-contrib` (used by the desktop-build workflow only) | PyInstaller's GPLv2 carries the standard exception permitting distribution of *bundled applications* without GPL-infecting them; it ships in neither the Docker image nor the server `requirements.txt`. The desktop executables it produces are covered by that exception. No effect on the server artifact or the Compliance Edition. |
 
 ### `pillow-heif` — why a scanner sees "GPLv2", and what it actually means
 
@@ -132,10 +131,9 @@ converters need:
 **As of 2026-05-12** a scan of the locked dependency set
 (`requirements.lock`) yields the distribution summarised above: the runtime
 tree is permissive or MPL-2.0 throughout, with `pillow-heif` the single
-GPLv2-declared wheel (HEVC encoder bundled, unused) and `pyinstaller` the only
-other GPLv2 package (build-time, desktop-only, bundling-exception). Re-run the
-SBOM and this scan on every release; flag any new copyleft entry in the
-`License Map` and here.
+GPLv2-declared wheel (HEVC encoder bundled, unused). Re-run the SBOM and this
+scan on every release; flag any new copyleft entry in the `License Map` and
+here.
 
 ## See also
 

@@ -42,11 +42,10 @@ filemorph/
 │   └── first_run.py             # Called by Docker entrypoint on first start
 ├── data/
 │   └── api_keys.json            # Hashed API keys (gitignored)
-├── run.py                       # Entry point for PyInstaller .exe and direct Python
-├── filemorph.spec               # PyInstaller build spec (bundles Python + ffmpeg)
+├── run.py                       # Entry point for direct Python runs
 ├── dev.ps1                      # Windows developer startup script (auto-setup + server)
 ├── create-shortcut.ps1          # Creates a Desktop shortcut for dev.ps1
-├── start.bat                    # Windows launcher: .exe mode or Docker mode
+├── start.bat                    # Windows launcher: Docker mode
 ├── start.sh                     # Linux/macOS launcher: Docker mode
 ├── entrypoint.sh                # Docker container entrypoint (first-run key setup)
 └── docker-compose.yml
