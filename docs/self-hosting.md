@@ -578,7 +578,7 @@ defaults are sized for a 4 GB host:
 
 Per-actor limits (per user for authenticated callers, per IP for
 anonymous) are tier-bound and not env-tunable: anonymous and free
-get 1 concurrent request, Pro 2, Business 5, Enterprise 10. A
+get 1 concurrent request, Pro 3, Business 6, Enterprise 10. A
 request past the per-actor cap returns `429 Too Many Requests`
 with `Retry-After`. These numbers are documented on the public
 [`/pricing`](/pricing) page so callers can size their own client

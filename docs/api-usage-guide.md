@@ -33,12 +33,15 @@ curl -X POST https://api.filemorph.io/api/v1/convert \
 
 That's it. Anonymous calls work — they just have tighter limits:
 
-- **20 MB** per file
-- **1 file** per request (batch endpoints reject anonymous callers)
-- **10 requests/min** (shared with all unauthenticated traffic from
-  your IP)
+- **30 MB** per file
+- **1 file** per request (the batch endpoints accept a single file
+  from anonymous callers and reject two or more with `400`)
+- **10 requests/min** on `/convert` and on `/compress`, counted per
+  client IP
 
-For larger files, batches, or higher rate limits, get an account.
+For larger files and batches, get an account. The per-minute rate
+limit stays the same on every tier — see
+[Tier Quotas & Discovery](#tier-quotas--discovery).
 
 ---
 
@@ -463,25 +466,36 @@ Common per-file `error_message` values:
 ### Duplicate filenames
 
 If two inputs convert to the same output name (`a.jpg` and `a.JPG`
-both → `a.png`), the second one gets `_2` appended (`a_2.png`),
-and so on. The order in `files[]` decides which wins the unsuffixed
-name.
+both → `a.png`), the second one gets `_1` appended (`a_1.png`), the
+third `_2` (`a_2.png`), and so on. The order in `files[]` decides
+which wins the unsuffixed name.
 
 ---
 
 ## Tier Quotas & Discovery
 
-| Tier      | Max file size | Max files / batch | Output cap | API/min | API/month |
-|-----------|---------------|-------------------|------------|---------|-----------|
-| anonymous |     20 MB     |         1         |     60 MB  |   10    |    n/a    |
-|   free    |       50 MB   |          5        |     150 MB |  10     |     500   |
-| pro       | 100 MB        | 25                | 300 MB     | 60      | 10,000    |
-| business  | 500 MB        | 100               | 500 MB     | 60      | 100,000   |
-| enterprise| 500 MB        | 250               | 500 MB     | 60      | unlimited |
+| Tier       | Max file size | Max files / batch | Output cap | Concurrent requests | API calls / month |
+|------------|---------------|-------------------|------------|---------------------|-------------------|
+| anonymous  | 30 MB         | 1                 | 90 MB      | 1                   | n/a               |
+| free       | 100 MB        | 10                | 300 MB     | 1                   | 1,000             |
+| pro        | 250 MB        | 50                | 400 MB     | 3                   | 25,000            |
+| business   | 500 MB        | 150               | 500 MB     | 6                   | 200,000           |
+| enterprise | 500 MB        | 250               | 500 MB     | 10                  | unlimited         |
 
-Exact values live in [`app/core/quotas.py`](../app/core/quotas.py)
-and may be tuned over time — call `/api/v1/auth/me` at runtime if
-you need the live numbers.
+The per-minute rate limit is not part of the tier: it is counted per
+client IP and per endpoint, the same for every caller — 10/min on
+`/convert` and `/compress`, 3/min on `/convert/batch` and
+`/compress/batch`. An account raises the limits in the table, not the
+requests per minute.
+
+Every instance also caps each whole request at `MAX_UPLOAD_SIZE_MB`
+(default 100 MB; a batch is one request). On a self-hosted instance,
+raise it if the larger tier limits should apply.
+
+Exact values live in [`app/core/quotas.py`](../app/core/quotas.py) —
+the same source the server enforces and the `/pricing` page renders —
+and may be tuned over time. `/api/v1/auth/me` tells you which tier
+you are on.
 
 ### Discover your tier
 
@@ -510,7 +524,9 @@ mint it.
   `"Batch size N exceeds tier limit of M."`
 - **Output cap exceeded** → `413` with `"Output too large; try
   WebP/AVIF or upgrade."` Note this is checked **after** the
-  conversion runs — your CPU and API-call budget are still consumed.
+  conversion runs, so the server has already spent the CPU time; the
+  request counts toward the per-minute rate limit but not toward your
+  monthly API calls.
 - **Rate limit exceeded** → `429 Too Many Requests` (no
   `Retry-After` header — see backoff guidance below).
 
@@ -518,8 +534,8 @@ mint it.
 
 A 5 MB JPEG re-encoded to PNG can balloon to 50+ MB; MP3 → WAV is
 ~11×. Without an output cap, a single request could push gigabytes
-out of the server. The cap is generous (3× input on tiers below
-business) but enforced post-conversion. To stay under it: pick
+out of the server. The cap depends on the tier (see the table above)
+and is enforced post-conversion. To stay under it: pick
 modern lossy formats (WebP, AVIF, MP3 at lower bitrate) where you
 have a choice.
 
@@ -695,10 +711,13 @@ on errors, not on network blips that may have actually succeeded.
 
 ### Concurrency
 
-The server processes requests in parallel up to a concurrency limit
-set at deploy time. As a client, you can pipeline up to your tier's
-`API/min` budget — 60/min for paid tiers means roughly 1 request per
-second. Beyond that you'll start seeing `429`s.
+The server runs only as many conversions at once as its deploy-time
+limit allows (`MAX_GLOBAL_CONCURRENCY`, default 4), shared by all
+callers; past it you get `503`. Within that, you can keep your tier's
+number of concurrent requests in flight (see the table above) and
+send up to 10 requests/min each to `/convert` and `/compress` — one
+every 6 seconds, per client IP, on every tier. Beyond either of those
+two limits you'll start seeing `429`s.
 
 ---
 
