@@ -9,6 +9,45 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Security — self-built images no longer bake in `.env`, API keys or `.git`
+
+The runtime stage of the `Dockerfile` copies the whole build context
+(`COPY . .`), and the repository had no `.dockerignore`. An image built from a
+working folder therefore carried whatever lay in it: a real `.env`, which the
+app then reads from `/app/.env` at start-up, plus `data/api_keys.json`, `.git`,
+`.venv` and `.claude/` (CWE-538). Anyone with the image could read those files
+back out of its layers, and a container started from it without a `./data`
+volume accepted the builder's API keys instead of generating its own.
+
+A new `.dockerignore` keeps secrets and local state (`.env*`, everything in
+`data/` except `.gitkeep`, Compose override files), version-control, editor and
+assistant state, Python environments and caches, local-only notes and the test
+suite out of the build context.
+`tests/test_dockerignore.py` evaluates the patterns the way Docker does and
+checks both directions: those paths stay out, and every tracked file except the
+dev-only ones (`tests/`, `.github/`, `.githooks/`, `.env.example`) stays in. The
+Docker workflow only builds after merge, so a pattern that dropped a runtime
+file would otherwise first show up as a broken image.
+
+Images published by CI are built from a clean checkout, so they never contained
+a `.env` or API keys; they did include that checkout's `.git` directory, the
+test suite and the CI configuration, which are now left out as well. Images
+built up to 2026-05-26 (with `actions/checkout` v4) also held the build job's
+`GITHUB_TOKEN` in `.git/config`; GitHub revokes that token when the job ends,
+so there is nothing to rotate.
+
+**If you build the image yourself:** a `.env` in the build folder no longer
+reaches the container through the image. Docker Compose is unaffected: it
+passes `.env` at run time (`env_file`) and mounts `./data` as a volume. With
+plain `docker run`, pass `--env-file .env -v "$PWD/data:/app/data"`; in Cloud
+mode, make sure `JWT_SECRET` arrives, because without it the app signs logins
+with a public default. If you pushed or shared an image built before this
+change, treat the secrets in that `.env` (JWT secret, database and SMTP
+passwords, Stripe keys) and any credential in its `.git/config` as exposed,
+and rotate them. A container that ran such an image with a named volume for
+`/app/data` copied the baked `api_keys.json` into that volume; delete it there
+and restart to get a fresh key.
+
 ### Fixed — long upload names lost their file extension on download
 
 `safe_download_name()` cut the finished download name to 200 characters, so an
