@@ -9,6 +9,13 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — QA fixture generator for the batch error messages
+
+`scripts/make_testdata_batch_errors.py` writes byte-stable fixtures for
+checking the fix below by hand: a windows-1252 Markdown file and CSV, a JSON
+object that isn't an array, and a small JPEG for a mixed batch. Output goes to
+a gitignored local folder; only the script ships.
+
 ### Security — batch error messages no longer echo library internals
 
 `/api/v1/convert/batch` and `/api/v1/compress/batch` returned the text of any
