@@ -9,6 +9,27 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — `docs/formats.md` left out ICO and PDF → PDF/A
+
+The conversion tables in `docs/formats.md` (linked from the README and from
+the app's DOCX engine notice) had fallen behind the converter registry. The
+Images table had no ICO row, although ICO converts to every other image format
+FileMorph writes and to PDF; the HEIC / HEIF, WebP, BMP, TIFF / TIF and GIF
+rows didn't list ICO as a target, although all of them convert to it; and the
+Documents table had no PDF → PDF/A-2b row. The Video section also still said
+every conversion uses libx264 + AAC — codecs are chosen per target container
+(VP9 + Opus for WebM, MPEG-4 Part 2 + MP3 for AVI, WMV2 + WMA for WMV, H.264 +
+AAC for the rest).
+
+New tests in `tests/test_format_lists_match_registry.py` compare the tables
+with the registry: for each From cell (e.g. "TIFF / TIF"), the To cells must
+list exactly what the registry converts each format named there to, minus the
+format itself. Rows sharing a From cell are merged, since the Documents and
+Spreadsheets tables give each pair its own row and note. Every source in the
+registry must appear in a table or in the Audio/Video lists, and the "any of
+the above can be converted to any other format" sentence under those lists is
+checked too.
+
 ### Added — QA fixture generator for the batch ZIP names
 
 `scripts/make_testdata_batch_zip_names.py` writes byte-stable fixtures for

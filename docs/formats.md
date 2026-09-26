@@ -14,14 +14,15 @@ A complete reference of all supported input and output formats, with notes on qu
 
 | From | To | Notes |
 |------|-----|-------|
-| **HEIC / HEIF** | JPG, PNG, WebP, AVIF, BMP, TIFF, GIF, **PDF** | iPhone / Apple device photos. Requires `libheif` on Linux (included in Docker). |
+| **HEIC / HEIF** | JPG, PNG, WebP, AVIF, BMP, TIFF, GIF, ICO, **PDF** | iPhone / Apple device photos. Requires `libheif` on Linux (included in Docker). |
 | **JPG / JPEG** | PNG, WebP, AVIF, BMP, TIFF, GIF, ICO, **PDF** | Most common image format. Lossy — converting to PNG does not restore lost detail. |
 | **PNG** | JPG, WebP, AVIF, BMP, TIFF, GIF, ICO, **PDF** | Lossless. Supports transparency (alpha channel). |
-| **WebP** | JPG, PNG, AVIF, BMP, TIFF, GIF, **PDF** | Modern web format, excellent quality/size ratio. |
+| **WebP** | JPG, PNG, AVIF, BMP, TIFF, GIF, ICO, **PDF** | Modern web format, excellent quality/size ratio. |
 | **AVIF** | JPG, PNG, WebP, BMP, TIFF, GIF, ICO, **PDF** | AV1-based image format. Best-in-class compression; encode is more CPU-intensive than JPEG/WebP (see note below). |
-| **BMP** | JPG, PNG, WebP, AVIF, TIFF, GIF, **PDF** | Uncompressed, large files. Rarely needed today. |
-| **TIFF / TIF** | JPG, PNG, WebP, AVIF, BMP, GIF, **PDF** | Used in print and archiving. |
-| **GIF** | JPG, PNG, WebP, AVIF, BMP, TIFF, **PDF** | Animated GIFs: only the first frame is converted. |
+| **BMP** | JPG, PNG, WebP, AVIF, TIFF, GIF, ICO, **PDF** | Uncompressed, large files. Rarely needed today. |
+| **TIFF / TIF** | JPG, PNG, WebP, AVIF, BMP, GIF, ICO, **PDF** | Used in print and archiving. |
+| **GIF** | JPG, PNG, WebP, AVIF, BMP, TIFF, ICO, **PDF** | Animated GIFs: only the first frame is converted. |
+| **ICO** | JPG, PNG, WebP, AVIF, BMP, TIFF, GIF, **PDF** | Windows icons and favicons. From a multi-size icon, the largest image is converted. |
 
 > **Image → PDF**: any supported image becomes a single-page PDF (handy for
 > turning scans/photos into uniform documents). Transparency is flattened onto a
@@ -78,6 +79,7 @@ JPEG/WebP/AVIF); a video file always uses quality-based compression there.
 | **DOCX** | TXT | Extracts plain text from all paragraphs. Formatting (bold, tables) is lost. |
 | **TXT** | PDF | Creates a clean PDF with Helvetica font, A4 page size. |
 | **PDF** | TXT | Extracts text from each page using PyPDF. Complex layouts (columns, forms) may not extract cleanly. |
+| **PDF** | PDF/A-2b | Archival PDF (`target_format=pdfa`; the result is still a `.pdf`). Full conformance (passes [veraPDF](https://verapdf.org/) validation) needs Ghostscript, which the Docker image bundles; without it, output from the markup-only fallback can fail veraPDF, e.g. when the source PDF has unembedded fonts. |
 | **Markdown (.md)** | HTML | Converts Markdown to a complete HTML document. Supports tables and fenced code blocks. The file must be UTF-8 text. |
 | **Markdown (.md)** | PDF | Renders Markdown via HTML to PDF using WeasyPrint. Styled with a clean sans-serif font. The file must be UTF-8 text. |
 | **HTML / HTM** | PDF | Renders an HTML file to PDF via WeasyPrint. External resources (remote CSS/images, `file://`) are **never fetched** (`url_fetcher` SSRF guard). |
@@ -241,7 +243,9 @@ Any of the above can be converted to any other format.
 
 ## Video
 
-All video conversions use **ffmpeg-python** (libx264 + AAC codec).
+All video conversions invoke **ffmpeg** (via ffmpeg-python), with codecs
+picked per target container: H.264 + AAC for MP4, MOV, MKV and FLV; VP9 +
+Opus for WebM; MPEG-4 Part 2 + MP3 for AVI; WMV2 + WMA for WMV.
 
 ### Conversions
 
