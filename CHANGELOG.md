@@ -9,6 +9,40 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — docs quoted tier limits from before the pricing overhaul
+
+The API usage guide's tier table and the API reference's monthly-quota table
+still showed the limits from before the 2026-05-25 pricing overhaul (for
+example free 50 MB / 5 files / 500 calls a month, pro 10,000 calls). Both now
+match `app/core/quotas.py`, the source the server enforces and `/pricing`
+renders.
+
+- **Rate limits are not per tier.** The guide's "API/min" column promised paid
+  tiers 60 requests/min, and its quickstart offered "higher rate limits" with an
+  account. The limiter counts per client IP and per endpoint, the same for
+  everyone: 10/min on `/convert` and `/compress`, 3/min on the batch endpoints.
+  The guide now says so. In place of that column the table shows the per-tier
+  concurrent-request cap (1 / 1 / 3 / 6 / 10), which is enforced per tier.
+- **Anonymous uploads cap at 30 MB, not 20 MB.** Fixed in the API guide, the
+  security overview and the vendor security questionnaire. Anonymous callers
+  can also send a one-file batch; the guide said batch endpoints reject them.
+- **Self-hosting guide:** Pro gets 3 concurrent requests and Business 6, not 2
+  and 5.
+- **Duplicate names in a batch ZIP** come out as `a.png`, `a_1.png`, `a_2.png`;
+  the guide said the second file gets `_2`.
+- **Monthly API calls:** a request rejected by the output cap does not count
+  toward them (the guide said it did), and the PDF tools do (the API reference
+  left them out). Its example `429` body now quotes Pro's 25000 calls.
+- **Caps above the tier:** the guide now says that `MAX_UPLOAD_SIZE_MB`
+  (default 100 MB) caps every whole request, so a self-hosted instance has to
+  raise it for the larger tier limits to apply, and that past the server-wide
+  concurrency cap (`MAX_GLOBAL_CONCURRENCY`) requests get `503`. The
+  architecture doc gave that default as 2000 MB.
+
+`tests/test_docs_match_code.py` reads the tier numbers back out of the markdown
+and compares them with `QUOTAS`, and the duplicate-name example with
+`build_batch_zip`, so the next quota change fails CI until the docs follow.
+
 ### Added — QA fixture generator for the batch error messages
 
 `scripts/make_testdata_batch_errors.py` writes byte-stable fixtures for

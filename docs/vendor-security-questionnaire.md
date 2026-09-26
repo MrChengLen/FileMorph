@@ -401,7 +401,7 @@ Every upload passes through:
 3. **Path safety** — the original filename is never used as a
    filesystem path. Temp paths use UUID stems under `fm_`-prefixed
    directories.
-4. **Size cap, per tier** — anonymous 20 MB; Free, Pro, Business,
+4. **Size cap, per tier** — anonymous 30 MB; Free, Pro, Business,
    Enterprise scale up. See `app/core/quotas.py`.
 5. **Output cap, per tier** — bandwidth-amplification guard: a
    converter that turns 50 MB JPG into 500 MB PNG is rejected with

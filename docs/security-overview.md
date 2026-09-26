@@ -199,7 +199,7 @@ converter:
 3. **Path safety.** The original filename is never used as a
    filesystem path. Where a temporary path is needed, it uses a
    UUID stem under a `fm_`-prefixed scratch directory.
-4. **Size cap, per tier.** Anonymous uploads cap at 20 MB; Free,
+4. **Size cap, per tier.** Anonymous uploads cap at 30 MB; Free,
    Pro, Business, Enterprise scale up — see `app/core/quotas.py`.
 
 ### Download pipeline
