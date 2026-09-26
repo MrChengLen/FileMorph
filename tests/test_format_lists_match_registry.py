@@ -2,19 +2,23 @@
 """Every hand-written list of input formats must match the converter registry.
 
 The homepage drop-zone caption is pinned by test_homepage_drop_zone_modes.py.
-The same list is written out by hand in four more places, which had fallen
+The same list is written out by hand in five more places, which had fallen
 behind it (HEIF, AVIF, ICO, HTML, EML, FLV, WMV, AAC, WMA and Opus missing;
-the README table only lacked HTML/EML inputs and image → PDF):
+the README table only lacked HTML/EML inputs and image → PDF; docs/formats.md
+had no ICO row, left ICO out of five image rows and lacked PDF → PDF/A):
 
 - the homepage FAQ answer "Which file formats can I convert?" (EN + DE)
 - the "FileMorph converts …" sentence in /llms.txt
 - the "Convert …" entries of the JSON-LD featureList
 - README.md: the drop-zone mockup and the "Supported Formats" table
+- docs/formats.md: the From → To conversion tables and the Audio/Video
+  format lists ("any of the above can be converted to any other format")
 
-They stay hand-written (the FAQ answer is translated, the README is static
-Markdown), so each test compares one of them with get_public_conversions() —
-the data /api/v1/formats serves. A new input format added without updating the
-text fails CI, and the message names the surface and the missing formats.
+They stay hand-written (the FAQ answer is translated, the README and
+docs/formats.md are static Markdown), so each test compares one of them with
+get_public_conversions() — the data /api/v1/formats serves. A new input format
+added without updating the text fails CI, and the message names the surface
+and the missing formats.
 """
 
 from __future__ import annotations
@@ -29,6 +33,7 @@ from app.converters.registry import get_public_conversions
 from app.core.jsonld import build_site_jsonld
 
 README = Path(__file__).resolve().parent.parent / "README.md"
+FORMATS_MD = Path(__file__).resolve().parent.parent / "docs" / "formats.md"
 
 # Other spellings of the same format — the text names each format once.
 _ALIAS = {"jpeg": "jpg", "tif": "tiff", "htm": "html", "markdown": "md", "pdf/a-2b": "pdfa"}
@@ -57,10 +62,11 @@ def _paren_tokens(text: str) -> set[str]:
 
 
 def _cell_tokens(cell: str) -> set[str]:
-    """Lowercased format names from a README table cell such as
-    "DOCX, TXT, Markdown (`.md`)" or "TXT, PDF/A-2b<sup>†</sup>" — footnote
-    markup and a note after the name are dropped."""
-    cell = re.sub(r"<[^>]+>|†", "", cell)
+    """Lowercased format names from a README or docs/formats.md table cell
+    such as "DOCX, TXT, Markdown (`.md`)", "TXT, PDF/A-2b<sup>†</sup>" or
+    "WebP, AVIF, BMP, TIFF, GIF, ICO, **PDF**" — footnote markup, bold
+    markers and a note after the name are dropped."""
+    cell = re.sub(r"<[^>]+>|†|\*", "", cell)
     return {_alias(part.split()[0].lower()) for part in cell.split(",") if part.strip()}
 
 
@@ -141,3 +147,94 @@ def test_readme_format_table_outputs_match_registry():
             f"README table row {label!r}: outputs drifted from the converter registry — "
             f"missing: {sorted(expected - outs)}, extra: {sorted(outs - expected)}"
         )
+
+
+def _label_tokens(label: str) -> set[str]:
+    """Formats in a first-column label of docs/formats.md: "TIFF / TIF" names
+    one format twice, "M4A / AAC" two formats ("PDF/A-2b" is not split)."""
+    return {fmt for spelling in re.split(r"\s+/\s+", label) for fmt in _cell_tokens(spelling)}
+
+
+def _formats_md_conversions() -> dict[str, tuple[set[str], set[str]]]:
+    """From label → (source formats, target formats) of the "| From | To | Notes |"
+    tables in docs/formats.md. Rows sharing a label (DOCX → PDF, DOCX → TXT) are
+    merged — those tables give each pair its own row and note."""
+    text = FORMATS_MD.read_text(encoding="utf-8")
+    tables = re.findall(r"\|\s*From\s*\|\s*To\s*\|\s*Notes\s*\|\n\|[-:| ]+\|\n((?:\|.*\n)+)", text)
+    assert tables, "docs/formats.md: no '| From | To | Notes |' tables found"
+    conversions: dict[str, tuple[set[str], set[str]]] = {}
+    for first, to_cell in re.findall(r"^\|([^|]*)\|([^|]*)\|", "".join(tables), re.M):
+        label = first.strip(" *")
+        ins, outs = conversions.setdefault(label, (set(), set()))
+        ins |= _label_tokens(label)
+        outs |= _cell_tokens(to_cell)
+    return conversions
+
+
+def _formats_md_any_to_any() -> list[set[str]]:
+    """Formats of each "| Format | Description |" table (Audio, Video) that is
+    followed by "Any of the above can be converted to any other format." — the
+    sentence is part of the pattern, so its claim is what gets tested."""
+    text = FORMATS_MD.read_text(encoding="utf-8")
+    tables = re.findall(
+        r"\|\s*Format\s*\|\s*Description\s*\|.*\n\|[-:| ]+\|\n((?:\|.*\n)+)"
+        r"\nAny of the above can be converted to any other format\.",
+        text,
+    )
+    assert tables, "docs/formats.md: no format list followed by 'Any of the above …' found"
+    return [
+        {fmt for first in re.findall(r"^\|([^|]*)\|", table, re.M) for fmt in _label_tokens(first)}
+        for table in tables
+    ]
+
+
+def test_formats_md_sources_match_registry():
+    """Every format the registry converts from is documented — in a conversion
+    table or an Audio/Video list. Catches a missing row (there was no ICO row)."""
+    found = {fmt for ins, _ in _formats_md_conversions().values() for fmt in ins}
+    found |= {fmt for group in _formats_md_any_to_any() for fmt in group}
+    _assert_matches_registry(
+        found,
+        "docs/formats.md (conversion tables, plus Audio/Video lists followed by "
+        "'Any of the above can be converted to any other format.')",
+    )
+
+
+def test_formats_md_conversion_targets_match_registry():
+    """Each source named in a From label converts to exactly what the label's To
+    cells list, minus the label's own format ("JPG / JPEG" doesn't list JPG,
+    although jpg → jpeg is registered). All drift is reported at once."""
+    conversions = get_public_conversions()
+    drift: list[str] = []
+    for label, (ins, outs) in _formats_md_conversions().items():
+        for src in (s for s in conversions if _alias(s) in ins):
+            expected = {_alias(tgt) for tgt in conversions[src]} - ins
+            if outs != expected:
+                drift.append(
+                    f"  {label!r} ({src}) — missing: {sorted(expected - outs)}, "
+                    f"extra: {sorted(outs - expected)}"
+                )
+    assert not drift, (
+        "docs/formats.md conversion tables drifted from the converter registry:\n"
+        + "\n".join(drift)
+    )
+
+
+def test_formats_md_any_to_any_lists_match_registry():
+    """The claim under the Audio and Video lists — "any of the above can be
+    converted to any other format" — holds for every format in them."""
+    conversions = get_public_conversions()
+    drift: list[str] = []
+    for group in _formats_md_any_to_any():
+        for fmt in sorted(group):
+            actual = {_alias(tgt) for tgt in conversions.get(fmt, [])}
+            expected = group - {fmt}
+            if actual != expected:
+                drift.append(
+                    f"  {fmt!r} — missing: {sorted(expected - actual)}, "
+                    f"extra: {sorted(actual - expected)}"
+                )
+    assert not drift, (
+        "docs/formats.md: these formats don't convert to exactly the other formats "
+        "of their Audio/Video list:\n" + "\n".join(drift)
+    )
