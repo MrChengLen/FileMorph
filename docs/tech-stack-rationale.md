@@ -261,11 +261,9 @@ strong-copyleft Python dependency that would constrain downstream
 users. The copyleft that exists is at the edges and documented in
 [`third-party-licenses.md`](./third-party-licenses.md): `pillow-heif`'s
 wheel bundles a GPL-2.0+ HEVC encoder it never invokes (HEIC decode
-only), the Docker image's FFmpeg is Debian's GPL build (a separate
-program, not linked in), and `pyinstaller` (GPLv2 + bundling
-exception) is a desktop-build tool that ships in neither the image
-nor the server requirements. None of these constrains FileMorph's
-dual-license offering. If a future PR brings in a GPL/AGPL Python
+only), and the Docker image's FFmpeg is Debian's GPL build (a separate
+program, not linked in). Neither constrains FileMorph's dual-license
+offering. If a future PR brings in a GPL/AGPL Python
 dependency, this table and that doc are the place to flag it.
 
 ---

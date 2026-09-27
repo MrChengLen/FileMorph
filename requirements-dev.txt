@@ -26,6 +26,9 @@ ruff==0.16.8
 # via uvicorn[standard]). Both must match the CI command exactly, since uv
 # records the invocation in the lockfile header and the drift gate diffs it.
 uv==0.12.16
-pyinstaller>=6.5.0
 pip-audit>=2.10.1
 beautifulsoup4>=4.15.0
+# Parses the workflows in tests/test_workflow_triggers.py. No version floor:
+# uvicorn[standard] already pulls it in, and a floor here could only drift
+# from the version requirements.lock pins.
+pyyaml
