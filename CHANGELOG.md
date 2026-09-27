@@ -9,29 +9,6 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Removed — the Windows desktop build, which had never run
-
-`build-desktop.yml` was meant to attach a `FileMorph-Windows.zip` (the app
-bundled with PyInstaller, plus ffmpeg) to every GitHub release. It triggered on
-`release: published`, but `release.yml` publishes releases with the built-in
-`GITHUB_TOKEN`, and GitHub starts no workflow runs for events caused by that
-token — the trap that once left v1.1.0 without its SBOM. The workflow never
-ran, not even by hand, so no release ever carried the ZIP; the README's
-download link for it had already been removed as dead in May 2026.
-
-It is retired rather than repaired: the spec bundled no translations
-(`locale/`), so the German interface would have shown English without a
-warning, the build provided none of the GTK libraries WeasyPrint needs on
-Windows to render Word, HTML, Markdown and email to PDF, and an unsigned
-executable without an SBOM would have been the one unverifiable release
-artifact. On Windows, FileMorph runs with Docker Desktop (`start.bat`) or from
-source (`dev.ps1`). The workflow, `filemorph.spec`, `pyinstaller` and the
-PyInstaller-only `.gitignore` entries are gone; the frozen-mode code in
-`run.py` and `app/compat.py` stays (inert from source).
-
-`tests/test_workflow_triggers.py` now fails CI if any workflow triggers on
-`release`, so work that follows a release goes into `release.yml` itself.
-
 ### Fixed — `docs/formats.md` left out ICO and PDF → PDF/A
 
 The conversion tables in `docs/formats.md` (linked from the README and from
