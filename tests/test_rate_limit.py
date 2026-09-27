@@ -21,9 +21,14 @@ Discipline:
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import pytest
 
 from app.core.rate_limit import limiter as _shared_limiter
+
+DOCS = Path(__file__).resolve().parent.parent / "docs"
 
 
 @pytest.fixture
@@ -80,11 +85,15 @@ def test_convert_route_returns_429_after_10_requests_per_minute(
     # only that we *do* see one).
 
 
-def test_rate_limit_response_carries_retry_after(
+def test_rate_limit_429_matches_the_docs(
     client, auth_headers, sample_jpg, rate_limiter_enabled
 ) -> None:
-    """When 429 fires, the Retry-After header must accompany it so
-    well-behaved clients can back off without guessing."""
+    """The 429 comes from slowapi's default handler: an ``{"error": ...}``
+    body that names the limit, and no ``Retry-After`` header —
+    ``headers_enabled`` is slowapi's default ``False``, and the body says
+    the window is a minute. The API guide and reference tell clients
+    exactly that, so a change here (e.g. turning the headers on) fails
+    until the docs follow."""
     last_429 = None
     for _ in range(15):  # generous over-fire to guarantee a 429
         with sample_jpg.open("rb") as fp:
@@ -98,17 +107,12 @@ def test_rate_limit_response_carries_retry_after(
             last_429 = res
             break
     assert last_429 is not None, "Expected a 429 within 15 over-fired requests"
-    # slowapi sets Retry-After by default. If a future config disables
-    # it (``headers_enabled=False`` is the slowapi default — but the
-    # 429-body still includes a hint via the JSON detail), accept either
-    # the header or a hint in the response body.
-    body_text = last_429.text.lower()
-    has_retry_header = "retry-after" in {k.lower() for k in last_429.headers.keys()}
-    has_retry_in_body = "retry" in body_text or "minute" in body_text or "10/" in body_text
-    assert has_retry_header or has_retry_in_body, (
-        "429 response carries no Retry-After hint (header or body). Clients "
-        "would have to guess when to retry, which is the contract violation."
-    )
+    assert last_429.json() == {"error": "Rate limit exceeded: 10 per 1 minute"}
+    assert "retry-after" not in {k.lower() for k in last_429.headers.keys()}
+    body = json.dumps(last_429.json())
+    for doc in ("api-usage-guide.md", "api-reference.md"):
+        text = " ".join((DOCS / doc).read_text(encoding="utf-8").split())
+        assert f"`{body}`" in text, f"docs/{doc} does not quote the 429 body {body}"
 
 
 def test_compress_route_also_rate_limited(

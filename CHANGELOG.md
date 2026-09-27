@@ -9,6 +9,55 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — API docs: status codes, error texts and Retry-After match the code
+
+A second pass over the public docs, after the tier-limit fix below, found more
+statements the code contradicts. Each one was checked against the route that
+answers before it was changed.
+
+- **`/formats` is rate-limited.** The API guide called it "unlimited"; it
+  allows 120 requests/min per client IP, and it does not count toward the
+  monthly API calls. The guide's `can_convert()` example read
+  `formats["convert"]`, a key the response does not have — it now reads
+  `formats["conversions"]`.
+- **Batch `target_formats` needs one entry per file.** A count mismatch
+  returns `422`, not `400`. The API reference said a single value applies to
+  every file, and its example (three files, one target) got that `422`.
+- **Error texts:** the guide quoted `"Output too large; try WebP/AVIF or
+  upgrade."`; the output-cap errors read `"Output too large (N MB > M MB
+  cap)."` plus a hint that differs between `/convert` and `/compress`. The
+  file-size `413` is quoted as sent, too.
+- **Batch manifest example:** entries carry the output file's name
+  (`one.png`, not `one.jpg`) and the operation reads `convert`, not
+  `convert_batch`.
+- **`Retry-After`:** a `429` from the rate limiter carries none, but the
+  per-tier concurrency `429`, the monthly-quota `429` and the `503` of a server
+  at capacity do. The guide said no response had one, the API reference only
+  the `503`. The guide's backoff example now honours the header and gives up
+  on waits longer than two minutes, such as a used-up monthly quota.
+- **Error bodies:** not every error is `{"detail": …}` — the rate limiter's
+  `429` is `{"error": "Rate limit exceeded: 10 per 1 minute"}`, and a batch
+  where every file failed returns `{"summary": …, "files": […]}`.
+- **Status and header tables:** `413` also covers the tier's file and output
+  caps, and the guide's status table gained `415`. `X-Output-SHA256` is only
+  sent on single-file `/convert` and `/compress`, not on batch ZIPs, and
+  `X-FileMorph-Achieved-Bytes` is sent by `/pdf/compress` as well.
+- **Magic-byte rejections** are `400 "File type not permitted."`, not `415`
+  (architecture doc and threat model). The API guide also said the check
+  applies "regardless of whether a converter for that pair exists"; an
+  unsupported pair fails first, with `422`.
+- **Self-hosting guide:** "No rate limits" was wrong — the per-IP limits are
+  route decorators that run on every instance. It now says where to change
+  them.
+- Code comments with old numbers (monthly quotas, the pro tier's output-cap
+  headroom, the concurrency limiter's actor key, two test docstrings) now match
+  `app/core/quotas.py` and `actor_id`.
+
+`tests/test_docs_match_code.py` now also calls the routes and compares their
+status codes, error messages and the manifest shape with what the docs quote,
+and `tests/test_rate_limit.py` pins the rate-limit `429` itself: its body, and
+no `Retry-After`.
+
 ### Fixed — `docs/formats.md` left out ICO and PDF → PDF/A
 
 The conversion tables in `docs/formats.md` (linked from the README and from

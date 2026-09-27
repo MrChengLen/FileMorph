@@ -35,8 +35,9 @@ class TierQuota:
     Values are sized to the production server's RAM headroom (a 4 GB server).
     Output is buffered in memory via `read_bytes()` before streaming, so cap
     × concurrent-requests must fit under available RAM after encoder peaks.
-    Lower tiers get 3× amplification headroom; business/enterprise match the
-    input cap because a 1500 MB buffer × 3 concurrent requests would OOM.
+    Anonymous and free get 3× amplification headroom, pro 1.6× (250 → 400 MB);
+    business/enterprise match the input cap because a 1500 MB buffer × 3
+    concurrent requests would OOM.
     Raising these caps is gated on S3 (StreamingResponse) or a bigger box.
     """
 

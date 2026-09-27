@@ -166,8 +166,8 @@ def test_batch_per_file_cap_does_not_aggregate(client, auth_headers, override_fr
     per-file cap.
 
     The test sends three small JPGs that each convert to ~tiny PNGs well
-    under the default free-tier cap (150 MB). The aggregate output is
-    obviously still well under that, so an aggregate cap of 150 MB
+    under the default free-tier cap (300 MB). The aggregate output is
+    obviously still well under that, so an aggregate cap of 300 MB
     wouldn't catch it — but the test pins the contract that no synthetic
     accumulator was introduced. If a future PR adds e.g. a 300-byte
     aggregate cap, this test fails first.
