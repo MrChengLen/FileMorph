@@ -27,6 +27,7 @@ with no permissions block at all, or a SHA pin reverted to a tag.
 from __future__ import annotations
 
 import re
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -48,6 +49,11 @@ _JOB_LEVEL_PERMISSIONS_RE = re.compile(r"^ {4}permissions:", re.MULTILINE)
 # FROM line with a digest pin, e.g. `FROM python:3.12-slim@sha256:<64 hex>`.
 _FROM_DIGEST_RE = re.compile(r"^FROM\s+\S+@sha256:[0-9a-f]{64}\b", re.MULTILINE)
 _FROM_ANY_RE = re.compile(r"^FROM\s+\S+", re.MULTILINE)
+# `pip-audit ... -r <file>` (or `python -m pip_audit`, or `--requirement`), as
+# CI runs it and the docs quote it: other flags may come first, and a trailing
+# backslash may continue the line. The file name must end in a word character
+# or hyphen, so a sentence's full stop is not captured.
+_PIP_AUDIT_RE = re.compile(r"pip[-_]audit\b[^\n`]*?\s+(?:-r|--requirement)(?:\s+|=)([\w./-]*[\w-])")
 
 
 def _workflow_files() -> list[Path]:
@@ -151,6 +157,65 @@ def test_dockerfile_installs_from_the_hash_pinned_lockfile() -> None:
             f"Without it pip will happily install an unhashed or unpinned "
             f"requirement, which defeats the point of the lockfile."
         )
+
+
+def test_ci_audits_the_lockfile_the_image_installs() -> None:
+    """CI's pip-audit scans ``requirements.lock``, not the manifest.
+
+    Auditing ``requirements.txt`` checks a dependency set nobody ships: its
+    ``>=`` constraints resolve to the newest releases at audit time, so a CVE
+    in an older version the image still carries would go unreported.
+    """
+    text = (_WORKFLOW_DIR / "ci.yml").read_text(encoding="utf-8")
+    # Comment lines may quote an old command; only executed lines count.
+    code = "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
+    targets = set(_PIP_AUDIT_RE.findall(code))
+    assert targets, (
+        "ci.yml runs no `pip-audit -r ...` step, but the public docs describe "
+        "one as a blocking CVE gate."
+    )
+    assert targets == {_LOCKFILE.name}, (
+        f"ci.yml audits {sorted(targets)}, but the image installs "
+        f"{_LOCKFILE.name}. Audit the lockfile — it is what reaches production."
+    )
+
+
+def test_docs_quote_the_lockfile_as_the_pip_audit_target() -> None:
+    """Every ``pip-audit -r`` command in the public docs names the lockfile.
+
+    When CI moved to the lockfile (2026-09-09), four docs — the DPA's TOM
+    annex among them — kept quoting ``pip-audit -r requirements.txt`` for more
+    than two weeks. Only tracked files count: a checkout can hold untracked
+    local notes (e.g. a gitignored CLAUDE.md). CHANGELOG.md records history
+    and is not checked.
+    """
+    if not (_REPO_ROOT / ".git").exists():
+        pytest.skip("not a git checkout (e.g. an unpacked release tarball)")
+    tracked = subprocess.run(
+        ["git", "ls-files", "-z", "--", "*.md"],
+        cwd=_REPO_ROOT,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=True,
+    ).stdout.split("\0")
+    docs = [
+        rel
+        for rel in tracked
+        if rel.endswith(".md")
+        and ("/" not in rel or rel.startswith("docs/"))
+        and rel != "CHANGELOG.md"
+    ]
+    stale = [
+        f"{rel}: pip-audit -r {target}"
+        for rel in docs
+        for target in _PIP_AUDIT_RE.findall((_REPO_ROOT / rel).read_text(encoding="utf-8"))
+        if target != _LOCKFILE.name
+    ]
+    assert not stale, (
+        f"docs quote a pip-audit target other than {_LOCKFILE.name}, the file "
+        f"CI audits and the image installs: {stale}"
+    )
 
 
 def test_lockfile_is_hash_pinned_and_matches_the_image_python() -> None:

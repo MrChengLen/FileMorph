@@ -224,7 +224,7 @@ def _ensure_loaded() -> None:
 
 ### Step 4 — Add dependencies
 
-Add any new Python packages to `requirements.txt`. Add system-level dependencies to `Dockerfile`.
+Add any new Python packages to `requirements.txt`, then recompile `requirements.lock` — the image installs only from the lockfile, and CI's `lockfile-drift` job fails until the two match (command under "Reproducible builds" in [`self-hosting.md`](self-hosting.md)). Add system-level dependencies to `Dockerfile`.
 
 ### Step 5 — Write tests
 
