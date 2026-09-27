@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Per-user monthly API-call quota — write-side and gate-side.
 
-The pricing page advertises 500/month (Free), 10 000/month (Pro),
-100 000/month (Business). Until now the limits in
+The pricing page advertises 1,000/month (Free), 25,000/month (Pro),
+200,000/month (Business). Until now the limits in
 ``app/core/quotas.py`` were informational; this module wires them up
 so the system actually enforces what the pricing page promises.
 
@@ -27,7 +27,7 @@ Time window
 -----------
 Calendar month, UTC. Picked because:
 
-* It matches how the pricing page is read ("you get 10 k per month").
+* It matches how the pricing page is read ("you get 25 k per month").
 * Users see their reset boundary in their own calendar (1st of the
   next month at 00:00 UTC) — cheap to display, easy to remember.
 * A rolling 30-day window is smoother under load but harder to
@@ -85,7 +85,7 @@ async def monthly_call_count(
     """Count this user's ``UsageRecord`` rows for the current calendar month.
 
     The index on ``(user_id, timestamp)`` (migration 007) makes this a fast
-    range scan even at 100 k rows/user/month for the Business tier.
+    range scan even at 200 k rows/user/month for the Business tier.
     """
     if now is None:
         now = datetime.now(timezone.utc)

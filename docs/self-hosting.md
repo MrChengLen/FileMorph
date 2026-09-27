@@ -8,7 +8,7 @@ reverse proxy setup (Caddy or nginx), HTTPS/SSL, and operational best practices.
 ## Why self-host?
 
 - **Data privacy (DSGVO / GDPR)**: Files never leave your own infrastructure
-- **No rate limits**: Control throughput yourself
+- **Limits you control**: The per-IP rate limits and tier caps ship with the code and apply to your instance too — change them in the `@limiter.limit(...)` decorators in `app/api/routes/*.py` and in `app/core/quotas.py`
 - **Custom access**: Issue API keys to your own users or services
 - **Integration**: Run FileMorph inside your existing network, accessible only to internal services
 

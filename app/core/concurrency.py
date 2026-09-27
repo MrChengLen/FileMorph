@@ -3,8 +3,8 @@
 
 Why this exists
 ---------------
-The pricing page advertises monthly call quotas (10.000 Pro,
-100.000 Business). That is a **bucket size**, not a guarantee about
+The pricing page advertises monthly call quotas (25,000 Pro,
+200,000 Business). That is a **bucket size**, not a guarantee about
 parallelism. Without a concurrency cap, a single Pro user can
 launch a 25-file batch — which on a 4 GB box is enough to
 OOM-kill the Python process and take every other request down
@@ -21,10 +21,11 @@ layer the route needs:
   anonymous caller gets 1, Pro gets 3, Business gets 6. Past the
   cap: 429 Too Many Requests, again with ``Retry-After``.
 
-The "actor" key is the API-key hash for authenticated callers,
-the IP for anonymous. That gives a stable identity across
-requests within a session without forcing us to hand out keys to
-anonymous users.
+The "actor" key is the user ID for authenticated callers
+(``user:<id>``, whichever key or token they send) and the IP for
+anonymous ones (``ip:<host>``) — see ``app/core/processing.py::actor_id``.
+That gives a stable identity across requests without forcing us
+to hand out keys to anonymous users.
 
 Why not a job queue (Redis / Celery / RQ)
 -----------------------------------------

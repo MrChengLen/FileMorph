@@ -64,7 +64,8 @@ Every conversion or compression request follows the same path:
    convert and compress endpoints; the limiter state is in-memory and
    resets on restart.
 6. **Magic-byte check** before any conversion runs — uploads matching the
-   PE, ELF, shell-script, or PHP prefixes are rejected with HTTP 415.
+   PE, ELF, shell-script, or PHP prefixes are rejected with HTTP 400
+   (`"File type not permitted."`; in a batch, only that file fails).
 7. **Converter dispatch** through the plugin registry
    (`app/converters/registry.py`). Each plugin runs in `asyncio.to_thread`
    so that synchronous C bindings (Pillow saves, WeasyPrint, pikepdf,
