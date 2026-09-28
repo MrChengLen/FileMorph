@@ -9,6 +9,28 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed — dependency batch: pypdf 6.19.0, pillow-heif 1.8.0; `uv` 0.12.19 in all three places
+
+Dependabot opened five PRs on 2026-09-28. Three were merged one at a time:
+#158 (`python-dotenv>=1.2.3`) and #159 (`markdown>=3.10.3`) raised floors the
+lockfile already met — 1.2.3 and 3.10.3 are the locked versions — and #157
+(`python-minor-patch`) moved `ruff` to 0.16.9 and `uv` to 0.12.19 in
+`requirements-dev.txt`. This batch supersedes the other two, #160
+(`pypdf>=6.19.0`) and #161 (`pillow-heif>=1.8.0`), and recompiles the lockfile
+once: exactly those two packages move (pypdf 6.16.2 -> 6.19.0, pillow-heif
+1.7.0 -> 1.8.0), every other pin stays. The next image ships them; the full
+suite passes against both. Both matter for a service that parses untrusted
+uploads: pypdf 6.17.0–6.19.0 add six upstream limits for crafted PDFs (token
+lengths, FlateDecode recovery, font `/Widths`, page labels), and pillow-heif
+1.8.0 fixes a segmentation fault on HEIC files whose metadata item type is not
+valid UTF-8 — HEIC decoding runs inside the server process, so such a file
+could take the worker down. Neither fix comes with a published advisory.
+
+`uv` follows #157 into `ci.yml`'s `lockfile-drift` job and the `deps-lock`
+workflow (0.12.16 -> 0.12.19), the same three-place move as before. Recompiled
+with 0.12.19, `requirements-sbom.lock` is byte-identical. `ruff` 0.16.9 leaves
+every file as formatted, so no reformat rides along.
+
 ### Changed — the web UI offers target-size compression for AVIF too
 
 The server has compressed AVIF to an exact target size since AVIF support
