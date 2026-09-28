@@ -1,0 +1,19 @@
+# The CycloneDX SBOM generator that sbom.yml and release.yml run. CI tooling
+# only: it is not part of the image, and the SBOM it writes does not list it.
+#
+# The workflows install requirements-sbom.lock, compiled from this file with
+# hashes, and never this file: with --require-hashes pip refuses anything
+# unpinned or unhashed, so the release job only runs generator files that were
+# reviewed in a PR. After editing this file, recompile it — or run the
+# deps-lock workflow; tests/test_supply_chain_hygiene.py fails until the
+# lockfile satisfies this file, and ci.yml's lockfile-drift until they agree:
+#   uv pip compile --generate-hashes --python-version 3.14 --python-platform x86_64-unknown-linux-gnu --output-file requirements-sbom.lock requirements-sbom.txt
+#
+# Held on the 5.x line (5.5.0 is its last release), and Dependabot is told to
+# leave the major version alone (.github/dependabot.yml): a major bump can
+# change the SBOM's CycloneDX spec version and its licence data, so take one
+# deliberately. 7.x also has no --PEP-639 flag: the bump has to drop it from
+# sbom.yml and release.yml (tests/test_supply_chain_hygiene.py checks), and
+# should dispatch sbom.yml on its branch before merging, since release.yml
+# cannot be tried on a PR.
+cyclonedx-bom>=5,<6
