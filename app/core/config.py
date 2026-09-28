@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-from pydantic import AliasChoices, Field
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.compat import data_dir
+from app.core.quotas import QUOTAS
 
 
 def _default_keys_file() -> str:
@@ -18,6 +19,13 @@ class Settings(BaseSettings):
     app_version: str = "1.1.0"
 
     api_keys_file: str = ""  # resolved below if empty
+
+    # Quota tier for the keys in ``api_keys_file``. No account stands behind
+    # them, so they get the anonymous limits unless the operator names a tier
+    # from app/core/quotas.py here. Accounts (JWT, dashboard keys) keep their
+    # own tier and callers without a key stay anonymous — see
+    # ``app/api/deps.py::caller_tier`` and docs/self-hosting.md.
+    api_keys_file_tier: str = "anonymous"
 
     max_upload_size_mb: int = 100
 
@@ -236,6 +244,17 @@ class Settings(BaseSettings):
     # transcode on a 4 GB host; raise it if your deployment regularly
     # converts long or HD footage.
     media_subprocess_timeout_seconds: int = 600
+
+    @field_validator("api_keys_file_tier")
+    @classmethod
+    def _known_tier(cls, v: str) -> str:
+        # A typo must stop the start-up: ``get_quota`` would quietly fall
+        # back to anonymous, and the setting would look like it did nothing.
+        # An empty value is unset, as for ``API_KEYS_FILE`` and ``API_BASE_URL``.
+        tier = v.strip().lower() or "anonymous"
+        if tier not in QUOTAS:
+            raise ValueError(f"must be one of: {', '.join(QUOTAS)}")
+        return tier
 
     def model_post_init(self, __context) -> None:
         if not self.api_keys_file:

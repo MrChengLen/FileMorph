@@ -50,8 +50,8 @@ if [ "$need_key" = "1" ]; then
     echo "  API KEY: $API_KEY"
     echo "================================================================"
     echo "  IMPORTANT: Save this key - it will NOT be shown again."
-    echo "  Enter it in the Web UI under the 'API Key' field, or pass"
-    echo "  it as the X-API-Key header from your own client."
+    echo "  Send it as the X-API-Key header from your own client;"
+    echo "  the web UI works without a key."
     echo "================================================================"
     echo ""
 fi

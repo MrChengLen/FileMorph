@@ -12,7 +12,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from PIL import Image as _PILImage
 from starlette.background import BackgroundTask
 
-from app.api.deps import require_api_key
+from app.api.deps import caller_tier, require_api_key
 from app.api.routes.auth import get_optional_user
 from app.converters.base import InvalidInputError, UnsupportedConversionError
 from app.converters.registry import _ensure_loaded, get_converter
@@ -29,7 +29,7 @@ from app.core.data_classification import DEFAULT_CLASSIFICATION as DATA_CLASSIFI
 from app.core.metrics import increment as metric_increment
 from app.core.observability import record_conversion
 from app.core.processing import BLOCKED_MAGIC, actor_id, sha256_file
-from app.core.quotas import _MB, get_quota, tier_for
+from app.core.quotas import _MB, get_quota
 from app.core.rate_limit import limiter
 from app.core.usage import enforce_monthly_quota, record_usage
 from app.core.utils import safe_download_name
@@ -63,8 +63,8 @@ async def convert_file(
     quality: int = Form(85, ge=1, le=100, description="Quality 1-100 (where applicable)"),
     user: User | None = Depends(get_optional_user),
 ) -> Response:
-    tier = tier_for(user)
-    async with acquire_slot(actor_id=actor_id(request, user), tier=tier):
+    tier = caller_tier(request, user)
+    async with acquire_slot(actor_id=actor_id(request, user, tier), tier=tier):
         return await _do_convert(request, file, target_format, quality, user, tier)
 
 
@@ -98,7 +98,7 @@ async def _do_convert(
     quota = get_quota(tier)
     if file.size is not None and file.size > quota.max_file_size_bytes:
         limit_mb = quota.max_file_size_bytes // (1024 * 1024)
-        if user is None:
+        if tier == "anonymous":
             free_mb = get_quota("free").max_file_size_bytes // _MB
             detail = (
                 f"File too large ({limit_mb} MB max for anonymous). "
@@ -191,7 +191,7 @@ async def _do_convert(
         if output_disk_size > quota.output_cap_bytes:
             cap_mb = quota.output_cap_bytes // _MB
             out_mb = output_disk_size // _MB
-            if user is None:
+            if tier == "anonymous":
                 hint = "Try a more efficient target (WebP/AVIF for images, FLAC for audio) or register for a higher cap."
             else:
                 hint = "Try a more efficient target (WebP/AVIF for images, FLAC for audio) or upgrade your plan."
@@ -355,14 +355,14 @@ async def convert_batch(
     if not files:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No files uploaded.")
 
-    tier = tier_for(user)
+    tier = caller_tier(request, user)
     # NEU-D.1: a batch counts as one concurrency slot — the per-file
     # work is sequential inside the route, so a 25-file batch holds
     # the slot for 25× the per-file cost. Per-file accounting would
     # double-charge against the per-actor cap and starve real second
     # requests. The slot lives long enough that the global cap
     # serialises bursts of large batches across users.
-    async with acquire_slot(actor_id=actor_id(request, user), tier=tier):
+    async with acquire_slot(actor_id=actor_id(request, user, tier), tier=tier):
         return await _do_convert_batch(request, files, target_formats, quality, user, tier)
 
 

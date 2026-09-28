@@ -204,7 +204,7 @@ async def redact_detect(
     """
     _require_ai_enabled()
     tier = tier_for(user)
-    async with acquire_slot(actor_id=actor_id(request, user), tier=tier):
+    async with acquire_slot(actor_id=actor_id(request, user, tier), tier=tier):
         # Lazy, commercial: only imported once the feature is enabled + allowed.
         from app.ee.ai_ops import ENTITY_TYPES, detect
 
@@ -264,7 +264,7 @@ async def redact_apply(
     _require_ai_enabled()
     tier = tier_for(user)
     _require_paid_tier(tier)
-    async with acquire_slot(actor_id=actor_id(request, user), tier=tier):
+    async with acquire_slot(actor_id=actor_id(request, user, tier), tier=tier):
         from app.ee.ai_ops import ENTITY_TYPES, redact_text
         from app.ee.ai_ops.redaction import REDACTION_MODES
 
