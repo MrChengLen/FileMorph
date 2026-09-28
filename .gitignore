@@ -12,8 +12,10 @@ build/
 venv/
 env/
 
-# Environment
+# Environment: .env.* catches .env.local, .env.production etc.; the `!`
+# exception only works below it (pinned by tests/test_gitignore.py)
 .env
+.env.*
 !.env.example
 
 # API Keys (never commit real keys)
