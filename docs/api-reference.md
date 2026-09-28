@@ -29,6 +29,8 @@ docker compose exec filemorph python scripts/generate_api_key.py
 
 Keys are stored as SHA-256 hashes in `data/api_keys.json`. The plaintext key is shown exactly once at generation time. There is no key-rotation endpoint in the Community Edition — generate a new key and remove the old hash from the JSON file.
 
+Requests with these keys run on the anonymous tier unless `API_KEYS_FILE_TIER` names another one — see [Limits on a Community Edition instance](self-hosting.md#limits-on-a-community-edition-instance).
+
 ### JWT Bearer (Cloud overlay)
 
 When `DATABASE_URL` is configured, the Cloud overlay enables registration / login / refresh:
