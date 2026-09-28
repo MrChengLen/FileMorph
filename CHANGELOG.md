@@ -9,6 +9,74 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Security — account, API-key and billing routes are rate-limited; failed API keys are throttled
+
+`app/core/rate_limit.py` set `default_limits=["60/minute"]`, but slowapi only
+applies those through `SlowAPIMiddleware`, which the app never installed — so
+only routes with their own `@limiter.limit(...)` were limited. Stripe checkout
+and portal, creating, listing and revoking API keys, `/auth/refresh`,
+`/auth/me` and `/auth/account/language` had no limit at all (70 ×
+`GET /api/v1/keys` → no 429). A free account could create API keys without
+bound, each with a label of any length, and every checkout request writes an
+audit row and calls Stripe.
+
+The account routes now have explicit limits, counted per signed-in account
+rather than per IP: checkout and portal 5/min, key creation 10/min, key
+revocation 30/min, key list 120/min, email language 10/min. Per account,
+because a per-IP limit would let one free account use up checkout or key
+revocation for everyone behind the same IP — an office, or every visitor when
+the proxy doesn't forward client IPs. Limits are checked after the
+dependencies, so the token is already verified when the key is derived from
+it.
+
+Three routes are exempt on purpose, each with its reason next to the
+decorator:
+- The Stripe webhook: Stripe signs every delivery and retries failed ones.
+- `/auth/me`: its limit would be checked only after the token check and the
+  DB lookup have run, so it would protect nothing, while the web UI calls it
+  on every page view and a 429 sends the dashboard to `/login`.
+- `/auth/refresh`: a request costs one signature check, and the web UI signs
+  the user out when a refresh fails, so junk requests exhausting a per-IP
+  limit would sign out everyone behind that IP.
+
+The dead default is gone, and the limiter now counts per route instead of per
+URL, so `DELETE /api/v1/keys/<id>` has one budget whatever the id. That also
+applies to the cockpit's per-user `PATCH`/`DELETE` (10/min per admin IP across
+all users; it used to be per target user). slowapi no longer writes its
+"ratelimit exceeded" warnings, which carry the client IP or account id, to the
+log: the privacy policy promises that rate-limiter IPs stay out of the logs.
+
+An account holds at most 25 active API keys. Beyond that, `POST /api/v1/keys`
+returns `409`, and the dashboard says to revoke an unused key first — it used
+to reset the button silently on any failure. Key labels are capped at 100
+characters.
+
+Failed `X-API-Key` attempts were never limited either. The key check is a
+FastAPI dependency and rejects a wrong key before any route limit runs (25
+random keys → 25 × 401, 0 × 429). `require_api_key` now counts rejected keys
+per IP across all upload routes: the first 30 per minute get `401`, later ones
+`429` with `Retry-After`. The count starts only after both the key file and
+the database have said no. A valid key is therefore never refused, so a
+script stuck on a revoked key can't lock out its colleagues behind the same
+IP — or, where the proxy doesn't pass client IPs through, every API user at
+once. Requests without a key behave as before. Keys are 256-bit random values,
+so this is about telling broken clients to back off, not about guessing.
+
+`docs/api-reference.md` now lists every API endpoint with its limit and
+whether it counts per IP or per account, or with the reason it has none. It
+used to claim "3–5/min" for all of `/auth/*`, although refresh, `/me` and the
+email language had no limit. It also claimed 5/min for billing, which had
+none, and a 60/min default that never applied. And it left out the PDF, AI
+and cockpit routes. It now also says that "per IP" behind a proxy needs
+`FORWARDED_ALLOW_IPS`, and, behind a CDN, the visitor's address from the CDN's
+header. The API usage guide and the error table say what to do about the new
+`429`: fix the key, because waiting doesn't help. Two new tests fail CI when an
+API route has neither a limit nor an explicit exemption, or when the table and
+the code disagree. The security
+overview no longer describes a 60/min bucket. The pentest report's PT-006
+gets a correction note: its "60 requests/minute" and "60 guesses/minute" never
+applied.
+
 ### Security — the release job no longer runs unpinned code next to its write token
 
 A security review of PR #146 found that `release.yml`'s single job held

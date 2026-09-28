@@ -27,7 +27,7 @@ from app.core.tokens import (
 )
 from app.core.config import settings
 from app.core.metrics import increment as metric_increment
-from app.core.rate_limit import limiter
+from app.core.rate_limit import account_or_ip, limiter
 from app.core.security import find_active_api_key
 from app.db.base import get_db
 from app.db.models import RoleEnum, User
@@ -393,7 +393,13 @@ async def login(request: Request, body: LoginRequest, db: AsyncSession | None = 
     )
 
 
+# Deliberately unlimited. A request costs one signature check (plus one
+# indexed lookup for a valid token), and the web UI logs the user out when a
+# refresh fails — so junk requests that used up a per-IP limit would sign out
+# everyone behind that IP (every visitor, when the proxy doesn't forward
+# client IPs) without protecting anything.
 @router.post("/refresh", response_model=TokenResponse)
+@limiter.exempt
 async def refresh(body: RefreshRequest, db: AsyncSession | None = Depends(get_db)):
     user_id = decode_token(body.refresh_token, expected_type="refresh")
     role = RoleEnum.user.value
@@ -420,13 +426,21 @@ def _user_response(user: User) -> UserResponse:
     )
 
 
+# Deliberately unlimited. A route limit is checked after the dependencies, so
+# ``get_current_user`` has already done all the work (token check + DB lookup)
+# and a limit would only guard the serialisation below. The web UI calls this
+# on every page view of a signed-in user and sends a failed dashboard load to
+# /login, so a per-IP limit would log offices out without protecting anything.
 @router.get("/me", response_model=UserResponse)
+@limiter.exempt
 async def me(user: User = Depends(get_current_user)):
     return _user_response(user)
 
 
 @router.put("/account/language", response_model=UserResponse)
+@limiter.limit("10/minute", key_func=account_or_ip)
 async def set_preferred_language(
+    request: Request,
     body: PreferredLanguageRequest,
     user: User = Depends(get_current_user),
     db: AsyncSession | None = Depends(get_db),

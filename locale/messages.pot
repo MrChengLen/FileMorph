@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph 1.1.0\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-25 19:53+0200\n"
+"POT-Creation-Date: 2026-09-26 15:37+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -609,6 +609,9 @@ msgstr ""
 
 #, python-brace-format
 msgid "Costs {n} credit per file"
+msgstr ""
+
+msgid "Could not create the key. Please try again in a minute."
 msgstr ""
 
 msgid ""
@@ -2506,6 +2509,11 @@ msgid ""
 "(AGPLv3). You can convert files without an account, and self-host it at "
 "no cost. Paid hosted plans only add higher volume, larger files and API "
 "quota."
+msgstr ""
+
+msgid ""
+"You already have the maximum number of active API keys. Revoke one you no"
+" longer use, then create a new one."
 msgstr ""
 
 msgid ""

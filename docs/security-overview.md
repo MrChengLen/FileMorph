@@ -170,8 +170,14 @@ regression guard in
   header, so forging `X-Forwarded-For` only bites where uvicorn
   has been configured to trust it. Item 3 of "Operational
   Hardening" below covers both that case and the opposite
-  failure mode — the shipped default, where all anonymous
-  traffic shares a single bucket.
+  failure mode — the shipped default, where all traffic shares a
+  single bucket per endpoint. The account endpoints (API keys,
+  billing, email language) count per signed-in account, so they
+  stay per user either way. Rejected `X-API-Key` attempts have
+  their own budget: past 30 per minute per IP they get `429`
+  instead of `401`, while a valid key is never refused. The
+  per-endpoint limits are listed in
+  [`api-reference.md` § Rate Limiting](./api-reference.md#rate-limiting).
 
 ### What is not provided
 
@@ -473,8 +479,10 @@ to be effective. The following list is grouped by importance.
    peer is covered by `FORWARDED_ALLOW_IPS` (default
    `127.0.0.1`). Under Docker the proxy reaches the container
    across the bridge network, so the default never matches and
-   **every anonymous request keys to the same bridge-gateway
-   address — all visitors share one 60/min bucket.** Set
+   **every request keys to the same bridge-gateway address — all
+   visitors share one budget per IP-counted endpoint (10
+   conversions per minute for everyone, five logins per minute
+   for everyone).** Set
    `FORWARDED_ALLOW_IPS` to your proxy's address as the container
    sees it; this is the same knob as "HSTS behind Docker" in
    [`docs/self-hosting.md`](./self-hosting.md). Never `*`:
@@ -482,7 +490,12 @@ to be effective. The following list is grouped by importance.
    key becomes forgeable through your proxy. Pair it with
    proxy-side `set_real_ip_from` (nginx) or `trusted_proxies`
    (Caddy) so the proxy does not pass a client-supplied
-   `X-Forwarded-For` through in the first place.
+   `X-Forwarded-For` through in the first place. If a CDN sits in
+   front of your proxy, the proxy must also take the visitor's
+   address from the CDN's header (for Cloudflare,
+   `CF-Connecting-IP`), and only for requests from the CDN's
+   address ranges — otherwise every visitor keys to a CDN edge
+   address.
 4. **Use a strong `JWT_SECRET` (Cloud Edition).** Minimum 32
    bytes of cryptographic randomness. Rotation invalidates all
    active sessions, which is the desired behaviour after a
