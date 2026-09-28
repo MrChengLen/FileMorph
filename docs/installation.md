@@ -78,7 +78,12 @@ cp .env.example .env
 Then edit `.env` and set:
 
 - `POSTGRES_PASSWORD` — a strong random string
-- `JWT_SECRET` — at least 32 random characters
+- `JWT_SECRET` — at least 32 random characters, e.g. from
+  `python -c "import secrets; print(secrets.token_urlsafe(32))"`; uncomment
+  its line in `.env`. Without it `docker compose` stops with an error, and the
+  app refuses to start with a shorter secret or one of the placeholders
+  published in this repository (see
+  [`docs/self-hosting.md`](self-hosting.md#jwt-secret-cloud-edition))
 
 Optional but recommended for production:
 
