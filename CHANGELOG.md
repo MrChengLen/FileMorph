@@ -9,6 +9,61 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Security — the release job no longer runs unpinned code next to its write token
+
+A security review of PR #146 found that `release.yml`'s single job held
+`contents: write`, kept the checkout's credentials, restored the pip cache
+shared with the workflows on main, and then installed the CycloneDX generator
+— about thirty packages, unpinned and unhashed — between building the source
+tarball and publishing it. A malicious generator release, or a cache entry
+planted by code merged to main, could have replaced the tarball, forged the
+SBOM or `IMAGE_DIGEST.txt`, or used the token. Release tags must be
+GPG-signed, so this took a compromised upstream package or main-branch code,
+not an outside push.
+
+- **Two jobs.** `sbom` installs the image's dependency set and the generator
+  and runs it with `contents: read`. `verify-and-publish` holds
+  `contents: write`, installs nothing and receives the SBOM as an artifact,
+  downloaded into a directory of its own so it cannot replace the tarball or
+  anything else the job reads. Neither job restores a cache or keeps the
+  checkout's credentials, and `sbom.yml` now runs the same way. Hashes alone
+  would not make a cache safe: pip installs a wheel it once built from an
+  sdist on the strength of the sdist's recorded hash. The publish step now
+  fails, rather than releasing without the file, if an attachment pattern
+  matches nothing.
+- **Hash-pinned generator.** `sbom.yml` and `release.yml` install it from the
+  new `requirements-sbom.lock` with `--require-hashes --only-binary :all:`:
+  32 packages around `cyclonedx-bom` 5.5.0, wheels only, so no unhashed build
+  dependency can slip in. The lockfile is compiled from
+  `requirements-sbom.txt`, which Dependabot updates like `requirements.txt`.
+  A lockfile that no longer satisfies it fails the required test job,
+  `lockfile-drift` flags any other difference, and `deps-lock` recompiles
+  both lockfiles — and, since it can push, no longer restores the pip cache.
+  Dependabot leaves the major version alone: 5.5.0 is the last 5.x release,
+  and 7.x no longer accepts `--PEP-639`, so that move stays deliberate.
+- **Shell injection (CWE-78, low).** `release.yml` pasted the tag-derived
+  image name into a shell script as `${{ }}`, and `deps-lock.yml` did the same
+  with the branch name before `git push` — git allows `$(` and backticks in
+  both. Both values now arrive through `env:`.
+- **veraPDF** runs `verapdf/cli` pinned by digest — v1.30.2, which is what
+  `latest` pointed at — instead of the moving `latest` tag. Dependabot does not
+  track images in workflow scripts; the comment next to the pin says how to
+  move it.
+- **SBOM licences.** `cyclonedx-py` now runs with `--PEP-639`. Without it
+  cyclonedx-bom 5.x ignores the `License-Expression` field, so packages that
+  declare their licence only there were listed without one: 30 of the 78
+  components in the SBOM built from main at `c13ed52`, FastAPI, Starlette,
+  Pydantic, cryptography, Pillow, pikepdf, pypdf and uvicorn among them. With
+  the flag, all 78 have one; the components and their versions are unchanged.
+
+`release.yml` only runs on a signed tag and cannot be tried on a PR, so its
+three SBOM steps are `sbom.yml`'s verbatim — and `sbom.yml` can be dispatched
+on a branch. `tests/test_supply_chain_hygiene.py` fails if the two differ, and
+guards the job split, the hashed wheel-only installs, the lockfile and the
+commands that compile it, the absent caches and credentials,
+`fail_on_unmatched_files`, the `env:` handling, the digest pin and
+`--PEP-639`. Each of 28 simulated regressions fails at least one guard.
+
 ### Fixed — CI tests, and the SBOM lists, the versions the image ships
 
 The image installs `requirements.lock`. Four workflows still installed

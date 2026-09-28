@@ -133,7 +133,10 @@ The push triggers two parallel workflows:
 - [`release.yml`](../.github/workflows/release.yml) verifies the
   tag against the keys below, builds the source tarball, and
   publishes the GitHub release with an `IMAGE_DIGEST.txt`
-  pointing at the signed image.
+  pointing at the signed image, plus the CycloneDX SBOM. The SBOM
+  is generated in a separate job that can only read the
+  repository, by a generator installed from hash-pinned
+  `requirements-sbom.lock`; the job that publishes installs nothing.
 
 If the verification step fails (tag unsigned, signing key not
 listed here), the release does not publish and the failure is
