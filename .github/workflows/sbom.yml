@@ -13,11 +13,17 @@ name: SBOM
 # `workflow_dispatch` stays so a maintainer can regenerate the artifact on
 # demand (e.g. to back-fill a release cut before this split landed).
 #
-# Why "environment" and not "requirements": `cyclonedx-py environment`
-# captures the actual installed graph including transitive dependencies
-# with their resolved versions, which is what a vulnerability scanner
-# wants to see. `cyclonedx-py requirements` would only emit the direct
-# pins from requirements.txt and miss everything pulled in transitively.
+# What it describes: a fresh venv installed exactly as the Dockerfile installs
+# the image (`pip install --require-hashes -r requirements.lock`), with the
+# generator installed outside it. It used to describe the runner's own Python
+# after `pip install -r requirements.txt` plus the generator — so the `>=`
+# ranges put versions into the SBOM that the image does not contain, and the
+# generator added its own dependencies (and moved one the image ships).
+#
+# Why "environment" and not "requirements": `cyclonedx-py environment` reads
+# the installed distributions, so the SBOM carries their licences and the
+# dependency graph. `cyclonedx-py requirements requirements.lock` parses the
+# lockfile, hashes and all, but emits neither.
 
 on:
   push:
@@ -41,12 +47,17 @@ jobs:
           python-version: "3.14"
           cache: "pip"
 
-      - name: Install runtime dependencies
-        run: pip install -r requirements.txt
+      # The Dockerfile's builder-stage install, into a venv of its own so nothing
+      # else on the runner ends up in the SBOM.
+      - name: Install the image's dependency set
+        run: |
+          python -m venv "$RUNNER_TEMP/image-env"
+          "$RUNNER_TEMP/image-env/bin/pip" install --require-hashes -r requirements.lock
 
       - name: Install CycloneDX generator
         # Pinned to the 5.x line for reproducibility; bump deliberately when
-        # CycloneDX schema spec advances.
+        # CycloneDX schema spec advances. Goes into the runner's Python, not
+        # the venv above, so the generator is not part of what it describes.
         run: pip install "cyclonedx-bom>=5,<6"
 
       - name: Determine version label
@@ -57,7 +68,7 @@ jobs:
 
       - name: Generate CycloneDX SBOM (JSON)
         run: |
-          cyclonedx-py environment \
+          cyclonedx-py environment "$RUNNER_TEMP/image-env/bin/python" \
             --output-file "filemorph-${{ steps.version.outputs.version }}.cdx.json" \
             --output-format JSON
 

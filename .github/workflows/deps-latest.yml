@@ -1,0 +1,60 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# deps-latest — early warning: run the test suite against the newest releases
+# that requirements.txt allows.
+#
+# ci.yml's lint-and-test constrains every runtime package to requirements.lock,
+# so a PR is tested against what the image ships. That keeps an upstream
+# release from turning every branch red at once, as SQLAlchemy 2.1.0 did in
+# September 2026 while production stayed on 2.0.52. But it also means PR CI no
+# longer notices such a release at all, and that notice was worth having: it
+# arrived before any lockfile bump would have pulled 2.1 in.
+#
+# This workflow keeps it. It installs requirements-dev.txt unpinned, the way
+# lint-and-test used to, and runs the tests. It gates nothing — a red run means
+# the next lockfile bump needs work first, and the failing test is where to
+# start. GitHub reports a failed scheduled run through its usual
+# failed-workflow notification. To run it by hand, use the Actions tab or:
+#
+#     gh workflow run deps-latest.yml
+
+name: deps-latest
+
+on:
+  schedule:
+    # Mondays — the day Dependabot opens its weekly pip PRs (dependabot.yml),
+    # so the result is at hand when reviewing them.
+    - cron: "23 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-latest:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          # The shipped version, like every workflow (scripts/check_python_version.py).
+          python-version: "3.14"
+
+      # Same packages, and the same Google-Chrome apt-source workaround, as
+      # ci.yml's lint-and-test — see the comment there.
+      - name: Install system dependencies
+        run: |
+          sudo find /etc/apt/sources.list.d -iname '*google*' -delete
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg ghostscript libheif-dev libcairo2 libpangocairo-1.0-0 libgdk-pixbuf2.0-0
+
+      # Deliberately without the lockfile constraints: the newest releases the
+      # ranges allow are what this job is for.
+      - name: Install Python dependencies (unpinned)
+        run: pip install -r requirements-dev.txt
+
+      - name: Run tests
+        run: pytest tests/ -v --tb=short

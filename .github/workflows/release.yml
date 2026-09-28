@@ -76,8 +76,11 @@ jobs:
       # release-triggered SBOM workflow would silently never run — which is
       # exactly what happened for v1.1.0. Bundling it here guarantees every
       # release tag ships its CycloneDX SBOM (docs/patch-policy.md promise +
-      # EVB-IT-March-2026 SBOM mandate). `environment` captures the resolved
-      # transitive dependency graph, matching the SBOM workflow's main-push path.
+      # EVB-IT-March-2026 SBOM mandate). The method is the SBOM workflow's
+      # main-push one — the image's install (Dockerfile: `pip install
+      # --require-hashes -r requirements.lock`) into a venv of its own, the
+      # generator outside it; sbom.yml's header explains why. Keep the two in
+      # step: this path only runs on a release, sbom.yml on every push to main.
       - name: Set up Python (for SBOM)
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
@@ -90,9 +93,10 @@ jobs:
       - name: Generate CycloneDX SBOM
         run: |
           TAG="${GITHUB_REF#refs/tags/}"
-          pip install -r requirements.txt
+          python -m venv "$RUNNER_TEMP/image-env"
+          "$RUNNER_TEMP/image-env/bin/pip" install --require-hashes -r requirements.lock
           pip install "cyclonedx-bom>=5,<6"
-          cyclonedx-py environment \
+          cyclonedx-py environment "$RUNNER_TEMP/image-env/bin/python" \
             --output-file "filemorph-${TAG}.cdx.json" \
             --output-format JSON
 
