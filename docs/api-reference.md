@@ -374,7 +374,7 @@ Convert several files in one request. Returns a ZIP archive with all converted o
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `files` | files (≥1) | Yes | One or more files to convert |
-| `target_formats` | string[] | Yes | Target format per file. Either one value (applied to all) or one per file (length must match `files`) |
+| `target_formats` | string[] | Yes | Target format per file, repeated once per file in the same order (length must match `files`, otherwise `422`) |
 | `quality` | integer | No | Quality 1–100 (default 85). Applied uniformly. |
 
 **Response**: `200 OK` (`application/zip`) — archive with one entry per successful conversion. If at least one file fails, a `manifest.json` is added at archive root listing per-file results (success ZIP-only is preferred for all-success runs to keep the output clean).
@@ -385,7 +385,7 @@ A run with **every** file failing returns `422 Unprocessable Content` with a JSO
 curl -X POST http://localhost:8000/api/v1/convert/batch \
   -H "X-API-Key: YOUR_KEY" \
   -F "files=@a.heic" -F "files=@b.png" -F "files=@c.gif" \
-  -F "target_formats=jpg" \
+  -F "target_formats=jpg" -F "target_formats=jpg" -F "target_formats=jpg" \
   --output batch.zip
 ```
 
@@ -482,11 +482,11 @@ Every successful conversion / compression carries integrity and classification m
 
 | Header | Value | Set on |
 |---|---|---|
-| `X-Output-SHA256` | Hex-encoded SHA-256 of the response body | every `/convert`, `/compress`, and their batch variants |
+| `X-Output-SHA256` | Hex-encoded SHA-256 of the response body | every single-file `/convert` and `/compress` (not the batch ZIPs) |
 | `X-Data-Classification` | One of `public`, `internal`, `confidential`, `restricted` | every response — echoes the request header value, defaults to `internal` when absent (NEU-C.3 / BSI-style taxonomy) |
-| `X-FileMorph-Achieved-Bytes` | Actual output size in bytes | only on `/compress` calls with `target_size_kb` |
+| `X-FileMorph-Achieved-Bytes` | Actual output size in bytes | on `/compress` calls with `target_size_kb`, and on `/pdf/compress` |
 | `X-FileMorph-Final-Quality` | Quality value the binary search settled on (1–100) | only on `/compress` calls with `target_size_kb` |
-| `Retry-After` | Seconds the client should wait before retrying | only on `503 Service Unavailable` (concurrency cap) |
+| `Retry-After` | Seconds the client should wait before retrying | on `503 Service Unavailable` (global concurrency cap) and on every `429` except the rate limiter's (slowapi, see Rate Limiting) — e.g. the per-tier concurrency cap and the monthly call quota |
 
 The `X-Data-Classification` value is also written to the audit-log entry for the request, so a downstream auditor can answer "what classification of data was processed in this call" from the database alone (see `app/core/audit.py`).
 
@@ -494,7 +494,7 @@ The `X-Data-Classification` value is also written to the audit-log entry for the
 
 ## Error Responses
 
-All errors return JSON with a `detail` field:
+Errors return JSON with a `detail` field:
 
 ```json
 {
@@ -502,15 +502,20 @@ All errors return JSON with a `detail` field:
 }
 ```
 
+Two exceptions: a `429` from the rate limiter (slowapi) reads
+`{"error": "Rate limit exceeded: 10 per 1 minute"}` — with the limit of
+the route you called — and has no `Retry-After` header; a batch in which
+every file failed returns `422` with `{"summary": …, "files": […]}`.
+
 | HTTP Status | Meaning |
 |---|---|
-| `400 Bad Request` | Missing or malformed request data (e.g. filename without extension) |
+| `400 Bad Request` | Missing or malformed request data (e.g. filename without extension), or file content that has to be fixed first — e.g. a Markdown, CSV or JSON file that isn't UTF-8 (`X-FileMorph-Error-Code: invalid_input`; `detail` names the fix) |
 | `401 Unauthorized` | Missing or invalid `X-API-Key` / `Authorization: Bearer` |
 | `403 Forbidden` | Authenticated but role/tier doesn't permit the action (e.g. non-admin hitting `/cockpit/*`) |
-| `413 Content Too Large` | File exceeds `MAX_UPLOAD_SIZE_MB` (default: 100 MB) |
+| `413 Content Too Large` | Request exceeds `MAX_UPLOAD_SIZE_MB` (default: 100 MB), a file exceeds your tier's size cap, or the output exceeds your tier's output cap |
 | `415 Unsupported Media Type` | `target_size_kb` set on a lossless format (PNG/TIFF), or otherwise incompatible request shape |
-| `422 Unprocessable Content` | Unsupported format combination, missing form field, or every file in a batch failed |
-| `429 Too Many Requests` | Rate limit exceeded (see Rate Limiting section below) |
+| `422 Unprocessable Content` | Unsupported format combination, missing form field, `target_formats` count ≠ `files` count, or every file in a batch failed |
+| `429 Too Many Requests` | Rate limit exceeded (see Rate Limiting section below), per-tier concurrency cap reached, or monthly call quota used up |
 | `500 Internal Server Error` | Conversion failed (e.g. corrupt file, missing binary) |
 | `503 Service Unavailable` | Global concurrency cap reached (`MAX_GLOBAL_CONCURRENCY`). Response carries `Retry-After`. |
 
@@ -539,22 +544,22 @@ limits, self-host your own instance and adjust the decorators in
 
 ### Monthly call quota (per user)
 
-Authenticated users on a paid tier are also limited per calendar
-month, independently of the per-IP rate limits above:
+Authenticated users are also limited per calendar month,
+independently of the per-IP rate limits above:
 
 | Tier | Monthly API calls |
 |---|---|
 | Anonymous | n/a (per-IP rate-limit only) |
-| Free | 500 |
-| Pro | 10 000 |
-| Business | 100 000 |
+| Free | 1,000 |
+| Pro | 25,000 |
+| Business | 200,000 |
 | Enterprise | unlimited |
 
 The gate counts every successful `POST /api/v1/convert`,
-`/convert/batch`, `/compress`, and `/compress/batch` as **one**
-call. A batch with 25 files counts as 1 call (matching the
-pricing-page wording "API calls per month"). Failed conversions do
-not count toward the quota.
+`/convert/batch`, `/compress`, `/compress/batch`, `/pdf/extract`,
+`/pdf/split`, and `/pdf/compress` as **one** call. A batch with 25
+files counts as 1 call (matching the pricing-page wording "API calls
+per month"). Failed conversions do not count toward the quota.
 
 When the limit is reached, the response is `429 Too Many Requests`
 with a `Retry-After` header in seconds pointing at the start of the
@@ -562,7 +567,7 @@ next calendar month, and a body explaining the limit:
 
 ```json
 {
-  "detail": "Monthly API call limit reached (10000 per month for tier 'pro'). Quota resets 2026-06-01T00:00:00+00:00. Upgrade your plan or wait until the reset to continue."
+  "detail": "Monthly API call limit reached (25000 per month for tier 'pro'). Quota resets 2026-06-01T00:00:00+00:00. Upgrade your plan or wait until the reset to continue."
 }
 ```
 

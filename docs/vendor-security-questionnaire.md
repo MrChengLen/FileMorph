@@ -401,7 +401,7 @@ Every upload passes through:
 3. **Path safety** — the original filename is never used as a
    filesystem path. Temp paths use UUID stems under `fm_`-prefixed
    directories.
-4. **Size cap, per tier** — anonymous 20 MB; Free, Pro, Business,
+4. **Size cap, per tier** — anonymous 30 MB; Free, Pro, Business,
    Enterprise scale up. See `app/core/quotas.py`.
 5. **Output cap, per tier** — bandwidth-amplification guard: a
    converter that turns 50 MB JPG into 500 MB PNG is rejected with
@@ -580,12 +580,13 @@ plus offline-update tooling — see
   every push — the lockfile, because that is what the image installs. A finding fails the build until it is either fixed by
   bumping the dependency or explicitly ignored via `--ignore-vuln`
   with a named, justified comment.
-- `requirements.txt` states minimum versions; `requirements.lock`
+- `requirements.txt` states version ranges; `requirements.lock`
   pins every direct and transitive dependency to an exact version
   plus hash, and the image installs from it with
   `pip install --require-hashes`. Builds are therefore reproducible
-  from source, and CI blocks any drift between the two files or
-  between the lockfile's Python version and the image's.
+  from source. CI flags any drift between the two files (the
+  `lockfile-drift` job) and blocks a mismatch between the
+  lockfile's Python version and the image's.
 - A CycloneDX SBOM (`filemorph-{version}.cdx.json`) is attached to
   each release so downstream operators can diff their own copy.
 
@@ -748,12 +749,17 @@ dynamically and isolated per AGPL §13 best practice.
 
 ### 11.4 Supply-chain controls
 
-- Direct dependencies pinned in `requirements.txt`.
-- `pip-audit` blocking CI gate.
+- Every direct and transitive Python dependency pinned to an exact
+  version and hash in `requirements.lock`, which the image installs
+  with `pip install --require-hashes`; `requirements.txt` states
+  version ranges, not exact pins.
+- `pip-audit -r requirements.lock` blocking CI gate (§8.2).
 - Container images cosign-signed (keyless OIDC).
 - Git tags GPG-signed.
 - SBOM attached to each release.
-- Dependabot / Renovate auto-update is on the backlog.
+- Dependabot opens weekly update PRs for the Python requirements,
+  GitHub Actions and the Docker base image; a Python update reaches
+  the image once `requirements.lock` is recompiled.
 
 **See also:** [`docs/release-signing.md`](./release-signing.md),
 [`docs/third-party-licenses.md`](./third-party-licenses.md),

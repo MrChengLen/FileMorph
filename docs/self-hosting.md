@@ -8,7 +8,7 @@ reverse proxy setup (Caddy or nginx), HTTPS/SSL, and operational best practices.
 ## Why self-host?
 
 - **Data privacy (DSGVO / GDPR)**: Files never leave your own infrastructure
-- **No rate limits**: Control throughput yourself
+- **Limits you control**: The per-IP rate limits and tier caps ship with the code and apply to your instance too — change them in the `@limiter.limit(...)` decorators in `app/api/routes/*.py` and in `app/core/quotas.py`
 - **Custom access**: Issue API keys to your own users or services
 - **Integration**: Run FileMorph inside your existing network, accessible only to internal services
 
@@ -578,7 +578,7 @@ defaults are sized for a 4 GB host:
 
 Per-actor limits (per user for authenticated callers, per IP for
 anonymous) are tier-bound and not env-tunable: anonymous and free
-get 1 concurrent request, Pro 2, Business 5, Enterprise 10. A
+get 1 concurrent request, Pro 3, Business 6, Enterprise 10. A
 request past the per-actor cap returns `429 Too Many Requests`
 with `Retry-After`. These numbers are documented on the public
 [`/pricing`](/pricing) page so callers can size their own client

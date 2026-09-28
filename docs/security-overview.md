@@ -199,7 +199,7 @@ converter:
 3. **Path safety.** The original filename is never used as a
    filesystem path. Where a temporary path is needed, it uses a
    UUID stem under a `fm_`-prefixed scratch directory.
-4. **Size cap, per tier.** Anonymous uploads cap at 20 MB; Free,
+4. **Size cap, per tier.** Anonymous uploads cap at 30 MB; Free,
    Pro, Business, Enterprise scale up — see `app/core/quotas.py`.
 
 ### Download pipeline
@@ -487,13 +487,19 @@ to be effective. The following list is grouped by importance.
    bytes of cryptographic randomness. Rotation invalidates all
    active sessions, which is the desired behaviour after a
    suspected compromise.
-5. **`pip-audit -r requirements.txt` is a blocking gate in CI.**
-   Every push fails the build on any finding it cannot ignore. If
+5. **`pip-audit -r requirements.lock` is a blocking gate in CI.**
+   The lockfile is audited rather than `requirements.txt` because it
+   is what the image installs: every direct and transitive Python
+   dependency, pinned to an exact version and hash.
+   Every CI run fails the build on any finding it cannot ignore. If
    an upstream advisory is genuinely unfixable, add the ID to
    `--ignore-vuln` in `.github/workflows/ci.yml` with a comment
    naming the package and reason — never silence the whole step.
-   Self-hosters running an out-of-tree fork should run `pip-audit`
-   on the same cadence as their dependency updates.
+   Self-hosters running an out-of-tree fork should recompile
+   `requirements.lock` whenever they change `requirements.txt` (see
+   "Reproducible builds" in [`docs/self-hosting.md`](./self-hosting.md))
+   and run `pip-audit -r requirements.lock` on the same cadence as
+   their dependency updates.
 
 ### Recommended
 
@@ -658,22 +664,29 @@ findings are typically patched faster.
 
 ### CVE history in dependencies
 
-Two dependency CVEs were addressed by version pinning in
-`requirements.txt`:
+Two dependency CVEs were addressed by raising the minimum version in
+`requirements.txt`. The image installs the versions pinned in
+`requirements.lock`, and the blocking `pip-audit -r requirements.lock`
+gate fails the build if a pinned version is still affected:
 
 | CVE | Affected dependency | Fix |
 |---|---|---|
 | CVE-2024-28219 | Pillow &lt; 10.3.0 (heap buffer overflow in `_imagingcms`) | `Pillow>=10.3.0` |
 | CVE-2024-53981 | python-multipart &lt; 0.0.18 (ReDoS in boundary parsing) | `python-multipart>=0.0.18` |
 
-Self-hosters who fork this repository should re-run
-`pip-audit -r requirements.txt` after updating dependencies.
+Self-hosters who fork this repository should recompile
+`requirements.lock` after updating dependencies and re-run
+`pip-audit -r requirements.lock` — the lockfile, not
+`requirements.txt`, is what the image installs.
 
 ### Update cadence
 
-- `pip-audit` runs in CI as a non-blocking check today;
-  promotion to a blocking gate is on the backlog.
-- A Dependabot or Renovate configuration is on the backlog.
+- `pip-audit -r requirements.lock` runs in CI as a blocking gate
+  (Operational Hardening, item 5).
+- Dependabot opens weekly update PRs for the Python requirements,
+  GitHub Actions and the Docker base image (`.github/dependabot.yml`).
+  It does not touch `requirements.lock`, so a Python update reaches
+  the image once the lockfile is recompiled (`deps-lock` workflow).
 - Code-level security fixes are released on the same cadence as
   feature releases — there is no separate security-only release
   channel today.

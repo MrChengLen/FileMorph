@@ -50,7 +50,7 @@ Every conversion or compression request follows the same path:
    `connect-src` is derived from the configured `API_BASE_URL`, and a
    `Referrer-Policy` of `strict-origin-when-cross-origin`.
 3. **Upload-size guard** rejects any POST with a `Content-Length` above
-   `MAX_UPLOAD_SIZE_MB` (default 2000) before the body is read.
+   `MAX_UPLOAD_SIZE_MB` (default 100) before the body is read.
 4. **Authentication.** API requests carry an `X-API-Key` header, accepted by
    `require_api_key` (`app/api/deps.py`) if it is in the `api_keys.json` file
    (Community Edition; `validate_api_key()`, a SHA-256 + `hmac.compare_digest`
@@ -64,7 +64,8 @@ Every conversion or compression request follows the same path:
    convert and compress endpoints; the limiter state is in-memory and
    resets on restart.
 6. **Magic-byte check** before any conversion runs — uploads matching the
-   PE, ELF, shell-script, or PHP prefixes are rejected with HTTP 415.
+   PE, ELF, shell-script, or PHP prefixes are rejected with HTTP 400
+   (`"File type not permitted."`; in a batch, only that file fails).
 7. **Converter dispatch** through the plugin registry
    (`app/converters/registry.py`). Each plugin runs in `asyncio.to_thread`
    so that synchronous C bindings (Pillow saves, WeasyPrint, pikepdf,

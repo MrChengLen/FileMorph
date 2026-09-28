@@ -24,6 +24,7 @@ from app.compressors.video import _SUPPORTED_FORMATS as VIDEO_FMTS
 from app.compressors.video import compress_video
 from app.core.audit import record_event as audit_record
 from app.core.batch import (
+    BatchFileError,
     BatchFileResult,
     batch_error_response,
     batch_summary_headers,
@@ -409,12 +410,12 @@ async def _do_compress_batch(
 
         try:
             if not ext:
-                raise ValueError("Cannot determine format from filename.")
+                raise BatchFileError("Cannot determine format from filename.")
             if ext not in IMAGE_FMTS and ext not in VIDEO_FMTS:
-                raise ValueError(f"Compression not supported for '.{ext}'.")
+                raise BatchFileError(f"Compression not supported for '.{ext}'.")
             if size_in > quota.max_file_size_bytes:
                 limit_mb = quota.max_file_size_bytes // (1024 * 1024)
-                raise ValueError(f"File too large ({limit_mb} MB max for your plan).")
+                raise BatchFileError(f"File too large ({limit_mb} MB max for your plan).")
 
             tmp_dir = tempfile.mkdtemp(prefix="fm_")
             try:
@@ -428,11 +429,11 @@ async def _do_compress_batch(
                 with open(input_path, "rb") as f:
                     header = f.read(16)
                 if any(header.startswith(sig) for sig in BLOCKED_MAGIC):
-                    raise ValueError("File type not permitted.")
+                    raise BatchFileError("File type not permitted.")
 
                 if target_size_kb is not None:
                     if ext not in TARGET_SIZE_FORMATS:
-                        raise ValueError(
+                        raise BatchFileError(
                             "Target-size compression supports only JPEG, WebP and AVIF. "
                             "Use quality= for PNG/TIFF."
                         )
@@ -456,7 +457,7 @@ async def _do_compress_batch(
                 if output_disk_size > quota.output_cap_bytes:
                     cap_mb = quota.output_cap_bytes // _MB
                     out_mb = output_disk_size // _MB
-                    raise ValueError(
+                    raise BatchFileError(
                         f"Output too large ({out_mb} MB > {cap_mb} MB cap). "
                         "Lower the quality or upgrade your plan."
                     )
@@ -476,7 +477,9 @@ async def _do_compress_batch(
                 record_conversion("compress_batch", ext, ext, "success")
             finally:
                 shutil.rmtree(tmp_dir, ignore_errors=True)
-        except ValueError as e:
+        except BatchFileError as e:
+            # Only this route's own messages; a compressor's ValueError (e.g.
+            # from Pillow) is logged and reported generically below.
             results.append(
                 BatchFileResult(
                     name=out_name, status="error", size_in=size_in, error_message=str(e)
@@ -491,7 +494,7 @@ async def _do_compress_batch(
                     name=out_name,
                     status="error",
                     size_in=size_in,
-                    error_message="Compression failed.",
+                    error_message="Compression failed. Verify the file is valid.",
                 )
             )
             metric_counts["failures.compress"] = metric_counts.get("failures.compress", 0) + 1

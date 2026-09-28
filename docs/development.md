@@ -42,11 +42,10 @@ filemorph/
 │   └── first_run.py             # Called by Docker entrypoint on first start
 ├── data/
 │   └── api_keys.json            # Hashed API keys (gitignored)
-├── run.py                       # Entry point for PyInstaller .exe and direct Python
-├── filemorph.spec               # PyInstaller build spec (bundles Python + ffmpeg)
+├── run.py                       # Entry point for direct Python runs
 ├── dev.ps1                      # Windows developer startup script (auto-setup + server)
 ├── create-shortcut.ps1          # Creates a Desktop shortcut for dev.ps1
-├── start.bat                    # Windows launcher: .exe mode or Docker mode
+├── start.bat                    # Windows launcher: Docker mode
 ├── start.sh                     # Linux/macOS launcher: Docker mode
 ├── entrypoint.sh                # Docker container entrypoint (first-run key setup)
 └── docker-compose.yml
@@ -225,7 +224,7 @@ def _ensure_loaded() -> None:
 
 ### Step 4 — Add dependencies
 
-Add any new Python packages to `requirements.txt`. Add system-level dependencies to `Dockerfile`.
+Add any new Python packages to `requirements.txt`, then recompile `requirements.lock` — the image installs only from the lockfile, and CI's `lockfile-drift` job fails until the two match (command under "Reproducible builds" in [`self-hosting.md`](self-hosting.md)). Add system-level dependencies to `Dockerfile`.
 
 ### Step 5 — Write tests
 

@@ -55,9 +55,11 @@ with the version you need a backport for.
 ## Dependency hygiene
 
 `pip-audit -r requirements.lock` runs on every CI build and blocks the
-merge on any High or Critical finding. Lower-severity findings are
-batched into the next regular release. The lockfile is audited rather
-than the manifest because the lockfile is what the image installs.
+merge on any finding that is not explicitly ignored — an
+`--ignore-vuln` entry in `ci.yml` with a documented reason. How fast
+the fix ships follows the severity table above. The lockfile is audited
+rather than the manifest because the lockfile is what the image
+installs.
 
 `requirements.txt` states minimum versions for direct dependencies and
 is the file Dependabot updates. `requirements.lock`, compiled from it

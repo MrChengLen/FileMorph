@@ -9,6 +9,255 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — security docs named `requirements.txt` as the CVE-scan target
+
+Since 2026-09-09 (PR #112) CI has run `pip-audit -r requirements.lock`: the
+lockfile pins every direct and transitive Python dependency to an exact version
+and hash, and it is what the image installs, while `requirements.txt` states
+only version ranges. Four public docs kept quoting
+`pip-audit -r requirements.txt` — among them the DPA's TOM annex, which a
+procurement reviewer reads as a statement of fact — and several, §11.4 of the
+vendor questionnaire included, said dependencies were pinned in
+`requirements.txt`.
+
+Corrected: `dpa-tom-annex.md` (supply-chain controls), `security-overview.md`
+(self-hoster checklist item 5, CVE history, update cadence),
+`security-pentest-report.md` (resolution status), `tech-stack-rationale.md`
+and §11.4 of `vendor-security-questionnaire.md`. Self-hosters who fork are now
+told to recompile `requirements.lock` and audit that, and `development.md`
+says to recompile it after adding a package. Two more stale claims in the same
+lists are gone: `security-overview.md` still called `pip-audit` a non-blocking
+check, and it and the questionnaire listed Dependabot as "on the backlog",
+although Dependabot (configured in `.github/dependabot.yml`) has opened weekly
+update PRs since May. Both now also say that Dependabot does not touch the
+lockfile, so a Python update reaches the image once the lockfile is
+recompiled.
+
+The two docs corrected in PR #112 each kept one inaccurate sentence.
+`patch-policy.md` said the audit blocks the merge on High and Critical
+findings, implying lower severities pass; `pip-audit` has no severity
+threshold, so any finding fails the build until it is fixed or waived with
+`--ignore-vuln`, as the Moderate CVE-2026-55073 was. §8.2 of the questionnaire
+said CI blocks any drift between `requirements.txt` and the lockfile; the
+`lockfile-drift` job flags drift without blocking a merge, and the sentence now
+says so.
+
+`tests/test_supply_chain_hygiene.py` now fails if `ci.yml` stops auditing the
+lockfile, or if a tracked doc under `docs/` or a top-level `.md` file quotes a
+`pip-audit -r` target other than `requirements.lock`.
+
+### Removed — the Windows desktop build, which had never run
+
+`build-desktop.yml` was meant to attach a `FileMorph-Windows.zip` (the app
+bundled with PyInstaller, plus ffmpeg) to every GitHub release. It triggered on
+`release: published`, but `release.yml` publishes releases with the built-in
+`GITHUB_TOKEN`, and GitHub starts no workflow runs for events caused by that
+token — the trap that once left v1.1.0 without its SBOM. The workflow never
+ran, not even by hand, so no release ever carried the ZIP; the README's
+download link for it had already been removed as dead in May 2026.
+
+It is retired rather than repaired: the spec bundled no translations
+(`locale/`), so the German interface would have shown English without a
+warning, the build provided none of the GTK libraries WeasyPrint needs on
+Windows to render Word, HTML, Markdown and email to PDF, and an unsigned
+executable without an SBOM would have been the one unverifiable release
+artifact. On Windows, FileMorph runs with Docker Desktop (`start.bat`) or from
+source (`dev.ps1`). The workflow, `filemorph.spec`, `pyinstaller` and the
+PyInstaller-only `.gitignore` entries are gone; the frozen-mode code in
+`run.py` and `app/compat.py` stays (inert from source).
+
+`tests/test_workflow_triggers.py` now fails CI if any workflow triggers on
+`release`, so work that follows a release goes into `release.yml` itself.
+
+### Fixed — API docs: status codes, error texts and Retry-After match the code
+
+A second pass over the public docs, after the tier-limit fix below, found more
+statements the code contradicts. Each one was checked against the route that
+answers before it was changed.
+
+- **`/formats` is rate-limited.** The API guide called it "unlimited"; it
+  allows 120 requests/min per client IP, and it does not count toward the
+  monthly API calls. The guide's `can_convert()` example read
+  `formats["convert"]`, a key the response does not have — it now reads
+  `formats["conversions"]`.
+- **Batch `target_formats` needs one entry per file.** A count mismatch
+  returns `422`, not `400`. The API reference said a single value applies to
+  every file, and its example (three files, one target) got that `422`.
+- **Error texts:** the guide quoted `"Output too large; try WebP/AVIF or
+  upgrade."`; the output-cap errors read `"Output too large (N MB > M MB
+  cap)."` plus a hint that differs between `/convert` and `/compress`. The
+  file-size `413` is quoted as sent, too.
+- **Batch manifest example:** entries carry the output file's name
+  (`one.png`, not `one.jpg`) and the operation reads `convert`, not
+  `convert_batch`.
+- **`Retry-After`:** a `429` from the rate limiter carries none, but the
+  per-tier concurrency `429`, the monthly-quota `429` and the `503` of a server
+  at capacity do. The guide said no response had one, the API reference only
+  the `503`. The guide's backoff example now honours the header and gives up
+  on waits longer than two minutes, such as a used-up monthly quota.
+- **Error bodies:** not every error is `{"detail": …}` — the rate limiter's
+  `429` is `{"error": "Rate limit exceeded: 10 per 1 minute"}`, and a batch
+  where every file failed returns `{"summary": …, "files": […]}`.
+- **Status and header tables:** `413` also covers the tier's file and output
+  caps, and the guide's status table gained `415`. `X-Output-SHA256` is only
+  sent on single-file `/convert` and `/compress`, not on batch ZIPs, and
+  `X-FileMorph-Achieved-Bytes` is sent by `/pdf/compress` as well.
+- **Magic-byte rejections** are `400 "File type not permitted."`, not `415`
+  (architecture doc and threat model). The API guide also said the check
+  applies "regardless of whether a converter for that pair exists"; an
+  unsupported pair fails first, with `422`.
+- **Self-hosting guide:** "No rate limits" was wrong — the per-IP limits are
+  route decorators that run on every instance. It now says where to change
+  them.
+- Code comments with old numbers (monthly quotas, the pro tier's output-cap
+  headroom, the concurrency limiter's actor key, two test docstrings) now match
+  `app/core/quotas.py` and `actor_id`.
+
+`tests/test_docs_match_code.py` now also calls the routes and compares their
+status codes, error messages and the manifest shape with what the docs quote,
+and `tests/test_rate_limit.py` pins the rate-limit `429` itself: its body, and
+no `Retry-After`.
+
+### Fixed — `docs/formats.md` left out ICO and PDF → PDF/A
+
+The conversion tables in `docs/formats.md` (linked from the README and from
+the app's DOCX engine notice) had fallen behind the converter registry. The
+Images table had no ICO row, although ICO converts to every other image format
+FileMorph writes and to PDF; the HEIC / HEIF, WebP, BMP, TIFF / TIF and GIF
+rows didn't list ICO as a target, although all of them convert to it; and the
+Documents table had no PDF → PDF/A-2b row. The Video section also still said
+every conversion uses libx264 + AAC — codecs are chosen per target container
+(VP9 + Opus for WebM, MPEG-4 Part 2 + MP3 for AVI, WMV2 + WMA for WMV, H.264 +
+AAC for the rest).
+
+New tests in `tests/test_format_lists_match_registry.py` compare the tables
+with the registry: for each From cell (e.g. "TIFF / TIF"), the To cells must
+list exactly what the registry converts each format named there to, minus the
+format itself. Rows sharing a From cell are merged, since the Documents and
+Spreadsheets tables give each pair its own row and note. Every source in the
+registry must appear in a table or in the Audio/Video lists, and the "any of
+the above can be converted to any other format" sentence under those lists is
+checked too.
+
+### Added — QA fixture generator for the batch ZIP names
+
+`scripts/make_testdata_batch_zip_names.py` writes byte-stable fixtures for
+checking the batch-ZIP fix below by hand: three small images whose PNG names
+collide, a CSV that converts to `manifest.json`, and a file with a `.jpg` name
+that fails to convert. Output goes to a gitignored local folder; only the
+script ships.
+
+### Fixed — batch ZIPs could contain two files with the same name
+
+When two files in a batch produce the same output name, the later one gets a
+numeric suffix (`a.png`, `a_1.png`, `a_2.png`). The counter only knew the
+original names, so a suffixed name that was already taken went into the ZIP a
+second time: files that became `a.png`, `a.png` and `a_1.png` came out as
+`a.png`, `a_1.png`, `a_1.png`, and unzipping could keep only one of the two
+`a_1.png`. An output named `manifest.json` in a batch with a failed file
+clashed the same way with the report of that name. `build_batch_zip` now
+tracks every name it has written and never reuses one — the third file above
+becomes `a_1_1.png`, the output named `manifest.json` becomes
+`manifest_1.json` (it keeps its name when no file failed, since there is no
+report then). Plain duplicates are named as before, and a failed file still
+takes no name. The API guide's "Duplicate filenames" section describes the
+rule and points API clients to the `X-FileMorph-Batch-Failed` header, rather
+than the file name, to tell whether a report is present. New unit tests in
+`tests/test_batch_zip.py`.
+
+### Fixed — a plan change did not change the concurrency limit until a restart
+
+How many requests a user (or, when anonymous, an IP) may run at once depends
+on the plan: Free 1, Pro 3, Business 6. That limit was fixed when the server
+first saw the user and kept until the next restart, so a user who upgraded
+from Free to Pro still got `429` on their second parallel request, and a
+downgraded user kept the higher limit. The workaround the code comment
+suggested — minting a new API key — did not help, because the limit is tracked
+per user, not per key. The limit is now checked on every request and follows a
+plan change on the next one. Requests still running at that moment give their
+slot back to the old limit, so they cannot raise the new one. Two new tests in
+`tests/test_concurrency.py`.
+
+### Fixed — docs quoted tier limits from before the pricing overhaul
+
+The API usage guide's tier table and the API reference's monthly-quota table
+still showed the limits from before the 2026-05-25 pricing overhaul (for
+example free 50 MB / 5 files / 500 calls a month, pro 10,000 calls). Both now
+match `app/core/quotas.py`, the source the server enforces and `/pricing`
+renders.
+
+- **Rate limits are not per tier.** The guide's "API/min" column promised paid
+  tiers 60 requests/min, and its quickstart offered "higher rate limits" with an
+  account. The limiter counts per client IP and per endpoint, the same for
+  everyone: 10/min on `/convert` and `/compress`, 3/min on the batch endpoints.
+  The guide now says so. In place of that column the table shows the per-tier
+  concurrent-request cap (1 / 1 / 3 / 6 / 10), which is enforced per tier.
+- **Anonymous uploads cap at 30 MB, not 20 MB.** Fixed in the API guide, the
+  security overview and the vendor security questionnaire. Anonymous callers
+  can also send a one-file batch; the guide said batch endpoints reject them.
+- **Self-hosting guide:** Pro gets 3 concurrent requests and Business 6, not 2
+  and 5.
+- **Duplicate names in a batch ZIP** come out as `a.png`, `a_1.png`, `a_2.png`;
+  the guide said the second file gets `_2`.
+- **Monthly API calls:** a request rejected by the output cap does not count
+  toward them (the guide said it did), and the PDF tools do (the API reference
+  left them out). Its example `429` body now quotes Pro's 25000 calls.
+- **Caps above the tier:** the guide now says that `MAX_UPLOAD_SIZE_MB`
+  (default 100 MB) caps every whole request, so a self-hosted instance has to
+  raise it for the larger tier limits to apply, and that past the server-wide
+  concurrency cap (`MAX_GLOBAL_CONCURRENCY`) requests get `503`. The
+  architecture doc gave that default as 2000 MB.
+
+`tests/test_docs_match_code.py` reads the tier numbers back out of the markdown
+and compares them with `QUOTAS`, and the duplicate-name example with
+`build_batch_zip`, so the next quota change fails CI until the docs follow.
+
+### Added — QA fixture generator for the batch error messages
+
+`scripts/make_testdata_batch_errors.py` writes byte-stable fixtures for
+checking the fix below by hand: a windows-1252 Markdown file and CSV, a JSON
+object that isn't an array, and a small JPEG for a mixed batch. Output goes to
+a gitignored local folder; only the script ships.
+
+### Security — batch error messages no longer echo library internals
+
+`/api/v1/convert/batch` and `/api/v1/compress/batch` returned the text of any
+`ValueError` as the file's error message. Library exceptions are ValueErrors
+too, so a Markdown file that isn't UTF-8 put the decoder's text (codec, byte,
+offset) into the per-file message, the `X-FileMorph-Batch-Failures` header and
+`manifest.json`; invalid JSON did the same with the parser's position
+(CWE-209, low). Only the routes' own messages (e.g. "File too large …", "File
+type not permitted.", "Output too large …") and hints a converter writes for
+the user reach the client now. Everything else reads "Conversion failed. Verify
+the file is valid." (compress: "Compression failed. …"), with the details in
+the server log. The `/api/v1/pdf/*` routes already worked this way.
+
+A Markdown, CSV or JSON file that isn't UTF-8 (Excel's default CSV export on
+Windows, for one) gets a message naming the fix ("Re-save it as UTF-8 …"): per
+file in a batch, and from single-file `/convert` as a `400` with
+`X-FileMorph-Error-Code: invalid_input` instead of a generic `500` that API
+clients would retry. The JSON → CSV hint "JSON must be a non-empty array of
+objects", until now only visible in a batch, is returned the same way. A
+leading byte-order mark, which Excel's "CSV UTF-8" always writes, is dropped
+now instead of ending up in the first column name (CSV → JSON / XLSX) or
+failing a JSON file.
+
+### Fixed — `docker.yml` stored with CRLF line endings; CI now rejects CRLF files
+
+`.github/workflows/docker.yml` had been stored with Windows line endings (CRLF)
+since the manual-rebuild change (`f72dedc`), although `.gitattributes` pins YAML
+to LF. GitHub runs the workflow either way, so nothing broke, but the next
+ordinary edit would have converted all 117 lines and shown up as a whole-file
+diff that hides the lines actually changed. The file is back to LF; its content
+is unchanged (`git diff -w` is empty).
+
+`.gitattributes` only normalises line endings when git itself stages a file. A
+commit made through the GitHub API stores exactly the bytes it is sent, and a
+file read from a Windows checkout can carry CRLF, which is how
+`requirements.lock` once turned into a 3725-line diff. `tests/test_line_endings.py`
+now fails CI when any tracked text file is stored with CRLF, so the next one is
+caught in its own pull request rather than by whoever edits the file after it.
+
 ### Fixed — long upload names lost their file extension on download
 
 `safe_download_name()` cut the finished download name to 200 characters, so an

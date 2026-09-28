@@ -23,14 +23,6 @@ data/api_keys.json
 tmp/
 *.tmp
 
-# PyInstaller output
-dist/
-build/
-*.spec.bak
-
-# ffmpeg binaries (downloaded by CI build script)
-ffmpeg/
-
 # Tailwind standalone CLI (downloaded by scripts/build-tailwind.sh)
 .tools/
 
