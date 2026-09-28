@@ -9,6 +9,26 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Security — git ignores `.env.local`, `.env.production` and the other local `.env.*` files
+
+`.gitignore` listed `.env`, which matches only that exact name. A
+`.env.local`, `.env.production` or `.env.staging` in a working folder therefore
+showed up as an untracked file, and `git add -A` staged it. The pre-commit hook
+blocks `.env.production*` by name, and other files only when they assign one of
+the secret variables it lists. A commit created through the GitHub API
+(`createCommitOnBranch`) skips local hooks altogether, and the secret scan in
+CI recognises secrets by their format, not by the file they sit in. No such
+file was ever committed: `.env.example` is the only `.env` file in the history.
+
+`.env.*` now covers the variants. `!.env.example` below it exempts the
+template, since the last matching line wins, so `git add` and tools that
+honour `.gitignore` still see it. `tests/test_gitignore.py` asks
+`git check-ignore --no-index` about `.env`, `.env.local`, `.env.production`,
+`.env.staging` and the nested `app/.env` and `app/.env.local` (all ignored),
+and about `.env.example` (not ignored). It accepts only a rule from the
+repository's own `.gitignore`, so a global excludes file on one machine
+cannot hide a regression.
+
 ### Changed — the web UI offers target-size compression for AVIF too
 
 The server has compressed AVIF to an exact target size since AVIF support
