@@ -13,8 +13,8 @@ as strings, because the mistakes that matter are semantic: a bare pattern
 matches only at the context root (``__pycache__`` misses ``app/__pycache__``),
 and the last matching line wins, so a ``!`` exception placed before its
 exclusion does nothing. The other direction matters as much: an over-broad
-pattern ships an image without files the app reads at run time, and the
-Docker workflow only builds after merge.
+pattern ships an image without files the app reads at run time, and the image
+check on pull requests (docker-pr.yml) looks for only a few of them by name.
 """
 
 from __future__ import annotations
@@ -136,7 +136,7 @@ def test_image_keeps_every_tracked_file_but_the_dev_only_ones() -> None:
     dropped = [p for p in _tracked_files() if _is_excluded(p) and not p.startswith(_DEV_ONLY)]
     assert not dropped, (
         f".dockerignore drops tracked files the image may need: {dropped[:10]}. "
-        f"The Docker workflow only builds after merge, so this would first show up "
-        f"as a broken image. Narrow the pattern, or add the path to _DEV_ONLY if "
-        f"nothing reads it at run time."
+        f"docker-pr.yml looks for only a few files by name, so this would likely first "
+        f"show up as a feature failing in the running image. Narrow the pattern, or add "
+        f"the path to _DEV_ONLY if nothing reads it at run time."
     )
