@@ -18,7 +18,13 @@ silently undo it:
     above don't rot;
   * what CI tests, validates and publishes is the lockfile's dependency set —
     the test job installs with the lockfile as constraints, and the SBOM and
-    veraPDF workflows install it the way the image does.
+    veraPDF workflows install it the way the image does;
+  * the SBOM generator installs from its own hash-pinned lockfile, as wheels
+    only, and in release.yml it runs in a job without write access — the job
+    that holds ``contents: write`` installs nothing, restores no cache and
+    keeps no credentials; no job holding a write token or a secret splices
+    ``${{ }}`` into a script; and the veraPDF validator image is pinned by
+    digest.
 
 This is a tripwire, not a substitute for the server-side Scorecard run /
 review: the per-job permissions check here is a heuristic (it asserts a
@@ -29,17 +35,41 @@ with no permissions block at all, or a SHA pin reverted to a tag.
 
 from __future__ import annotations
 
+import json
 import re
 import subprocess
 from pathlib import Path
 
 import pytest
+import yaml
+from packaging.requirements import Requirement
+from packaging.utils import canonicalize_name
+from packaging.version import Version
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 _WORKFLOW_DIR = _REPO_ROOT / ".github" / "workflows"
 _DOCKERFILE = _REPO_ROOT / "Dockerfile"
 _DEPENDABOT = _REPO_ROOT / ".github" / "dependabot.yml"
 _LOCKFILE = _REPO_ROOT / "requirements.lock"
+_SBOM_MANIFEST = _REPO_ROOT / "requirements-sbom.txt"
+_SBOM_LOCKFILE = _REPO_ROOT / "requirements-sbom.lock"
+# The steps release.yml copies from sbom.yml, which is the one that can be run.
+_SBOM_STEPS = (
+    "Install the image's dependency set",
+    "Install CycloneDX generator",
+    "Generate CycloneDX SBOM (JSON)",
+)
+_GENERATOR_INSTALL = "pip install --require-hashes --only-binary :all: -r requirements-sbom.lock"
+# `pip install`, `"$VENV/bin/pip" install` and `python -m pip install`.
+_PIP_INSTALL_RE = re.compile(r'\bpip"?\s+install\b')
+# In a `run:` script: a package manager, a download, or the SBOM generator.
+_INSTALLS_RE = re.compile(r'\b(?:pip3?|pipx|uvx?|npm|npx|curl|wget)"?\s|cyclonedx-py')
+# The only actions that run in release.yml's job holding `contents: write`.
+_RELEASE_WRITE_ACTIONS = (
+    "actions/checkout@",
+    "actions/download-artifact@",
+    "softprops/action-gh-release@",
+)
 
 _SHA40_RE = re.compile(r"^[0-9a-f]{40}$")
 # `uses: owner/repo@ref` or `uses: owner/repo/path@ref`, tolerating a
@@ -69,6 +99,54 @@ def _workflow_code(name: str) -> str:
     """A workflow's text without its comment lines, which quote old commands."""
     lines = (_WORKFLOW_DIR / name).read_text(encoding="utf-8").splitlines()
     return "\n".join(line for line in lines if not line.lstrip().startswith("#"))
+
+
+def _workflow(path: Path) -> dict:
+    return yaml.safe_load(path.read_text(encoding="utf-8"))
+
+
+def _steps(job: dict) -> list[dict]:
+    return job.get("steps") or []
+
+
+def _privileged(job: dict, workflow: dict) -> bool:
+    """Whether a job holds a write token or a secret.
+
+    Job-level ``permissions:`` replace the workflow's; neither means the
+    repository default applies, which can be write-all. A secret other than
+    ``GITHUB_TOKEN`` (a PAT that triggers a deploy, say) counts as well.
+    """
+    permissions = job.get("permissions", workflow.get("permissions"))
+    if permissions is None or permissions == "write-all":
+        return True
+    if isinstance(permissions, dict) and "write" in permissions.values():
+        return True
+    return bool(re.search(r"\bsecrets\.(?!GITHUB_TOKEN\b)", json.dumps([workflow.get("env"), job])))
+
+
+def _lock_entries(lockfile: Path) -> list[str]:
+    """A lockfile's requirements, one line each: continuations joined, comments dropped."""
+    joined = re.sub(r"\\\n", " ", lockfile.read_text(encoding="utf-8"))
+    return [
+        " ".join(line.split())
+        for line in joined.splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    ]
+
+
+def _lock_pins(lockfile: Path) -> dict[str, str]:
+    """``{canonical name: version}`` for every ``name==version`` entry."""
+    pins = {}
+    for entry in _lock_entries(lockfile):
+        found = re.match(r"([A-Za-z0-9._-]+)==(\S+)", entry)
+        if found:
+            pins[canonicalize_name(found.group(1))] = found.group(2)
+    return pins
+
+
+def _lock_python_version(lockfile: Path) -> str | None:
+    found = re.search(r"--python-version[= ](\d+\.\d+)", lockfile.read_text(encoding="utf-8"))
+    return found.group(1) if found else None
 
 
 def test_workflow_dir_exists() -> None:
@@ -338,6 +416,242 @@ def test_sbom_describes_the_lockfile_venv_only(workflow: str) -> None:
     )
     assert len(re.findall(venv + r'/bin/pip"? install', text)) == 1, (
         f"{workflow}: something besides requirements.lock is installed into the SBOM's venv"
+    )
+
+
+@pytest.mark.parametrize("workflow", ["sbom.yml", "release.yml"])
+def test_sbom_generator_installs_from_its_hashed_lockfile(workflow: str) -> None:
+    """Every pip install in the SBOM workflows is hash-checked, and the
+    generator comes from requirements-sbom.lock, as wheels only.
+
+    It used to be ``pip install "cyclonedx-bom>=5,<6"``: about thirty packages,
+    unpinned and unhashed, whichever releases PyPI served on the day — in
+    release.yml inside the job that held ``contents: write``. Wheels only,
+    because building an sdist pulls build dependencies pip does not hash-check.
+    """
+    installs = [
+        line.strip()
+        for line in _workflow_code(workflow).splitlines()
+        if _PIP_INSTALL_RE.search(line)
+    ]
+    assert installs, f"{workflow} installs nothing with pip — update this guard"
+    for line in installs:
+        assert "--require-hashes" in line, f"{workflow}: `{line}` is not hash-checked"
+    assert any(_GENERATOR_INSTALL in line for line in installs), (
+        f"{workflow} does not run `{_GENERATOR_INSTALL}` — the SBOM generator must come "
+        f"from its lockfile, hash-checked and as wheels only"
+    )
+
+
+def test_sbom_generator_lockfile_is_hash_pinned() -> None:
+    """requirements-sbom.lock pins every package with a hash, satisfies
+    requirements-sbom.txt, and targets the shipped Python.
+
+    ``--require-hashes`` rejects an unpinned or unhashed entry too, but only
+    once the SBOM workflows run — on main, or for release.yml at release time;
+    this catches a hand edit in its PR. The lockfile must also still satisfy
+    requirements-sbom.txt, which Dependabot edits: ``lockfile-drift`` notices
+    that too, but it is not a required check, and this test runs in one. The
+    Python version must be the one requirements.lock targets (the image's, see
+    the lockfile test above), because the SBOM jobs run the generator on it.
+    """
+    assert _SBOM_LOCKFILE.is_file(), (
+        "requirements-sbom.lock missing, but sbom.yml and release.yml install from it — "
+        "recompile it with the command in requirements-sbom.txt, or run the deps-lock workflow"
+    )
+    for entry in _lock_entries(_SBOM_LOCKFILE):
+        assert re.fullmatch(r"[A-Za-z0-9._-]+==\S+( --hash=sha256:[0-9a-f]{64})+", entry), (
+            f"requirements-sbom.lock: `{entry.split()[0]}` is not an exact, hashed pin"
+        )
+    pins = _lock_pins(_SBOM_LOCKFILE)
+    for line in _SBOM_MANIFEST.read_text(encoding="utf-8").splitlines():
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        wanted = Requirement(line)
+        pinned = pins.get(canonicalize_name(wanted.name))
+        assert pinned and wanted.specifier.contains(pinned, prereleases=True), (
+            f"requirements-sbom.lock pins {wanted.name} {pinned}, but requirements-sbom.txt "
+            f"asks for {wanted.specifier} — recompile the lockfile (deps-lock workflow)"
+        )
+    assert _lock_python_version(_SBOM_LOCKFILE) == _lock_python_version(_LOCKFILE), (
+        "requirements-sbom.lock is compiled for a different Python than requirements.lock — "
+        "recompile both for the shipped version (deps-lock workflow)"
+    )
+
+
+@pytest.mark.parametrize("lockfile", [_LOCKFILE, _SBOM_LOCKFILE], ids=lambda p: p.name)
+def test_lockfile_jobs_run_the_recorded_compile_command(lockfile: Path) -> None:
+    """lockfile-drift and deps-lock run the command in the lockfile's header.
+
+    uv writes its invocation into the header, so the drift gate only agrees
+    with the committed file if it runs that command verbatim, and deps-lock
+    only reproduces the file if it does too.
+    """
+    lines = lockfile.read_text(encoding="utf-8").splitlines()
+    command = lines[1].lstrip("# ").strip() if len(lines) > 1 else ""
+    assert command.startswith("uv pip compile"), f"{lockfile.name} has no uv header"
+    for workflow in ("ci.yml", "deps-lock.yml"):
+        assert command in _workflow_code(workflow), (
+            f"{workflow} does not run `{command}`, the command {lockfile.name} records"
+        )
+
+
+def test_release_installs_nothing_where_it_can_write() -> None:
+    """In release.yml, a job holding a write token installs and fetches nothing.
+
+    The image's dependency set and the SBOM generator are over a hundred
+    packages. Run next to ``contents: write`` they could swap the tarball,
+    forge IMAGE_DIGEST.txt or use the token; so the ``sbom`` job reads and
+    generates, and the publish job writes, runs no package manager or
+    download, and uses only the actions in ``_RELEASE_WRITE_ACTIONS``.
+    """
+    workflow = _workflow(_WORKFLOW_DIR / "release.yml")
+    jobs = workflow["jobs"]
+    assert any(
+        "cyclonedx-py" in (step.get("run") or "") for job in jobs.values() for step in _steps(job)
+    ), "release.yml no longer generates an SBOM — update this guard"
+    for name, job in jobs.items():
+        if not _privileged(job, workflow):
+            continue
+        for step in _steps(job):
+            label = step.get("name") or step.get("uses")
+            assert not _INSTALLS_RE.search(step.get("run") or ""), (
+                f"release.yml job `{name}` can write, yet step {label!r} installs, fetches "
+                f"or runs third-party packages. Do that in a read-only job and hand the "
+                f"result over as an artifact."
+            )
+            uses = step.get("uses")
+            assert not uses or str(uses).startswith(_RELEASE_WRITE_ACTIONS), (
+                f"release.yml job `{name}` can write, yet runs `{uses}` — only "
+                f"{', '.join(_RELEASE_WRITE_ACTIONS)} run next to its token"
+            )
+
+
+def test_release_publish_fails_closed() -> None:
+    """The SBOM lands in a directory of its own, and a missing attachment stops
+    the release instead of publishing without it.
+
+    Both only come into play on a tag, where nothing can be tried first.
+    """
+    job = _workflow(_WORKFLOW_DIR / "release.yml")["jobs"]["verify-and-publish"]
+    inputs = {step.get("name"): step.get("with") or {} for step in _steps(job)}
+    assert inputs.get("Download the SBOM", {}).get("path") == "sbom", (
+        "release.yml: download the SBOM into `sbom/`, apart from what the publish job "
+        "builds and reads"
+    )
+    publish = inputs.get("Publish release", {})
+    assert publish.get("fail_on_unmatched_files") is True, (
+        "release.yml: without `fail_on_unmatched_files: true` a missing SBOM only warns, "
+        "and the release goes out without it"
+    )
+    files = [line.strip() for line in str(publish.get("files")).splitlines()]
+    assert "sbom/filemorph-${{ github.ref_name }}.cdx.json" in files, (
+        "release.yml does not publish the SBOM by its exact name from `sbom/`"
+    )
+
+
+@pytest.mark.parametrize("workflow", ["release.yml", "sbom.yml"])
+def test_sbom_workflows_restore_no_cache_and_keep_no_credentials(workflow: str) -> None:
+    """The SBOM workflows neither restore a cache nor leave a token in the checkout.
+
+    Code running on main can write the shared pip cache (Actions cache
+    poisoning), and ``--require-hashes`` does not cover all of it (see
+    sbom.yml). sbom.yml rehearses release.yml's SBOM steps, so it runs them
+    the same way. Neither pushes — ``git verify-tag`` and ``git archive`` are
+    local, the release goes through the API — so no checkout needs to keep
+    its credentials.
+    """
+    for name, job in _workflow(_WORKFLOW_DIR / workflow)["jobs"].items():
+        for step in _steps(job):
+            uses, inputs = str(step.get("uses", "")), step.get("with") or {}
+            label = step.get("name") or uses
+            assert not uses.startswith("actions/cache"), (
+                f"{workflow} job `{name}` restores a cache ({uses})"
+            )
+            assert not any("cache" in key for key in inputs), (
+                f"{workflow} job `{name}`, step {label!r}: a cache input "
+                f"({', '.join(key for key in inputs if 'cache' in key)})"
+            )
+            if uses.startswith("actions/checkout@"):
+                assert inputs.get("persist-credentials") is False, (
+                    f"{workflow} job `{name}`: checkout without `persist-credentials: false`"
+                )
+
+
+@pytest.mark.parametrize("workflow", _workflow_files(), ids=lambda p: p.name)
+def test_privileged_jobs_keep_expressions_out_of_scripts(workflow: Path) -> None:
+    """No job holding a write token or a secret gets ``${{ }}`` in a script.
+
+    The runner pastes the expression's value into the script text before bash
+    parses it. A tag or branch name — git allows ``$(``, backticks and ``;``
+    in both — or a step output derived from one then runs as shell code next
+    to the token (CWE-78). Pass the value through ``env:`` and quote it.
+    """
+    parsed = _workflow(workflow)
+    for name, job in (parsed.get("jobs") or {}).items():
+        if not _privileged(job, parsed):
+            continue
+        for step in _steps(job):
+            assert "${{" not in (step.get("run") or ""), (
+                f"{workflow.name} job `{name}`, step {step.get('name')!r}: an expression "
+                f"inside `run:` in a job with a write token or a secret — pass it through "
+                f"`env:` instead"
+            )
+
+
+def test_release_sbom_steps_match_sbom_workflow() -> None:
+    """release.yml runs sbom.yml's SBOM steps verbatim, with the flags the
+    locked generator accepts.
+
+    release.yml only runs on a signed tag, so a mistake there would first show
+    in a release. sbom.yml runs the same steps on every push to main and can
+    be dispatched on a branch; keeping the two identical makes that run the
+    test of the release path.
+    """
+
+    def named_steps(name: str) -> dict[str, dict]:
+        jobs = _workflow(_WORKFLOW_DIR / name)["jobs"].values()
+        return {step["name"]: step for job in jobs for step in _steps(job) if "name" in step}
+
+    sbom, release = named_steps("sbom.yml"), named_steps("release.yml")
+    for name in _SBOM_STEPS:
+        assert name in sbom, f"sbom.yml has no step {name!r} — update this guard"
+        assert name in release, f"release.yml has no step {name!r}"
+        assert release[name].get("run") == sbom[name].get("run"), (
+            f"release.yml and sbom.yml differ in step {name!r} — keep them identical"
+        )
+    generate = sbom["Generate CycloneDX SBOM (JSON)"]["run"]
+    generator = Version(_lock_pins(_SBOM_LOCKFILE)[canonicalize_name("cyclonedx-bom")])
+    if generator.major < 7:
+        assert "--PEP-639" in generate, (
+            f"cyclonedx-bom {generator} runs without --PEP-639: it then ignores the "
+            f"License-Expression field, and packages that declare their licence only there "
+            f"are listed without one (30 of 78 at c13ed52, FastAPI and Pydantic among them)"
+        )
+    else:
+        assert "--PEP-639" not in generate, (
+            f"cyclonedx-bom {generator} no longer accepts --PEP-639 — drop it from sbom.yml "
+            f"and release.yml, or both SBOM jobs fail"
+        )
+
+
+def test_verapdf_image_is_digest_pinned() -> None:
+    """The veraPDF gate runs a validator image pinned by digest.
+
+    ``verapdf/cli:latest`` moves with every veraPDF release, so the same commit
+    could pass the gate one day and fail it the next. The tag stays in a
+    comment so the next bump knows which release the digest is.
+    """
+    code = _workflow_code("verapdf.yml")
+    refs = re.findall(r"verapdf/cli[^\s\"']*", code)
+    assert refs, "verapdf.yml no longer runs verapdf/cli — update this guard"
+    for ref in refs:
+        assert re.fullmatch(r"verapdf/cli(:[\w.-]+)?@sha256:[0-9a-f]{64}", ref), (
+            f"verapdf.yml runs `{ref}` — pin it by @sha256: digest"
+        )
+    text = (_WORKFLOW_DIR / "verapdf.yml").read_text(encoding="utf-8")
+    assert re.search(r"#\s*verapdf/cli:v?\d", text), (
+        "verapdf.yml: keep the pinned image's tag in a comment (`# verapdf/cli:vX.Y.Z`)"
     )
 
 

@@ -28,7 +28,8 @@ ruff==0.16.8
 uv==0.12.16
 pip-audit>=2.10.1
 beautifulsoup4>=4.15.0
-# Parses the workflows in tests/test_workflow_triggers.py. No version floor:
+# Parses the workflows in tests/test_workflow_triggers.py and
+# tests/test_supply_chain_hygiene.py. No version floor:
 # uvicorn[standard] already pulls it in, and a floor here could only drift
 # from the version requirements.lock pins.
 pyyaml

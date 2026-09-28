@@ -20,6 +20,13 @@ name: SBOM
 # ranges put versions into the SBOM that the image does not contain, and the
 # generator added its own dependencies (and moved one the image ships).
 #
+# The generator itself installs from requirements-sbom.lock with
+# --require-hashes, like the image's dependencies: an unpinned install would
+# run whatever release PyPI served that day. release.yml runs the same three
+# SBOM steps verbatim and cannot be tried on a PR, so this workflow is its
+# rehearsal: dispatch it on a branch that changes them.
+# tests/test_supply_chain_hygiene.py keeps the steps identical.
+#
 # Why "environment" and not "requirements": `cyclonedx-py environment` reads
 # the installed distributions, so the SBOM carries their licences and the
 # dependency graph. `cyclonedx-py requirements requirements.lock` parses the
@@ -37,6 +44,9 @@ jobs:
       contents: read  # only uploads a workflow artifact; release attach moved to release.yml
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The generator is third-party code; it gets no token on disk.
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -45,7 +55,12 @@ jobs:
           # tested on the version it ships on. scripts/check_python_version.py
           # gates this; see its docstring for the drift it exists to prevent.
           python-version: "3.14"
-          cache: "pip"
+          # No `cache: "pip"`, like release.yml: this job rehearses the
+          # release's SBOM steps, so it runs them the same way, cold. The
+          # cache is also not fully covered by the hashes: code running on
+          # main can write it, and for a wheel pip once built from an sdist,
+          # --require-hashes checks the sdist's recorded hash, not the cached
+          # wheel.
 
       # The Dockerfile's builder-stage install, into a venv of its own so nothing
       # else on the runner ends up in the SBOM.
@@ -55,10 +70,13 @@ jobs:
           "$RUNNER_TEMP/image-env/bin/pip" install --require-hashes -r requirements.lock
 
       - name: Install CycloneDX generator
-        # Pinned to the 5.x line for reproducibility; bump deliberately when
-        # CycloneDX schema spec advances. Goes into the runner's Python, not
-        # the venv above, so the generator is not part of what it describes.
-        run: pip install "cyclonedx-bom>=5,<6"
+        # Every file hash-pinned, and wheels only: building an sdist would
+        # pull build dependencies that pip does not hash-check.
+        # requirements-sbom.txt says how the lockfile is recompiled and why it
+        # stays on the 5.x line. Goes into the runner's Python, not the venv
+        # above, so the generator is not part of what it describes.
+        run: |
+          pip install --require-hashes --only-binary :all: -r requirements-sbom.lock
 
       - name: Determine version label
         id: version
@@ -66,10 +84,18 @@ jobs:
         # release.yml), so the label is always the commit short-SHA.
         run: echo "version=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
 
+      # --PEP-639 reads the `License-Expression` metadata field. Without it
+      # cyclonedx-bom 5.x ignores that field, so packages that declare their
+      # licence only there came out without one — 30 of 78 at c13ed52,
+      # FastAPI, Pydantic and Pillow among them. (7.x has no such flag; see
+      # requirements-sbom.txt.)
       - name: Generate CycloneDX SBOM (JSON)
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
           cyclonedx-py environment "$RUNNER_TEMP/image-env/bin/python" \
-            --output-file "filemorph-${{ steps.version.outputs.version }}.cdx.json" \
+            --PEP-639 \
+            --output-file "filemorph-${VERSION}.cdx.json" \
             --output-format JSON
 
       - name: Upload SBOM as workflow artifact
