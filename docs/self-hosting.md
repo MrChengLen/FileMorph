@@ -615,6 +615,46 @@ markup-only output that veraPDF will reject if the source has
 unembedded fonts. The structured log records `mode=rerender` vs
 `mode=markup` for each conversion so you can spot the gap.
 
+### JWT secret (Cloud Edition)
+
+With `DATABASE_URL` set, every login is a JWT signed with `JWT_SECRET`.
+Whoever knows the secret can sign a valid login token for any account,
+so in that mode the app refuses to start unless `JWT_SECRET` is at least
+32 characters long and not one of the placeholders published in this
+repository. It logs `Refusing to start` with the reason and exits with
+status 3, which uvicorn and gunicorn treat as a failed start, so a server
+with several workers stops as well. The Community Edition (no
+`DATABASE_URL`) issues no logins and does not need the variable.
+
+Generate a secret:
+
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+With Docker Compose, put it in `.env` (`.env.example` has the line
+commented out):
+
+```env
+JWT_SECRET=<the generated value>
+```
+
+Everywhere else, hand it to the app in a file rather than on a command
+line: `docker run --env-file .env`, or for systemd an `EnvironmentFile=`
+outside the app directory, e.g. `/etc/filemorph/filemorph.env`, owned by
+root with mode `600`. Don't make the app's own `.env` root-only instead: the
+app reads that file itself and would fail to start. A systemd `Environment=`
+line can be read by every local user (`systemctl show`). The app reads
+`DATABASE_URL` only from the process environment, so it belongs in the same
+file.
+
+`docker-compose.cloud.yml` has no fallback for `JWT_SECRET`: without it,
+every `docker compose` command that includes the overlay stops with a
+message, `down` and `logs` too. The length check cannot tell a random
+secret from a guessable one, so always generate it. Changing the secret
+signs every user out on their next request, which is also the response to
+a suspected leak.
+
 ### Auth flows (Cloud Edition)
 
 These endpoints ship in the same codebase but only become useful
@@ -665,6 +705,9 @@ Type=simple
 User=filemorph
 WorkingDirectory=/opt/filemorph
 Environment="PATH=/opt/filemorph/.venv/bin"
+# Cloud Edition: DATABASE_URL and JWT_SECRET in a root-owned file, mode 600
+# (see "JWT secret (Cloud Edition)" above), never in an Environment= line.
+# EnvironmentFile=/etc/filemorph/filemorph.env
 ExecStart=/opt/filemorph/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
 Restart=on-failure
 RestartSec=5
@@ -685,6 +728,7 @@ sudo systemctl status filemorph
 
 - [ ] Set `CORS_ORIGINS` to your specific domain(s), not `*`
 - [ ] Set `APP_DEBUG=false` in production
+- [ ] Cloud Edition: set `JWT_SECRET` to a generated value of at least 32 characters (see [JWT secret](#jwt-secret-cloud-edition))
 - [ ] Keep `data/api_keys.json` out of version control (it is in `.gitignore`)
 - [ ] Use HTTPS (see nginx + Certbot above)
 - [ ] Set `MAX_UPLOAD_SIZE_MB` to a sensible limit for your use case

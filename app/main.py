@@ -31,7 +31,7 @@ from app.api.routes import cockpit as cockpit_route
 from app.api.routes import keys as keys_route
 from app.compat import base_dir, setup_ffmpeg_path
 from app.core.assets import tailwind_css_filename
-from app.core.config import settings
+from app.core.config import jwt_secret_error, settings
 from app.core.data_classification import (
     REQUEST_HEADER as _DATA_CLASSIFICATION_HEADER,
     RESPONSE_HEADER as _DATA_CLASSIFICATION_RESPONSE_HEADER,
@@ -60,6 +60,18 @@ setup_ffmpeg_path()
 configure_logging(debug=settings.app_debug)
 
 logger = logging.getLogger("filemorph.startup")
+
+# Cloud Edition only (the engine exists when DATABASE_URL is set): logins are
+# JWTs signed with JWT_SECRET, so a published or short secret lets anyone forge
+# one. Checked on import rather than in ``lifespan`` so that no server option
+# (uvicorn ``--lifespan off``) can skip it. Alembic doesn't import this module.
+# Exit code 3 is uvicorn's STARTUP_FAILURE and gunicorn's WORKER_BOOT_ERROR: with
+# several workers the whole server stops instead of restarting them forever.
+if engine is not None:
+    _jwt_secret_error = jwt_secret_error(settings.jwt_secret)
+    if _jwt_secret_error:
+        logger.critical(_jwt_secret_error)
+        raise SystemExit(3)
 
 _SITE_JSONLD, _SITE_JSONLD_CSP_SOURCE = build_site_jsonld(settings.app_base_url)
 

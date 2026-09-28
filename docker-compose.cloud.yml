@@ -44,7 +44,10 @@ services:
   filemorph:
     environment:
       DATABASE_URL: postgresql+asyncpg://filemorph:${POSTGRES_PASSWORD:-changeme}@postgres/filemorph
-      JWT_SECRET: ${JWT_SECRET:-change-me-in-production-min-32-chars}
+      # No fallback: any default here would be public, and every deployment
+      # started without JWT_SECRET would sign its logins with it. The app
+      # itself also refuses a published or shorter-than-32-character secret.
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env to at least 32 random characters, see .env.example}
     depends_on:
       postgres:
         condition: service_healthy
