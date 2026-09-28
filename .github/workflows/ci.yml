@@ -216,11 +216,20 @@ jobs:
           python-version: "3.14"
           cache: "pip"
 
-      # Pinned exactly, like ruff in requirements-dev.txt: a resolver update can
-      # legitimately produce a different lockfile, which would turn this gate red
-      # with no dependency change behind it. Bump deliberately.
+      # The exact uv requirements-dev.txt pins, read from that file: a resolver
+      # update can legitimately produce a different lockfile, which would turn
+      # this gate red with no dependency change behind it, so this job,
+      # deps-lock.yml and a local recompile must run the same release.
+      # Dependabot bumps only requirements-dev.txt; a version typed in here was
+      # left behind twice. The assignment is deliberate: under `bash -e` it
+      # stops the step when the pin is missing, whereas pip takes an empty
+      # argument as nothing to install and exits 0. The pattern admits only a
+      # version, and --only-binary keeps build code out of deps-lock's job,
+      # which can push.
       - name: Install uv
-        run: pip install "uv==0.12.16"
+        run: |
+          uv_pin=$(grep -oE '^uv==[0-9][0-9A-Za-z.!+-]*' requirements-dev.txt)
+          pip install --only-binary :all: "$uv_pin"
 
       # The command must match the one recorded in the committed lockfile's
       # header verbatim, since uv writes that command into the file. uv also

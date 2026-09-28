@@ -16,7 +16,10 @@ ruff==0.16.9
 # Pinned exactly for the same reason as ruff: uv resolves requirements.lock, and
 # a resolver update can legitimately produce a different lockfile — which would
 # turn the lockfile-drift gate red with no dependency change behind it. The CI
-# jobs that recompile the lockfile pin the identical version. Bump deliberately.
+# jobs that recompile the lockfiles (lockfile-drift in ci.yml, deps-lock.yml)
+# install exactly this line, so a bump here moves them too. If lockfile-drift
+# then goes red, the new uv writes the lockfiles differently: recompile them in
+# the same PR.
 #
 # Regenerate the lockfile with:
 #   uv pip compile --generate-hashes --python-version 3.14 --python-platform x86_64-unknown-linux-gnu --output-file requirements.lock requirements.txt
