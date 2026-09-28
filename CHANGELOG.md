@@ -9,6 +9,25 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — `requirements.lock` caught up with three Dependabot floors; `uv` pinned alike
+
+Dependabot raised the floors for `pikepdf` (`>=10.13.0.post1`), `aiosmtplib`
+(`>=5.1.3`) and `alembic` (`>=1.20.0`) in `requirements.txt`, and the three
+PRs were merged one at a time without recompiling the lockfile, so
+`lockfile-drift` had been red on `main` since. Production was unaffected: the
+image installs only `requirements.lock`, so it kept shipping the previous,
+tested versions. The lockfile is recompiled with the command in its header;
+exactly those three packages move (pikepdf 10.12.0 -> 10.13.0.post1,
+aiosmtplib 5.1.2 -> 5.1.3, alembic 1.19.2 -> 1.20.0), every other pin stays.
+With this recompile, the next image ships them.
+
+Dependabot's `python-minor-patch` group (#132) moved `uv` to 0.12.16 in
+`requirements-dev.txt` only, while `ci.yml`'s `lockfile-drift` job and the
+`deps-lock` workflow still installed 0.12.13. Both now pin 0.12.16 as well, so
+a lockfile compiled locally with the dev pin and the one the gate recompiles
+come from the same resolver — the same three-place move as in the two
+dependency batches below.
+
 ### Security — self-built images no longer bake in `.env`, API keys or `.git`
 
 The runtime stage of the `Dockerfile` copies the whole build context
