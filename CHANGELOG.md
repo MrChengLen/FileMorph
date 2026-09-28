@@ -9,6 +9,17 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — Impressum names the Wirtschafts-Identifikationsnummer; dead EU ODR link removed
+
+The Impressum still said a Wirtschafts-Identifikationsnummer "will be added
+once issued". It has been issued, and § 5 (1) Nr. 6 DDG requires stating it,
+so the page now shows it (DE463352637) in both languages. The number sits
+next to the translated label, not inside it. The link to the EU Online
+Dispute Resolution platform is gone: the platform was shut down on
+2025-07-20, so the link pointed nowhere. The § 36 VSBG statement stays. A
+new test in `tests/test_public_pages_reachability.py` pins all three in both
+locales, next to the existing guard that the Steuernummer is never shown.
+
 ### Fixed — the lockfile jobs no longer fall behind a uv bump
 
 `lockfile-drift` in `ci.yml` and the `deps-lock` workflow recompile the
