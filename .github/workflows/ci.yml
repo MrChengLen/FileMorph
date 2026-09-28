@@ -56,8 +56,39 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg ghostscript libheif-dev libcairo2 libpangocairo-1.0-0 libgdk-pixbuf2.0-0
 
+      # Tests run against the versions the image ships. requirements-dev.txt
+      # pulls in requirements.txt, whose `>=` ranges resolve to the newest
+      # releases: SQLAlchemy 2.1.0 (2026-09-24) reached CI that way and failed a
+      # test on every branch, while the image stayed on 2.0.52. The lockfile —
+      # what the Dockerfile installs — therefore constrains every runtime
+      # package. Dev-only tools (pytest, ruff, uv, aiosqlite, …) are not in it
+      # and resolve as before; a dependency they share with the app (packaging,
+      # requests, …) stays at its locked version. The unpinned install runs
+      # weekly in deps-latest.yml as an early warning.
+      #
+      # The hashes are stripped because pip switches the whole install to
+      # --require-hashes as soon as one constraint carries a hash, and the dev
+      # tools are unhashed. The step fails if a lockfile entry did not become a
+      # constraint (or none did), instead of letting it install unpinned.
+      #
+      # A resolver conflict here usually means requirements.txt raised a floor
+      # past the locked version, as Dependabot pip PRs do: lockfile-drift is red
+      # as well, and recompiling the lockfile fixes both. If lockfile-drift is
+      # green, a dev tool wants a different version of a locked package. If it
+      # caps one below the pin, hold that dev-tool bump. If it needs a newer
+      # one, which a plain recompile does not move, move it explicitly — that
+      # changes what ships, so review it like a runtime bump (uv leaves the flag
+      # out of the lockfile header, so lockfile-drift stays green):
+      #   uv pip compile --generate-hashes --python-version 3.14 --python-platform x86_64-unknown-linux-gnu --upgrade-package <name> --output-file requirements.lock requirements.txt
       - name: Install Python dependencies
-        run: pip install -r requirements-dev.txt
+        run: |
+          constraints="$RUNNER_TEMP/constraints.txt"
+          grep -E '^[A-Za-z0-9._-]+==' requirements.lock | cut -d' ' -f1 > "$constraints"
+          if [ ! -s "$constraints" ] || grep -E '^[^[:space:]#]' requirements.lock | grep -qvE '^[A-Za-z0-9._-]+=='; then
+            echo "::error::Not every requirements.lock entry could be turned into a constraint (see the comment above this step in ci.yml)."
+            exit 1
+          fi
+          pip install -r requirements-dev.txt -c "$constraints"
 
       - name: Lint (ruff)
         run: ruff check .
@@ -167,6 +198,10 @@ jobs:
   # `uv pip compile --python-version` resolves *for* that version without
   # needing it installed, which is why anyone can regenerate the lockfile from
   # any machine.
+  #
+  # requirements-sbom.lock, the SBOM generator's lockfile, is checked the same
+  # way against requirements-sbom.txt. Dependabot only edits that .txt, so
+  # without this a generator bump would merge green and change nothing.
   lockfile-drift:
     runs-on: ubuntu-latest
     steps:
@@ -185,7 +220,7 @@ jobs:
       # legitimately produce a different lockfile, which would turn this gate red
       # with no dependency change behind it. Bump deliberately.
       - name: Install uv
-        run: pip install "uv==0.12.13"
+        run: pip install "uv==0.12.16"
 
       # The command must match the one recorded in the committed lockfile's
       # header verbatim, since uv writes that command into the file. uv also
@@ -198,27 +233,34 @@ jobs:
       # developer's Windows box is missing a package the image needs. Pinning
       # the platform makes the result identical wherever it is generated. This
       # gate caught exactly that on its first run.
-      - name: Recompile the lockfile
+      - name: Recompile the lockfiles
         run: |
           cp requirements.lock requirements.lock.committed
           uv pip compile --generate-hashes --python-version 3.14 --python-platform x86_64-unknown-linux-gnu --output-file requirements.lock requirements.txt
+          cp requirements-sbom.lock requirements-sbom.lock.committed
+          uv pip compile --generate-hashes --python-version 3.14 --python-platform x86_64-unknown-linux-gnu --output-file requirements-sbom.lock requirements-sbom.txt
 
       - name: Compare
         id: compare
         run: |
-          if diff -u requirements.lock.committed requirements.lock; then
-            echo "requirements.lock is in sync with requirements.txt"
+          drifted=""
+          diff -u requirements.lock.committed requirements.lock || drifted="$drifted requirements.lock"
+          diff -u requirements-sbom.lock.committed requirements-sbom.lock || drifted="$drifted requirements-sbom.lock"
+          if [ -z "$drifted" ]; then
+            echo "requirements.lock and requirements-sbom.lock are in sync with their .txt files"
           else
-            echo "::error::requirements.lock does not match requirements.txt. Download the 'requirements-lock-recompiled' artifact and commit it, or run the deps-lock workflow."
+            echo "::error::Out of sync with its .txt file:$drifted. Download the 'requirements-lock-recompiled' artifact and commit the file(s) named here, or run the deps-lock workflow."
             exit 1
           fi
 
-      - name: Upload the recompiled lockfile
+      - name: Upload the recompiled lockfiles
         if: failure() && steps.compare.outcome == 'failure'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: requirements-lock-recompiled
-          path: requirements.lock
+          path: |
+            requirements.lock
+            requirements-sbom.lock
           retention-days: 7
 
   secret-scan:

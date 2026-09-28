@@ -15,21 +15,97 @@ name: Release
 # This workflow runs on tag push only. It does NOT make new tags;
 # tag creation stays a maintainer's local action so the GPG private
 # key never leaves their machine.
+#
+# Two jobs, so that the SBOM generator and the image's dependencies — over a
+# hundred packages — never run next to the write token. `sbom` installs them
+# and runs the generator with read-only access. `verify-and-publish` holds
+# `contents: write`, installs nothing, runs only pinned GitHub and release
+# actions, and receives the SBOM as an artifact. Neither job restores a cache
+# or keeps the checkout's credentials: the pip cache is writable by workflows
+# that run code from main, and nothing here pushes (`git verify-tag` and
+# `git archive` are local, the release is published through the API).
 
 on:
   push:
     tags: ["v*"]
 
+# Read-only unless a job says otherwise; only the publish job does.
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  verify-and-publish:
+  # SBOM is generated HERE, inside the release workflow, rather than in a
+  # separate `release: published`-triggered workflow. A release published
+  # by the built-in GITHUB_TOKEN does NOT fire the `release` event (GitHub
+  # suppresses it to prevent recursive workflow runs), so a separate
+  # release-triggered SBOM workflow would silently never run — which is
+  # exactly what happened for v1.1.0. Bundling it here guarantees every
+  # release tag ships its CycloneDX SBOM (docs/patch-policy.md promise +
+  # EVB-IT-March-2026 SBOM mandate). The method is the SBOM workflow's
+  # main-push one — the image's install (Dockerfile: `pip install
+  # --require-hashes -r requirements.lock`) into a venv of its own, the
+  # generator outside it; sbom.yml's header explains why. This path only
+  # runs on a release and cannot be tried on a PR; sbom.yml runs on every
+  # push to main and can be dispatched on a branch. So the three SBOM steps
+  # below are sbom.yml's, verbatim — tests/test_supply_chain_hygiene.py fails
+  # if they differ.
+  sbom:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          # Must match the Dockerfile's base image — the app is only ever
+          # tested on the version it ships on. scripts/check_python_version.py
+          # gates this; see its docstring for the drift it exists to prevent.
+          python-version: "3.14"
+          # No `cache: "pip"`: it is shared with ci.yml and verapdf.yml, so
+          # code merged to main can write the entry a release restores, and
+          # --require-hashes does not cover every cached file (see sbom.yml).
+          # A release is rare enough to install cold.
+
+      - name: Install the image's dependency set
+        run: |
+          python -m venv "$RUNNER_TEMP/image-env"
+          "$RUNNER_TEMP/image-env/bin/pip" install --require-hashes -r requirements.lock
+
+      - name: Install CycloneDX generator
+        run: |
+          pip install --require-hashes --only-binary :all: -r requirements-sbom.lock
+
+      - name: Generate CycloneDX SBOM (JSON)
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          cyclonedx-py environment "$RUNNER_TEMP/image-env/bin/python" \
+            --PEP-639 \
+            --output-file "filemorph-${VERSION}.cdx.json" \
+            --output-format JSON
+
+      - name: Hand the SBOM to the publish job
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sbom
+          path: filemorph-*.cdx.json
+          if-no-files-found: error
+          retention-days: 1  # the release carries it from here on
+
+  verify-and-publish:
+    needs: sbom
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0  # need full history so `git verify-tag` can resolve
+          persist-credentials: false
 
       - name: Import maintainer GPG public keys
         run: |
@@ -69,32 +145,14 @@ jobs:
           git archive --format=tar.gz --prefix="filemorph-${TAG}/" \
             -o "filemorph-${TAG}.tar.gz" "$TAG"
 
-      # SBOM is generated HERE, inside the release job, rather than in a
-      # separate `release: published`-triggered workflow. A release published
-      # by the built-in GITHUB_TOKEN does NOT fire the `release` event (GitHub
-      # suppresses it to prevent recursive workflow runs), so a separate
-      # release-triggered SBOM workflow would silently never run — which is
-      # exactly what happened for v1.1.0. Bundling it here guarantees every
-      # release tag ships its CycloneDX SBOM (docs/patch-policy.md promise +
-      # EVB-IT-March-2026 SBOM mandate). `environment` captures the resolved
-      # transitive dependency graph, matching the SBOM workflow's main-push path.
-      - name: Set up Python (for SBOM)
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      # Into a directory of its own: the artifact comes from the job that ran
+      # third-party code, so whatever it contains must not be able to replace
+      # the tarball or anything else this job publishes or reads.
+      - name: Download the SBOM
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          # Must match the Dockerfile's base image — the app is only ever
-          # tested on the version it ships on. scripts/check_python_version.py
-          # gates this; see its docstring for the drift it exists to prevent.
-          python-version: "3.14"
-          cache: "pip"
-
-      - name: Generate CycloneDX SBOM
-        run: |
-          TAG="${GITHUB_REF#refs/tags/}"
-          pip install -r requirements.txt
-          pip install "cyclonedx-bom>=5,<6"
-          cyclonedx-py environment \
-            --output-file "filemorph-${TAG}.cdx.json" \
-            --output-format JSON
+          name: sbom
+          path: sbom
 
       - name: Wait for cosign-signed container image
         # The Docker workflow runs in parallel on the same tag push; give
@@ -117,15 +175,20 @@ jobs:
             echo "digest=" >> "$GITHUB_OUTPUT"
           fi
 
+      # The image name is derived from the tag, so it reaches the script as an
+      # environment variable, never as `${{ }}` text spliced into the script
+      # itself, where a crafted tag name could inject shell.
       - name: Write image-digest attestation
+        env:
+          IMAGE: ${{ steps.digest.outputs.image }}
+          DIGEST: ${{ steps.digest.outputs.digest }}
         run: |
-          TAG="${GITHUB_REF#refs/tags/}"
           {
-            echo "Image: ${{ steps.digest.outputs.image }}"
-            echo "Digest: ${{ steps.digest.outputs.digest }}"
+            echo "Image: ${IMAGE}"
+            echo "Digest: ${DIGEST}"
             echo ""
             echo "Verify the cosign signature with:"
-            echo "  cosign verify ${{ steps.digest.outputs.image }} \\"
+            echo "  cosign verify ${IMAGE} \\"
             echo "    --certificate-identity-regexp '^https://github\\.com/${GITHUB_REPOSITORY}/' \\"
             echo "    --certificate-oidc-issuer https://token.actions.githubusercontent.com"
           } > IMAGE_DIGEST.txt
@@ -135,6 +198,10 @@ jobs:
         with:
           files: |
             filemorph-*.tar.gz
-            filemorph-*.cdx.json
+            sbom/filemorph-${{ github.ref_name }}.cdx.json
             IMAGE_DIGEST.txt
+          # The SBOM now crosses a job boundary by name; if that name ever
+          # stops matching, fail before publishing rather than release
+          # without it (the default only warns).
+          fail_on_unmatched_files: true
           generate_release_notes: true

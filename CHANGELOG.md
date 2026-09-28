@@ -9,6 +9,158 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Security — the release job no longer runs unpinned code next to its write token
+
+A security review of PR #146 found that `release.yml`'s single job held
+`contents: write`, kept the checkout's credentials, restored the pip cache
+shared with the workflows on main, and then installed the CycloneDX generator
+— about thirty packages, unpinned and unhashed — between building the source
+tarball and publishing it. A malicious generator release, or a cache entry
+planted by code merged to main, could have replaced the tarball, forged the
+SBOM or `IMAGE_DIGEST.txt`, or used the token. Release tags must be
+GPG-signed, so this took a compromised upstream package or main-branch code,
+not an outside push.
+
+- **Two jobs.** `sbom` installs the image's dependency set and the generator
+  and runs it with `contents: read`. `verify-and-publish` holds
+  `contents: write`, installs nothing and receives the SBOM as an artifact,
+  downloaded into a directory of its own so it cannot replace the tarball or
+  anything else the job reads. Neither job restores a cache or keeps the
+  checkout's credentials, and `sbom.yml` now runs the same way. Hashes alone
+  would not make a cache safe: pip installs a wheel it once built from an
+  sdist on the strength of the sdist's recorded hash. The publish step now
+  fails, rather than releasing without the file, if an attachment pattern
+  matches nothing.
+- **Hash-pinned generator.** `sbom.yml` and `release.yml` install it from the
+  new `requirements-sbom.lock` with `--require-hashes --only-binary :all:`:
+  32 packages around `cyclonedx-bom` 5.5.0, wheels only, so no unhashed build
+  dependency can slip in. The lockfile is compiled from
+  `requirements-sbom.txt`, which Dependabot updates like `requirements.txt`.
+  A lockfile that no longer satisfies it fails the required test job,
+  `lockfile-drift` flags any other difference, and `deps-lock` recompiles
+  both lockfiles — and, since it can push, no longer restores the pip cache.
+  Dependabot leaves the major version alone: 5.5.0 is the last 5.x release,
+  and 7.x no longer accepts `--PEP-639`, so that move stays deliberate.
+- **Shell injection (CWE-78, low).** `release.yml` pasted the tag-derived
+  image name into a shell script as `${{ }}`, and `deps-lock.yml` did the same
+  with the branch name before `git push` — git allows `$(` and backticks in
+  both. Both values now arrive through `env:`.
+- **veraPDF** runs `verapdf/cli` pinned by digest — v1.30.2, which is what
+  `latest` pointed at — instead of the moving `latest` tag. Dependabot does not
+  track images in workflow scripts; the comment next to the pin says how to
+  move it.
+- **SBOM licences.** `cyclonedx-py` now runs with `--PEP-639`. Without it
+  cyclonedx-bom 5.x ignores the `License-Expression` field, so packages that
+  declare their licence only there were listed without one: 30 of the 78
+  components in the SBOM built from main at `c13ed52`, FastAPI, Starlette,
+  Pydantic, cryptography, Pillow, pikepdf, pypdf and uvicorn among them. With
+  the flag, all 78 have one; the components and their versions are unchanged.
+
+`release.yml` only runs on a signed tag and cannot be tried on a PR, so its
+three SBOM steps are `sbom.yml`'s verbatim — and `sbom.yml` can be dispatched
+on a branch. `tests/test_supply_chain_hygiene.py` fails if the two differ, and
+guards the job split, the hashed wheel-only installs, the lockfile and the
+commands that compile it, the absent caches and credentials,
+`fail_on_unmatched_files`, the `env:` handling, the digest pin and
+`--PEP-639`. Each of 28 simulated regressions fails at least one guard.
+
+### Fixed — CI tests, and the SBOM lists, the versions the image ships
+
+The image installs `requirements.lock`. Four workflows still installed
+`requirements.txt`, whose `>=` ranges resolve to the newest releases, so what
+they tested or described was not what ships.
+
+- **Tests.** `lint-and-test` ran against whatever was newest on PyPI — that is
+  how SQLAlchemy 2.1.0 failed a test on every branch while production stayed
+  on 2.0.52. It now installs with the lockfile as a constraints file, so every
+  runtime package is at its shipped version. The dev-only tools (pytest, ruff,
+  uv, aiosqlite, …) are not in the lockfile and resolve as before; a dependency
+  they share with the app stays at the locked version. The constraints are the
+  lockfile's pins without their hashes, because pip turns on `--require-hashes`
+  for the whole install as soon as one constraint carries a hash. A
+  `requirements.txt` floor raised past the locked version (the usual
+  Dependabot pip PR) now fails this job's install as well as `lockfile-drift`;
+  recompiling the lockfile fixes both.
+- **The early warning stays.** The unpinned run caught SQLAlchemy 2.1 before
+  any lockfile bump would have pulled it in. It now runs in the new
+  `deps-latest` workflow — weekly on Mondays and on demand — and gates nothing.
+- **SBOM.** `sbom.yml`, and `release.yml` for the copy attached to releases,
+  built the SBOM from the runner's Python after `pip install -r
+  requirements.txt` plus the CycloneDX generator. The one produced for main
+  at `1d7bad6` listed 106 packages against 77 in the lockfile: 19 locked
+  packages at a version the image does not contain (SQLAlchemy 2.1.1 instead
+  of 2.0.52), plus 28 that belong to the generator (`cyclonedx-bom` and its
+  dependencies) — whose install had also downgraded `packaging` to 25.0,
+  while the image ships 26.3. Both workflows now install the lockfile into a
+  fresh venv exactly as the Dockerfile does, install the generator outside it,
+  and point `cyclonedx-py environment` at that venv. (`cyclonedx-py requirements
+  requirements.lock` reads the hashed lockfile fine, but its SBOM has no
+  licence data and no dependency graph.) An SBOM from before this change can
+  list extra packages and versions ahead of the image.
+- **veraPDF.** The PDF/A-2b gate built its fixture with the newest pikepdf; it
+  now installs the lockfile the way the image does.
+
+`tests/test_supply_chain_hygiene.py` pins all four, so none of them can
+quietly go back to the manifest.
+
+### Fixed — `requirements.lock` caught up with three Dependabot floors; `uv` pinned alike
+
+Dependabot raised the floors for `pikepdf` (`>=10.13.0.post1`), `aiosmtplib`
+(`>=5.1.3`) and `alembic` (`>=1.20.0`) in `requirements.txt`, and the three
+PRs were merged one at a time without recompiling the lockfile, so
+`lockfile-drift` had been red on `main` since. Production was unaffected: the
+image installs only `requirements.lock`, so it kept shipping the previous,
+tested versions. The lockfile is recompiled with the command in its header;
+exactly those three packages move (pikepdf 10.12.0 -> 10.13.0.post1,
+aiosmtplib 5.1.2 -> 5.1.3, alembic 1.19.2 -> 1.20.0), every other pin stays.
+With this recompile, the next image ships them.
+
+Dependabot's `python-minor-patch` group (#132) moved `uv` to 0.12.16 in
+`requirements-dev.txt` only, while `ci.yml`'s `lockfile-drift` job and the
+`deps-lock` workflow still installed 0.12.13. Both now pin 0.12.16 as well, so
+a lockfile compiled locally with the dev pin and the one the gate recompiles
+come from the same resolver — the same three-place move as in the two
+dependency batches below.
+
+### Security — self-built images no longer bake in `.env`, API keys or `.git`
+
+The runtime stage of the `Dockerfile` copies the whole build context
+(`COPY . .`), and the repository had no `.dockerignore`. An image built from a
+working folder therefore carried whatever lay in it: a real `.env`, which the
+app then reads from `/app/.env` at start-up, plus `data/api_keys.json`, `.git`,
+`.venv` and `.claude/` (CWE-538). Anyone with the image could read those files
+back out of its layers, and a container started from it without a `./data`
+volume accepted the builder's API keys instead of generating its own.
+
+A new `.dockerignore` keeps secrets and local state (`.env*`, everything in
+`data/` except `.gitkeep`, Compose override files), version-control, editor and
+assistant state, Python environments and caches, local-only notes and the test
+suite out of the build context.
+`tests/test_dockerignore.py` evaluates the patterns the way Docker does and
+checks both directions: those paths stay out, and every tracked file except the
+dev-only ones (`tests/`, `.github/`, `.githooks/`, `.env.example`) stays in. The
+Docker workflow only builds after merge, so a pattern that dropped a runtime
+file would otherwise first show up as a broken image.
+
+Images published by CI are built from a clean checkout, so they never contained
+a `.env` or API keys; they did include that checkout's `.git` directory, the
+test suite and the CI configuration, which are now left out as well. Images
+built up to 2026-05-26 (with `actions/checkout` v4) also held the build job's
+`GITHUB_TOKEN` in `.git/config`; GitHub revokes that token when the job ends,
+so there is nothing to rotate.
+
+**If you build the image yourself:** a `.env` in the build folder no longer
+reaches the container through the image. Docker Compose is unaffected: it
+passes `.env` at run time (`env_file`) and mounts `./data` as a volume. With
+plain `docker run`, pass `--env-file .env -v "$PWD/data:/app/data"`; in Cloud
+mode, make sure `JWT_SECRET` arrives, because without it the app signs logins
+with a public default. If you pushed or shared an image built before this
+change, treat the secrets in that `.env` (JWT secret, database and SMTP
+passwords, Stripe keys) and any credential in its `.git/config` as exposed,
+and rotate them. A container that ran such an image with a named volume for
+`/app/data` copied the baked `api_keys.json` into that volume; delete it there
+and restart to get a fresh key.
+
 ### Fixed — security docs named `requirements.txt` as the CVE-scan target
 
 Since 2026-09-09 (PR #112) CI has run `pip-audit -r requirements.lock`: the
