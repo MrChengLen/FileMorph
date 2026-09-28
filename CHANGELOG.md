@@ -9,6 +9,23 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — the lockfile jobs no longer fall behind a uv bump
+
+`lockfile-drift` in `ci.yml` and the `deps-lock` workflow recompile the
+lockfiles with uv, and a different uv release can write the same lockfile
+differently, so both are meant to run the uv that `requirements-dev.txt` pins.
+They had the version typed in, though, and Dependabot only bumps
+`requirements-dev.txt`, so the workflows fell behind it twice: on 0.12.13
+while it moved to 0.12.16, then on 0.12.16 while it moved to 0.12.19, where
+main stood until now. Both workflows now read the version from
+`requirements-dev.txt` and install it as a wheel, so a bump there moves them
+too, and they stop if the file has no `uv==` line (pip would take the empty
+result as nothing to install and succeed). A new test in
+`tests/test_supply_chain_hygiene.py` requires that line to be a bare
+`uv==X.Y.Z`, and fails if any workflow pins its own uv or a job that compiles
+a lockfile installs uv any other way. uv 0.12.19 writes both lockfiles byte
+for byte as 0.12.16 did, so neither is recompiled.
+
 ### Security — git ignores `.env.local`, `.env.production` and the other local `.env.*` files
 
 `.gitignore` listed `.env`, which matches only that exact name. A

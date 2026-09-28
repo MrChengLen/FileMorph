@@ -18,7 +18,8 @@ silently undo it:
     above don't rot;
   * what CI tests, validates and publishes is the lockfile's dependency set —
     the test job installs with the lockfile as constraints, and the SBOM and
-    veraPDF workflows install it the way the image does;
+    veraPDF workflows install it the way the image does; the jobs that
+    recompile the lockfiles run the uv that requirements-dev.txt pins;
   * the SBOM generator installs from its own hash-pinned lockfile, as wheels
     only, and in release.yml it runs in a job without write access — the job
     that holds ``contents: write`` installs nothing, restores no cache and
@@ -53,6 +54,15 @@ _DEPENDABOT = _REPO_ROOT / ".github" / "dependabot.yml"
 _LOCKFILE = _REPO_ROOT / "requirements.lock"
 _SBOM_MANIFEST = _REPO_ROOT / "requirements-sbom.txt"
 _SBOM_LOCKFILE = _REPO_ROOT / "requirements-sbom.lock"
+_REQUIREMENTS_DEV = _REPO_ROOT / "requirements-dev.txt"
+# The `Install uv` step of every job that compiles a lockfile: the one exact
+# pin in requirements-dev.txt, as a wheel. An assignment first, so `bash -e`
+# stops the step when the pin is missing — pip takes an empty argument as
+# nothing to install and exits 0.
+_UV_FROM_DEV = (
+    "uv_pin=$(grep -oE '^uv==[0-9][0-9A-Za-z.!+-]*' requirements-dev.txt)",
+    'pip install --only-binary :all: "$uv_pin"',
+)
 # The steps release.yml copies from sbom.yml, which is the one that can be run.
 _SBOM_STEPS = (
     "Install the image's dependency set",
@@ -494,6 +504,42 @@ def test_lockfile_jobs_run_the_recorded_compile_command(lockfile: Path) -> None:
         assert command in _workflow_code(workflow), (
             f"{workflow} does not run `{command}`, the command {lockfile.name} records"
         )
+
+
+def test_lockfile_jobs_install_the_uv_requirements_dev_pins() -> None:
+    """lockfile-drift and deps-lock read their uv version from requirements-dev.txt.
+
+    Another uv release can write the same lockfile differently, so the drift
+    gate, deps-lock and a local recompile have to run the same one. Dependabot
+    bumps only requirements-dev.txt, and while the workflows typed their own
+    version they were left behind twice: on 0.12.13 while it moved to 0.12.16,
+    then on 0.12.16 while it moved to 0.12.19.
+    """
+    lines = _REQUIREMENTS_DEV.read_text(encoding="utf-8").splitlines()
+    # `uv` itself, not uvicorn, uv_build or uv-anything.
+    pins = [line.strip() for line in lines if re.match(r"uv(?![\w-])", line)]
+    assert len(pins) == 1 and re.fullmatch(r"uv==\d+(\.\d+)+", pins[0]), (
+        f"requirements-dev.txt must pin uv exactly once, as a bare `uv==X.Y.Z` — found {pins}"
+    )
+    expected = "\n".join(_UV_FROM_DEV)
+    for path in _workflow_files():
+        assert not re.search(r"\buv==\d", _workflow_code(path.name)), (
+            f"{path.name} pins its own uv version, which Dependabot never bumps — "
+            f"install it the way ci.yml's lockfile-drift job does"
+        )
+        for name, job in _workflow(path)["jobs"].items():
+            steps = _steps(job)
+            if not any("uv pip compile" in (step.get("run") or "") for step in steps):
+                continue
+            installs = [
+                (step.get("run") or "").strip()
+                for step in steps
+                if step.get("name") == "Install uv"
+            ]
+            assert installs == [expected], (
+                f"{path.name} job `{name}` compiles a lockfile, so its one `Install uv` step "
+                f"must run exactly:\n{expected}"
+            )
 
 
 def test_release_installs_nothing_where_it_can_write() -> None:
