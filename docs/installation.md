@@ -6,6 +6,11 @@ The default mode is **Community Edition** — single-container, anonymous + API-
 auth, no database. The optional **Cloud Edition** overlay adds Postgres for user
 accounts, JWT login, Stripe billing, and the admin cockpit.
 
+Without accounts, every caller gets the anonymous limits — 30 MB per file,
+1 file per batch — API keys included, unless you give your keys a bigger tier
+with `API_KEYS_FILE_TIER` (see
+[Limits on a Community Edition instance](self-hosting.md#limits-on-a-community-edition-instance)).
+
 ---
 
 ## Method 1: Docker, Community Edition (recommended for self-hosting)

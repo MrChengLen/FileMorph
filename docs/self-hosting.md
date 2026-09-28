@@ -8,7 +8,7 @@ reverse proxy setup (Caddy or nginx), HTTPS/SSL, and operational best practices.
 ## Why self-host?
 
 - **Data privacy (DSGVO / GDPR)**: Files never leave your own infrastructure
-- **Limits you control**: The per-IP rate limits and tier caps ship with the code and apply to your instance too — change them in the `@limiter.limit(...)` decorators in `app/api/routes/*.py` and in `app/core/quotas.py`
+- **Limits you control**: The per-IP rate limits and tier caps ship with the code and apply to your instance too — change them in the `@limiter.limit(...)` decorators in `app/api/routes/*.py` and in `app/core/quotas.py`, and pick the tier your API keys get with `API_KEYS_FILE_TIER` ([Limits on a Community Edition instance](#limits-on-a-community-edition-instance))
 - **Custom access**: Issue API keys to your own users or services
 - **Integration**: Run FileMorph inside your existing network, accessible only to internal services
 
@@ -32,6 +32,9 @@ APP_PORT=8000
 APP_DEBUG=false
 
 API_KEYS_FILE=data/api_keys.json
+# Tier for those keys: anonymous (default), free, pro, business or enterprise.
+# See "Limits on a Community Edition instance" below.
+API_KEYS_FILE_TIER=anonymous
 
 MAX_UPLOAD_SIZE_MB=100
 
@@ -475,6 +478,59 @@ above, or use the dashboards the Compliance Edition ships.
 
 ---
 
+## Limits on a Community Edition instance
+
+Without `DATABASE_URL` there are no accounts, so by default no caller
+gets past the anonymous tier: every request gets 30 MB per file, 1 file
+per batch, a 90 MB output cap and 1 concurrent request per client IP
+(the [tier table](api-usage-guide.md#tier-quotas--discovery)). That
+includes requests with a key from `data/api_keys.json` — the key gets a
+request past the API-key check, not onto a bigger tier.
+
+To give your keys a bigger tier, set `API_KEYS_FILE_TIER` to `free`,
+`pro`, `business` or `enterprise`, and raise `MAX_UPLOAD_SIZE_MB` with it:
+
+```env
+API_KEYS_FILE_TIER=pro
+MAX_UPLOAD_SIZE_MB=250
+```
+
+Every valid key from the key file then gets that tier's file size, batch
+size, output cap and concurrency. A value outside the list stops the
+start-up with an error instead of falling back to anonymous; an empty
+value means `anonymous`. Pick the smallest tier that covers your
+clients' files — the tier decides how much of the server one key can
+use:
+
+- **Memory:** single-file results stream from disk, but a batch holds
+  every result in RAM until its ZIP is built, and the output cap applies
+  per file — so one batch can buffer up to the tier's files per batch ×
+  output cap (`pro`: 50 × 400 MB). Give keys only to clients you trust
+  with that, and size `MAX_UPLOAD_SIZE_MB` and `MAX_GLOBAL_CONCURRENCY`
+  to your RAM (see *Capacity tuning* below).
+- **Parallel requests:** `business` (6) and `enterprise` (10) allow more
+  parallel requests than the default `MAX_GLOBAL_CONCURRENCY` of 4, so
+  one busy key can take every slot, and callers without a key get `503`
+  until one frees up.
+- **`MAX_UPLOAD_SIZE_MB` (default 100 MB) still caps every whole
+  request** before any tier limit; a batch is one request.
+- **Rate limits don't change:** the per-minute limits count per client
+  IP and are the same for every tier.
+
+What the setting leaves alone:
+
+- **Callers without a key stay anonymous** — the web UI included, which
+  has no field for a key.
+- **Accounts keep their own tier.** With the Cloud Edition database,
+  logins and dashboard-minted keys run on their account's tier; the
+  setting only covers keys from the key file.
+- **Monthly API-call quotas count per account**, so key-file keys are
+  never counted — on a Cloud Edition deployment, where accounts are
+  metered, leave the setting at `anonymous`. The paid AI `apply` keeps
+  requiring an account on an eligible tier.
+
+---
+
 ## API Key management
 
 ### Generate a new key
@@ -576,9 +632,11 @@ defaults are sized for a 4 GB host:
 | `CONCURRENCY_RETRY_AFTER_SECONDS` | `5` | Value sent in the `Retry-After` response header. Should match the typical drain time of a saturated pool. |
 | `MEDIA_SUBPROCESS_TIMEOUT_SECONDS` | `600` | Hard kill-switch for a single ffmpeg run (video/audio convert + video compress). Protects worker threads from a crafted or very long media file; raise it if you regularly convert long or HD footage. |
 
-Per-actor limits (per user for authenticated callers, per IP for
-anonymous) are tier-bound and not env-tunable: anonymous and free
-get 1 concurrent request, Pro 3, Business 6, Enterprise 10. A
+Per-actor limits (per user for authenticated callers, per client IP
+for everyone else) are tier-bound and not env-tunable: anonymous and
+free get 1 concurrent request, Pro 3, Business 6, Enterprise 10.
+`API_KEYS_FILE_TIER` only picks the tier your key-file keys run on;
+their requests count apart from the keyless ones from the same IP. A
 request past the per-actor cap returns `429 Too Many Requests`
 with `Retry-After`. These numbers are documented on the public
 [`/pricing`](/pricing) page so callers can size their own client
