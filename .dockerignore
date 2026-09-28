@@ -1,0 +1,61 @@
+# Keeps the Docker build context, and with it the image (the runtime stage
+# does `COPY . .`), free of local secrets and dev-only files. Without this
+# file an image built from a working folder carries a real .env (which the
+# app then reads from /app/.env), data/api_keys.json, .git, .venv and
+# .claude/ in its layers (CWE-538).
+#
+# Unlike .gitignore, a bare pattern here matches only at the context root;
+# use **/ for any depth. The last matching line wins, so a `!` exception has
+# to come after the exclusion it undoes. tests/test_dockerignore.py pins both
+# directions: secrets stay out, and no tracked file the image needs is dropped.
+
+# Secrets and local state. Docker Compose passes .env at run time (env_file)
+# and mounts ./data as a volume, so neither has to be in the image. Compose
+# override files are local by design and often carry secrets too.
+.env*
+data/*
+!data/.gitkeep
+docker-compose.override.y*ml
+compose.override.y*ml
+
+# Version control, CI, editors, AI assistants
+.git
+.github
+.githooks
+.claude
+.clone
+.mcp.json
+CLAUDE.local.md
+.vscode
+.idea
+
+# Python environments, caches, build output, OS clutter
+.venv
+venv
+env
+**/__pycache__
+.pytest_cache
+.ruff_cache
+.coverage
+htmlcov
+*.egg-info
+build
+dist
+.tools
+ffmpeg
+tmp
+**/*.tmp
+**/*.swp
+**/.DS_Store
+**/Thumbs.db
+
+# Local-only notes and screenshots (gitignored, so never in a clean checkout)
+docs-internal
+docs/*.png
+docs/*.jpg
+docs/*.jpeg
+CLAUDE.md
+*-this-session-is-being-continued-*.txt
+
+# Not needed at run time
+tests

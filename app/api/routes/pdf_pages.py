@@ -162,7 +162,7 @@ async def _do_extract(
         output_disk_size = output_path.stat().st_size
         _enforce_output_cap(output_disk_size, quota, user)
 
-        download_name = safe_download_name(f"{original_stem}_pages.pdf")
+        download_name = safe_download_name(original_stem, "_pages.pdf")
         duration_ms = round((time.monotonic() - _t0) * 1000)
         logger.info(
             "pdf extract complete",
@@ -313,7 +313,7 @@ async def _do_split(
 
     # ZIP is fully built in memory; the temp dir only held the input PDF.
     shutil.rmtree(tmp_dir, ignore_errors=True)
-    download_name = safe_download_name(f"{Path(file.filename or 'result').stem}_pages.zip")
+    download_name = safe_download_name(Path(file.filename or "result").stem, "_pages.zip")
     return Response(
         content=zip_bytes,
         media_type="application/zip",
@@ -436,7 +436,7 @@ async def _do_compress(
         # the tier cap.
         _enforce_output_cap(output_disk_size, quota, user)
 
-        download_name = safe_download_name(f"{original_stem}_compressed.pdf")
+        download_name = safe_download_name(original_stem, "_compressed.pdf")
         duration_ms = round((time.monotonic() - _t0) * 1000)
         logger.info(
             "pdf compress complete",

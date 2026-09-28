@@ -66,7 +66,7 @@ jobs:
 
       # Pinned exactly — see the same note in ci.yml's lockfile-drift job.
       - name: Install uv
-        run: pip install "uv==0.12.13"
+        run: pip install "uv==0.12.16"
 
       # Must match ci.yml's command and the committed header verbatim.
       - name: Recompile the lockfile

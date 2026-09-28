@@ -186,6 +186,18 @@ def test_apply_redacts_and_verifies(client, auth_headers, ai_enabled):
     assert "note.redacted.txt" in resp.headers.get("Content-Disposition", "")
 
 
+def test_apply_long_name_keeps_redacted_suffix(client, auth_headers, ai_enabled):
+    # An over-long stem is shortened; ".redacted.txt" survives intact.
+    resp = client.post(
+        "/api/v1/ai/redact/apply",
+        headers=auth_headers,
+        files={"file": ("n" * 250 + ".txt", PII_NOTE, "text/plain")},
+    )
+    assert resp.status_code == 200
+    expected = "n" * 187 + ".redacted.txt"
+    assert f'filename="{expected}"' in resp.headers.get("Content-Disposition", "")
+
+
 def test_apply_mask_mode(client, auth_headers, ai_enabled):
     resp = client.post(
         "/api/v1/ai/redact/apply",

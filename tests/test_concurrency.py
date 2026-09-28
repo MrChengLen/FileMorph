@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """NEU-D.1: capacity guard for ``/convert`` and ``/compress``.
 
-Pins three properties:
+Pins four properties:
 
 1. ``acquire_slot`` enforces the global cap — the (N+1)-th caller
    when N slots are already held raises ``ConcurrencyExhausted``
@@ -11,6 +11,8 @@ Pins three properties:
    even when the global pool has free slots.
 3. Released slots are reusable — once a holder exits the context
    manager, the next caller acquires immediately.
+4. The per-actor cap follows the actor's current tier — an upgrade or
+   downgrade applies on the next request, not after a restart.
 
 These run against the raw helper rather than the route so failures
 point at the right module. A separate route-level smoke test in
@@ -197,3 +199,66 @@ async def test_global_release_happens_even_on_per_actor_timeout(monkeypatch):
         ev.set()
     rel.set()
     await asyncio.gather(holder, *others)
+
+
+async def _hold_slots(actor: str, tier: str, n: int) -> tuple[list[asyncio.Task], asyncio.Event]:
+    """Start ``n`` holders for one actor; return once all of them are in."""
+    in_evs = [asyncio.Event() for _ in range(n)]
+    rel = asyncio.Event()
+
+    async def _hold(ev: asyncio.Event):
+        async with acquire_slot(actor_id=actor, tier=tier):
+            ev.set()
+            await rel.wait()
+
+    holders = [asyncio.create_task(_hold(ev)) for ev in in_evs]
+    for ev in in_evs:
+        await asyncio.wait_for(ev.wait(), timeout=1)
+    return holders, rel
+
+
+async def _assert_per_actor_full(actor: str, tier: str):
+    with pytest.raises(ConcurrencyExhausted) as excinfo:
+        async with acquire_slot(actor_id=actor, tier=tier):
+            pass
+    assert excinfo.value.status_code == 429
+
+
+async def test_tier_change_resizes_per_actor_cap(monkeypatch):
+    """The actor key is the user id, which a plan change does not alter, so
+    the cached per-actor semaphore has to follow the tier: an upgrade gets
+    the higher cap on the next request, a downgrade the lower one."""
+    from app.core.quotas import get_quota
+
+    free, pro = get_quota("free").concurrency, get_quota("pro").concurrency
+    assert pro > free
+    monkeypatch.setattr(settings, "max_global_concurrency", pro + 10)
+    concurrency_module._reset_for_tests()
+
+    for tier, limit in (("free", free), ("pro", pro), ("free", free)):
+        holders, rel = await _hold_slots("user:42", tier, limit)
+        await _assert_per_actor_full("user:42", tier)
+        rel.set()
+        await asyncio.gather(*holders)
+
+
+async def test_request_spanning_tier_change_releases_its_own_slot(monkeypatch):
+    """A request that acquired under the old cap and finishes after the
+    semaphore was replaced must release the old semaphore. Releasing the
+    new one would hand the actor a permit on top of its new cap."""
+    from app.core.quotas import get_quota
+
+    free, pro = get_quota("free").concurrency, get_quota("pro").concurrency
+    monkeypatch.setattr(settings, "max_global_concurrency", free + pro + 10)
+    concurrency_module._reset_for_tests()
+
+    old_holders, old_rel = await _hold_slots("user:42", "free", free)
+    async with acquire_slot(actor_id="user:42", tier="pro"):  # first request on the new tier
+        pass
+    old_rel.set()
+    await asyncio.gather(*old_holders)
+
+    holders, rel = await _hold_slots("user:42", "pro", pro)
+    await _assert_per_actor_full("user:42", "pro")
+    rel.set()
+    await asyncio.gather(*holders)

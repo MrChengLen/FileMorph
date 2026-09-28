@@ -33,12 +33,15 @@ curl -X POST https://api.filemorph.io/api/v1/convert \
 
 That's it. Anonymous calls work — they just have tighter limits:
 
-- **20 MB** per file
-- **1 file** per request (batch endpoints reject anonymous callers)
-- **10 requests/min** (shared with all unauthenticated traffic from
-  your IP)
+- **30 MB** per file
+- **1 file** per request (the batch endpoints accept a single file
+  from anonymous callers and reject two or more with `400`)
+- **10 requests/min** on `/convert` and on `/compress`, counted per
+  client IP
 
-For larger files, batches, or higher rate limits, get an account.
+For larger files and batches, get an account. The per-minute rate
+limit stays the same on every tier — see
+[Tier Quotas & Discovery](#tier-quotas--discovery).
 
 ---
 
@@ -344,7 +347,8 @@ curl -X POST https://api.filemorph.io/api/v1/convert/batch \
 
 `files` and `target_formats` are repeated multipart fields. They must
 have **the same length and the same order** — `target_formats[i]` is
-the desired output for `files[i]`. Mismatch → `400 Bad Request`.
+the desired output for `files[i]`. Mismatch → `422 Unprocessable
+Entity`; no file is converted.
 
 ### The three response shapes
 
@@ -423,58 +427,86 @@ async function batchConvert(fileList, targets, apiKey) {
 ### Manifest schema
 
 When `manifest.json` is present (partial-success ZIP) or as the body
-of a 422, it has this shape:
+of a 422, it has this shape — `name` is the output file's name, and
+the 422 body leaves out `size_out`:
 
 ```json
 {
   "summary": {
-    "operation": "convert_batch",
+    "operation": "convert",
     "total": 3,
     "succeeded": 2,
     "failed": 1,
-    "total_bytes_in": 4194304,
+    "total_bytes_in": 160432128,
     "total_bytes_out": 1572864,
     "duration_ms": 412
   },
   "files": [
-    { "name": "one.jpg",   "status": "ok",    "size_in": 1048576, "size_out": 786432, "error_message": "" },
-    { "name": "two.jpg",   "status": "ok",    "size_in": 2097152, "size_out": 786432, "error_message": "" },
-    { "name": "three.heic","status": "error", "size_in": 1048576, "size_out": 0,      "error_message": "Output too large; try WebP/AVIF or upgrade." }
+    { "name": "one.png",   "status": "ok",    "size_in": 1048576,   "size_out": 786432, "error_message": "" },
+    { "name": "two.png",   "status": "ok",    "size_in": 2097152,   "size_out": 786432, "error_message": "" },
+    { "name": "three.jpg", "status": "error", "size_in": 157286400, "size_out": 0,      "error_message": "Output too large (412 MB > 400 MB cap). Try WebP/AVIF or upgrade your plan." }
   ]
 }
 ```
 
 Common per-file `error_message` values:
 
-- `"Output too large; try WebP/AVIF or upgrade."` — output exceeded
-  your tier's `output_cap_bytes`.
+- `"Output too large (N MB > M MB cap). Try WebP/AVIF or upgrade your
+  plan."` — the output (N MB) exceeded your tier's output cap (M MB).
+  On `/compress/batch` the hint reads `"Lower the quality or upgrade
+  your plan."`
 - `"Conversion from 'docx' to 'mp4' is not supported."` — no
   converter for that pair.
 - `"File type not permitted."` — magic-byte filter rejected the
   upload (executable / script content).
+- `"The file is not UTF-8 text. Re-save it as UTF-8 …"` — a Markdown,
+  CSV or JSON file in another encoding (e.g. Excel's default CSV export
+  on Windows). Single-file `/convert` returns the same message as a
+  `400` with `X-FileMorph-Error-Code: invalid_input`.
+- `"Conversion failed. Verify the file is valid."` (compress:
+  `"Compression failed. …"`) — any other error while processing that
+  file, e.g. corrupt content. The details stay in the server log.
 
 ### Duplicate filenames
 
 If two inputs convert to the same output name (`a.jpg` and `a.JPG`
-both → `a.png`), the second one gets `_2` appended (`a_2.png`),
-and so on. The order in `files[]` decides which wins the unsuffixed
-name.
+both → `a.png`), the second one gets `_1` appended (`a_1.png`), the
+third `_2` (`a_2.png`), and so on. The order in `files[]` decides
+which wins the unsuffixed name.
+
+A name already in the ZIP is never reused. An input whose own output
+name is `a_1.png` becomes `a_1_1.png` if an earlier duplicate took
+`a_1.png`, and an output named `manifest.json` becomes
+`manifest_1.json` when the ZIP carries the batch report (at least one
+file failed). Use the `X-FileMorph-Batch-Failed` header, not the file
+name, to tell whether a report is present.
 
 ---
 
 ## Tier Quotas & Discovery
 
-| Tier      | Max file size | Max files / batch | Output cap | API/min | API/month |
-|-----------|---------------|-------------------|------------|---------|-----------|
-| anonymous |     20 MB     |         1         |     60 MB  |   10    |    n/a    |
-|   free    |       50 MB   |          5        |     150 MB |  10     |     500   |
-| pro       | 100 MB        | 25                | 300 MB     | 60      | 10,000    |
-| business  | 500 MB        | 100               | 500 MB     | 60      | 100,000   |
-| enterprise| 500 MB        | 250               | 500 MB     | 60      | unlimited |
+| Tier       | Max file size | Max files / batch | Output cap | Concurrent requests | API calls / month |
+|------------|---------------|-------------------|------------|---------------------|-------------------|
+| anonymous  | 30 MB         | 1                 | 90 MB      | 1                   | n/a               |
+| free       | 100 MB        | 10                | 300 MB     | 1                   | 1,000             |
+| pro        | 250 MB        | 50                | 400 MB     | 3                   | 25,000            |
+| business   | 500 MB        | 150               | 500 MB     | 6                   | 200,000           |
+| enterprise | 500 MB        | 250               | 500 MB     | 10                  | unlimited         |
 
-Exact values live in [`app/core/quotas.py`](../app/core/quotas.py)
-and may be tuned over time — call `/api/v1/auth/me` at runtime if
-you need the live numbers.
+The per-minute rate limit is not part of the tier: it is counted per
+client IP and per endpoint, the same for every caller — 10/min on
+`/convert` and `/compress`, 3/min on `/convert/batch` and
+`/compress/batch`. An account raises the limits in the table, not the
+requests per minute.
+
+Every instance also caps each whole request at `MAX_UPLOAD_SIZE_MB`
+(default 100 MB; a batch is one request). On a self-hosted instance,
+raise it if the larger tier limits should apply.
+
+Exact values live in [`app/core/quotas.py`](../app/core/quotas.py) —
+the same source the server enforces and the `/pricing` page renders —
+and may be tuned over time. `/api/v1/auth/me` tells you which tier
+you are on.
 
 ### Discover your tier
 
@@ -497,22 +529,31 @@ mint it.
 
 ### What happens at each cap
 
-- **File size exceeded** → `413 Request Entity Too Large` with a
-  hint like `"File too large; max 100 MB for your plan."`
+- **File size exceeded** → `413 Request Entity Too Large` with
+  `"File too large (N MB max for your plan). Upgrade for larger
+  files."` (anonymous callers are pointed to the free tier instead).
 - **Batch size exceeded** → `400 Bad Request` with
   `"Batch size N exceeds tier limit of M."`
-- **Output cap exceeded** → `413` with `"Output too large; try
-  WebP/AVIF or upgrade."` Note this is checked **after** the
-  conversion runs — your CPU and API-call budget are still consumed.
-- **Rate limit exceeded** → `429 Too Many Requests` (no
-  `Retry-After` header — see backoff guidance below).
+- **Output cap exceeded** → `413` with `"Output too large (N MB > M MB
+  cap)."` plus a hint — on `/convert`, try a more efficient target
+  (WebP/AVIF for images, FLAC for audio) or upgrade; on `/compress`,
+  `"Lower the quality or upgrade your plan."` Note this is checked
+  **after** the conversion runs, so the server has already spent the
+  CPU time; the request counts toward the per-minute rate limit but
+  not toward your monthly API calls.
+- **Concurrent requests exceeded** → `429 Too Many Requests` with a
+  `Retry-After` header (seconds).
+- **Monthly API calls used up** → `429` with a `Retry-After` header
+  counting down to 00:00 UTC on the 1st of next month.
+- **Rate limit exceeded** → `429` without a `Retry-After` header — see
+  backoff guidance below.
 
 ### Why the output cap exists
 
 A 5 MB JPEG re-encoded to PNG can balloon to 50+ MB; MP3 → WAV is
 ~11×. Without an output cap, a single request could push gigabytes
-out of the server. The cap is generous (3× input on tiers below
-business) but enforced post-conversion. To stay under it: pick
+out of the server. The cap depends on the tier (see the table above)
+and is enforced post-conversion. To stay under it: pick
 modern lossy formats (WebP, AVIF, MP3 at lower bitrate) where you
 have a choice.
 
@@ -522,27 +563,34 @@ have a choice.
 
 ### Error envelope
 
-All 4xx and 5xx responses share the FastAPI default JSON shape:
+Most 4xx and 5xx responses use the FastAPI JSON shape:
 
 ```json
 { "detail": "Human-readable error message." }
 ```
 
-For Pydantic validation failures (422) you also get a structured
-`errors` array describing each invalid field.
+For validation failures (422) you also get a structured `errors`
+array describing each invalid field. Two responses look different:
+
+- A `429` from the rate limiter (slowapi) reads
+  `{"error": "Rate limit exceeded: 10 per 1 minute"}`, with the limit
+  of the route you called.
+- A batch where every file failed returns `422` with the manifest
+  shape, `{ "summary": …, "files": […] }` (see above).
 
 ### Status code matrix
 
 | Code | Meaning | Retry? |
 |---|---|---|
-| `400` | Validation: missing field, mismatched arrays, batch over tier | No — fix the request |
+| `400` | Bad request, e.g. filename without extension, blocked file type, a text file that isn't UTF-8, batch over tier | No — fix the request |
 | `401` | Missing or invalid auth | No — refresh JWT or check key |
 | `403` | Authenticated but not allowed (admin-only routes) | No |
 | `409` | Conflict — usually email already registered | No |
 | `413` | File or output exceeds cap | No — reduce size or upgrade |
-| `422` | Unsupported format pair, or batch where every file failed | Per-file decision |
-| `429` | Rate limit | Yes, with backoff |
-| `5xx` | Server error | Yes, with backoff |
+| `415` | `target_size_kb` on a lossless format (PNG/TIFF) | No — use `quality` instead |
+| `422` | Missing or invalid field, `target_formats` count ≠ `files` count, unsupported format pair, or batch where every file failed | No — fix the request (for a batch, check each file's `error_message`) |
+| `429` | Rate limit, concurrent-request cap, or monthly API calls used up | Yes — after `Retry-After` if sent (monthly quota: from the 1st of next month) |
+| `5xx` | Server error (`503`: server at capacity) | Yes, with backoff |
 
 ### Retry policy
 
@@ -553,23 +601,30 @@ the request is wrong; retrying without changes is a waste.
 import time, requests
 
 
-def with_backoff(fn, max_attempts: int = 4):
+def with_backoff(fn, max_attempts: int = 4, max_wait: float = 120.0):
     delay = 1.0
     for attempt in range(max_attempts):
         r = fn()
-        if r.status_code == 429:
-            time.sleep(60)  # global limit is per-minute; one full window
-        elif 500 <= r.status_code < 600:
-            time.sleep(delay)
-            delay *= 2
-        else:
+        if r.status_code != 429 and r.status_code < 500:
             return r
-    return r  # final attempt's response, even if still failing
+        if "Retry-After" in r.headers:
+            wait = float(r.headers["Retry-After"])  # seconds
+        elif r.status_code == 429:
+            wait = 60.0  # per-minute rate limit: wait out the window
+        else:
+            wait, delay = delay, delay * 2  # other 5xx: 1s → 2s → 4s
+        if attempt == max_attempts - 1 or wait > max_wait:
+            return r  # out of attempts, or a wait too long to sit out
+        time.sleep(wait)
 ```
 
-There is **no `Retry-After` header**. Start at 60 seconds for `429`
-(the global rate window) and exponential (1s → 2s → 4s → 8s) for
-`5xx`.
+A `429` from the rate limiter has **no `Retry-After` header**: wait
+out the one-minute window. The `429`s of the concurrent-request cap
+and of the monthly API calls, and the `503` of a server at capacity,
+send `Retry-After` in seconds — wait that long. A used-up monthly quota
+only resets at 00:00 UTC on the 1st of next month, so its
+`Retry-After` is too long to sleep through: the example gives up once
+a wait exceeds `max_wait`. Other `5xx` back off exponentially.
 
 ### Magic-byte filter
 
@@ -581,8 +636,9 @@ and rejects anything that looks like an executable or script:
 - `#!/` (shebang scripts)
 - `<?php` (PHP source)
 
-This applies regardless of the file extension and regardless of
-whether a converter for that pair exists. Rejected with
+The file extension doesn't matter: a `.jpg` that starts with `MZ` is
+rejected too. (A request that fails earlier — an unsupported format
+pair is a `422` — never reaches this check.) Rejected with
 `400 "File type not permitted."` — there's no retry that helps.
 
 ---
@@ -594,7 +650,8 @@ unsupported pairs.
 
 ```bash
 curl https://api.filemorph.io/api/v1/formats
-# Returns the list of converter pairs and compressible formats.
+# {"conversions": {"jpg": ["jpeg", "png", "webp", …], …},
+#  "compression": {"image": ["jpg", …], "video": ["mp4", …]}}
 ```
 
 ```python
@@ -604,16 +661,18 @@ formats = requests.get("https://api.filemorph.io/api/v1/formats").json()
 
 
 def can_convert(src: str, tgt: str) -> bool:
-    return any(p["src"] == src and p["tgt"] == tgt for p in formats["convert"])
+    return tgt in formats["conversions"].get(src, [])
 ```
 
 ```javascript
 const formats = await fetch("https://api.filemorph.io/api/v1/formats").then(r => r.json());
 ```
 
-The endpoint is anonymous-OK and unlimited — safe to cache for an
-hour or so on the client. See [`formats.md`](formats.md) for the
-human-readable catalogue.
+The endpoint needs no API key and does not count toward your monthly
+API calls, but it is rate-limited: 120 requests/min per client IP.
+Cache the response on the client — an hour or so is fine — rather
+than fetching it before every upload. See [`formats.md`](formats.md)
+for the human-readable catalogue.
 
 ---
 
@@ -688,10 +747,13 @@ on errors, not on network blips that may have actually succeeded.
 
 ### Concurrency
 
-The server processes requests in parallel up to a concurrency limit
-set at deploy time. As a client, you can pipeline up to your tier's
-`API/min` budget — 60/min for paid tiers means roughly 1 request per
-second. Beyond that you'll start seeing `429`s.
+The server runs only as many conversions at once as its deploy-time
+limit allows (`MAX_GLOBAL_CONCURRENCY`, default 4), shared by all
+callers; past it you get `503`. Within that, you can keep your tier's
+number of concurrent requests in flight (see the table above) and
+send up to 10 requests/min each to `/convert` and `/compress` — one
+every 6 seconds, per client IP, on every tier. Beyond either of those
+two limits you'll start seeing `429`s.
 
 ---
 

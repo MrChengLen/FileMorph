@@ -3,8 +3,8 @@
 
 Why this exists
 ---------------
-The pricing page advertises monthly call quotas (10.000 Pro,
-100.000 Business). That is a **bucket size**, not a guarantee about
+The pricing page advertises monthly call quotas (25,000 Pro,
+200,000 Business). That is a **bucket size**, not a guarantee about
 parallelism. Without a concurrency cap, a single Pro user can
 launch a 25-file batch — which on a 4 GB box is enough to
 OOM-kill the Python process and take every other request down
@@ -21,10 +21,11 @@ layer the route needs:
   anonymous caller gets 1, Pro gets 3, Business gets 6. Past the
   cap: 429 Too Many Requests, again with ``Retry-After``.
 
-The "actor" key is the API-key hash for authenticated callers,
-the IP for anonymous. That gives a stable identity across
-requests within a session without forcing us to hand out keys to
-anonymous users.
+The "actor" key is the user ID for authenticated callers
+(``user:<id>``, whichever key or token they send) and the IP for
+anonymous ones (``ip:<host>``) — see ``app/core/processing.py::actor_id``.
+That gives a stable identity across requests without forcing us
+to hand out keys to anonymous users.
 
 Why not a job queue (Redis / Celery / RQ)
 -----------------------------------------
@@ -76,7 +77,8 @@ _PER_TIER_CONCURRENCY: dict[str, int] = {tier: q.concurrency for tier, q in QUOT
 # event loop first calls into them; FastAPI keeps a single loop
 # per process for the entire app lifetime, so this is safe.
 _GLOBAL_SEMAPHORE: asyncio.Semaphore | None = None
-_PER_ACTOR_SEMAPHORES: dict[str, asyncio.Semaphore] = {}
+# actor_id -> (cap the semaphore was sized for, semaphore)
+_PER_ACTOR_SEMAPHORES: dict[str, tuple[int, asyncio.Semaphore]] = {}
 
 
 class ConcurrencyExhausted(HTTPException):
@@ -109,22 +111,31 @@ def _global_semaphore() -> asyncio.Semaphore:
 
 
 def _per_actor_semaphore(actor_id: str, tier: str) -> asyncio.Semaphore:
-    """Return (and lazily create) the per-actor semaphore.
+    """Return the per-actor semaphore, (re)built for the tier's cap.
 
-    Sized once on first sight of the actor — a tier upgrade
-    mid-conversation is honoured on the next *new* actor key (e.g.
-    after the user mints a new API key on the upgraded plan). A
-    background sweep of stale entries is not yet implemented; the
-    map is bounded by the active-actor count, which on a 4 GB box
-    is itself bounded by the global semaphore × turnover rate, so
-    the practical ceiling is small.
+    A plan change keeps the actor key (the user id), so the cap is
+    checked on every call and the semaphore replaced when it differs —
+    an upgrade or downgrade applies on the next request. Requests
+    still running release the semaphore they acquired (``acquire_slot``
+    holds on to it), never its replacement, which would otherwise gain
+    a permit it never handed out. Until they finish they do not count
+    against the new cap, so the actor can briefly exceed it by that
+    many; the global semaphore still bounds the total.
+
+    Assumes an actor key maps to one tier at a time (every caller
+    passes ``tier_for(user)`` for that user): tiers alternating between
+    requests would rebuild the semaphore on each change and lift the
+    cap.
+
+    Entries are never evicted: the map keeps one small entry per
+    distinct actor (user id or IP) until the process restarts.
     """
-    sem = _PER_ACTOR_SEMAPHORES.get(actor_id)
-    if sem is None:
-        limit = get_quota(tier).concurrency
-        sem = asyncio.Semaphore(limit)
-        _PER_ACTOR_SEMAPHORES[actor_id] = sem
-    return sem
+    limit = get_quota(tier).concurrency
+    entry = _PER_ACTOR_SEMAPHORES.get(actor_id)
+    if entry is None or entry[0] != limit:
+        entry = (limit, asyncio.Semaphore(limit))
+        _PER_ACTOR_SEMAPHORES[actor_id] = entry
+    return entry[1]
 
 
 def _reset_for_tests() -> None:

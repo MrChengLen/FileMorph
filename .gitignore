@@ -23,14 +23,6 @@ data/api_keys.json
 tmp/
 *.tmp
 
-# PyInstaller output
-dist/
-build/
-*.spec.bak
-
-# ffmpeg binaries (downloaded by CI build script)
-ffmpeg/
-
 # Tailwind standalone CLI (downloaded by scripts/build-tailwind.sh)
 .tools/
 
@@ -53,7 +45,7 @@ htmlcov/
 .clone/
 
 # Claude Code session transcripts
-2026-*-this-session-is-being-continued-*.txt
+*-this-session-is-being-continued-*.txt
 
 # Stray binary/image assets under docs/ (diagrams go in as *.svg, screenshots don't)
 docs/*.jpg
