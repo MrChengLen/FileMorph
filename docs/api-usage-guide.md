@@ -547,6 +547,11 @@ mint it.
   counting down to 00:00 UTC on the 1st of next month.
 - **Rate limit exceeded** → `429` without a `Retry-After` header — see
   backoff guidance below.
+- **Too many rejected API keys** from your IP address (more than 30 in a
+  minute) → `429` with a `Retry-After` header and
+  `{"detail": "Too many invalid API key attempts. Try again later."}`.
+  The key is the problem: fix it — after the wait, a wrong key gets `401`
+  again.
 
 ### Why the output cap exists
 
@@ -589,7 +594,7 @@ array describing each invalid field. Two responses look different:
 | `413` | File or output exceeds cap | No — reduce size or upgrade |
 | `415` | `target_size_kb` on a lossless format (PNG/TIFF) | No — use `quality` instead |
 | `422` | Missing or invalid field, `target_formats` count ≠ `files` count, unsupported format pair, or batch where every file failed | No — fix the request (for a batch, check each file's `error_message`) |
-| `429` | Rate limit, concurrent-request cap, or monthly API calls used up | Yes — after `Retry-After` if sent (monthly quota: from the 1st of next month) |
+| `429` | Rate limit, concurrent-request cap, monthly API calls used up, or too many rejected API keys | Yes — after `Retry-After` if sent (monthly quota: from the 1st of next month); rejected keys: fix the key instead |
 | `5xx` | Server error (`503`: server at capacity) | Yes, with backoff |
 
 ### Retry policy
@@ -624,7 +629,9 @@ and of the monthly API calls, and the `503` of a server at capacity,
 send `Retry-After` in seconds — wait that long. A used-up monthly quota
 only resets at 00:00 UTC on the 1st of next month, so its
 `Retry-After` is too long to sleep through: the example gives up once
-a wait exceeds `max_wait`. Other `5xx` back off exponentially.
+a wait exceeds `max_wait`. Other `5xx` back off exponentially. The
+`429` for too many rejected API keys also sends `Retry-After`, but
+waiting only turns it back into a `401` — check the key instead.
 
 ### Magic-byte filter
 

@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.routes.auth import get_current_user
 from app.core.audit import record_event
 from app.core.config import settings
+from app.core.rate_limit import account_or_ip, limiter
 from app.db.base import get_db
 from app.db.models import TierEnum, User
 from app.models.schemas import CheckoutRequest
@@ -46,6 +47,7 @@ def _stripe_enabled() -> None:
 
 
 @router.post("/checkout/{tier}")
+@limiter.limit("5/minute", key_func=account_or_ip)
 async def create_checkout_session(
     tier: str,
     body: CheckoutRequest,
@@ -103,7 +105,8 @@ async def create_checkout_session(
 
 
 @router.post("/portal")
-async def customer_portal(user: User = Depends(get_current_user)):
+@limiter.limit("5/minute", key_func=account_or_ip)
+async def customer_portal(request: Request, user: User = Depends(get_current_user)):
     """Return a Stripe Billing Portal URL for the current user."""
     _stripe_enabled()
     if not user.stripe_customer_id:
@@ -128,7 +131,11 @@ _GRACE_STATUSES = {"past_due", "incomplete"}
 _TERMINAL_STATUSES = {"canceled", "unpaid", "incomplete_expired", "paused"}
 
 
+# Deliberately unlimited: Stripe signs every delivery and retries anything
+# non-2xx for days, so a 429 would only delay tier sync and dunning, while a
+# forged request fails the signature check before any DB work.
 @router.post("/webhook", include_in_schema=False)
+@limiter.exempt
 async def stripe_webhook(
     request: Request,
     stripe_signature: str | None = Header(None, alias="stripe-signature"),

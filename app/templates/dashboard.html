@@ -32,6 +32,9 @@
       </div>
       {{ ub.button(_('+ New Key'), id='create-key-btn', size='sm') }}
     </div>
+    <span id="create-key-status" class="block text-xs text-red-400" aria-live="polite"
+      data-err-limit="{{ _('You already have the maximum number of active API keys. Revoke one you no longer use, then create a new one.') }}"
+      data-err="{{ _('Could not create the key. Please try again in a minute.') }}"></span>
 
     <!-- New key reveal box -->
     <div id="new-key-box" class="hidden bg-emerald-950 border border-emerald-800 rounded-xl p-4 space-y-2">
