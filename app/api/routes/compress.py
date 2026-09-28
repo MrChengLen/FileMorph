@@ -56,7 +56,7 @@ async def compress_file(
         None,
         ge=5,
         description="Target output size in KB. Activates binary-search-on-quality. "
-        "Mutually exclusive with quality. JPEG/WebP only.",
+        "Mutually exclusive with quality. JPEG/WebP/AVIF only.",
     ),
     user: User | None = Depends(get_optional_user),
 ) -> Response:
@@ -342,7 +342,7 @@ async def compress_batch(
     target_size_kb: int | None = Form(
         None,
         ge=5,
-        description="Target output size in KB. Applies to all files. JPEG/WebP only.",
+        description="Target output size in KB. Applies to all files. JPEG/WebP/AVIF only.",
     ),
     user: User | None = Depends(get_optional_user),
 ) -> Response:

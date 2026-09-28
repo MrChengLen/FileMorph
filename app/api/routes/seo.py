@@ -178,8 +178,8 @@ async def llms_txt() -> str:
         "ICO), documents (DOCX, PDF, TXT, Markdown, HTML, EML), spreadsheets (XLSX, "
         "CSV, JSON), audio (MP3, WAV, FLAC, OGG, M4A, AAC, WMA, Opus) and video (MP4, "
         "MOV, AVI, MKV, WebM, FLV, WMV). "
-        "It can compress JPEG and WebP images to an exact target size using a "
-        "binary search. Files are processed server-side and deleted immediately "
+        "It can compress JPEG, WebP and AVIF images to an exact target size using "
+        "a binary search. Files are processed server-side and deleted immediately "
         "after conversion; hosting is in the EU and no account is required.",
         "",
         f"Open source under AGPLv3: {GITHUB_URL}",
@@ -217,8 +217,8 @@ async def llms_txt() -> str:
         if ln.startswith("- [Compress a PDF]"):
             lines.insert(
                 i + 1,
-                f"- [Compress an image or video]({base}/compress): shrink a JPEG "
-                "or WebP toward an exact target size in MB, or a video by quality",
+                f"- [Compress an image or video]({base}/compress): shrink a JPEG, "
+                "WebP or AVIF toward an exact target size in MB, or a video by quality",
             )
             break
     # Per-pair landing pages (Phase 2) — generated from PAIR_CONTENT (the
