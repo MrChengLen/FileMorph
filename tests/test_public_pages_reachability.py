@@ -96,6 +96,25 @@ def test_impressum_credits_responsible_party(client) -> None:
     )
 
 
+def test_impressum_lists_wirtschafts_idnr_and_no_dead_odr_link(client) -> None:
+    """§ 5 (1) Nr. 6 DDG: the Wirtschafts-Identifikationsnummer must be stated
+    once issued. The EU ODR platform was shut down on 2025-07-20, so a link to
+    it is dead consumer information. Both locales, since the number sits
+    outside the translated label."""
+    for path in ("/impressum", "/en/impressum"):
+        res = client.get(path)
+        assert res.status_code == 200
+        assert "DE463352637" in res.text, f"{path}: W-IdNr. missing (§ 5 DDG)"
+        assert "ec.europa.eu/consumers/odr" not in res.text, (
+            f"{path}: link to the shut-down EU ODR platform is back"
+        )
+        assert "§ 36 VSBG" in res.text, f"{path}: § 36 VSBG statement missing"
+    de = client.get("/de/impressum").text
+    assert "Wirtschafts-Identifikationsnummer (§ 139c AO): DE463352637" in de, (
+        "German label for the W-IdNr. is missing or stale"
+    )
+
+
 def test_privacy_policy_mentions_gdpr_erasure_right(client) -> None:
     """The privacy page is the user's anchor for Art. 17 GDPR (right to
     erasure). If a copy edit removes the term, account-deletion users
