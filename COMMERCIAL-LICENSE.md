@@ -103,7 +103,7 @@ tailored deployment-readiness checklist plus post-go-live check-ins at
 the Enterprise tier — is defined in [`docs/onboarding.md`](docs/onboarding.md).
 
 KRITIS- and air-gap-deployment variants are negotiated case-by-case and
-include offline-update tooling, dedicated 4-hour reaction-time SLA, and
+include offline-update tooling, a dedicated reaction-time SLA, and
 patch-backports onto a fixed version line. These tiers are not generally
 quoted before an external pen-test report is on file — see
 [`docs/patch-policy.md`](docs/patch-policy.md) for the release-line and

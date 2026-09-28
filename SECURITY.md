@@ -9,21 +9,18 @@ each instance.
 
 ## Supported versions
 
-We provide security fixes for the latest minor release on the `main` branch.
-Older tags receive fixes only when the issue is critical and the upgrade path
-is non-trivial; otherwise users are expected to upgrade.
+There has been one tagged release so far: v1.1.0 (tagged 2026-06-01). Security fixes
+are made on the `main` branch, which has moved on since that tag; the `latest`
+and `office` container images are rebuilt from `main` on every merge. Older
+tags receive fixes only when the issue is critical and the upgrade path is
+non-trivial; otherwise users are expected to upgrade to the newest release or
+`main`.
 
 ## Reporting a vulnerability
 
-**Preferred channel:** open a private
-[GitHub Security Advisory](https://github.com/MrChengLen/FileMorph/security/advisories/new)
-on this repository. This routes the report directly to the maintainers, lets
-us coordinate a CVE if needed, and gives us a private place to discuss a fix
-before disclosure.
-
-**Alternative channel:** email `security@filemorph.io`. Encrypted mail is
-welcome — request our PGP key at the same address. Please do not file
-vulnerability reports as public GitHub issues.
+**Email `security@filemorph.io`.** Encrypted mail is welcome — request our PGP
+key at the same address. Please do not file vulnerability reports as public
+GitHub issues.
 
 ### What to include
 
@@ -40,7 +37,7 @@ vulnerability reports as public GitHub issues.
 | Initial triage + severity | within 7 days |
 | Critical fix released | within 7 days of triage |
 | High-severity fix released | within 30 days |
-| Medium / low | bundled into the next regular release |
+| Medium / low | fixed on `main`; part of the next tagged release |
 
 We publish an advisory once a fixed release is available and credit the
 reporter unless they request otherwise.
