@@ -275,4 +275,37 @@ class Settings(BaseSettings):
         return [t.strip() for t in self.ai_eligible_tiers.split(",") if t.strip()]
 
 
+# JWT_SECRET values published in this repository: the default above, and the
+# value docker-compose.cloud.yml filled in when JWT_SECRET was unset (until
+# 2026-09). Fine for the Community Edition, which issues no logins.
+_PUBLISHED_JWT_SECRETS = frozenset(
+    {"dev-secret-change-me-min-32-chars-long", "change-me-in-production-min-32-chars"}
+)
+
+
+def jwt_secret_error(secret: str) -> str | None:
+    """Why ``secret`` must not sign Cloud Edition logins, or ``None`` if it may.
+
+    Logins are HS256 JWTs: with a published or short secret, anyone who knows
+    a user's id can sign a valid token for that account. The message is meant
+    for the operator's log, so it never quotes the secret.
+    """
+    # Env files passed on verbatim (``docker run --env-file``) keep quotes and
+    # trailing spaces, so match the placeholders without them.
+    if secret.strip("\"' \t\r\n") in _PUBLISHED_JWT_SECRETS:
+        problem = "is unset or a published placeholder"
+    elif len(secret) < 32:
+        problem = "is shorter than 32 characters"
+    else:
+        return None
+    return (
+        f"Refusing to start: DATABASE_URL is set, so user accounts are on, but JWT_SECRET "
+        f"{problem}. Anyone could sign a valid login token with it. Set JWT_SECRET to at "
+        "least 32 random characters, for example the output of "
+        'python -c "import secrets; print(secrets.token_urlsafe(32))", in .env or the '
+        "app's environment. See .env.example and docs/self-hosting.md. A new JWT_SECRET "
+        "signs every user out."
+    )
+
+
 settings = Settings()
