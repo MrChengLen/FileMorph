@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph 1.1.0\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-28 10:56+0200\n"
+"POT-Creation-Date: 2026-09-28 19:39+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -281,11 +281,6 @@ msgstr ""
 msgid ""
 "Already updated your card? You can ignore this — the next retry will pick"
 " up the new method automatically."
-msgstr ""
-
-msgid ""
-"An Economic Identification Number (Wirtschafts-Identifikationsnummer, § "
-"139c AO) will be added once issued by the Bundeszentralamt für Steuern."
 msgstr ""
 
 msgid ""
@@ -735,9 +730,6 @@ msgstr ""
 msgid "E-mail support"
 msgstr ""
 
-msgid "EU Online Dispute Resolution:"
-msgstr ""
-
 msgid "EU hosting, GDPR-friendly"
 msgstr ""
 
@@ -748,6 +740,11 @@ msgid "EU vendor with German imprint"
 msgstr ""
 
 msgid "Early expiration of the right of withdrawal:"
+msgstr ""
+
+msgid ""
+"Economic Identification Number (Wirtschafts-Identifikationsnummer, § 139c"
+" AO):"
 msgstr ""
 
 msgid "Edit user"
