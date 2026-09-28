@@ -9,66 +9,6 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Security — the Cloud Edition refuses to start with a public or short `JWT_SECRET`
-
-With `DATABASE_URL` set, every login is a JWT signed with `JWT_SECRET`, and
-nothing checked that value. Without it the app fell back to the default in
-`app/core/config.py`, which `.env.example` also set outright, and
-`docker-compose.cloud.yml` filled in a placeholder of its own. Both strings are
-published in this repository, so on a deployment running with either one,
-anyone who knew an account's id (random, but not secret: it is readable in the
-tokens and email links the app issues) could sign a valid login token for that
-account. Admin routes re-read the role from the database, so a forged token
-could not turn an ordinary account into an admin, but a token for an admin's
-id was an admin session. Since PR #144 a self-built image no longer carries a
-`.env`, which made a `docker run` without `JWT_SECRET` more likely.
-
-- **The app stops at start-up** when `DATABASE_URL` is set and `JWT_SECRET` is
-  unset, one of the two placeholders (also in quotes or with trailing spaces),
-  or shorter than 32 characters. The log reads `Refusing to start`, names the
-  reason and says what to set where; it never prints the secret. The process
-  exits with status 3, which uvicorn and gunicorn treat as a failed start, so a
-  server with several workers stops too instead of restarting them forever.
-  The check runs when `app.main` is imported, so no server option can skip it,
-  and `alembic`, which the entrypoint runs first, does not import it. The
-  Community Edition (no `DATABASE_URL`) issues no logins and still starts
-  without `JWT_SECRET`.
-- **`docker-compose.cloud.yml` has no fallback any more.** Without
-  `JWT_SECRET`, every `docker compose` command that includes the overlay stops
-  with a message.
-- **`.env.example`** leaves `JWT_SECRET` commented out, next to a command that
-  generates one.
-- Generating a random secret at start-up instead was rejected: each worker
-  process would sign with its own, and every restart would sign everyone out.
-
-`docs/self-hosting.md` has a new "JWT secret (Cloud Edition)" section and a
-checklist item; it recommends handing the secret over in a file (`--env-file`,
-systemd `EnvironmentFile=`) rather than `docker run -e` or a systemd
-`Environment=` line, which every local user can read. The installation guide
-and the security overview say what the check does; the API reference listed a
-missing `JWT_SECRET` among the causes of a `503`, which it never was.
-`tests/test_jwt_secret_guard.py` imports the app in a fresh interpreter with
-and without a usable secret, and fails if the compose overlay or
-`.env.example` gets a value again.
-
-**Upgrading:** a Cloud Edition deployment that ran without its own
-`JWT_SECRET`, or with a placeholder or a shorter one, will not start after this
-update. Generate a secret with
-`python -c "import secrets; print(secrets.token_urlsafe(32))"`, set it as
-`JWT_SECRET` in `.env` or the container's environment, and start again. With
-Docker Compose, set it before any command that includes
-`docker-compose.cloud.yml`, `down` and `logs` too; the running container keeps
-the old secret, and stays exposed if that was a placeholder, until `up -d`
-succeeds. Tokens signed with the old secret stop working, so everyone has to
-log in again.
-
-If such a deployment was reachable from the internet, anyone who knew an
-account's id could have acted as that account. The new secret ends those
-sessions but not what they created: revoke API keys you don't recognise
-(`api_keys`, by `created_at` and `last_used_at`), and check `users.role`,
-`users.tier` and `users.is_active` for changes you didn't make; the app log
-records admin changes as `cockpit.patch_user` and `cockpit.soft_delete`.
-
 ### Fixed — the lockfile jobs no longer fall behind a uv bump
 
 `lockfile-drift` in `ci.yml` and the `deps-lock` workflow recompile the
@@ -347,13 +287,13 @@ so there is nothing to rotate.
 reaches the container through the image. Docker Compose is unaffected: it
 passes `.env` at run time (`env_file`) and mounts `./data` as a volume. With
 plain `docker run`, pass `--env-file .env -v "$PWD/data:/app/data"`; in Cloud
-mode, make sure `JWT_SECRET` arrives, because without it the app now refuses to
-start (see the `JWT_SECRET` entry above). If you pushed or shared an image
-built before this change, treat the secrets in that `.env` (JWT secret,
-database and SMTP passwords, Stripe keys) and any credential in its
-`.git/config` as exposed, and rotate them. A container that ran such an image
-with a named volume for `/app/data` copied the baked `api_keys.json` into that
-volume; delete it there and restart to get a fresh key.
+mode, make sure `JWT_SECRET` arrives, because without it the app signs logins
+with a public default. If you pushed or shared an image built before this
+change, treat the secrets in that `.env` (JWT secret, database and SMTP
+passwords, Stripe keys) and any credential in its `.git/config` as exposed,
+and rotate them. A container that ran such an image with a named volume for
+`/app/data` copied the baked `api_keys.json` into that volume; delete it there
+and restart to get a fresh key.
 
 ### Fixed — security docs named `requirements.txt` as the CVE-scan target
 
