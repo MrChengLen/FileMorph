@@ -9,49 +9,6 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Added — `API_KEYS_FILE_TIER`: API keys on a self-hosted instance can run on a bigger tier
-
-Without `DATABASE_URL` there are no accounts, so every caller of a Community
-Edition instance ran on the anonymous tier — 30 MB per file, 1 file per
-batch, a 90 MB output cap, 1 concurrent request per client IP — including
-callers with a valid key from `data/api_keys.json`: without a database
-`get_optional_user` returns `None`, and `tier_for(None)` is `anonymous`. Short
-of editing `app/core/quotas.py` an operator could not change that, and the
-docs did not say it: `docs/installation.md` described the Community Edition
-as "anonymous + API-key auth" without the caps, `docs/self-hosting.md` did
-not mention them, and `docs/api-usage-guide.md` told self-hosters to raise
-`MAX_UPLOAD_SIZE_MB` "if the larger tier limits should apply", which it
-could not do on its own. The caps are sized for the hosted service's server;
-on a self-hosted instance the operator's hardware sets the limit.
-
-The new setting `API_KEYS_FILE_TIER` (default `anonymous`, so nothing changes
-unless an operator sets it; empty means `anonymous` too) names the tier keys
-from the key file run on: `free`, `pro`, `business` or `enterprise` gives them
-that tier's file size, batch size, output cap and concurrency on convert,
-compress and the PDF page routes (`app/api/deps.py::caller_tier`). Accounts
-keep their own tier; callers without a key — the web UI included — stay
-anonymous; the AI routes keep reading the account's tier, because their
-credit ledger needs an account. An unknown value stops the start-up instead
-of falling back to anonymous. Keyed requests on a lifted tier get their own
-per-IP concurrency slot: `actor_id(request, user, tier)` now requires the
-tier, because the per-actor semaphore is rebuilt whenever its tier's cap
-changes, so keyed and keyless requests alternating on one IP would otherwise
-lift the cap. The file-size and output-cap messages pick their "register"
-wording by tier instead of by "no account", so a lifted key is not told it
-is anonymous. The first-run banners (`entrypoint.sh`, `run.py`) no longer
-point to an "API Key" field in the web UI, which has none; they name the
-`X-API-Key` header. Documented in `.env.example`, a new "Limits on a
-Community Edition instance" section in `docs/self-hosting.md` (including how
-much memory and how many parallel slots one key can take),
-`docs/installation.md`, `docs/api-usage-guide.md` and
-`docs/api-reference.md`; pinned by `tests/test_api_keys_file_tier.py` (the
-Community Edition chain, the setting on all seven engine routes, the web-UI
-and AI boundaries) and three new checks in `tests/test_docs_match_code.py`.
-`scripts/make_testdata_api_keys_file_tier.py` writes byte-stable fixtures for
-checking this by hand (two small pictures and a 35 MB BMP) to a gitignored
-local folder; only the script ships.
-
-
 ### Fixed — Impressum names the Wirtschafts-Identifikationsnummer; dead EU ODR link removed
 
 The Impressum still said a Wirtschafts-Identifikationsnummer "will be added
