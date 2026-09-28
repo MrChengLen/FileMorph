@@ -260,9 +260,10 @@ output that lands within ±3 % of the target.
 
 **Constraints:**
 
-- **JPEG / WebP only.** PNG and TIFF are lossless — quality does not
-  control size meaningfully. Sending `target_size_kb` with a PNG
-  returns `415`.
+- **JPEG, WebP and AVIF only.** PNG and TIFF are lossless — quality does
+  not control size meaningfully. Sending `target_size_kb` with a PNG
+  returns `415`. AVIF encoding is CPU-heavy and the search re-encodes
+  several times, so a large AVIF photo can take a minute or more.
 - **Mutually exclusive with `quality`.** Send one or the other; sending
   both returns `400`.
 - **Tier-capped.** `target_size_kb` larger than your tier's output cap
@@ -286,7 +287,7 @@ def compress_to_target(path: str, target_kb: int, key: str) -> tuple[bytes, int]
             headers={"X-API-Key": key},
             files={"file": f},
             data={"target_size_kb": target_kb},
-            timeout=120,
+            timeout=300,  # large AVIF inputs can take a minute or more
         )
     r.raise_for_status()
     achieved = int(r.headers["X-FileMorph-Achieved-Bytes"])
@@ -730,12 +731,16 @@ job queue, no polling endpoint, no webhook callback. Plan your
 client timeouts accordingly:
 
 - Image conversion: <2 s typical
+- AVIF target-size compression: can take **a minute or more** for
+  large photos (AV1 encoding is CPU-heavy and the search re-encodes
+  several times)
 - Document conversion: 1–5 s
 - Audio (re-encode): 2–10 s
 - Video (FFmpeg): can take **30+ seconds** for large inputs
 
 Use a generous client timeout (`requests.post(..., timeout=300)`) for
-video, and avoid wrapping the call in tight per-request UI feedback.
+video and AVIF, and avoid wrapping the call in tight per-request UI
+feedback.
 
 ### Idempotency
 

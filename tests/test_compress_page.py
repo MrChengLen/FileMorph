@@ -10,7 +10,7 @@ homepage; titles/metas stay in SERP range and deliberately never say "pdf"
 (cannibalization guard — the PDF slice of this query space stays on
 ``/pdf/compress``); content is plain bilingual data (not gettext, see
 app/core/compress_content.py), so DE vs EN must genuinely differ; the honest
-claim that only JPEG/WebP hit an exact target (video and PNG/TIFF are
+claim that only JPEG/WebP/AVIF hit an exact target (video and PNG/TIFF are
 quality-only) is present in both locales; a "PDFs?" handoff links
 ``/pdf/compress``; the sitemap / llms.txt / footer / /tools / /formats
 surfaces all discover the page; and it stays deployment-agnostic.
@@ -129,16 +129,28 @@ def test_compress_page_honest_limits_and_faq_render(client):
 
 def test_compress_page_states_which_formats_support_target_size(client):
     """Claims-discipline guard (project motto: never overclaim). Exact
-    target-size compression only works for JPEG/WebP — verified against
-    TARGET_SIZE_FORMATS in app/static/js/app.js and app/compressors/video.py
-    (no target_bytes parameter at all). Video and PNG/TIFF are quality-only,
-    stated plainly in both locales."""
+    target-size compression works for JPEG/WebP/AVIF — verified against
+    TARGET_SIZE_FORMATS in app/compressors/image.py and the JS constant in
+    app/static/js/app.js (tests/test_target_size_formats_parity.py pins the
+    two equal), and app/compressors/video.py (no target_bytes parameter at
+    all). Video and PNG/TIFF are quality-only, stated plainly in both
+    locales; AVIF's slower encode gets its own honest caveat."""
     en = client.get("/en/compress").text
     de = client.get("/de/compress").text
     # Straight apostrophes render HTML-escaped (Jinja autoescape → &#39;),
     # so the asserted substrings below stop just short of any apostrophe.
+    # Limits paragraph and FAQ are pinned separately (both name the formats),
+    # and the duration caveat in its limits-paragraph wording — the embedded
+    # tool's own AVIF hint also says "a minute or more", so a bare phrase
+    # would pass even if the limits paragraph lost the caveat.
+    assert "JPEG, WebP and AVIF images only" in en  # limits
+    assert "and AVIF images — the engine" in en  # FAQ
+    assert "so a large photo can take a minute or more" in en
     assert "PNG, TIFF and video" in en and "take a target size" in en
     assert "no byte-exact target" in en
+    assert "AVIF-Bilder; die erreichte Größe" in de  # limits
+    assert "AVIF-Bilder — die Engine" in de  # FAQ
+    assert "daher kann ein großes Foto eine Minute oder länger brauchen" in de
     assert "PNG, TIFF und Video nehmen keine Zielgröße entgegen" in de
     assert "kein exaktes Byte-Ziel" in de
 

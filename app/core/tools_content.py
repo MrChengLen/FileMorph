@@ -62,8 +62,8 @@ TOOLS_CONTENT: dict[str, dict] = {
             "compress_target": {
                 "title": "Compress to a target size",
                 "desc": (
-                    "Dial in an exact target size in MB for a JPEG or WebP "
-                    "image, or shrink a video by quality — the dedicated "
+                    "Dial in an exact target size in MB for a JPEG, WebP or "
+                    "AVIF image, or shrink a video by quality — the dedicated "
                     "tool, with honest limits on which formats hit a target."
                 ),
             },
@@ -120,7 +120,7 @@ TOOLS_CONTENT: dict[str, dict] = {
             "compress_target": {
                 "title": "Auf Zielgröße komprimieren",
                 "desc": (
-                    "Für ein JPEG oder WebP eine exakte Größe in MB "
+                    "Für ein JPEG, WebP oder AVIF eine exakte Größe in MB "
                     "einstellen, oder ein Video per Qualität verkleinern — "
                     "das eigene Tool, mit ehrlichem Hinweis, welche Formate "
                     "eine exakte Zielgröße erreichen."

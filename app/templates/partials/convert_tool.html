@@ -164,7 +164,7 @@
       <button type="button" id="cmode-target" data-cmode="target"
         class="flex-1 py-2 rounded-lg text-sm border border-gray-700 bg-gray-800 text-gray-200 hover:bg-gray-700">{{ _('By target size') }}</button>
     </div>
-    <p class="text-xs text-gray-600">{{ _('JPEG / WebP only.') }}</p>
+    <p class="text-xs text-gray-600">{{ _('JPEG, WebP and AVIF only.') }}</p>
   </div>
 
   <!-- Quality Slider (both modes) -->
@@ -193,6 +193,7 @@
       <span>{{ _('min 0.05 MB') }}</span>
       <span>{{ _('±3% tolerance') }}</span>
     </div>
+    <p id="target-size-avif-hint" class="hidden text-xs text-sky-300 bg-sky-950/40 border border-sky-900/50 rounded-lg px-3 py-2 leading-relaxed">{{ _('AVIF takes noticeably longer — a large photo can take a minute or more, so keep AVIF batches small.') }}</p>
   </div>
 
   <!-- Convert Button -->

@@ -14,12 +14,13 @@ stated, not assumed from the product's own marketing copy elsewhere:
 
 - Exact target-size compression (binary search on quality, landing within
   the ``tolerance=0.03`` default of ``compress_image_to_target()``) only
-  exists for JPEG/WebP — see ``TARGET_SIZE_FORMATS`` in
+  exists for JPEG/WebP/AVIF — see ``TARGET_SIZE_FORMATS`` in
   ``app/compressors/image.py`` *and* the ``TARGET_SIZE_FORMATS`` JS constant
-  in ``app/static/js/app.js`` that actually gates the UI (AVIF is in the
-  Python set when the optional plugin is installed, but the shipped UI never
-  exposes target-size mode for it — so it's deliberately not claimed here
-  either, matching what a user actually sees).
+  in ``app/static/js/app.js`` that actually gates the UI; the two sets are
+  pinned equal by ``tests/test_target_size_formats_parity.py``. AVIF's encode
+  cost is stated plainly (a large photo can take a minute or more — measured
+  locally ~30 s for a 12 MP photo on 2 cores, 2026-09), matching the UI's
+  own hint.
 - Video (``app/compressors/video.py::compress_video``) takes only a
   ``quality`` re-encode (CRF mapping) — there is no ``target_bytes``
   parameter, and ``/api/v1/compress`` 415s a video upload that sets
@@ -46,32 +47,35 @@ from app.core.i18n import normalize_locale
 #   faq           — list of (question, answer), 3 entries
 COMPRESS_CONTENT: dict[str, dict] = {
     "en": {
-        "title": "Compress a JPEG/WebP to a target size — free",
+        "title": "Compress JPEG/WebP/AVIF to a target size — free",
         "meta": (
-            "Shrink a JPG or WebP image to an exact size in MB, or compress a "
-            "video — free, no account, EU-hosted, files deleted right after."
+            "Shrink a JPG, WebP or AVIF image to an exact size in MB, or compress "
+            "a video — free, no account, EU-hosted, files deleted right after."
         ),
-        "h1": "Compress an image or video — exact target size for JPEG/WebP",
+        "h1": "Compress an image or video — exact target size for JPEG/WebP/AVIF",
         "hero": (
-            "Dial in an exact size in MB for JPEG and WebP, or shrink a video "
-            "by quality — free, in your browser, no account."
+            "Dial in an exact size in MB for JPEG, WebP and AVIF, or shrink a "
+            "video by quality — free, in your browser, no account."
         ),
         "limits": (
             "Exact target-size compression — pick a size in MB and the engine "
             "binary-searches quality to land within ±3% of it — works for "
-            "JPEG and WebP images only; the achieved size is then shown next "
-            "to the download. PNG, TIFF and video don't take a target size: "
-            "they compress by quality instead, where a lower number gives a "
-            "smaller but lower-fidelity file."
+            "JPEG, WebP and AVIF images only; the achieved size is then shown "
+            "next to the download. AVIF takes noticeably longer: its encoder is "
+            "CPU-heavy and the search re-encodes several times, so a large "
+            "photo can take a minute or more. PNG, TIFF and video don't take a "
+            "target size: they compress by quality instead, where a lower "
+            "number gives a smaller but lower-fidelity file."
         ),
         "how_it_works": [
             (
                 "Upload your image or video",
-                "Drop in a JPG, PNG, WebP, TIFF or video file — Compress mode is already selected.",
+                "Drop in a JPG, PNG, WebP, AVIF, TIFF or video file — Compress "
+                "mode is already selected.",
             ),
             (
                 "Pick a size or a quality",
-                "For JPEG/WebP, switch to “By target size” and enter a "
+                "For JPEG, WebP or AVIF, switch to “By target size” and enter a "
                 "size in MB. Everything else uses the quality slider instead — "
                 "lower is smaller.",
             ),
@@ -91,9 +95,10 @@ COMPRESS_CONTENT: dict[str, dict] = {
         "faq": [
             (
                 "Which files can I compress to an exact size?",
-                "Exact target-size compression currently works for JPEG and "
-                "WebP images — the engine binary-searches quality until the "
-                "output lands within about ±3% of your target. PNG and "
+                "Exact target-size compression currently works for JPEG, WebP "
+                "and AVIF images — the engine binary-searches quality until the "
+                "output lands within about ±3% of your target (AVIF takes "
+                "noticeably longer). PNG and "
                 "TIFF images, and every video format, use quality-based "
                 "compression instead: there's no byte-exact target, just a "
                 "slider between smaller and higher-fidelity.",
@@ -113,15 +118,15 @@ COMPRESS_CONTENT: dict[str, dict] = {
         ],
     },
     "de": {
-        "title": "JPEG/WebP auf Zielgröße verkleinern — kostenlos",
+        "title": "JPG/WebP/AVIF auf Zielgröße verkleinern — gratis",
         "meta": (
-            "Verkleinere ein JPG oder WebP auf eine exakte Zielgröße in "
+            "Verkleinere ein JPG, WebP oder AVIF auf eine exakte Zielgröße in "
             "MB, oder komprimiere ein Video — kostenlos, ohne Konto, "
             "EU-gehostet, Dateien sofort gelöscht."
         ),
-        "h1": "Bild oder Video verkleinern — exakte Zielgröße für JPEG/WebP",
+        "h1": "Bild oder Video verkleinern — exakte Zielgröße für JPEG/WebP/AVIF",
         "hero": (
-            "Für JPEG und WebP eine exakte Größe in MB einstellen, "
+            "Für JPEG, WebP und AVIF eine exakte Größe in MB einstellen, "
             "oder ein Video per Qualität verkleinern — kostenlos, im "
             "Browser, ohne Konto."
         ),
@@ -129,8 +134,11 @@ COMPRESS_CONTENT: dict[str, dict] = {
             "Die exakte Zielgrößen-Kompression — du gibst eine "
             "Größe in MB vor, die Engine sucht per Binärsuche eine "
             "Qualität, die auf ±3% genau trifft — funktioniert nur "
-            "für JPEG- und WebP-Bilder; die erreichte Größe wird dann "
-            "direkt neben dem Download angezeigt. PNG, TIFF und Video nehmen "
+            "für JPEG-, WebP- und AVIF-Bilder; die erreichte Größe wird dann "
+            "direkt neben dem Download angezeigt. AVIF dauert deutlich "
+            "länger: Der Encoder ist rechenintensiv und die Suche kodiert "
+            "mehrmals neu, daher kann ein großes Foto eine Minute oder "
+            "länger brauchen. PNG, TIFF und Video nehmen "
             "keine Zielgröße entgegen: Sie werden stattdessen per "
             "Qualitätsregler komprimiert — ein niedrigerer Wert ergibt "
             "eine kleinere, aber weniger originalgetreue Datei."
@@ -138,12 +146,12 @@ COMPRESS_CONTENT: dict[str, dict] = {
         "how_it_works": [
             (
                 "Bild oder Video hochladen",
-                "Lade ein JPG, PNG, WebP, TIFF oder eine Videodatei hoch — "
-                "der Kompressions-Modus ist bereits ausgewählt.",
+                "Lade ein JPG, PNG, WebP, AVIF, TIFF oder eine Videodatei "
+                "hoch — der Kompressions-Modus ist bereits ausgewählt.",
             ),
             (
                 "Größe oder Qualität wählen",
-                "Bei JPEG/WebP zu „Nach Zielgröße“ wechseln und "
+                "Bei JPEG, WebP oder AVIF zu „Nach Zielgröße“ wechseln und "
                 "eine Größe in MB eingeben. Alles andere nutzt den "
                 "Qualitätsregler — niedriger bedeutet kleiner.",
             ),
@@ -165,9 +173,10 @@ COMPRESS_CONTENT: dict[str, dict] = {
             (
                 "Welche Dateien kann ich auf eine exakte Größe komprimieren?",
                 "Die exakte Zielgrößen-Kompression funktioniert aktuell "
-                "nur für JPEG- und WebP-Bilder — die Engine sucht per "
+                "nur für JPEG-, WebP- und AVIF-Bilder — die Engine sucht per "
                 "Binärsuche eine Qualität, bis das Ergebnis auf rund "
-                "±3% genau am Ziel liegt. PNG- und TIFF-Bilder sowie alle "
+                "±3% genau am Ziel liegt (AVIF dauert deutlich länger). "
+                "PNG- und TIFF-Bilder sowie alle "
                 "Videoformate werden stattdessen per Qualität komprimiert: "
                 "kein exaktes Byte-Ziel, nur ein Regler zwischen kleiner und "
                 "originalgetreuer.",

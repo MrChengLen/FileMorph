@@ -17,7 +17,8 @@ let selectedFiles = [];
 // populated. Empty on the homepage. See app/templates/_components/convert_tool.html.
 let presetTarget = '';
 
-const TARGET_SIZE_FORMATS = ['jpg', 'jpeg', 'webp'];
+// Mirrors TARGET_SIZE_FORMATS in app/compressors/image.py — a parity test pins this.
+const TARGET_SIZE_FORMATS = ['jpg', 'jpeg', 'webp', 'avif'];
 
 // Upsell link (Upsell-Regeln, docs-internal/ia-navigation-konzept.md): only
 // next to the three quota-error codes below, only when pricing_enabled —
@@ -372,7 +373,9 @@ function clearAllFiles(event) {
   setQuickActionsVisible(true);
   document.getElementById('target-format').innerHTML =
     '<option value="">— select a file first —</option>';
-  document.getElementById('quality-section').classList.add('hidden');
+  // With no files this hides the quality slider, the compress-mode toggle and
+  // the target-size section (incl. the AVIF hint) — not just the slider.
+  updateQualityVisibility();
   updateConvertOptionsVisibility();
   updateFormatWarning();
   updatePdfToolsHint();
@@ -681,7 +684,7 @@ function updateQualityVisibility() {
   if (selectedFiles.length === 0) { hideAll(); return; }
 
   if (currentMode === 'compress') {
-    // Target-size mode is only valid when every selected file is JPEG/WebP.
+    // Target-size mode is only valid when every selected file is JPEG/WebP/AVIF.
     const targetEligible = selectedFiles.every(f =>
       TARGET_SIZE_FORMATS.includes(getExtension(f.name))
     );
@@ -696,6 +699,12 @@ function updateQualityVisibility() {
     section.classList.toggle('hidden', showTarget);
     if (targetSection) targetSection.classList.toggle('hidden', !showTarget);
     if (showTarget) updateTargetSizeLabel();
+    // AVIF target-size compression is much slower — only warn when it applies.
+    const avifHint = document.getElementById('target-size-avif-hint');
+    if (avifHint) {
+      const hasAvif = selectedFiles.some(f => getExtension(f.name) === 'avif');
+      avifHint.classList.toggle('hidden', !(showTarget && hasAvif));
+    }
     return;
   }
 
