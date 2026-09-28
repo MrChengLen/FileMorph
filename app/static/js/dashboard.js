@@ -67,6 +67,8 @@ async function loadKeys() {
 
 async function createKey() {
   const btn = document.getElementById('create-key-btn');
+  const status = document.getElementById('create-key-status');
+  if (status) status.textContent = '';
   btn.disabled = true;
   btn.textContent = _t('creating', 'Creating\u2026');
   const res = await window.FM.authFetch('/api/v1/keys', {
@@ -76,7 +78,11 @@ async function createKey() {
   });
   btn.disabled = false;
   btn.textContent = _t('newKey', '+ New Key');
-  if (!res.ok) return;
+  if (res.status === 401) { window.location.href = '/login'; return; }
+  if (!res.ok) {
+    if (status) status.textContent = res.status === 409 ? status.dataset.errLimit : status.dataset.err;
+    return;
+  }
   const data = await res.json();
   document.getElementById('new-key-value').textContent = data.key;
   document.getElementById('new-key-box').classList.remove('hidden');

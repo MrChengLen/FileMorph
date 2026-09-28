@@ -85,7 +85,7 @@ The endpoints in this section only respond when the Cloud overlay is configured 
 
 | Method + Path | Auth | Purpose |
 |---|---|---|
-| `POST /api/v1/keys` | Bearer | Create a new API key bound to the authenticated user. Plaintext key is shown exactly once in the response. |
+| `POST /api/v1/keys` | Bearer | Create a new API key bound to the authenticated user. Plaintext key is shown exactly once in the response. Optional body `{"label": "…"}` (at most 100 characters). An account holds at most 25 active keys; beyond that the response is `409 Conflict` — revoke a key you no longer use first. |
 | `GET /api/v1/keys` | Bearer | List the user's keys (id, name, prefix, created, last-used). |
 | `DELETE /api/v1/keys/{id}` | Bearer | Revoke a key. |
 
@@ -515,7 +515,7 @@ every file failed returns `422` with `{"summary": …, "files": […]}`.
 | `413 Content Too Large` | Request exceeds `MAX_UPLOAD_SIZE_MB` (default: 100 MB), a file exceeds your tier's size cap, or the output exceeds your tier's output cap |
 | `415 Unsupported Media Type` | `target_size_kb` set on a lossless format (PNG/TIFF), or otherwise incompatible request shape |
 | `422 Unprocessable Content` | Unsupported format combination, missing form field, `target_formats` count ≠ `files` count, or every file in a batch failed |
-| `429 Too Many Requests` | Rate limit exceeded (see Rate Limiting section below), per-tier concurrency cap reached, or monthly call quota used up |
+| `429 Too Many Requests` | Rate limit exceeded (see Rate Limiting section below), per-tier concurrency cap reached, monthly call quota used up, or too many rejected API keys from your IP (see Rate Limiting — fix the key; waiting won't help) |
 | `500 Internal Server Error` | Conversion failed (e.g. corrupt file, missing binary) |
 | `503 Service Unavailable` | Global concurrency cap reached (`MAX_GLOBAL_CONCURRENCY`). Response carries `Retry-After`. |
 
@@ -523,24 +523,71 @@ every file failed returns `422` with `{"summary": …, "files": […]}`.
 
 ## Rate Limiting
 
-Per-route limits (per IP address):
+Every endpoint in a row has its own budget (`/convert` and `/compress`
+allow 10 per minute each), and a path parameter does not split it:
+`DELETE /api/v1/keys/{key_id}` has one budget, whichever key it names.
+Most limits count per client IP address. The account endpoints for API
+keys, billing and the email language count per signed-in account instead,
+so colleagues behind one office IP don't share a budget. Every API
+endpoint is listed, including the four that are deliberately not limited;
+there is no catch-all limit, so the HTML pages and `/static` are not
+rate-limited.
 
-| Endpoint | Limit |
-|---|---|
-| `POST /api/v1/convert` | 10 / minute |
-| `POST /api/v1/convert/batch` | 3 / minute |
-| `POST /api/v1/compress` | 10 / minute |
-| `POST /api/v1/compress/batch` | 3 / minute |
-| `GET /api/v1/health`, `GET /api/v1/ready` | 30 / minute |
-| `GET /api/v1/formats` | 120 / minute |
-| Auth endpoints (`/api/v1/auth/*`) | 3–5 / minute |
-| Billing endpoints (`/api/v1/billing/*`) | 5 / minute |
-| `POST /api/v1/contact` | 5 / hour |
-| Default (other routes) | 60 / minute |
+The client IP is the address uvicorn sees. Behind a reverse proxy that is
+the visitor's address only when `FORWARDED_ALLOW_IPS` trusts the proxy —
+and, if a CDN sits in front of the proxy, only when the proxy takes the
+visitor's address from the CDN's header rather than passing on the CDN's
+own. Otherwise all visitors share one budget per IP-counted endpoint (see
+[`security-overview.md`](./security-overview.md) § Operational Hardening,
+item 3).
+
+| Endpoint | Limit | Counted per |
+|---|---|---|
+| `POST /api/v1/convert`, `POST /api/v1/compress` | 10 / minute | IP |
+| `POST /api/v1/convert/batch`, `POST /api/v1/compress/batch` | 3 / minute | IP |
+| `POST /api/v1/pdf/extract`, `POST /api/v1/pdf/split`, `POST /api/v1/pdf/compress` | 10 / minute | IP |
+| `POST /api/v1/ai/redact/detect` | 20 / minute | IP |
+| `POST /api/v1/ai/redact/apply` | 10 / minute | IP |
+| `GET /api/v1/formats` | 120 / minute | IP |
+| `GET /api/v1/health`, `GET /api/v1/ready` | 30 / minute | IP |
+| `POST /api/v1/auth/register`, `POST /api/v1/auth/login`, `POST /api/v1/auth/reset-password` | 5 / minute | IP |
+| `POST /api/v1/auth/forgot-password`, `POST /api/v1/auth/resend-verification` | 3 / minute | IP |
+| `POST /api/v1/auth/verify-email` | 10 / minute | IP |
+| `DELETE /api/v1/auth/account` | 1 / minute | IP |
+| `PUT /api/v1/auth/account/language` | 10 / minute | account |
+| `POST /api/v1/keys` | 10 / minute | account |
+| `GET /api/v1/keys` | 120 / minute | account |
+| `DELETE /api/v1/keys/{key_id}` | 30 / minute | account |
+| `POST /api/v1/billing/checkout/{tier}`, `POST /api/v1/billing/portal` | 5 / minute | account |
+| `GET /api/v1/cockpit/stats`, `GET /api/v1/cockpit/users`, `GET /api/v1/cockpit/timeseries`, `GET /api/v1/cockpit/usage-summary` | 30 / minute | IP |
+| `PATCH /api/v1/cockpit/users/{user_id}`, `DELETE /api/v1/cockpit/users/{user_id}` | 10 / minute | IP |
+| `POST /api/v1/contact` | 5 / hour | IP |
+| `POST /api/v1/auth/refresh` | not limited — a request costs one signature check, and a failed refresh signs the web user out, so a shared limit would let junk requests sign out everyone behind an IP | — |
+| `GET /api/v1/auth/me` | not limited — the token check does the work before any limit could apply, and the web UI calls it on every page view | — |
+| `POST /api/v1/billing/webhook` | not limited — Stripe signs every delivery and retries failed ones | — |
+| `GET /api/v1/metrics` | not limited — Prometheus scrape target; restrict it at your proxy (see [`security-overview.md`](./security-overview.md)) | — |
 
 When exceeded, the response is `429 Too Many Requests`. For higher
 limits, self-host your own instance and adjust the decorators in
 `app/api/routes/*.py` (slowapi `@limiter.limit("…/minute")`).
+
+### Failed API-key attempts
+
+An `X-API-Key` the server does not accept is answered with `401` for the
+first 30 attempts per minute per IP address, counted across every
+endpoint that takes the header. After that, each further rejected key
+from that address gets `429 Too Many Requests`, with a `Retry-After`
+header (seconds until the minute is over) and this body:
+
+```json
+{
+  "detail": "Too many invalid API key attempts. Try again later."
+}
+```
+
+A valid key is never refused and never counts, and requests without
+`X-API-Key` are not affected. The budget is set in
+`app/core/rate_limit.py`.
 
 ### Monthly call quota (per user)
 
