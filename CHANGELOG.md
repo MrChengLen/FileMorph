@@ -47,6 +47,9 @@ much memory and how many parallel slots one key can take),
 `docs/api-reference.md`; pinned by `tests/test_api_keys_file_tier.py` (the
 Community Edition chain, the setting on all seven engine routes, the web-UI
 and AI boundaries) and three new checks in `tests/test_docs_match_code.py`.
+`scripts/make_testdata_api_keys_file_tier.py` writes byte-stable fixtures for
+checking this by hand (two small pictures and a 35 MB BMP) to a gitignored
+local folder; only the script ships.
 
 
 ### Fixed — the lockfile jobs no longer fall behind a uv bump
