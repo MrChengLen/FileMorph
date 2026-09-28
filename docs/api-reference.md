@@ -64,7 +64,7 @@ All tokens (access, refresh, password-reset, email-verify) carry the RFC 7519 `i
 
 ### Cloud-Edition endpoints (account / billing / keys)
 
-The endpoints in this section only respond when the Cloud overlay is configured (`DATABASE_URL` set, and where applicable `JWT_SECRET`, `STRIPE_SECRET_KEY`). Without those, they return `503 Service Unavailable`. All require `Authorization: Bearer <jwt>` unless noted.
+The endpoints in this section only respond when the Cloud overlay is configured (`DATABASE_URL` set, and where applicable `STRIPE_SECRET_KEY`). Without those, they return `503 Service Unavailable`. With `DATABASE_URL` set, the app does not start at all unless `JWT_SECRET` is at least 32 characters and not a published placeholder (see [`docs/self-hosting.md`](self-hosting.md#jwt-secret-cloud-edition)). All require `Authorization: Bearer <jwt>` unless noted.
 
 **Auth (`/api/v1/auth/*`)**
 
