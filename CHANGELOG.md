@@ -53,7 +53,8 @@ not an outside push.
   cyclonedx-bom 5.x ignores the `License-Expression` field, so packages that
   declare their licence only there were listed without one: 30 of the 78
   components in the SBOM built from main at `c13ed52`, FastAPI, Starlette,
-  Pydantic, cryptography, Pillow, pikepdf, pypdf and uvicorn among them.
+  Pydantic, cryptography, Pillow, pikepdf, pypdf and uvicorn among them. With
+  the flag, all 78 have one; the components and their versions are unchanged.
 
 `release.yml` only runs on a signed tag and cannot be tried on a PR, so its
 three SBOM steps are `sbom.yml`'s verbatim — and `sbom.yml` can be dispatched
