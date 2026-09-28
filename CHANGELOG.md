@@ -9,34 +9,6 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Changed — the web UI offers target-size compression for AVIF too
-
-The server has compressed AVIF to an exact target size since AVIF support
-landed, but the web UI offered "By target size" only for JPEG and WebP: with
-an AVIF file selected, the option silently disappeared. The UI now offers it
-for AVIF as well — `TARGET_SIZE_FORMATS` in `app/static/js/app.js` matches
-the server set in `app/compressors/image.py` again, pinned by the new
-`tests/test_target_size_formats_parity.py`. AVIF encoding is CPU-heavy and
-the binary search re-encodes several times (measured locally on two cores:
-about 7–11 s for a 4-megapixel image, about 30 s for a 12-megapixel photo),
-so the target-size section shows a note when an AVIF file is selected: a
-large photo can take a minute or more, so AVIF batches should stay small.
-Every text that said "JPEG/WebP" now names AVIF too — the mode hint in the
-tool, the homepage FAQ, `/formats`, `/compress` (title, meta description,
-heading, intro, limits incl. the duration caveat, how-it-works, FAQ), the
-`/tools` card, `/llms.txt` and `docs/formats.md`. Two API texts were wrong
-and are fixed: the OpenAPI description of `target_size_kb` (single and
-batch) and `docs/api-usage-guide.md` claimed JPEG/WebP only, although the API
-already accepted AVIF; the guide's timing list and target-size example now
-allow for slow AVIF encodes. Rate limit, concurrency caps and output caps are
-unchanged; the API already offered AVIF target-size without a key. Also
-fixed on the way: clearing the file selection hid only the quality slider,
-so the compression-mode toggle and target-size section (now including the
-AVIF note) stayed on screen with no file selected.
-`scripts/make_testdata_avif_target_size.py` writes byte-stable fixtures for
-checking this by hand (a 4- and a 12-megapixel AVIF, plus a JPEG twin) to a
-gitignored local folder; only the script ships.
-
 ### Fixed — security docs named `requirements.txt` as the CVE-scan target
 
 Since 2026-09-09 (PR #112) CI has run `pip-audit -r requirements.lock`: the
