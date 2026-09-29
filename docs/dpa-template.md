@@ -1,7 +1,7 @@
 # Data Processing Agreement (DPA) — Template
 
 **Status:** Skeleton template, finalised individually in pilot conversations.
-**Last reviewed:** 2026-05-08
+**Last reviewed:** 2026-09-28
 
 This document is the starting point for a Data Processing Agreement (DPA)
 under Article 28 GDPR between a FileMorph Compliance-Edition customer
@@ -58,8 +58,11 @@ users. Processing operations include:
 - Returning the converted output and a SHA-256 integrity header
 - Writing structured logs (no file content; only metadata: tier, format
   pair, byte counts, duration, success flag)
-- Recording audit events for actions affecting accounts or entitlements
-  (registration, login, key creation, deletion, billing changes)
+- Recording audit events for account and billing actions (registration,
+  login, email verification, password reset, account deletion,
+  subscription changes) and for single-file conversions and
+  compressions — not for API-key management, admin changes in the
+  cockpit, batch jobs, or the `/pdf/*` tools
 
 The Service does **not** perform any analytics, profiling, advertising,
 or data sale.
@@ -78,8 +81,10 @@ or data sale.
   identifiers
 - File contents during processing — deleted from memory and disk
   immediately after the converted output is returned (typical
-  retention: seconds; absolute upper bound: 10 minutes via startup
-  sweep, see `app/main.py`)
+  retention: seconds). A temp directory left behind, e.g. by a crashed
+  worker, is removed by the startup sweep or the hourly background
+  sweep once it is older than 10 minutes — with the default settings
+  within about 70 minutes (see `app/main.py`)
 - Audit-event records (see §5 below) — retained per the controller's
   configured retention policy
 
@@ -89,7 +94,11 @@ Every Compliance-Edition deployment writes a tamper-evident audit log
 (SHA-256 hash chain, see `app/core/audit.py` and Migration 005). Each
 entry contains:
 
-- Event type, timestamp, actor identifier, actor IP, payload digest
+- Event type, timestamp, actor identifier (the account ID, where there
+  is one), actor IP, and the event payload as canonical JSON (operation
+  metadata such as format pair, byte counts and output SHA-256; a
+  SHA-256 hash of the email address for events such as a failed login;
+  never file content)
 - Hash of the previous event (chain integrity)
 
 The audit log is a tamper-evident record of processing *operations* on
@@ -97,11 +106,15 @@ the controller's behalf — useful evidence for, but distinct from, the
 controller's Article 30 *Verzeichnis von Verarbeitungstätigkeiten*
 (Records of Processing Activities), for which see
 [`docs/records-of-processing-template.md`](records-of-processing-template.md).
-The audit-log retention period defaults to `[RETENTION DAYS]` and is
-configurable via the `AUDIT_RETENTION_DAYS` environment variable.
+The application has no built-in retention period for the audit log: rows
+are append-only and are not pruned automatically. Pruning them takes a
+privileged database role that bypasses the append-only trigger; the
+retention period and procedure are `[RETENTION PERIOD + PROCEDURE]`.
 
-Each converted output carries an `X-Output-SHA256` response header so
-the controller can independently verify integrity.
+Each output of the single-file `/convert` and `/compress` endpoints
+carries an `X-Output-SHA256` response header so the controller can
+independently verify integrity; batch ZIPs and the `/pdf/*` tools do
+not.
 
 ## 6. Sub-processors
 
@@ -128,8 +141,9 @@ The processor implements the measures documented in:
 - [`docs/release-signing.md`](release-signing.md)
 
 These cover: encryption in transit (TLS 1.2+, HSTS), at-rest scope (no
-persistent file storage by design), access control (timing-safe API key
-validation, JWT-bound roles, admin role with database recheck per
+persistent file storage by design), access control (hashed API keys,
+compared in constant time for the key file and looked up by hash for
+per-user keys; JWT-bound roles; admin role with database recheck per
 request), key management, software-supply-chain hardening (cosign-signed
 images, signed Git tags, CycloneDX SBOM), and incident-response
 timelines — structured along the Article 32 GDPR categories
@@ -202,7 +216,8 @@ Place of jurisdiction is Hamburg, Germany.
 
 1. Review the bracketed placeholders in §1 and §2 and fill them with
    the deployment context.
-2. Replace `[RETENTION DAYS]` in §5 with the configured value.
+2. Replace `[RETENTION PERIOD + PROCEDURE]` in §5 with the agreed
+   audit-log retention period and the pruning procedure.
 3. Start from the [`docs/dpa-tom-annex.md`](dpa-tom-annex.md) template,
    fill its `[operator: …]` placeholders with the measures specific to
    the deployment (instance location, network segmentation, on-call,

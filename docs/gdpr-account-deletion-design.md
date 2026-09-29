@@ -2,8 +2,9 @@
 
 **Status:** Slice c.1 (free path) shipped 2026-05-06; slice c.2 (paid
 path with HGB §257 / AO §147 tax retention) shipped 2026-05-12. Both
-paths are live — free / never-paid accounts are hard-deleted; accounts
-linked to Stripe are kept in the restricted state described in § 5.B
+paths are live — accounts not linked to Stripe are hard-deleted;
+accounts linked to Stripe, even by a checkout that was never paid, are
+kept in the restricted state described in § 5.B
 (only ``email`` / Stripe customer id / ``tier`` / ``created_at``
 retained, ``deleted_at`` stamped, everything else nulled or
 sentinelled). The endpoint, the three-field gate, the last-admin
@@ -22,14 +23,16 @@ pass), ``alembic/versions/010_account_deletion_paid_path.py``
 ``deletion_mode == "tax_retained"`` paragraph),
 ``app/templates/dashboard.html`` + ``app/static/js/dashboard.js`` (the
 "Danger zone" flow), ``app/templates/account_deleted.html`` (the
-landing page). The remaining items called out in §§ 5.B + 12 — the
-10-year purge cron, the AVV/DPA template, and a cockpit guard that
-refuses admin mutations on a row with ``deleted_at IS NOT NULL`` —
-stay tracked as separate follow-ups.
+landing page). The DPA template has since shipped
+(``docs/dpa-template.md``); the other items called out in §§ 5.B +
+12 — the 10-year purge cron and a cockpit guard that refuses admin
+mutations on a row with ``deleted_at IS NOT NULL`` — stay tracked as
+separate follow-ups.
 **Audience:** Self-hosters, contributors, and the FileMorph cloud
 operator.
-**Last updated:** 2026-05-12 (status row above; body preserved as
-the design trail).
+**Last updated:** 2026-09-28 (status row above; §§ 4, 5, 7, 11 and
+12 corrected where they no longer matched the code; otherwise the
+body is preserved as the design trail).
 
 ---
 
@@ -176,7 +179,7 @@ cascades. The relevant `ON DELETE` clauses live in
 | `User` | (target row) | Hard delete | **Retained**, fields nulled selectively | Subject of erasure (free) / tax-restricted (paid). |
 | `ApiKey.user_id` | `ON DELETE CASCADE` (line 96) | Auto-deleted | Application-level hard delete (no tax relevance) | API keys are 1:1 with the user and not invoice-relevant. |
 | `FileJob.user_id` | `ON DELETE SET NULL` (line 123) | Anonymized; row retained | Anonymized; row retained | Aggregate analytics value; without `user_id`, the row is not personal data. |
-| `UsageRecord.user_id` | `ON DELETE SET NULL` (line 153) | Anonymized; row retained | Anonymized; row retained | Tier-metric continuity. Billing is flat-rate (`Pro €7/mo`, `Business €19/mo`) — usage rows do not feed invoice line items, so anonymization is permissible even on paid accounts. |
+| `UsageRecord.user_id` | `ON DELETE SET NULL` (line 153) | Anonymized; row retained | Anonymized; row retained | Tier-metric continuity. Billing is a flat subscription fee per plan (prices on `/pricing`) — usage rows do not feed invoice line items, so anonymization is permissible even on paid accounts. |
 | `UsageRecord.api_key_id` | `ON DELETE SET NULL` (line 158) | Anonymized via the `api_keys` cascade | Anonymized via the application-level ApiKey delete | Same reasoning, applied transitively. |
 | Stripe customer record | (external) | Subscription cancelled; customer record retained by Stripe | Subscription cancelled; customer record retained by Stripe | Stripe's tax-retention obligation; already disclosed in `privacy.html` § 3a. |
 
@@ -216,8 +219,10 @@ Stripe subscription so it stops billing (§ 5.A), and retaining
 the FileMorph-side records that German tax law obliges us to
 keep for ten years (§ 5.B). They are independent: § 5.A also
 runs for never-paid accounts that happen to have a stale
-`stripe_customer_id` (e.g. abandoned checkout); § 5.B only
-triggers when at least one payment has actually completed.
+`stripe_customer_id` (e.g. abandoned checkout); in the original
+design § 5.B only triggers when at least one payment has actually
+completed. As implemented, any `stripe_customer_id` triggers it
+(see "Trigger condition" in § 5.B).
 
 ### 5.A Subscription cancellation (cancel-first pattern)
 
@@ -287,8 +292,14 @@ corresponds to which payment.
 
 #### Trigger condition
 
-The paid path activates when **either** of these is true at the
-moment of deletion:
+**As implemented:** the code uses a more conservative trigger than the
+design below — any account with a Stripe customer id takes the paid
+path, including one that started a checkout but never paid
+(`deletion_mode_for()` in `app/core/account_deletion.py`). Deciding the
+finer condition would need a Stripe round-trip at deletion time.
+
+The original design: the paid path activates when **either** of these
+is true at the moment of deletion:
 
 1. `User.stripe_customer_id IS NOT NULL` **and** at least one
    `Subscription` for that customer has ever transitioned to
@@ -354,8 +365,7 @@ year of the 10-year deadline (HGB §257 Abs. 4 starts the clock
 "with the end of the calendar year" of the last accounting
 entry; the buffer absorbs the year-end alignment plus any
 in-flight tax audit). The exact buffer is operator-tunable; the
-implementing sprint picks a value and documents it in
-`docs-internal/filemorph-io-runbook.md`.
+implementing sprint picks a value and documents it.
 
 The purge job is **out of scope** for this design (its own
 sprint), but the schema and the `deleted_at` marker are added
@@ -363,9 +373,9 @@ here so the purge job has something to act on.
 
 #### What is *not* retained on the paid path
 
-- File content — already deleted under the existing retention
-  policy (24h / 7d / 30d by tier) long before the account is
-  deleted.
+- File content — nothing to delete here: uploads are processed
+  ephemerally and not stored (`RETENTION_HOURS=0`); their temp files
+  are removed after each request.
 - `password_hash` — replaced with a sentinel as described.
 - `api_keys` — fully removed.
 - `FileJob.user_id` and `UsageRecord.user_id` — `SET NULL`. The
@@ -459,11 +469,14 @@ no custom modal library.
 
 ## 7. Audit log
 
-Account-deletion events are logged to standard output via the
-application's structured logger, **not** to a dedicated database
-table. This matches the existing pattern in
-`app/api/routes/auth.py:307` (password-reset email dispatch) and
-keeps the design footprint small.
+The design foresaw one line through the application's structured
+logger. As shipped, account deletion writes that line and, in
+addition, two events to the hash-chained audit log
+(`app/core/audit.py`, Migration 005), which was added separately:
+`auth.account_deletion.requested` before the account changes (actor:
+the account ID; payload: email domain, `had_subscription`,
+`deletion_mode`) and `auth.account_deletion.completed` after it
+(payload: email domain, `deletion_mode`).
 
 ### Event format
 
@@ -471,10 +484,10 @@ keeps the design footprint small.
 logger.info(
     "account_deletion",
     extra={
-        "user_id": str(user.id),
-        "tier": user.tier.value,
-        "email_domain": email.split("@", 1)[1],
-        "had_subscription": bool(user.stripe_customer_id),
+        "user_id": str(user_id),
+        "email_domain": email_domain,
+        "had_subscription": had_subscription,
+        "deletion_mode": mode,
     },
 )
 ```
@@ -486,18 +499,10 @@ kept for debug purposes."
 
 ### Retention
 
-Log retention follows the hosting infrastructure's defaults. On
+The log line's retention follows the hosting infrastructure's defaults. On
 production deployments behind Caddy, logs are typically retained
 for around thirty days, which lines up with the EDPB's one-month
 recommendation for handling erasure requests.
-
-### Future work (out of scope here)
-
-A dedicated `audit_log` table —
-`(actor_id, action, target_id, timestamp, metadata_json)` —
-would make admin-action review easier and survive log rotation.
-That is a separate sprint and a separate design document; this
-design intentionally does not introduce it.
 
 ---
 
@@ -785,14 +790,12 @@ directly.
     `is_active=False` and `deleted_at IS NOT NULL` guards
     already block login one layer up.)
 
-These tests run under the same fixtures as the rest of the auth
-test suite — the in-memory SQLite engine from
-`tests/conftest.py` and the `disable_rate_limiting` session
-fixture. Tests 13 + 15 require Alembic to have applied the
-`deleted_at` column and the partial unique index; tests skip
-under SQLite if the partial index is not supported there
-(SQLite supports partial indexes since 3.8.0; should be fine on
-the in-memory engine).
+These tests (`tests/test_account_deletion.py`) run against an
+in-memory SQLite engine of their own, whose schema comes from the
+ORM models (`Base.metadata.create_all` — including `deleted_at` and
+the partial unique index, which SQLite supports), with rate
+limiting switched off for the whole suite by `RATELIMIT_ENABLED=0`
+in `tests/conftest.py`.
 
 ---
 
@@ -826,8 +829,9 @@ them:
 - **CLI subcommand** (e.g. `filemorph delete-account` over an
   API key). Web UI only. The API key being deleted cannot
   authenticate its own deletion.
-- **`audit_log` database table.** Logged via stdout for now;
-  the dedicated table is its own sprint.
+- **`audit_log` database table.** Not part of this design; the
+  hash-chained audit log that was added separately records the
+  deletion (§ 7).
 - **Admin bulk-delete.** The admin cockpit keeps its existing
   per-user "Deactivate" flow. Bulk deletion is a different UX
   problem.
