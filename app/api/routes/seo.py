@@ -286,9 +286,5 @@ async def security_txt() -> str:
         f"Canonical: {base}/.well-known/security.txt",
         f"Policy: {base}/security",
         "",
-        "# Reports about FileMorph itself (the open-source software at",
-        "# https://github.com/MrChengLen/FileMorph) are also welcome via",
-        "# GitHub Security Advisories on the repository.",
-        "",
     ]
     return "\n".join(lines)

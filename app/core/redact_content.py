@@ -83,7 +83,8 @@ REDACT_CONTENT: dict[str, dict] = {
             "Processed on EU servers with no third-party AI — detection is deterministic "
             "(regex + checksums), not a language model. Your file is held in memory and "
             "deleted right after processing; detected values are never logged or stored. The "
-            "redaction engine is open source (AGPLv3) and auditable."
+            "redaction engine is commercially licensed, not part of the AGPLv3 core; the "
+            "source is published for audit but is not open source."
         ),
         "legal_notice": (
             "Assists with PII removal — review before sharing. Detects emails, IBANs, phone "
@@ -170,8 +171,9 @@ REDACT_CONTENT: dict[str, dict] = {
             "Verarbeitung auf EU-Servern ohne Dritt-KI — die Erkennung ist deterministisch "
             "(Regex + Prüfziffern), kein Sprachmodell. Deine Datei liegt nur im "
             "Arbeitsspeicher und wird direkt nach der Verarbeitung gelöscht; erkannte Werte "
-            "werden nie protokolliert oder gespeichert. Die Schwärzungs-Engine ist Open "
-            "Source (AGPLv3) und auditierbar."
+            "werden nie protokolliert oder gespeichert. Die Schwärzungs-Engine ist kommerziell "
+            "lizenziert, nicht Teil des AGPLv3-Kerns; der Quellcode ist zur Prüfung "
+            "einsehbar, aber nicht Open Source."
         ),
         "legal_notice": (
             "Unterstützt beim Entfernen von PII — vor Weitergabe prüfen. Erkennt E-Mails, "
