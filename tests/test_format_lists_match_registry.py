@@ -238,3 +238,21 @@ def test_formats_md_any_to_any_lists_match_registry():
         "docs/formats.md: these formats don't convert to exactly the other formats "
         "of their Audio/Video list:\n" + "\n".join(drift)
     )
+
+
+def test_enterprise_page_format_pair_claim_is_not_an_overclaim(client, monkeypatch):
+    """enterprise.html claims "180+ format pairs" — counted from the same
+    get_public_conversions() that /formats renders from, with spelling
+    variants (jpg/jpeg, tif/tiff, htm/html, …) merged so they don't count
+    twice. If the registry ever shrinks below 180 distinct pairs the claim
+    becomes false; fail loudly here instead of overclaiming on a public page."""
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "pricing_page_enabled", True)
+    distinct = {
+        (_alias(src), _alias(tgt)) for src, tgts in get_public_conversions().items() for tgt in tgts
+    }
+    pairs = len({pair for pair in distinct if pair[0] != pair[1]})
+    assert pairs >= 180, f"registry only has {pairs} distinct pairs — enterprise.html claims 180+"
+    for path in ("/en/enterprise", "/de/enterprise"):
+        assert "180+" in client.get(path).text, f"{path} lost its '180+ format pairs' claim"
