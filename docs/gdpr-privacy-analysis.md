@@ -1,7 +1,7 @@
 # FileMorph — Data Protection & GDPR Analysis
 
 **Original analysis date:** 2026-04-20
-**Last refreshed:** 2026-09-09
+**Last refreshed:** 2026-09-28
 **Scope:** Community Edition (current `main` branch), Cloud Edition (live), planned Compliance Edition.
 **Analyst:** Automated compliance review
 **Reviewer note:** This document is a technical privacy analysis intended for engineering and legal review. It does not constitute legal advice. Engage a qualified data protection lawyer before launching any paid SaaS tier in the EU.
@@ -24,28 +24,31 @@ historical reasoning trail.
 | `allow_origins=["*"]` with `allow_credentials=True` | Closed (PT-003) — strict allow-list, credentials only when origins set | `app/main.py` CORS middleware |
 | No privacy policy | Closed — `/privacy` route + `app/templates/privacy.html` (last revised 2026-04-23) | `app/main.py::privacy` |
 | No security headers | Closed — `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Content-Security-Policy`, `Permissions-Policy`, plus HSTS over HTTPS | `app/main.py::security_headers` |
-| No DPA / sub-processor list | Template shipped — `docs/sub-processors.md` (Cloud) + `legal/avv-template-*.md` (Compliance Edition, in flight) | repo |
+| No DPA / sub-processor list | Templates shipped — `docs/sub-processors.md`, `docs/dpa-template.md` with its TOM annex `docs/dpa-tom-annex.md`, and `docs/records-of-processing-template.md` | repo |
 | No security disclosure surface | RFC 9116 `/.well-known/security.txt` + `/security` page + `SECURITY.md` | `app/api/routes/seo.py`, `app/templates/security.html` |
 | pip-audit "non-blocking" | Now blocking on every CI build | `.github/workflows/ci.yml` |
 | Tamper-evident audit log | Closed — SHA-256 hash chain (Migration 005, Postgres append-only trigger) | `app/core/audit.py` |
 | `X-Output-SHA256` response header | Closed — chunk-streamed SHA-256 over the bytes the client receives | `app/api/routes/convert.py`, `app/api/routes/compress.py` |
 | `RETENTION_HOURS` toggle + periodic sweep | Closed — env-var driven, `TEMP_SWEEP_INTERVAL_MINUTES` periodic sweep | `app/core/config.py`, `app/main.py::lifespan` |
 | Email-verification at registration | Closed — fire-and-forget verify email at `/register`, JWT bound to email-at-issuance (`eat` claim, 7-day TTL); `users.email_verified_at` records state | `app/api/routes/auth.py` (verify_email + resend_verification routes), Migration 006 |
-| Self-service account deletion (free path) | Closed (slice c.1) — `DELETE /api/v1/auth/account` with three-field re-confirmation, last-admin guard, hybrid cascade, confirmation email; Stripe-touched accounts return 409 directing to operator support contact | `app/api/routes/auth.py::delete_account` |
+| Self-service account deletion | Closed (slices c.1 + c.2) — `DELETE /api/v1/auth/account` with three-field re-confirmation, last-admin guard, hybrid cascade, confirmation email; accounts linked to a Stripe customer are kept in a restricted, tax-retained state (HGB §257 / AO §147) instead of being hard-deleted — see `docs/gdpr-account-deletion-design.md` | `app/api/routes/auth.py::delete_account`, `app/core/account_deletion.py` |
 | Default-on EXIF strip for image conversions | Closed — `app/converters/_metadata.py` strips EXIF/XMP/IPTC; ICC preserved | `app/converters/image.py`, `app/compressors/image.py` |
 | PDF/A-2b conversion target | Closed — pikepdf markup pass + optional ghostscript re-render; veraPDF CI gate validates fixture conformance per PR | `app/converters/pdfa.py`, `.github/workflows/verapdf.yml` |
 | `X-Data-Classification` propagation | Closed — BSI-style taxonomy validated in middleware; echoed on responses; recorded in audit-log | `app/core/data_classification.py` |
 | Concurrency limiter (NEU-D.1) | Closed — global semaphore + per-actor tier-bound semaphore; 503 vs 429 with `Retry-After` | `app/core/concurrency.py` |
-| Cosign-signed images + GPG-signed tags | Closed — keyless OIDC sign on image push; `.github/workflows/release.yml` GPG-signs annotated tags | `.github/workflows/docker.yml`, `release.yml` |
+| Cosign-signed images + GPG-signed tags | Closed — keyless OIDC sign on image push; the maintainer GPG-signs release tags locally, and `.github/workflows/release.yml` verifies the signature before it publishes a release | `.github/workflows/docker.yml`, `release.yml` |
 | localStorage keys written without disclosure (ePrivacy Dir. / § 25 TDDDG — the "Cookie notice ⚠️" row in the compliance matrix below, and T-8) | Closed — `/privacy` §6 now enumerates every key the app writes (`fm_access_token`, `fm_refresh_token`, `filemorph_api_key`, `fm_cookie_notice_dismissed`) with purpose and legal basis, and an informational bar deep-links there on first visit. Deliberately **not** a consent dialog: no cookies are set, no third-party resources load, and every key is strictly necessary, so § 25 Abs. 2 Nr. 2 TDDDG exempts them — a fake Accept/Reject choice would misrepresent that. `test_notice_is_not_a_consent_dialog` pins it | `app/templates/privacy.html` §6, `app/templates/partials/cookie_notice.html`, `app/static/js/cookie-notice.js`, `tests/test_cookie_notice.py` |
 
-What is still in flight for the Compliance-Edition push: paid-path
-account-deletion (slice c.2 — `users.deleted_at` partial-unique-index
-+ tax-retention column under HGB §257 / AO §147), `invoice.payment_*`
-Stripe webhook coverage, login per-user rate-limit lockout, and the
-Prometheus/Grafana monitoring (#139). The status table in
-`CLAUDE.md` "Cloud Edition — Status" is the authoritative running
-inventory.
+The items once listed here as in flight have since landed or
+narrowed: paid-path account deletion (slice c.2 — `users.deleted_at`,
+the partial unique index, and the tax-retained path under HGB §257 /
+AO §147) is live; the Stripe webhook handles `invoice.payment_failed`
+(dunning email + audit event), and a recovered payment arrives as
+`customer.subscription.updated`; the application exposes Prometheus
+metrics at `/api/v1/metrics`, while dashboards and alerting are not
+set up yet (`docs/security-overview.md` § Known Limitations). There
+is no per-account login lockout; `/api/v1/auth/login` is limited to
+5 requests per minute per IP.
 
 ---
 

@@ -12,8 +12,11 @@ the binding one — this file is the starting point.
 > **Two layers.** The measures below split into:
 >
 > - **Application-level measures** — implemented *by the FileMorph
->   software itself*, identical in every deployment, verifiable in the
->   source. Stated here as facts, with the code anchor.
+>   software itself*, identical in every deployment of the same version,
+>   verifiable in the source. Stated here as facts, with the code anchor,
+>   for the current code on `main`; the only tagged release so far,
+>   v1.1.0 (2026-06-01), predates some of them — see
+>   [`CHANGELOG.md`](../CHANGELOG.md).
 > - **Deployment-level measures** — implemented *by whoever operates the
 >   deployment* (hosting, network, backups, on-call). Shown as
 >   `[operator: …]` placeholders: a self-hoster fills them with their own
@@ -34,7 +37,7 @@ the binding one — this file is the starting point.
 ### Physical access control (Zutrittskontrolle)
 
 `[operator: physical security of the hosting facility — e.g. "Hetzner
-Online GmbH datacentre, Falkenstein / Frankfurt, ISO 27001-certified,
+Online GmbH — data centre in the EU, ISO 27001-certified,
 24/7 access control, CCTV, mantrap"; or the customer's own datacentre
 measures for an on-prem deployment]`. The FileMorph software holds no
 physical assets of its own.
@@ -48,14 +51,14 @@ physical assets of its own.
 - Password authentication (Cloud features): bcrypt with an adaptive cost
   factor — `app/core/auth.py`.
 - Session tokens: short-lived JWTs, 15-minute access / 30-day refresh —
-  `app/core/auth.py`.
+  `app/core/tokens.py`.
 - Administrative interface (`/cockpit`): requires a valid JWT *and*
   `role='admin'`, re-checked against the database on every request — a
   stale token cannot escalate after a role change.
-- Upload pipeline: a magic-byte allow-list (`BLOCKED_MAGIC` in
-  `app/core/processing.py`) rejects PE / ELF / shell / PHP payloads
-  before any decoder runs; format is determined from content, not from
-  the client-declared type.
+- Upload pipeline: a magic-byte deny-list (`BLOCKED_MAGIC` in
+  `app/core/processing.py`) rejects files that start with a PE, ELF,
+  shell-script or PHP signature before any decoder runs; the converter
+  is chosen from the file extension, not detected from content.
 - `[operator: OS-level access — SSH key-only login, no password auth,
   restricted sudo, host firewall]`.
 
@@ -88,8 +91,13 @@ physical assets of its own.
   — UUID stems only; the original name survives only in the
   `Content-Disposition` response header, filtered through
   `safe_download_name()` — `app/core/utils.py`.
-- The audit log records actors as hashed-email identifiers, not raw email
-  addresses — `app/core/audit.py`.
+- The audit log identifies an actor by account ID (a random UUID), never
+  by email address. A failed login, a duplicate registration, a
+  password-reset request and a contact-form message also store a
+  SHA-256 hash of the lower-cased email address — a pseudonym, not an
+  anonymisation: a known address can be hashed and matched —
+  `app/core/audit.py`, `app/api/routes/auth.py`,
+  `app/api/routes/contact.py`.
 - API keys are stored only as SHA-256 hashes; raw keys are shown once at
   creation and never logged.
 - Image conversions and compressions strip EXIF / XMP / IPTC metadata
@@ -121,19 +129,30 @@ physical assets of its own.
 - The FileMorph application transmits no file content, file names, or
   file hashes to any sub-processor — see [`sub-processors.md`](sub-processors.md);
   the only outbound calls are to the configured database, the SMTP relay
-  (authentication / billing mail only), and Stripe (Checkout session
-  creation + webhook).
-- Output integrity: every converted file carries an `X-Output-SHA256`
-  response header (streaming SHA-256 of the delivered bytes); the same
-  hash lands in the audit-log payload, so the controller can verify a
-  file matches the attestation made at conversion time.
+  (account and billing mail, and contact-form messages to the operator),
+  and Stripe (creating the customer and the Checkout / Billing-Portal
+  sessions, and cancelling subscriptions when an account is deleted;
+  Stripe's webhook calls come in the other direction and are
+  signature-checked).
+- Output integrity: every file returned by the single-file `/convert`
+  and `/compress` endpoints carries an `X-Output-SHA256` response header
+  (streaming SHA-256 of the delivered bytes); the same hash lands in the
+  audit-log payload, so the controller can verify a file matches the
+  attestation made at conversion time. Batch ZIPs, the `/pdf/*` tools
+  and PII redaction return no such header.
 
 ### Input control (Eingabekontrolle)
 
 - Tamper-evident audit log: SHA-256 hash chain, Postgres append-only
   trigger — `app/core/audit.py`, Migration 005; the `verify_chain`
   helper detects retroactive edits from a SQL dump alone. Compatible with
-  ISO 27001 A.12.4.1 / BORA §50 / BeurkG §39a.
+  ISO 27001 A.12.4.1 / BORA §50 / BeurkG §39a. It records registration,
+  login, email verification, password reset and account deletion;
+  subscription and payment events, including the withdrawal waiver at
+  checkout; single-file conversions and compressions; contact-form
+  messages; and PII redactions. It does not record API-key creation or
+  revocation, admin changes in the cockpit, batch jobs, or the `/pdf/*`
+  tools.
 - Structured logs record operation metadata (operation, format pair,
   byte counts, duration, success flag, tier, data classification) and no
   file content — regression guard `tests/test_observability_logs.py`.
@@ -152,10 +171,18 @@ physical assets of its own.
   `app/core/concurrency.py`. Every synchronous C-binding call (FFmpeg,
   WeasyPrint, Pillow, pypdf) runs in a worker thread, never on the event
   loop.
-- Rate limiting: per-endpoint slowapi limits — `app/core/rate_limit.py`
-  (in-memory; effective for a single instance — a multi-instance
-  deployment needs an external store, noted in `security-overview.md`
-  § Known Limitations).
+- Rate limiting: explicit slowapi limits per API endpoint, from 1 to
+  120 requests per minute (the contact form: 5 per hour), counted per
+  client IP — per signed-in account on the account endpoints (API keys,
+  billing, email language); every limit, and the four endpoints exempt
+  on purpose, are listed in
+  [`api-reference.md` § Rate Limiting](api-reference.md#rate-limiting).
+  Rejected `X-API-Key` attempts have their own budget of 30 per minute
+  per IP, then get `429`; a valid key is never refused. The limiter's
+  own log lines, which carry the client IP or account ID, are
+  suppressed — `app/core/rate_limit.py` (in-memory; effective for a
+  single instance — a multi-instance deployment needs an external store,
+  noted in `security-overview.md` § Known Limitations).
 - Readiness probe `/api/v1/ready` reports database + tempdir health so an
   orchestrator can gate traffic correctly; `/api/v1/health` is a cheap
   liveness probe that exposes only `{"status":"ok"}`.
@@ -222,6 +249,17 @@ physical assets of its own.
   (Critical 7 days / High 30 days / Medium-Low next regular release);
   third-party-license posture in
   [`third-party-licenses.md`](third-party-licenses.md).
+- Release workflow in two jobs: `sbom` installs the image's dependency
+  set and the SBOM generator with read-only repository access;
+  `verify-and-publish` checks the tag's GPG signature and publishes with
+  write access, installs nothing, and receives the SBOM as an artifact.
+  Neither job restores a cache or keeps the checkout's credentials. The
+  generator is installed hash-pinned and wheels-only from
+  `requirements-sbom.lock` — `.github/workflows/release.yml`; regression
+  guard `tests/test_supply_chain_hygiene.py`.
+- `.dockerignore` keeps secrets and local state (`.env*`, the API-key
+  file in `data/`, `.git`, Python environments) out of the image build
+  context — regression guard `tests/test_dockerignore.py`.
 - `[operator: dependency-update cadence on the running deployment; how
   SBOM diffs are reviewed before deploying]`.
 
