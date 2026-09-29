@@ -1,0 +1,173 @@
+name: Docker PR build
+
+# Builds both published images on every pull request to main, without pushing
+# them, and smoke-tests each one: the container starts and answers
+# /api/v1/health, the first start generates an API key, the programs and
+# libraries the converters call are there, and the image holds what the app
+# needs and none of the build folder's secrets. docker.yml builds only after
+# merge, and notify-ops.yml deploys every successful main build, so a broken
+# Dockerfile, .dockerignore, entrypoint.sh or requirements.lock used to show
+# up first on its way to production.
+#
+# A workflow of its own rather than a pull_request trigger in docker.yml,
+# whose job holds the token that pushes to GHCR and the identity that signs.
+# Here the token is read-only and no secret is used, so nothing can be pushed
+# or signed, and notify-ops.yml deploys only after push and manual runs in
+# this repository. tests/test_supply_chain_hygiene.py and
+# tests/test_workflow_triggers.py pin both.
+#
+# Every pull request, not only those touching the Docker files: an app change
+# can break the image alone (a file it reads that .dockerignore leaves out, a
+# library it loads that the image lacks), and a workflow a `paths:` filter
+# skips never reports, so it could not become a required check.
+
+on:
+  pull_request:
+    branches: ["main"]
+
+# Pull requests only, so a newer push always supersedes the running check.
+concurrency:
+  group: docker-pr-${{ github.ref }}
+  cancel-in-progress: true
+
+# Read-only: without `packages: write` nothing can be pushed to GHCR, and
+# without `id-token: write` nothing can be signed.
+permissions:
+  contents: read
+
+jobs:
+  smoke-test:
+    name: smoke-test (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    # A cold office build takes about four minutes; a hung step should not
+    # hold a runner for the default six hours.
+    timeout-minutes: 20
+    strategy:
+      # The variants are independent, as in docker.yml: a failure in one
+      # should not cancel the other.
+      fail-fast: false
+      matrix:
+        target: [base, office]
+    env:
+      # A local name: no registry, never pushed.
+      IMAGE: filemorph:pr-${{ matrix.target }}
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The build runs the pull request's Dockerfile; no token on disk.
+          persist-credentials: false
+
+      # .env and data/api_keys.json are what a self-hoster's build folder may
+      # hold and `COPY . .` must not take into the image; .dockerignore keeps
+      # them out, and a clean checkout has neither. context-canary is the
+      # control: nothing ignores it, so the image holds it only if the build
+      # used this folder.
+      - name: Plant canaries in the build context
+        run: |
+          printf 'FILEMORPH_CANARY=must-not-reach-the-image\n' > .env
+          printf '{"keys": ["must-not-reach-the-image"]}\n' > data/api_keys.json
+          printf 'must reach the image\n' > context-canary
+
+      # The builder docker.yml uses (buildx with the docker-container driver),
+      # so a Dockerfile accepted here is accepted after merge too.
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      # `context: .` builds the checkout, canaries included; without it the
+      # action would build the Git ref. Reads the layer cache the main builds
+      # write, and writes none: a pull request's cache entries serve only that
+      # pull request, and would crowd main's out of the cache.
+      - name: Build the ${{ matrix.target }} image (not pushed)
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          target: ${{ matrix.target }}
+          push: false
+          load: true
+          tags: ${{ env.IMAGE }}
+          cache-from: type=gha,scope=${{ matrix.target }}
+
+      # The image as built, not a running container: the first start writes
+      # data/api_keys.json itself.
+      - name: Check what the image holds
+        run: |
+          docker run --rm --entrypoint sh "$IMAGE" -c '
+            status=0
+            for path in /app/.env /app/data/api_keys.json /app/.git /app/.github /app/tests; do
+              if [ -e "$path" ]; then echo "::error::$path is in the image"; status=1; fi
+            done
+            for path in /app/context-canary /app/scripts/first_run.py /app/locale/de/LC_MESSAGES/messages.mo /app/alembic.ini; do
+              if [ ! -e "$path" ]; then echo "::error::$path is missing from the image"; status=1; fi
+            done
+            exit $status
+          '
+
+      # Started the way docker-compose.yml runs it (all capabilities dropped,
+      # no privilege escalation) and asked through the published port, where a
+      # self-hoster reaches it.
+      - name: Start the container and wait for /api/v1/health
+        run: |
+          docker run --detach --name filemorph --publish 8000:8000 \
+            --cap-drop ALL --security-opt no-new-privileges "$IMAGE"
+          for _ in $(seq 30); do
+            if curl -fsS --max-time 5 http://localhost:8000/api/v1/health; then
+              echo
+              exit 0
+            fi
+            if [ "$(docker inspect --format '{{.State.Running}}' filemorph)" != true ]; then
+              docker logs filemorph
+              echo "::error::The container exited while starting"
+              exit 1
+            fi
+            sleep 2
+          done
+          docker logs filemorph
+          echo "::error::/api/v1/health did not answer after 30 attempts, 2 seconds apart"
+          exit 1
+
+      - name: Check the first start
+        run: |
+          status=0
+          logs="$(docker logs filemorph 2>&1)"
+          # entrypoint.sh prints the key it generates. With a key file in the
+          # image it would find that one and print none.
+          if ! grep -Eq 'API KEY: [A-Za-z0-9_-]{32,}$' <<< "$logs"; then
+            echo "::error::The logs show no first-run API key"
+            status=1
+          fi
+          # docker-compose.yml's healthcheck runs curl inside the container.
+          if ! docker exec filemorph curl -fsS --max-time 5 -o /dev/null http://localhost:8000/api/v1/health; then
+            echo "::error::curl inside the container does not reach /api/v1/health"
+            status=1
+          fi
+          uid="$(docker exec filemorph id -u)" || uid=
+          if [ "$uid" = 0 ]; then
+            echo "::error::The container runs as root"
+            status=1
+          fi
+          if [ "$status" != 0 ]; then printf '%s\n' "$logs"; fi
+          exit "$status"
+
+      # Start-up does not prove these: the app only logs a warning when ffmpeg
+      # is missing, calls Ghostscript as a program, and loads WeasyPrint (Pango,
+      # HarfBuzz, fontconfig) only for a conversion that needs it. The probe
+      # page references nothing, so WeasyPrint has nothing to fetch.
+      - name: Check the converters' programs and libraries
+        run: |
+          docker exec filemorph ffmpeg -version > /dev/null
+          docker exec filemorph gs --version
+          docker exec filemorph python -c "import weasyprint; assert weasyprint.HTML(string='<p>probe</p>').write_pdf().startswith(b'%PDF')"
+
+      # What the office image adds, driven the way the DOCX converter drives
+      # it: headless, with a throwaway profile, through Writer to PDF.
+      - name: Check that LibreOffice converts
+        if: matrix.target == 'office'
+        run: |
+          docker exec filemorph sh -c '
+            printf "FileMorph smoke test\n" > /tmp/smoke.txt &&
+            timeout 120 soffice --headless --norestore --nofirststartwizard --nolockcheck \
+              -env:UserInstallation=file:///tmp/lo-profile \
+              --convert-to pdf:writer_pdf_Export --outdir /tmp /tmp/smoke.txt &&
+            test -s /tmp/smoke.pdf
+          '

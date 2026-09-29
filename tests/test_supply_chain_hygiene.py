@@ -12,7 +12,8 @@ silently undo it:
     ``docker`` ecosystem can still propose bumps;
   * every workflow declares an explicit ``permissions:`` block (top-level
     or per-job) so ``GITHUB_TOKEN`` is least-privilege rather than the
-    repo-wide default (OpenSSF Scorecard "Token-Permissions");
+    repo-wide default (OpenSSF Scorecard "Token-Permissions"), and no job
+    that runs on pull requests holds a write token or a secret;
   * ``.github/dependabot.yml`` exists and covers all three ecosystems we
     pin manually (``pip`` / ``github-actions`` / ``docker``) so the pins
     above don't rot;
@@ -80,6 +81,13 @@ _RELEASE_WRITE_ACTIONS = (
     "actions/download-artifact@",
     "softprops/action-gh-release@",
 )
+# The events a pull request triggers.
+_PULL_REQUEST_EVENTS = {
+    "pull_request",
+    "pull_request_review",
+    "pull_request_review_comment",
+    "pull_request_target",
+}
 
 _SHA40_RE = re.compile(r"^[0-9a-f]{40}$")
 # `uses: owner/repo@ref` or `uses: owner/repo/path@ref`, tolerating a
@@ -124,14 +132,23 @@ def _privileged(job: dict, workflow: dict) -> bool:
 
     Job-level ``permissions:`` replace the workflow's; neither means the
     repository default applies, which can be write-all. A secret other than
-    ``GITHUB_TOKEN`` (a PAT that triggers a deploy, say) counts as well.
+    ``GITHUB_TOKEN`` (a PAT that triggers a deploy, say) counts as well, in
+    whatever form an expression reads it (``secrets.X``, ``secrets['X']``,
+    ``toJSON(secrets)``), and so does a reusable-workflow call's ``secrets:``.
     """
     permissions = job.get("permissions", workflow.get("permissions"))
     if permissions is None or permissions == "write-all":
         return True
     if isinstance(permissions, dict) and "write" in permissions.values():
         return True
-    return bool(re.search(r"\bsecrets\.(?!GITHUB_TOKEN\b)", json.dumps([workflow.get("env"), job])))
+    if "secrets" in job:
+        return True
+    expressions = re.findall(r"\$\{\{(.*?)\}\}", json.dumps([workflow.get("env"), job]))
+    # Context names are case-insensitive in expressions: `SECRETS.X` reads a secret too.
+    return any(
+        re.search(r"\bsecrets\b(?!\s*\.\s*GITHUB_TOKEN\b)", expression, re.IGNORECASE)
+        for expression in expressions
+    )
 
 
 def _lock_entries(lockfile: Path) -> list[str]:
@@ -643,6 +660,48 @@ def test_privileged_jobs_keep_expressions_out_of_scripts(workflow: Path) -> None
                 f"inside `run:` in a job with a write token or a secret — pass it through "
                 f"`env:` instead"
             )
+
+
+@pytest.mark.parametrize("workflow", _workflow_files(), ids=lambda p: p.name)
+def test_pull_request_jobs_hold_no_write_token_or_secret(workflow: Path) -> None:
+    """A job that a pull request triggers holds neither a write token nor a secret.
+
+    It runs, or can check out, the pull request's code: ci.yml runs its tests,
+    docker-pr.yml builds its Dockerfile. Without ``packages: write`` and
+    ``id-token: write`` the image check cannot push to GHCR or sign. For a pull
+    request from a fork GitHub withholds both anyway, except under
+    ``pull_request_target``; branches in this repository get what the workflow
+    declares.
+    """
+    parsed = _workflow(workflow)
+    on = parsed.get("on", parsed.get(True))
+    triggers = {on} if isinstance(on, str) else set(on or ())
+    if not triggers & _PULL_REQUEST_EVENTS:
+        pytest.skip(f"{workflow.name} is not triggered by pull requests")
+    for name, job in parsed["jobs"].items():
+        assert not _privileged(job, parsed), (
+            f"{workflow.name} job `{name}` runs on pull requests with a write token or a "
+            f"secret. Keep it read-only; publishing belongs in a workflow that runs after merge."
+        )
+
+
+# The workflows only ever read GITHUB_TOKEN through `secrets.`, so the tests
+# above never meet the other forms; this keeps _privileged able to see them.
+@pytest.mark.parametrize(
+    ("job", "privileged"),
+    [
+        ({"env": {"T": "${{ secrets.PAT }}"}}, True),
+        ({"env": {"T": "${{ secrets['PAT'] }}"}}, True),
+        ({"env": {"T": "${{ toJSON(secrets) }}"}}, True),
+        ({"env": {"T": "${{ SECRETS.PAT }}"}}, True),
+        ({"uses": "./.github/workflows/reusable.yml", "secrets": "inherit"}, True),
+        ({"env": {"T": "${{ secrets.GITHUB_TOKEN }}"}}, False),
+        ({"steps": [{"name": "Plant canary secrets", "run": "true"}]}, False),
+    ],
+    ids=["dot", "index", "toJSON", "upper-case", "inherit", "github-token", "prose"],
+)
+def test_privileged_recognises_secrets_in_any_form(job: dict, privileged: bool) -> None:
+    assert _privileged(job, {"permissions": {"contents": "read"}}) is privileged
 
 
 def test_release_sbom_steps_match_sbom_workflow() -> None:
