@@ -9,6 +9,47 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — pull requests build and smoke-test both Docker images
+
+`docker.yml` builds the images only after merge, and `notify-ops.yml` deploys
+every successful main build, so a broken `Dockerfile`, `.dockerignore`,
+`entrypoint.sh` or `requirements.lock` used to show up first on its way to
+production. On 2026-05-26 a digest pin that BuildKit rejected (`FROM requires
+either one or three arguments`) failed three main builds in a row before the
+fix was merged. The new `.github/workflows/docker-pr.yml` builds the slim and
+the office image on every pull request, without pushing them, and smoke-tests
+each one:
+
+- The image holds `scripts/first_run.py`, the compiled German message catalogue
+  and `alembic.ini`, and not `.env`, `data/api_keys.json`, `.git`, `.github` or
+  `tests/`. A `.env` and a `data/api_keys.json` are planted in the checkout
+  before the build, so the check sees what `.dockerignore` does with a
+  self-hoster's working folder, not only with a clean checkout. A third planted
+  file, which nothing ignores, has to reach the image, so the check cannot pass
+  on a build that did not use that folder.
+- The container starts the way `docker-compose.yml` runs it (all capabilities
+  dropped, no privilege escalation), answers `/api/v1/health` on the published
+  port and prints a first-run API key. `curl` inside the container, which the
+  Compose healthcheck uses, reaches it too, and it does not run as root.
+- `ffmpeg` and Ghostscript run, and WeasyPrint renders a page. Start-up alone
+  would not show a missing one: the converters call them only for a conversion.
+- In the office image, LibreOffice converts a text file to PDF the way the DOCX
+  converter calls it.
+
+It runs on every pull request, not only on changes to the Docker files: an app
+change can break the image alone, and a workflow that a `paths:` filter skips
+never reports, so it could not become a required check. It is not a required
+check yet.
+
+Nothing in it can push, sign or deploy: its token is read-only and it uses no
+secret. `notify-ops.yml` now also requires that the Docker run it follows was
+started by a push or a manual dispatch in this repository, so a run for a pull
+request never leads to a deploy. Tests pin both. A job in a workflow that
+pull-request events trigger may hold neither a write token nor a secret;
+`_privileged` in `tests/test_supply_chain_hygiene.py` now also recognises
+`secrets['X']`, `toJSON(secrets)` and a reusable-workflow call's `secrets:`.
+And `notify-ops.yml`'s condition and trigger are pinned word for word.
+
 ### Added — the Docker images carry a signed SBOM attestation
 
 `docker.yml` now attests the CycloneDX SBOM to each image it pushes — slim and
