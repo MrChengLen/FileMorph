@@ -16,7 +16,7 @@ FileMorph supports two parallel authentication schemes:
 | **API key** (Community) | `X-API-Key: <key>` | `scripts/generate_api_key.py` | Self-host scripts, automation, CLI tooling |
 | **JWT Bearer** (Cloud overlay) | `Authorization: Bearer <token>` | `POST /api/v1/auth/login` | Browser sessions, multi-user deployments |
 
-Either header satisfies the auth requirement on `/convert`, `/compress`, and their `/batch` variants. `/health` and `/formats` are public; the auth-flow endpoints (`/api/v1/auth/*`, `/api/v1/keys`, `/api/v1/billing/*`) require a JWT.
+The file endpoints (`/convert`, `/compress`, their `/batch` variants, `/pdf/*` and `/ai/redact/*`) take either header but need neither: a request without credentials runs on the anonymous tier (so `/ai/redact/apply`, which needs a paid plan, answers it with `403`). Credentials you do send are checked. An `X-API-Key` must be valid — a key from `scripts/generate_api_key.py` or an active key created in the dashboard (`POST /api/v1/keys`) — otherwise the answer is `401`, and `429` once your IP has sent 30 rejected keys in a minute (see [Failed API-key attempts](#failed-api-key-attempts)). An invalid or expired Bearer token is not rejected on these endpoints: it is ignored, and the request runs without your account — refresh the token before it expires (see the [API usage guide](api-usage-guide.md#refresh-the-access-token)). `/health`, `/ready`, `/formats` and `/contact` are public; the account endpoints (`/api/v1/auth/*`, `/api/v1/keys`, `/api/v1/billing/*`) require a JWT unless the tables below say otherwise.
 
 ### API key (Community Edition)
 
@@ -87,15 +87,15 @@ The endpoints in this section only respond when the Cloud overlay is configured 
 
 | Method + Path | Auth | Purpose |
 |---|---|---|
-| `POST /api/v1/keys` | Bearer | Create a new API key bound to the authenticated user. Plaintext key is shown exactly once in the response. Optional body `{"label": "…"}` (at most 100 characters). An account holds at most 25 active keys; beyond that the response is `409 Conflict` — revoke a key you no longer use first. |
-| `GET /api/v1/keys` | Bearer | List the user's keys (id, name, prefix, created, last-used). |
+| `POST /api/v1/keys` | Bearer | Create a new API key bound to the authenticated user (`201`). Plaintext key is shown exactly once in the response. JSON body `{"label": "…"}` — `label` is optional (at most 100 characters, default `My API Key`), the body is not: send `{}` for the default. An account holds at most 25 active keys; beyond that the response is `409 Conflict` — revoke a key you no longer use first. |
+| `GET /api/v1/keys` | Bearer | List the user's active keys (`id`, `label`, `created_at`, `last_used_at`, `is_active`). The key itself is never shown again. |
 | `DELETE /api/v1/keys/{id}` | Bearer | Revoke a key. |
 
 **Billing (`/api/v1/billing/*`)**
 
 | Method + Path | Auth | Purpose |
 |---|---|---|
-| `POST /api/v1/billing/checkout/{tier}` | Bearer | Start a Stripe Checkout for `pro` / `business`. Body MUST include `withdrawal_waiver_acknowledged: true` (BGB §356 (5) consent — see `terms.html` § 9). Returns the Stripe Checkout URL; an `auth.billing.withdrawal_waiver_recorded` audit event is written before the redirect. |
+| `POST /api/v1/billing/checkout/{tier}` | Bearer | Start a Stripe Checkout for `pro` / `business`. Body MUST include `withdrawal_waiver_acknowledged: true` (BGB §356 (5) consent — see `terms.html` § 9). Returns the Stripe Checkout URL; a `billing.checkout.withdrawal_waiver_recorded` audit event is written before the redirect. |
 | `POST /api/v1/billing/portal` | Bearer | Return a Stripe Customer Portal URL so the user can manage card / cancel / re-subscribe. |
 | `POST /api/v1/billing/webhook` | Stripe signature | Stripe → FileMorph webhook receiver. Handles `customer.subscription.{created,updated,deleted}` (tier sync from price + status) and `invoice.payment_failed` (dunning: marks `subscription_status=past_due`, sends a "payment failed — update your card" email once per retry cycle, keeps the paid tier during Stripe's grace window, and downgrades to Free only on a terminal status). Not exposed in OpenAPI. |
 
@@ -109,9 +109,22 @@ Two-phase. See [`pii-redaction.md`](pii-redaction.md) for capability + limits.
 | Method | Endpoint | Body | Notes |
 |---|---|---|---|
 | `POST` | `/api/v1/ai/redact/detect` | `file`, `entity_types` (optional CSV) | **Free**, open to anonymous/free. Returns JSON `{findings:[{entity_type,value,location,confidence}], count, credits_estimate, credits_remaining}`. |
-| `POST` | `/api/v1/ai/redact/apply` | `file`, `entity_types` (optional), `mode` (`replace`\|`mask`\|`remove`) | **Paid-tier only, credit-metered.** Returns the redacted file as a download with headers `X-FileMorph-AI-Entities-Redacted`, `X-FileMorph-AI-Credits-Cost`, `X-FileMorph-AI-Credits-Remaining`. |
+| `POST` | `/api/v1/ai/redact/apply` | `file`, `entity_types` (optional), `mode` (`replace`\|`mask`\|`remove`, default `replace`) | **Paid-tier only, credit-metered.** Returns the redacted file as a download — DOCX and XLSX keep their format, every text input comes back as UTF-8 text named `<name>.redacted.txt` — with headers `X-FileMorph-AI-Entities-Redacted`, `X-FileMorph-AI-Credits-Cost` and, when your tier has a monthly credit limit, `X-FileMorph-AI-Credits-Remaining`. |
 
-Supported inputs: UTF-8 text, DOCX, XLSX. Responses are credit-denominated only —
+`entity_types` is a comma-separated subset of `EMAIL`, `IBAN`, `PHONE`, `IPV4`,
+`CREDIT_CARD` (case-insensitive); empty means all of them.
+
+Each successful `apply` costs `AI_CREDIT_COST_REDACT` credits (default `1`),
+counted against your tier's monthly allotment (calendar month, UTC;
+`ai_credits_per_month` in `app/core/quotas.py`, unlimited on Enterprise). The
+charge is made only after the output passed verification, so a failed run
+costs nothing. `detect` is free: `credits_estimate` is what `apply` would
+charge, and `credits_remaining` is `null` when there is no limit to count
+against (anonymous callers, unlimited tiers).
+
+Supported inputs: UTF-8 text (`.txt`, `.md`, `.csv`, `.tsv`, `.json`, `.xml`,
+`.html`, `.yaml`, `.ini`, `.log` and a few aliases, or no extension), DOCX,
+XLSX. Responses are credit-denominated only —
 no model id, token count, or euro cost. Error codes (`X-FileMorph-Error-Code`):
 `ai_unavailable` (503), `ai_plan_required` (403), `ai_credits_exhausted` (402),
 `unsupported_format` (415, incl. PDF by design), `input_too_large` (413),
@@ -125,7 +138,7 @@ no model id, token count, or euro cost. Error codes (`X-FileMorph-Error-Code`):
 
 Convert a file from one format to another.
 
-**Authentication**: Required (`X-API-Key` header)
+**Authentication**: Optional — `X-API-Key` or `Authorization: Bearer`; without credentials the request runs on the anonymous tier (see [Authentication](#authentication))
 
 **Request**: `multipart/form-data`
 
@@ -133,9 +146,9 @@ Convert a file from one format to another.
 |---|---|---|---|
 | `file` | file | Yes | The file to convert |
 | `target_format` | string | Yes | Target format extension, e.g. `jpg`, `pdf`, `mp3` |
-| `quality` | integer | No | Quality 1–100 (default: 85). Applies to lossy formats (JPEG, WebP, AVIF, video) |
+| `quality` | integer | No | Quality 1–100 (default: 85). Applies to lossy targets (JPEG, WebP, AVIF, video, lossy audio) |
 
-**Response**: `200 OK` — the converted file as a download
+**Response**: `200 OK` — the converted file as a download, named `<name>.<target_format>` — `<name>_pdfa.pdf` for `target_format=pdfa` (see [Download names](#download-names)). A DOCX → PDF conversion whose layout had to be simplified also carries `X-FileMorph-Warnings` (see [Conversion warnings](#conversion-warnings)).
 
 **Example — HEIC to JPG**
 ```bash
@@ -197,7 +210,7 @@ const url = URL.createObjectURL(blob);
 
 Reduce a file's size by re-encoding at a lower quality, keeping the same format.
 
-**Authentication**: Required (`X-API-Key` header)
+**Authentication**: Optional — `X-API-Key` or `Authorization: Bearer`; without credentials the request runs on the anonymous tier (see [Authentication](#authentication))
 
 **Request**: `multipart/form-data`
 
@@ -205,9 +218,9 @@ Reduce a file's size by re-encoding at a lower quality, keeping the same format.
 |---|---|---|---|
 | `file` | file | Yes | The file to compress |
 | `quality` | integer | No | Quality 1 (smallest) – 100 (best). Defaults to 85. Mutually exclusive with `target_size_kb` |
-| `target_size_kb` | integer | No | Target output size in KB. Activates binary-search-on-quality (JPEG/WebP/AVIF only). Mutually exclusive with `quality` |
+| `target_size_kb` | integer | No | Target output size in KB, at least `5`. Activates binary-search-on-quality (JPEG/WebP/AVIF only). Mutually exclusive with `quality` |
 
-**Supported formats**: JPG, JPEG, PNG, WebP, AVIF, TIFF · MP4, MOV, AVI, MKV, WebM
+**Supported formats**: JPG, JPEG, PNG, WebP, AVIF, TIFF, TIF · MP4, MOV, AVI, MKV, WebM. FLV and WMV can be converted but not compressed (`422`). A video keeps its container; see [`formats.md`](formats.md#video) for the codecs and how `quality` maps onto them.
 
 `target_size_kb` is JPEG/WebP/AVIF only — PNG/TIFF are lossless and quality does not control size meaningfully. Sending `target_size_kb` with a PNG returns `415`. AVIF/AV1 encode is more CPU-intensive than JPEG/WebP, and target-size runs several encode passes.
 
@@ -220,7 +233,7 @@ When `target_size_kb` is set, the response also carries:
 | `X-FileMorph-Achieved-Bytes` | Actual output size in bytes |
 | `X-FileMorph-Final-Quality` | Quality value the search settled on (1–100) |
 
-Tolerance is ±3 % of the requested target. If even quality `1` exceeds the target, the smallest possible output is returned anyway and the headers reveal the actual size.
+Tolerance is ±3 % of the requested target: the result is at most 3 % over it, but can be smaller (an image that already fits at quality 95 is returned at 95). If even quality `1` exceeds the target, the smallest possible output is returned anyway and the headers reveal the actual size.
 
 **Example — Compress a JPG to 70% quality**
 ```bash
@@ -269,7 +282,7 @@ curl -X POST http://localhost:8000/api/v1/compress \
 Write a new PDF containing only a selected page range — a structural *morph*,
 not a format conversion. Text, fonts and vector content are copied intact.
 
-**Authentication**: Required (`X-API-Key` or `Authorization: Bearer`)
+**Authentication**: Optional — `X-API-Key` or `Authorization: Bearer`; without credentials the request runs on the anonymous tier (see [Authentication](#authentication))
 
 **Request**: `multipart/form-data`
 
@@ -297,7 +310,7 @@ curl -X POST http://localhost:8000/api/v1/pdf/extract \
 
 Split a PDF into one single-page PDF per page, bundled as a ZIP.
 
-**Authentication**: Required (`X-API-Key` or `Authorization: Bearer`)
+**Authentication**: Optional — `X-API-Key` or `Authorization: Bearer`; without credentials the request runs on the anonymous tier (see [Authentication](#authentication))
 
 **Request**: `multipart/form-data`
 
@@ -328,7 +341,7 @@ intact. Honest by design — a PDF with no recompressible images comes back vali
 and unchanged-in-content (see the headers below), never a fake compression
 claim.
 
-**Authentication**: Required (`X-API-Key` or `Authorization: Bearer`)
+**Authentication**: Optional — `X-API-Key` or `Authorization: Bearer`; without credentials the request runs on the anonymous tier (see [Authentication](#authentication))
 
 **Request**: `multipart/form-data`
 
@@ -369,7 +382,7 @@ curl -X POST http://localhost:8000/api/v1/pdf/compress \
 
 Convert several files in one request. Returns a ZIP archive with all converted outputs.
 
-**Authentication**: Required (`X-API-Key` or `Authorization: Bearer`)
+**Authentication**: Optional — `X-API-Key` or `Authorization: Bearer`; without credentials the request runs on the anonymous tier (see [Authentication](#authentication))
 
 **Request**: `multipart/form-data`
 
@@ -379,7 +392,7 @@ Convert several files in one request. Returns a ZIP archive with all converted o
 | `target_formats` | string[] | Yes | Target format per file, repeated once per file in the same order (length must match `files`, otherwise `422`) |
 | `quality` | integer | No | Quality 1–100 (default 85). Applied uniformly. |
 
-**Response**: `200 OK` (`application/zip`) — archive with one entry per successful conversion. If at least one file fails, a `manifest.json` is added at archive root listing per-file results (success ZIP-only is preferred for all-success runs to keep the output clean).
+**Response**: `200 OK` (`application/zip`, named `filemorph-batch.zip`) — archive with one entry per successful conversion. If at least one file fails, a `manifest.json` is added at archive root listing per-file results (success ZIP-only is preferred for all-success runs to keep the output clean). The `X-FileMorph-Batch-*` headers carry the counts and the failed files (see [Batch headers](#batch-headers)); `X-FileMorph-Batch-Failed` above `0` means the ZIP holds a `manifest.json`.
 
 A run with **every** file failing returns `422 Unprocessable Content` with a JSON body listing per-file errors.
 
@@ -397,7 +410,7 @@ curl -X POST http://localhost:8000/api/v1/convert/batch \
 
 Compress several files in one request. Same response shape as `/convert/batch`.
 
-**Authentication**: Required
+**Authentication**: Optional — `X-API-Key` or `Authorization: Bearer`; without credentials the request runs on the anonymous tier (see [Authentication](#authentication))
 
 **Request**: `multipart/form-data`
 
@@ -405,7 +418,7 @@ Compress several files in one request. Same response shape as `/convert/batch`.
 |---|---|---|---|
 | `files` | files (≥1) | Yes | One or more files to compress |
 | `quality` | integer | No | Quality 1–100 (default 85). Mutually exclusive with `target_size_kb`. |
-| `target_size_kb` | integer | No | Per-file target size. Mutually exclusive with `quality`. |
+| `target_size_kb` | integer | No | Target size in KB (at least `5`), applied to each file. JPEG/WebP/AVIF only — any other file in the batch fails on its own, with an `error_message` saying so. Mutually exclusive with `quality`. |
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/compress/batch \
@@ -423,21 +436,22 @@ Returns all supported conversion and compression formats.
 
 **Authentication**: Not required
 
-**Response**: `200 OK` — JSON
+**Response**: `200 OK` — JSON. An excerpt: `conversions` has one key per
+source format, and only seven of them are shown here.
 
 ```json
 {
   "conversions": {
-    "jpg": ["png", "webp", "avif", "bmp", "tiff", "gif"],
-    "heic": ["jpg", "png", "webp", "avif"],
+    "jpg": ["jpeg", "png", "webp", "bmp", "tiff", "tif", "gif", "ico", "avif", "pdf"],
+    "heic": ["jpg", "jpeg", "png", "webp", "bmp", "tiff", "tif", "gif", "ico", "avif", "pdf"],
     "docx": ["pdf", "txt"],
     "txt": ["pdf"],
     "csv": ["xlsx", "json"],
-    "mp4": ["avi", "mov", "mkv", "webm"],
-    "mp3": ["wav", "flac", "ogg", "m4a"]
+    "mp4": ["avi", "mov", "mkv", "webm", "flv", "wmv"],
+    "mp3": ["wav", "flac", "ogg", "m4a", "aac", "wma", "opus"]
   },
   "compression": {
-    "image": ["jpg", "jpeg", "png", "webp", "avif", "tiff"],
+    "image": ["jpg", "jpeg", "png", "webp", "tiff", "tif", "avif"],
     "video": ["mp4", "avi", "mov", "mkv", "webm"]
   }
 }
@@ -461,8 +475,11 @@ Health check for monitoring and load balancer probes.
 
 `/api/v1/health` is the unauthenticated liveness probe — it stays deliberately minimal
 (no version or codec flags) so a public hit does not disclose deployment internals
-(pentest finding PT-011). For operational state (database / temp-dir reachability,
-ffmpeg-on-PATH), use `GET /api/v1/ready`.
+(pentest finding PT-011). For readiness, use `GET /api/v1/ready`: it checks that the
+database answers (reported as `skipped` when none is configured) and that the temp
+directory is writable, e.g. `{"status": "ready", "checks": {"database": "ok",
+"tempdir": "ok"}}`, and returns `503` with `"status": "not_ready"` when a check
+fails. It does not check ffmpeg — the startup log warns when ffmpeg is missing.
 
 ---
 
@@ -488,9 +505,80 @@ Every successful conversion / compression carries integrity and classification m
 | `X-Data-Classification` | One of `public`, `internal`, `confidential`, `restricted` | every response — echoes the request header value, defaults to `internal` when absent (NEU-C.3 / BSI-style taxonomy) |
 | `X-FileMorph-Achieved-Bytes` | Actual output size in bytes | on `/compress` calls with `target_size_kb`, and on `/pdf/compress` |
 | `X-FileMorph-Final-Quality` | Quality value the binary search settled on (1–100) | only on `/compress` calls with `target_size_kb` |
+| `X-FileMorph-Batch-Total`, `X-FileMorph-Batch-Succeeded`, `X-FileMorph-Batch-Failed` | File counts of the batch | every `200` from `/convert/batch` and `/compress/batch` |
+| `X-FileMorph-Batch-Failures` | The failed files and why (see [Batch headers](#batch-headers)) | batch `200` responses in which at least one file failed |
+| `X-FileMorph-Error-Code` | A fixed code for the reason of an error (see [Error codes](#error-codes)) | the error responses listed there |
+| `X-FileMorph-Warnings` | Comma-separated `key=value` tokens (see [Conversion warnings](#conversion-warnings)) | `/convert` DOCX → PDF, when the layout had to be simplified |
 | `Retry-After` | Seconds the client should wait before retrying | on `503 Service Unavailable` (global concurrency cap) and on every `429` except the rate limiter's (slowapi, see Rate Limiting) — e.g. the per-tier concurrency cap and the monthly call quota |
 
 The `X-Data-Classification` value is also written to the audit-log entry for the request, so a downstream auditor can answer "what classification of data was processed in this call" from the database alone (see `app/core/audit.py`).
+
+### Batch headers
+
+`X-FileMorph-Batch-Failures` lists each failed file as `<name>|<reason>`,
+entries separated by `;`. Name and reason are percent-encoded, so a `|` or `;`
+inside them cannot break the list — for example
+`two.png|Conversion%20failed.%20Verify%20the%20file%20is%20valid.`. The header
+is capped at about 4 KB: a longer list is cut and ends with the entry `...`,
+while `manifest.json` in the ZIP always lists every file. The three count
+headers always carry the full totals. A batch in which every file failed
+returns the `422` JSON body instead, without these headers.
+
+### Error codes
+
+Some error responses carry `X-FileMorph-Error-Code`, a fixed string a client
+can branch on (the `detail` text may change):
+
+| Code | Status | Meaning |
+|---|---|---|
+| `input_too_large` | `413` | A file is larger than your tier allows per file |
+| `output_cap_exceeded` | `413` | The result is larger than your tier's output cap |
+| `target_size_exceeds_cap` | `413` | `target_size_kb` (`/compress`, `/compress/batch`) or `target_kb` (`/pdf/compress`) is above your tier's output cap — rejected before any work |
+| `decompression_bomb` | `400` | The image's dimensions exceed the decoder's safety limit (`/convert`, `/compress`) |
+| `invalid_input` | `400` | A problem you can fix, named in `detail` — e.g. a Markdown, CSV or JSON file that isn't UTF-8 (`/convert`) |
+| `invalid_page_selection` | `400` | `/pdf/extract`: the `pages` selection is invalid, or the PDF can't be read |
+| `invalid_pdf` | `400` | `/pdf/split`, `/pdf/compress`: the PDF can't be read; `/pdf/split` also for a PDF with no pages or more than 10 000 |
+
+The redaction endpoints add codes of their own, listed under
+[AI operations](#ai-operations--pii-redaction-enterprise-edition-add-on).
+Errors without the header — for example validation errors (`422`), a blocked
+file type (`400 "File type not permitted."`), rate limits and most `500`s —
+are identified by status and `detail`.
+
+### Conversion warnings
+
+`/convert` sets `X-FileMorph-Warnings` when a DOCX → PDF conversion ran on the
+pure-Python engine and its layout had to be simplified. The PDF is still
+returned (`200`). The tokens, comma-separated:
+
+- `engine=mammoth_fallback` — the document needed LibreOffice, but the
+  pure-Python engine ran; `reason=soffice_unavailable` (LibreOffice is not
+  installed, e.g. in the slim image) or `reason=soffice_runtime_error`
+  (LibreOffice failed) says why.
+- `simplified=<feature>` — one per feature the pure-Python engine dropped or
+  flattened: `footnotes`, `endnotes`, `headers`, `footers`, `ole_objects`,
+  `multi_section_layout`, `equations`, `multilevel_lists`.
+- `fidelity=reduced` — the pure-Python engine reported other simplifications.
+
+For example `engine=mammoth_fallback,reason=soffice_unavailable,simplified=footnotes`.
+The engine routing is described in [`formats.md`](formats.md#notes-on-docx--pdf).
+
+### Download names
+
+`Content-Disposition` names the download after the uploaded file:
+
+| Endpoint | Download name |
+|---|---|
+| `/convert` | `<name>.<target_format>`; `<name>_pdfa.pdf` for `target_format=pdfa` |
+| `/compress`, `/pdf/compress` | `<name>_compressed.<ext>` |
+| `/pdf/extract`, `/pdf/split` | `<name>_pages.pdf`, `<name>_pages.zip` |
+| `/ai/redact/apply` | `<name>.redacted.<ext>` — `<name>.redacted.txt` for every text input |
+| `/convert/batch`, `/compress/batch` | `filemorph-batch.zip`; the entries inside are named like single-file results |
+
+The name is sanitised: accents and other combining marks are dropped
+(`Café` → `Cafe`), and every character other than a letter, digit, space,
+`_`, `-` or `.` is removed. It is capped at 200 characters by shortening only
+`<name>`, so the extension and suffixes such as `_compressed` are kept.
 
 ---
 
@@ -512,7 +600,7 @@ every file failed returns `422` with `{"summary": …, "files": […]}`.
 | HTTP Status | Meaning |
 |---|---|
 | `400 Bad Request` | Missing or malformed request data (e.g. filename without extension), or file content that has to be fixed first — e.g. a Markdown, CSV or JSON file that isn't UTF-8 (`X-FileMorph-Error-Code: invalid_input`; `detail` names the fix) |
-| `401 Unauthorized` | Missing or invalid `X-API-Key` / `Authorization: Bearer` |
+| `401 Unauthorized` | An `X-API-Key` was sent but is not valid, or an endpoint that needs an account (`/auth/me`, `/keys`, `/billing/*`, …) got no valid `Authorization: Bearer` token. The file endpoints need no credentials: without them — or with an expired Bearer token — they run on the anonymous tier (see [Authentication](#authentication)) |
 | `403 Forbidden` | Authenticated but role/tier doesn't permit the action (e.g. non-admin hitting `/cockpit/*`) |
 | `413 Content Too Large` | Request exceeds `MAX_UPLOAD_SIZE_MB` (default: 100 MB), a file exceeds your tier's size cap, or the output exceeds your tier's output cap |
 | `415 Unsupported Media Type` | `target_size_kb` set on a lossless format (PNG/TIFF), or otherwise incompatible request shape |

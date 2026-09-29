@@ -99,15 +99,20 @@ codebases hard to read without making them safer.
 
 The biggest dependency cluster — every converter is a thin
 adapter over a battle-tested library. The plugin registry
-(`app/converters/registry.py`) discovers them; new formats add a
-single `@register("src", "tgt")` decorator without touching the core.
+(`app/converters/registry.py`) maps each `(source, target)` pair to
+its converter class; a new format adds a `BaseConverter` subclass with
+an `@register(("src", "tgt"))` decorator, plus one import line in
+`_ensure_loaded()`, without touching the routes.
 
 | Library | What it does | Why this | Alternative |
 |---|---|---|---|
 | **Pillow** | Image read/write/convert (JPG/PNG/WebP/AVIF and friends) | The de-facto Python image library. Wide format support, predictable memory profile, BSD-style license. | ImageMagick CLI (subprocess overhead, harder to sandbox), Wand (ImageMagick binding — heavier deploy) |
 | **pillow-heif** | HEIC input (Apple Photos export) | Ships as a separate wheel rather than a Pillow-bundled plugin because of LGPL-vs-MIT licensing on the underlying `libheif`. Adding it as a plugin keeps the Pillow side license-clean. | pyheif (older, less maintained) |
+| **pillow-avif-plugin** | AVIF read/write for Pillow | Importing it registers AVIF encode + decode with Pillow; the wheel bundles libavif, so no system package is needed. | Pillow's own AVIF plugin (recent Pillow wheels ship one) |
 | **python-docx** | DOCX read/write | Microsoft OOXML reference implementation in Python. | python-pptx (PPTX-only, complementary), aspose-words (commercial) |
-| **pypdf** | PDF merge / split / page extraction | Pure-Python, BSD-licensed, AGPLv3-compatible. Active fork of the PyPDF2 lineage. | PyPDF2 (deprecated upstream), pdfplumber (read-only, extraction-focused), PyMuPDF (faster but ~50 MB native binary) |
+| **mammoth** | DOCX → HTML for the pure-Python DOCX → PDF path (then WeasyPrint) | Pure Python, runs in every image; the office image routes complex documents to LibreOffice instead (see [`formats.md`](./formats.md#notes-on-docx--pdf)). | LibreOffice headless alone (Word-grade, but ~280 MB larger image) |
+| **pypdf** | PDF page extraction, split and text extraction (PDF → TXT) | Pure-Python, BSD-licensed, AGPLv3-compatible. Active fork of the PyPDF2 lineage. | PyPDF2 (deprecated upstream), pdfplumber (read-only, extraction-focused), PyMuPDF (faster but ~50 MB native binary) |
+| **pikepdf** | PDF/A-2b output and PDF compression (recompressing embedded images) | Python binding to qpdf; the wheels bundle qpdf, so no system package is needed. Loaded lazily, only when a PDF/A or PDF-compress request needs it. | Ghostscript alone (an external program; the PDF/A path runs it first where installed, then pikepdf writes the PDF/A markup) |
 | **reportlab** | PDF generation (TXT→PDF) | BSD-licensed Open Source Edition; the right tool when generating a PDF from scratch rather than transforming HTML. | WeasyPrint (HTML→PDF — different use-case, kept in parallel), fpdf2 (lighter, fewer features) |
 | **WeasyPrint** | HTML/CSS → PDF | Used for any HTML-source PDF output (e.g. Markdown → HTML → PDF). SSRF-hardened in `app/converters/document.py` via `url_fetcher=_deny_url_fetcher`. | wkhtmltopdf (deprecated; QtWebKit-based), Puppeteer/Playwright (Node.js + headless Chrome — much heavier) |
 | **markdown** | Markdown → HTML pre-processing for the WeasyPrint pipeline | Stable, predictable output; the dialect FileMorph ships matches what most users expect from a Markdown converter. | mistune (faster but a different feature set), markdown-it-py (CommonMark-strict) |
@@ -127,22 +132,25 @@ one generic tool (ImageMagick, Pandoc, LibreOffice headless) means
 inheriting that tool's idiosyncrasies for every conversion. The
 adapter-per-format approach keeps each path debuggable in isolation.
 
-**The plugin pattern.** `app/converters/registry.py` exposes a
-`@register("src_ext", "tgt_ext")` decorator. A new converter is one
-file, one decorator, one function with the signature
-`convert(input_path, output_path, **kwargs)`. The dispatcher in
-`app/api/routes/convert.py` looks up the right callable by
-extensions; the core does not need to know which library does the
-work. This is also how a self-hoster adds a custom converter without
-forking — drop a module into `app/converters/`, and the registry
-picks it up at import time.
+**The plugin pattern.** `app/converters/registry.py` exposes a class
+decorator, `@register(("src_ext", "tgt_ext"), ...)`, that takes one
+`(source, target)` tuple per pair. A new converter is a subclass of
+`BaseConverter` (`app/converters/base.py`) that implements
+`convert(self, input_path, output_path, **kwargs) -> Path`; the routes
+pass `quality` as a keyword argument. `get_converter()` looks the pair
+up by extensions and instantiates the class, which the route in
+`app/api/routes/convert.py` then calls; the core does not need to know
+which library does the work. The registry does not scan the directory:
+a new module must also be imported in `_ensure_loaded()` in
+`app/converters/registry.py`, or its pairs are never registered. A
+self-hoster adding a custom converter therefore changes two files —
+the new module and that import list.
 
-**SVG and exotic formats.** SVG support relies on the system Cairo
-stack pulled in by WeasyPrint; FileMorph does not ship a native SVG
-manipulation library. If you need to *generate* SVG programmatically,
-that's an open feature request, not a deficiency in the existing
-stack — file an issue rather than reaching for a heavyweight
-dependency.
+**SVG and exotic formats.** There is no SVG conversion: SVG is neither
+an input nor an output format in the registry, and FileMorph ships no
+SVG library. If you need SVG support, that's an open feature request,
+not a deficiency in the existing stack — file an issue rather than
+reaching for a heavyweight dependency.
 
 ---
 
@@ -151,13 +159,16 @@ dependency.
 | Library | What it does | Why this | Alternative |
 |---|---|---|---|
 | **python-dotenv** | Loads `.env` for local development | In production `pydantic-settings` reads directly from the process environment (Docker injects the values). `.env` is convenience for the dev loop. | `os.getenv` only (no `.env` support), direnv (shell-side, not Python) |
-| **slowapi** | Rate-limit middleware (10 req/min on `/api/v1/convert` and `/api/v1/compress`) | In-memory storage. Single-instance only — adequate for the current deployment. Multi-instance would require swapping in a Redis backend. | fastapi-limiter (Redis-mandatory), starlette-context-rate-limit (lighter but more glue) |
+| **slowapi** | Per-route rate limits via `@limiter.limit(...)` decorators (e.g. 10 req/min on `/api/v1/convert` and `/api/v1/compress`; every limit is listed in [`api-reference.md`](./api-reference.md#rate-limiting)) — no middleware, so a route without a decorator is not limited | In-memory storage. Single-instance only — adequate for the current deployment. Multi-instance would require swapping in a Redis backend. | fastapi-limiter (Redis-mandatory), starlette-context-rate-limit (lighter but more glue) |
 
 The shared limiter instance lives in `app/core/rate_limit.py`. Tests
-disable it via the session-scoped `disable_rate_limiting` fixture in
-`tests/conftest.py` — never remove that fixture, the limiter
+disable it with `RATELIMIT_ENABLED=0`, set at the top of
+`tests/conftest.py` before any app module is imported (slowapi reads
+it when the limiter is created) — never remove that line, the limiter
 accumulates hits across the test session and tests 11+ would start
-returning 429.
+returning 429. A test that checks a limit switches the limiter back on
+for its own duration (`limiter.enabled = True`, see
+`tests/test_rate_limit.py`).
 
 ---
 
@@ -207,9 +218,13 @@ deliberately.
 |---|---|---|---|
 | **stripe** | Stripe Python SDK — Checkout sessions, webhook signature verification, Customer Portal | Stripe is the obvious default for a EU-hosted SaaS in 2026; the Python SDK is the canonical surface. Webhook signatures are verified via `stripe.Webhook.construct_event(...)`. | Paddle (Merchant of Record — handles EU VAT for you, but takes a higher cut; trade-off-discussion not duplicated here), LemonSqueezy (newer MoR, smaller reach) |
 
-**Webhook coverage status.** `customer.subscription.*`,
-`checkout.session.completed`, and `invoice.payment_failed` are handled
-today — the last drives the dunning flow (`_handle_payment_failed`,
+**Webhook coverage status.** `customer.subscription.created`,
+`customer.subscription.updated`, `customer.subscription.deleted` and
+`invoice.payment_failed` are handled today (`app/api/routes/billing.py`);
+every other event type is acknowledged and ignored. The subscription
+events set the tier from the price and status — including right after a
+checkout, so `checkout.session.completed` is not handled.
+`invoice.payment_failed` drives the dunning flow (`_handle_payment_failed`,
 debounced via `subscription_status`). Recovery is detected via the
 `customer.subscription.updated` transition out of a grace status back to
 active, so a separate `invoice.payment_succeeded` handler is
@@ -229,11 +244,13 @@ libheif) caveats, and the machine-readable SBOM — is in
 
 | Library | License | Notes |
 |---|---|---|
-| FastAPI, Starlette, Pydantic, Pydantic-Settings | MIT | Permissive. |
-| Uvicorn, python-multipart | BSD-3-Clause | Permissive. |
+| FastAPI, Pydantic, Pydantic-Settings | MIT | Permissive. |
+| Starlette, Uvicorn | BSD-3-Clause | Permissive. |
+| python-multipart | Apache-2.0 | Permissive. |
 | Jinja2, MarkupSafe | BSD-3-Clause | Permissive. |
-| Pillow | HPND (BSD-style) | Permissive. |
+| Pillow | MIT-CMU (HPND-style) | Permissive. |
 | pillow-heif | wheel metadata: GPLv2 (bundled native HEVC stack) | The distributed wheels bundle `libheif`/`libde265` (LGPL-3.0) **+ `x265` (GPL-2.0+)**, and the metadata reflects the most-restrictive component. FileMorph uses it for HEIC *decode* only (the `libde265` path); `x265` is present but never invoked. An automated scan **will** flag this — explanation and the GPL-free build option in [`third-party-licenses.md`](./third-party-licenses.md). |
+| pillow-avif-plugin | MIT | Permissive (the wheel bundles libavif). |
 | mammoth | BSD-2-Clause | Permissive (.docx → HTML for the *fallback* converter — the high-fidelity DOCX → PDF path delegates to LibreOffice in the `filemorph:office` image instead; see [`docs/formats.md`](./formats.md#notes-on-docx--pdf)). |
 | python-docx | MIT | Permissive. |
 | pypdf | BSD-3-Clause | Permissive (clean fork from PyPDF2's BSD heritage). |
@@ -249,13 +266,14 @@ libheif) caveats, and the machine-readable SBOM — is in
 | asyncpg | Apache-2.0 | Permissive. |
 | python-jose | MIT | Permissive. |
 | bcrypt | Apache-2.0 | Permissive. |
-| email-validator | The Unlicense / CC0 | Public-domain-equivalent. |
+| email-validator | The Unlicense | Public-domain-equivalent. |
 | aiosmtplib | MIT | Permissive. |
 | stripe | MIT | Permissive. |
 | Babel | BSD-3-Clause | Permissive (i18n message catalogs). |
+| prometheus-client | Apache-2.0 AND BSD-2-Clause | Permissive (`/api/v1/metrics`). |
 
 Everything in the current runtime tree is permissive (MIT, BSD,
-Apache-2.0, ISC, Unlicense/CC0, PSF, MIT-CMU) or weak/file-level
+Apache-2.0, ISC, Unlicense, PSF, MIT-CMU) or weak/file-level
 copyleft (MPL-2.0: `pikepdf`, `certifi`). There is no GPL/AGPL
 strong-copyleft Python dependency that would constrain downstream
 users. The copyleft that exists is at the edges and documented in
@@ -331,9 +349,9 @@ so the same arguments don't have to be relitigated every six months.
   case at a fraction of the install size.
 - **PyMuPDF** — Considered for PDF operations. Faster than `pypdf`,
   but ships a ~50 MB native binary and historically had license
-  ambiguity (parts of the older MuPDF heritage). `pypdf` is good
-  enough for merge / split / page-extract, which is the entire PDF
-  surface today.
+  ambiguity (parts of the older MuPDF heritage). `pypdf` covers
+  split, page extraction and text extraction, and `pikepdf` the PDF/A
+  output and PDF compression — together the entire PDF surface today.
 - **wkhtmltopdf** — Considered for HTML→PDF. Rejected: upstream
   deprecated, security-uncertain, and based on an old QtWebKit fork.
   WeasyPrint is the maintained replacement.

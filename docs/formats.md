@@ -14,7 +14,7 @@ A complete reference of all supported input and output formats, with notes on qu
 
 | From | To | Notes |
 |------|-----|-------|
-| **HEIC / HEIF** | JPG, PNG, WebP, AVIF, BMP, TIFF, GIF, ICO, **PDF** | iPhone / Apple device photos. Requires `libheif` on Linux (included in Docker). |
+| **HEIC / HEIF** | JPG, PNG, WebP, AVIF, BMP, TIFF, GIF, ICO, **PDF** | iPhone / Apple device photos. Decoded by the `pillow-heif` package (see the note below). |
 | **JPG / JPEG** | PNG, WebP, AVIF, BMP, TIFF, GIF, ICO, **PDF** | Most common image format. Lossy — converting to PNG does not restore lost detail. |
 | **PNG** | JPG, WebP, AVIF, BMP, TIFF, GIF, ICO, **PDF** | Lossless. Supports transparency (alpha channel). |
 | **WebP** | JPG, PNG, AVIF, BMP, TIFF, GIF, ICO, **PDF** | Modern web format, excellent quality/size ratio. |
@@ -28,8 +28,12 @@ A complete reference of all supported input and output formats, with notes on qu
 > turning scans/photos into uniform documents). Transparency is flattened onto a
 > white background since PDF has no alpha channel; EXIF/GPS metadata is stripped.
 
-> **Note**: Converting from HEIC to any format requires ffmpeg or libheif to be installed.
-> On Windows, `pillow-heif` handles this automatically. On Linux, install `libheif-dev`.
+> **Note**: HEIC/HEIF input needs only the `pillow-heif` Python package, which
+> `requirements.txt` installs; its binary wheels bundle libheif, so no ffmpeg and
+> no system package is needed. Only if pip has to build `pillow-heif` from source
+> (no wheel for your platform) does it need libheif from the system — on
+> Debian/Ubuntu `libheif-dev` to build it and `libheif1` to run it. Without
+> `pillow-heif`, HEIC/HEIF are not offered as input formats.
 
 ### Compression
 
@@ -80,7 +84,7 @@ quality-based compression there.
 | **DOCX** | TXT | Extracts plain text from all paragraphs. Formatting (bold, tables) is lost. |
 | **TXT** | PDF | Creates a clean PDF with Helvetica font, A4 page size. |
 | **PDF** | TXT | Extracts text from each page using PyPDF. Complex layouts (columns, forms) may not extract cleanly. |
-| **PDF** | PDF/A-2b | Archival PDF (`target_format=pdfa`; the result is still a `.pdf`). Full conformance (passes [veraPDF](https://verapdf.org/) validation) needs Ghostscript, which the Docker image bundles; without it, output from the markup-only fallback can fail veraPDF, e.g. when the source PDF has unembedded fonts. |
+| **PDF** | PDF/A-2b | Archival PDF (`target_format=pdfa`; the result is still a `.pdf`, named `<name>_pdfa.pdf`). Full conformance (passes [veraPDF](https://verapdf.org/) validation) needs Ghostscript, which the Docker image bundles; without it, output from the markup-only fallback can fail veraPDF, e.g. when the source PDF has unembedded fonts. |
 | **Markdown (.md)** | HTML | Converts Markdown to a complete HTML document. Supports tables and fenced code blocks. The file must be UTF-8 text. |
 | **Markdown (.md)** | PDF | Renders Markdown via HTML to PDF using WeasyPrint. Styled with a clean sans-serif font. The file must be UTF-8 text. |
 | **HTML / HTM** | PDF | Renders an HTML file to PDF via WeasyPrint. External resources (remote CSS/images, `file://`) are **never fetched** (`url_fetcher` SSRF guard). |
@@ -116,7 +120,8 @@ wins).
    the slim image), the router falls back to `mammoth + WeasyPrint` and
    surfaces an `X-FileMorph-Warnings` response header so the caller knows
    fidelity was reduced — e.g.
-   `X-FileMorph-Warnings: engine=mammoth_fallback, reason=soffice_unavailable, simplified=footnotes, simplified=headers`.
+   `X-FileMorph-Warnings: engine=mammoth_fallback,reason=soffice_unavailable,simplified=footnotes,simplified=headers`
+   (every token: [`api-reference.md`](api-reference.md#conversion-warnings)).
 4. Simple DOCX with no complex features always takes the fast pure-Python
    path, regardless of which image is running.
 
@@ -238,7 +243,8 @@ Any of the above can be converted to any other format.
 - FLAC → MP3 (archive → streaming)
 - WAV → MP3 (reduce file size after recording)
 
-> **Requires**: ffmpeg installed on the system.
+> **Requires**: ffmpeg installed on the system. Each ffmpeg run is stopped
+> after `MEDIA_SUBPROCESS_TIMEOUT_SECONDS` (default 600 s).
 
 ---
 
@@ -269,19 +275,31 @@ Any of the above can be converted to any other format.
 
 ### Compression
 
-Video compression uses the **CRF (Constant Rate Factor)** method with libx264:
+Video compression re-encodes the video and **keeps its container**: an MP4
+stays MP4, an MKV stays MKV, a WebM stays WebM. The codecs are the ones a
+conversion into that container uses — H.264 + AAC for MP4, MOV and MKV;
+VP9 + Opus for WebM; MPEG-4 Part 2 + MP3 for AVI — but compression
+re-encodes the audio at 128 kbit/s (a conversion uses 192 kbit/s). FLV and
+WMV can be converted (above) but not compressed; the API answers `422`, and
+in a batch that file fails.
 
-| Quality setting | CRF equivalent | Visual result |
-|-----------------|----------------|---------------|
-| 100 | 18 | Near-lossless |
-| 80 | 22 | High quality (default for YouTube) |
-| 70 | 25 | Good quality, moderate size |
-| 60 | 28 | Acceptable, noticeable on large screens |
-| 40 | 33 | Low quality, small file (previews, thumbnails) |
+`quality` (1–100, default 85) maps linearly onto each encoder's own scale —
+H.264 **CRF** (Constant Rate Factor) 40 → 18, VP9 CRF 45 → 18, MPEG-4
+qscale 31 → 2. A lower value means better quality and a larger file:
 
-Output is always MP4 (H.264 + AAC), which offers the widest compatibility.
+| Quality setting | H.264 CRF (MP4, MOV, MKV) | VP9 CRF (WebM) | MPEG-4 qscale (AVI) | Visual result (H.264) |
+|-----------------|---------------------------|----------------|---------------------|-----------------------|
+| 100 | 18 | 18 | 2 | Near-lossless |
+| 85 (default) | 21 | 22 | 6 | High quality |
+| 80 | 22 | 23 | 8 | High quality |
+| 70 | 25 | 26 | 11 | Good quality, moderate size |
+| 60 | 27 | 29 | 14 | Acceptable, noticeable on large screens |
+| 40 | 31 | 34 | 20 | Low quality, small file (previews, thumbnails) |
 
-> **Requires**: ffmpeg installed on the system.
+> **Requires**: ffmpeg installed on the system. Each ffmpeg run — conversion
+> or compression — is stopped after `MEDIA_SUBPROCESS_TIMEOUT_SECONDS`
+> (default 600 s) and the request fails with `500`; raise the value if you
+> process long or HD footage.
 
 ---
 

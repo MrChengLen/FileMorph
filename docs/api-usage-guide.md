@@ -72,8 +72,8 @@ callers are also accepted — you get the `anonymous` tier.
      │                                                    │
      │  ⏱ 15 min later: access token expires              │
      │                                                    │
-     │  POST /api/v1/convert                              │
-     │  ◄──── 401 { "detail": "Invalid token." }          │
+     │  POST /api/v1/convert  (expired bearer)            │
+     │  ◄──── no 401: runs on the anonymous tier          │
      │                                                    │
      │  POST /auth/refresh  { refresh_token }             │
      │  ◄──── { access_token, refresh_token }  (rotated)  │
@@ -127,9 +127,20 @@ async function login(email, password) {
 
 ### Refresh the access token
 
-When a request returns `401`, exchange your refresh token for a fresh
+Before the access token expires, exchange your refresh token for a fresh
 access token. Refresh tokens rotate — store the new one and discard
 the old.
+
+Don't wait for a `401`. Endpoints that need an account — for example
+`/auth/me`, `/keys` and `/billing/checkout` — answer an expired token with
+`401`. The file endpoints
+(`/convert`, `/compress`, the batch, `/pdf/*` and `/ai/*` routes) ignore an
+expired or invalid token and run the request on the anonymous tier, with its
+smaller limits: a small file still converts, just not on your account, while
+a batch of two or more files or a larger file fails with a limit error, and
+`/ai/redact/apply` answers `403`. Track the expiry on the
+client (the token's `exp` claim, 15 minutes after issue) and refresh a
+minute early — or use an API key for unattended jobs.
 
 ```bash
 curl -X POST https://api.filemorph.io/api/v1/auth/refresh \
@@ -157,7 +168,7 @@ curl -X POST https://api.filemorph.io/api/v1/keys \
 #   "created_at": "2026-04-27T10:00:00Z",
 #   "last_used_at": null,
 #   "is_active": true,
-#   "key": "sk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+#   "key": "<43 URL-safe characters, no prefix>"
 # }
 ```
 
@@ -170,7 +181,8 @@ new one.
 checked-in config:
 
 ```bash
-export FILEMORPH_API_KEY="sk_…"
+read -rs FILEMORPH_API_KEY   # paste the key; it is not echoed or kept in shell history
+export FILEMORPH_API_KEY
 ```
 
 ```python
@@ -219,17 +231,27 @@ def convert(path: str, target_format: str, key: str, quality: int = 85) -> tuple
 - `Content-Type: application/octet-stream`
 - `Content-Disposition: attachment; filename="<original-stem>.<target-ext>"`
   (PDF/A is the exception: `target_format=pdfa` returns
-  `<original-stem>_pdfa.pdf`, since PDF/A is a PDF profile, not a file extension)
+  `<original-stem>_pdfa.pdf`, since PDF/A is a PDF profile, not a file extension).
+  The stem is sanitised — accents are dropped and characters other than
+  letters, digits, spaces, `_`, `-` and `.` removed — and the whole name is
+  capped at 200 characters by shortening the stem, so the extension survives
+  (details in [`api-reference.md`](api-reference.md#download-names)).
 - Body: the converted file, raw bytes.
 
 **Quality semantics** vary by format:
 
-- **JPEG, WebP, video** — `quality` (1–100) maps directly to encoder
-  quality. Default `85` is a good general trade-off.
-- **PNG, TIFF (lossless)** — `quality` is ignored; output is always
-  lossless.
-- **Audio** — bitrate is derived from quality; defaults are sensible
-  but you can pass an explicit value.
+- **JPEG, WebP, AVIF** — `quality` (1–100) is passed to the encoder as
+  its quality setting. Default `85` is a good general trade-off.
+- **Video** — `quality` is mapped onto the encoder's rate control: CRF
+  40 → 18 for H.264, CRF 45 → 18 for VP9 (WebM), qscale 31 → 2 for AVI
+  and WMV. The table is in [`formats.md`](formats.md#video).
+- **PNG, TIFF, BMP, GIF, ICO** — `quality` is ignored on `/convert`.
+  (On `/compress`, PNG turns quality into the zlib compression level,
+  which changes speed and size, never the pixels.)
+- **Audio** — `quality` sets the bitrate: the VBR level for MP3 and
+  OGG, 64–256 kbit/s for AAC/M4A, 32–192 kbit/s for Opus. WMA is always
+  128 kbit/s, and WAV and FLAC are lossless and ignore it. There is no
+  separate bitrate parameter.
 
 ---
 
@@ -255,8 +277,11 @@ grep -i x-filemorph headers.txt
 # X-FileMorph-Final-Quality: 72
 ```
 
-The server runs a binary search on quality (1–100) and returns the
-output that lands within ±3 % of the target.
+The server runs a binary search on quality (1–100) and stops at the
+first output within ±3 % of the target. The result is never more than
+3 % over the target (except in the below-floor case below), but it can
+be smaller: an image that already fits at quality 95 comes back at
+quality 95, and after eight steps the search returns its best fit.
 
 **Constraints:**
 
@@ -264,6 +289,7 @@ output that lands within ±3 % of the target.
   not control size meaningfully. Sending `target_size_kb` with a PNG
   returns `415`. AVIF encoding is CPU-heavy and the search re-encodes
   several times, so a large AVIF photo can take a minute or more.
+- **At least 5.** A smaller `target_size_kb` is rejected with `422`.
 - **Mutually exclusive with `quality`.** Send one or the other; sending
   both returns `400`.
 - **Tier-capped.** `target_size_kb` larger than your tier's output cap
@@ -311,8 +337,10 @@ const achieved = parseInt(res.headers.get("X-FileMorph-Achieved-Bytes"), 10);
 console.log(`Output: ${(achieved / 1024 / 1024).toFixed(2)} MB`);
 ```
 
-The batch endpoint accepts the same parameter; it applies the target
-to every file in the request:
+The batch endpoint accepts the same parameter and applies the target
+to each file in the request. Only JPEG, WebP and AVIF files can take
+it: any other file in the batch fails on its own (its `error_message`
+says so), and the rest are still compressed:
 
 ```bash
 curl -X POST https://api.filemorph.io/api/v1/compress/batch \
@@ -359,7 +387,15 @@ Entity`; no file is converted.
 | Some succeeded, some failed | `200 OK` | `application/zip` | ZIP of successful files **plus** `manifest.json` |
 | Every file failed | `422 Unprocessable Entity` | `application/json` | `{ summary, files[] }` (no ZIP) |
 
-Your client has to inspect Content-Type before parsing.
+Your client has to inspect Content-Type before parsing. To tell the two
+`200` shapes apart, read the `X-FileMorph-Batch-Failed` header: above
+`0`, the ZIP carries `manifest.json`. Don't go by the file name — in an
+all-success ZIP a converted file may itself be called `manifest.json`
+(see [Duplicate filenames](#duplicate-filenames)). Every `200` batch
+response also carries `X-FileMorph-Batch-Total`,
+`X-FileMorph-Batch-Succeeded` and, when a file failed,
+`X-FileMorph-Batch-Failures` (format in
+[`api-reference.md`](api-reference.md#batch-headers)).
 
 ### Python — handle all three shapes
 
@@ -385,8 +421,7 @@ def batch_convert(paths: list[str], targets: list[str], key: str) -> dict:
 
     if r.status_code == 200 and "application/zip" in ctype:
         zf = zipfile.ZipFile(io.BytesIO(r.content))
-        names = set(zf.namelist())
-        if "manifest.json" in names:
+        if int(r.headers.get("X-FileMorph-Batch-Failed", "0")) > 0:
             # Shape B: partial success — manifest tells you which is which
             manifest = json.loads(zf.read("manifest.json"))
             return {"status": "partial", "zip": zf, "manifest": manifest}
@@ -417,9 +452,10 @@ async function batchConvert(fileList, targets, apiKey) {
   }
   if (r.ok && ctype.includes("application/zip")) {
     const blob = await r.blob();
-    // Use JSZip or the browser's built-in DecompressionStream to inspect
-    // manifest.json (if present) and extract files.
-    return { status: "ok_or_partial", blob };
+    // Failed > 0: the ZIP carries manifest.json. Use JSZip or the browser's
+    // built-in DecompressionStream to read it and extract files.
+    const failed = Number(r.headers.get("X-FileMorph-Batch-Failed") || 0);
+    return { status: failed > 0 ? "partial" : "ok", blob };
   }
   throw new Error(`Unexpected response: ${r.status} ${ctype}`);
 }
@@ -594,9 +630,9 @@ array describing each invalid field. Two responses look different:
 | Code | Meaning | Retry? |
 |---|---|---|
 | `400` | Bad request, e.g. filename without extension, blocked file type, a text file that isn't UTF-8, batch over tier | No — fix the request |
-| `401` | Missing or invalid auth | No — refresh JWT or check key |
+| `401` | An `X-API-Key` that isn't valid, or a missing or expired JWT on an account endpoint (`/auth/me`, `/keys`, `/billing/*`). File endpoints never answer `401` for a missing or expired JWT — they run anonymously | No — check the key or refresh the JWT |
 | `403` | Authenticated but not allowed (admin-only routes) | No |
-| `409` | Conflict — usually email already registered | No |
+| `409` | Conflict — email already registered, or the account already has 25 active API keys (revoke one first) | No |
 | `413` | File or output exceeds cap | No — reduce size or upgrade |
 | `415` | `target_size_kb` on a lossless format (PNG/TIFF) | No — use `quality` instead |
 | `422` | Missing or invalid field, `target_formats` count ≠ `files` count, unsupported format pair, or batch where every file failed | No — fix the request (for a batch, check each file's `error_message`) |
@@ -748,7 +784,10 @@ client timeouts accordingly:
   several times)
 - Document conversion: 1–5 s
 - Audio (re-encode): 2–10 s
-- Video (FFmpeg): can take **30+ seconds** for large inputs
+- Video (FFmpeg): can take **30+ seconds** for large inputs. The
+  server stops a single ffmpeg run (audio or video) after
+  `MEDIA_SUBPROCESS_TIMEOUT_SECONDS`, default 600 s; the request then
+  fails with `500` (in a batch, only that file fails)
 
 Use a generous client timeout (`requests.post(..., timeout=300)`) for
 video and AVIF, and avoid wrapping the call in tight per-request UI
@@ -757,7 +796,7 @@ feedback.
 ### Idempotency
 
 There is no `Idempotency-Key` header. Retrying a successful upload
-runs the conversion again and returns equivalent output. Convertions
+runs the conversion again and returns equivalent output. Conversions
 are deterministic for a given `(file, target_format, quality)` tuple,
 so this is safe but wasteful — design your retry logic to only fire
 on errors, not on network blips that may have actually succeeded.
