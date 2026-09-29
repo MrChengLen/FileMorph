@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% import "_components/card.html" as uc %}
 {% block title %}{{ _('Pricing — free converter, paid plans') }} | FileMorph{% endblock %}
-{% block meta_description %}{{ _('FileMorph pricing: the open-source converter is free to self-host. Paid plans add volume, higher limits and API access.') }}{% endblock %}
+{% block meta_description %}{{ _('FileMorph pricing: the open-source converter is free to self-host. Paid plans add volume, higher limits and larger API quotas.') }}{% endblock %}
 {% block content %}
 <main class="flex-1 max-w-5xl mx-auto w-full px-4 sm:px-6 py-12 space-y-10">
 
@@ -20,7 +20,7 @@
   {% endif %}
 
   <p class="text-center text-xs text-gray-500">
-    {{ _('Using without an account:') }} {{ _('up to') }} {{ anon_plan.max_file_size_mb }} MB {{ _('per file') }} · {{ _('single file at a time') }} · {{ _('10 requests/minute') }} · {{ _('no API access') }}
+    {{ _('Using without an account:') }} {{ _('up to') }} {{ anon_plan.max_file_size_mb }} MB {{ _('per file') }} · {{ _('single file at a time') }} · {{ _('10 requests/minute') }} · {{ _('API access without a key') }}
   </p>
 
   <p class="text-center text-xs text-gray-500 max-w-3xl mx-auto">
@@ -278,7 +278,7 @@
       <li class="flex items-start gap-2"><span class="text-emerald-400" aria-hidden="true">✓</span> {{ _('Tamper-evident audit log') }}</li>
     </ul>
     <p class="text-xs text-gray-500">
-      {{ _('Being transparent about what is not done yet: no external ISO 27001 certification and no external penetration test yet (both planned once a paying pilot justifies the cost), and no tagged release cut yet — the signing/SBOM pipeline is wired in CI and produces those artefacts on the first tag. Everything else above is in the repository today and auditable.') }}
+      {{ _('Being transparent about what is not done yet: no external ISO 27001 certification and no external penetration test yet (both planned once a paying pilot justifies the cost). v1.1.0, tagged 2026-06-01, is the latest signed release with a CycloneDX SBOM and an image digest; changes since then ship in the continuously built image ahead of the next tag. Everything else above is in the repository today and auditable.') }}
     </p>
   </div>
   {% endcall %}

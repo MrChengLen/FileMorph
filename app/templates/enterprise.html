@@ -47,7 +47,7 @@
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-5 text-sm">
       <div class="space-y-1">
         <p class="text-white font-semibold">{{ _('SHA-256 audit log') }}</p>
-        <p class="text-gray-400 text-xs leading-relaxed">{{ _('Every operation in a continuous hash chain. Tampering with an old row breaks every following one.') }}</p>
+        <p class="text-gray-400 text-xs leading-relaxed">{{ _('Single-file format conversions and image/video compressions, plus account, contact, billing and redaction events, go into a continuous hash chain. Tampering with an old row breaks every following one.') }}</p>
       </div>
       <div class="space-y-1">
         <p class="text-white font-semibold">{{ _('Signed image + SBOM') }}</p>
@@ -55,7 +55,7 @@
       </div>
       <div class="space-y-1">
         <p class="text-white font-semibold">{{ _('PDF/A-2b veraPDF-validated') }}</p>
-        <p class="text-gray-400 text-xs leading-relaxed">{{ _('Conformance gate runs as CI workflow. No release without green veraPDF against a worst-case source PDF.') }}</p>
+        <p class="text-gray-400 text-xs leading-relaxed">{{ _('Conformance check runs in CI on every push to main and every pull request, against a worst-case source PDF.') }}</p>
       </div>
     </div>
   </section>
@@ -109,7 +109,7 @@
       {{ _('Public authorities, hospitals and law firms often may not process citizen and client data through public cloud conversion services — the GDPR data chain and the EVB-IT contract framework set tight limits here. At the same time, the typical IT department lacks the bandwidth to maintain a conversion backend on its own.') }}
     </p>
     <p>
-      {{ _('FileMorph closes this gap: the open-source engine covers 16+ format pairs and runs on your own Hetzner / on-premises / air-gap infrastructure. The Compliance Edition additionally provides the contracts, SLAs and roadmap guarantees that an EVB-IT-compliant procurement requires.') }}
+      {{ _('FileMorph closes this gap: the open-source engine covers 180+ format pairs and runs on your own Hetzner / on-premises / air-gap infrastructure. The Compliance Edition additionally provides the contracts, SLAs and roadmap guarantees that an EVB-IT-compliant procurement requires.') }}
     </p>
   </section>
 
@@ -143,7 +143,7 @@
       </div>
       <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-3">
         <h3 class="text-base font-semibold text-white tracking-tight">{{ _('Support SLA') }}</h3>
-        <p class="text-gray-400 leading-relaxed">{{ _('Response-time targets by severity — critical 4 h, high 24 h, medium/low in the next regular release. Targets apply Mon–Fri 09:00–18:00 CET, excluding German public holidays.') }}</p>
+        <p class="text-gray-400 leading-relaxed">{{ _('Response-time targets by severity are individually agreed in the support contract.') }}</p>
       </div>
     </div>
   </section>
@@ -356,9 +356,9 @@
       </a>
     </div>
     <p class="text-xs text-gray-500 pt-4">
-      {{ _('Confidential inquiries via') }}
-      <a href="/.well-known/security.txt" class="text-brand hover:underline">security.txt</a>
-      {{ _('are encrypted with the same key.') }}
+      {{ _('Confidential inquiries: email') }}
+      <a href="mailto:security@filemorph.io" class="text-brand hover:underline">security@filemorph.io</a>
+      {{ _('— a PGP key is available on request.') }}
     </p>
   </section>
 
