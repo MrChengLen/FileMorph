@@ -9,6 +9,34 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — website texts match what the service does
+
+The public pages were checked claim by claim against the code:
+
+- **Terms §8** no longer quotes subscription prices (they come from the
+  pricing page) and describes cancellation by email.
+- **Privacy policy:** the rate-limit description is accurate (set per route,
+  from 5 contact messages per hour to 120 requests per minute); the list of
+  stored data adds the preferred language, the email-verification timestamp
+  and per-request usage rows; sub-processor locations are corrected (Hetzner:
+  a data centre in the EU; Zoho: Amsterdam and Dublin); paid plans are not
+  yet available; the date is refreshed. Logging out now also removes the
+  legacy `filemorph_api_key` browser entry (`auth.js`), as §6 says — a test
+  in `tests/test_cookie_notice.py` pins it.
+- **/pricing and /enterprise:** API access without a key, v1.1.0 as the
+  tagged release, the audit log's scope, the veraPDF gate, "180+ format
+  pairs" (distinct pairs, pinned by a test), support response times agreed
+  per contract, and a PGP key on request.
+- **/formats** limits exact target-size compression to JPEG, WebP and AVIF.
+- **Dashboard:** account deletion names the 10-year tax-retention record.
+- **/security** and `/.well-known/security.txt` drop the GitHub Security
+  Advisories option, which is not enabled on this repository.
+- The redaction page no longer calls its engine AGPL open source (`app/ee`
+  is commercially licensed); the JSON-LD `featureList` adds the PDF tools
+  and PDF → PDF/A.
+- `tests/test_pricing_centralized.py` fails if the terms page hardcodes a
+  euro price in either language.
+
 ### Fixed — API docs: keys are optional, video compression and converter registration described correctly
 
 The API reference marked every file route "Authentication: Required", and the
