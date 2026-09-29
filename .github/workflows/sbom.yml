@@ -22,9 +22,9 @@ name: SBOM
 #
 # The generator itself installs from requirements-sbom.lock with
 # --require-hashes, like the image's dependencies: an unpinned install would
-# run whatever release PyPI served that day. release.yml runs the same three
-# SBOM steps verbatim and cannot be tried on a PR, so this workflow is its
-# rehearsal: dispatch it on a branch that changes them.
+# run whatever release PyPI served that day. release.yml and docker.yml run
+# the same three SBOM steps verbatim and cannot be tried on a PR, so this
+# workflow is their rehearsal: dispatch it on a branch that changes them.
 # tests/test_supply_chain_hygiene.py keeps the steps identical.
 #
 # Why "environment" and not "requirements": `cyclonedx-py environment` reads
