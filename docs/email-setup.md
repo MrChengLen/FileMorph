@@ -29,10 +29,19 @@ is unset (NULL) the operator default `LANG_DEFAULT` applies. The dunning mail
 fires from a Stripe webhook with no HTTP request to derive a locale from, which
 is exactly why the column exists.
 
-If `SMTP_HOST` is empty, every feature above degrades gracefully:
+If `SMTP_HOST` is empty, every feature above degrades gracefully — all of
+them return their normal success status regardless, and the outbound
+send is silently skipped:
 
-- `/forgot-password` and `/resend-verification` return `503 Service Unavailable`
-  with a reason string the UI surfaces.
+- `/forgot-password` and `/resend-verification` still return `200`.
+  `send_email()` sees `SMTP_HOST` is empty, logs `send_email skipped —
+  SMTP not configured (to_domain=…, subject=…)` at WARNING and returns
+  without sending — no exception reaches the route, so there is no
+  error status to surface. `/forgot-password` is deliberately
+  enumeration-safe: it always returns the same generic response whether
+  the address exists, the user is inactive, or the email was skipped,
+  so the response alone never tells a caller which case occurred — check
+  the application log to see what actually happened.
 - `/register` still creates the user — the verification email is fire-and-forget.
   The user can request a fresh link via `/resend-verification` once SMTP is wired.
 - `/auth/account` deletes the user even if the confirmation email cannot be sent;
@@ -168,12 +177,19 @@ curl -X POST https://your-domain.example.com/api/v1/auth/forgot-password \
 # Expected: an email arrives at the inbox within seconds.
 ```
 
-If no mail arrives, check:
+The request returns `200` either way (see "What needs SMTP" above), so a
+successful-looking response does not by itself mean the email was sent —
+check the application log for what actually happened. If no mail
+arrives, check:
 
-1. **Application log** — the sender logs `send_email ok` (success) or
-   `send_email failed` (failure). The latter is logged at exception level
-   with full SMTP error details visible only in the server log; the HTTP
-   response stays generic so the SMTP details never leak to the client.
+1. **Application log first.** Three possible lines: `send_email skipped
+   — SMTP not configured` (WARNING — `SMTP_HOST` is empty; the container
+   may not have picked up an `.env` change, or the overlay/unit file
+   isn't passing it through), `send_email ok` (success — the message left
+   for the provider; a delivery problem from here on is provider-side),
+   or `send_email failed` (the exception is logged server-side with full
+   SMTP error details; the HTTP response stays generic so those details
+   never leak to the client).
 2. **DNS / SPF / DKIM / DMARC** — for ESPs and mailbox providers, the
    sending domain must have valid SPF and DKIM records pointing at the
    provider, plus a DMARC policy. Without alignment, Gmail and Outlook

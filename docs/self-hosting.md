@@ -20,13 +20,18 @@ reverse proxy setup (Caddy or nginx), HTTPS/SSL, and operational best practices.
 
 ```bash
 git clone https://github.com/MrChengLen/FileMorph.git
-cd filemorph
+cd FileMorph
 cp .env.example .env
 ```
 
 Edit `.env` for production:
 
 ```env
+# APP_HOST / APP_PORT below have no effect on this Docker setup — the
+# container's entrypoint always starts uvicorn on 0.0.0.0:8000 regardless
+# of what's in .env. They only matter for `python run.py` (the PyInstaller
+# / direct-Python entry point). To change the port Docker publishes, edit
+# the host side of `ports:` in docker-compose.yml instead (e.g. "8080:8000").
 APP_HOST=0.0.0.0
 APP_PORT=8000
 APP_DEBUG=false
@@ -40,6 +45,14 @@ MAX_UPLOAD_SIZE_MB=100
 
 # Restrict to your own domain in production
 CORS_ORIGINS=https://yourapp.example.com,https://portal.example.com
+
+# Public canonical URL — used in the sitemap, canonical/og:url tags,
+# JSON-LD, and (Cloud Edition) the links built into transactional email.
+APP_BASE_URL=https://yourapp.example.com
+
+# RFC 9116 security.txt / /security contact. Override this to your own
+# disclosure address; the default points at the upstream project.
+SECURITY_CONTACT_EMAIL=security@yourapp.example.com
 
 # Optional: route heavy upload POSTs (convert/compress, single + batch) through
 # a separate subdomain. Empty string = same-origin (default, simplest). Set
@@ -64,9 +77,13 @@ LANG_DEFAULT=de
 docker compose up -d
 ```
 
-This builds and runs the **slim** image (`filemorph:latest`, ~150 MB).
-For Word documents with footnotes, headers, multi-section layout, or
-table-of-contents, see the [office image variant](#image-variants) below.
+This builds and runs the **slim** image locally (~150 MB). With no
+`image:` key in `docker-compose.yml`, Compose names the built image
+after your project directory (e.g. `filemorph-filemorph:latest` if you
+cloned into `FileMorph/`) — run `docker compose images` if you need
+the exact local tag. For Word documents with footnotes, headers,
+multi-section layout, or table-of-contents, see the
+[office image variant](#image-variants) below.
 
 ### 3. Generate API keys
 
@@ -103,8 +120,9 @@ conversion stack. Use this image when your deployment:
 # docker-compose.yml — default, builds the slim image
 services:
   filemorph:
-    image: ghcr.io/mrchenglen/filemorph:latest
-    # or: build: { context: ., target: base }
+    build: { context: ., target: base }
+    # or, to skip the local build and pull the pre-built image instead:
+    # image: ghcr.io/mrchenglen/filemorph:latest
 ```
 
 ### `filemorph:office` — high-fidelity DOCX → PDF
@@ -138,6 +156,11 @@ conversion through LibreOffice, set `FILEMORPH_OFFICE_ENGINE=libreoffice`
 in your `.env` (recommended in the office image when you never want the
 fallback — it makes a missing `soffice` fail loud instead of silently
 degrading).
+
+`OFFICE_SUBPROCESS_TIMEOUT_SECONDS` (default `60`) bounds how long a
+single `soffice --convert-to` call may run before it is killed —
+raise it if you regularly convert long, complex Word documents on a
+slower host. Ignored when `FILEMORPH_OFFICE_ENGINE=mammoth`.
 
 ### Verifying signatures
 
@@ -195,6 +218,61 @@ If you pull the published image instead, you get a stronger guarantee without
 building anything: images are digest-addressed and signed with cosign. Pin the
 digest rather than a tag, and verify it as shown under
 [Verifying signatures](#verifying-signatures) above.
+
+### Building without Compose
+
+`.dockerignore` keeps `.env*` files, the contents of `data/` (the local
+API-key store) and other local-only files such as `.git` out of the build
+context, so a self-built image doesn't bake those in. It is a deny-list,
+though: anything else in the folder you build from — a private key, a
+database dump — is still copied into the image (the runtime stage runs
+`COPY . .`), so build from a clean checkout before you share an image.
+Two consequences if you build and run without `docker compose`:
+
+- A plain `docker run` needs `--env-file .env` (or `-e` per variable)
+  and a volume for `./data:/app/data` — neither is baked into the
+  image the way it might have been from an image built before this
+  `.dockerignore` fix landed.
+- If you previously built and distributed a custom image from an
+  older checkout, rotate any secrets that image might have baked in
+  (`.env` values, `data/api_keys.json`) — pulling the current
+  `Dockerfile` and rebuilding does not retroactively scrub an image
+  you already shared.
+
+## Cloud Edition overlay (accounts, billing, admin cockpit)
+
+The setup above is Community Edition: single container, no database,
+no accounts. Layering `docker-compose.cloud.yml` on top adds a
+Postgres service and switches the app into Cloud-Edition mode
+(registration, JWT login, the admin cockpit, and — with `STRIPE_*`
+set — billing):
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.cloud.yml up -d
+```
+
+Two `.env` variables you must set explicitly before this goes anywhere
+near production:
+
+- **`POSTGRES_PASSWORD`** — `docker-compose.cloud.yml` falls back to
+  the literal `changeme` when this is unset or empty. Set a strong
+  random value.
+- **`JWT_SECRET`** — required for the account/login features. The
+  overlay has no fallback for it, and the app refuses to start with a
+  short or published value; see
+  [JWT secret (Cloud Edition)](#jwt-secret-cloud-edition) below.
+
+The overlay derives `DATABASE_URL` from `POSTGRES_PASSWORD`
+automatically (`postgresql+asyncpg://filemorph:***@postgres/filemorph`);
+you only need to set the password. To point at a database you run
+yourself instead of the bundled container, edit the `DATABASE_URL` line
+in the overlay (or in a copy of it) and remove both the `postgres`
+service and the `depends_on` entry under `filemorph`. Setting
+`DATABASE_URL` in `.env` does not work: the overlay's own
+`environment:` value takes precedence over `env_file`. See
+[`docs/installation.md`](installation.md) "Method 2" for the full
+first-boot walkthrough (migrations, the legacy single-user key, what
+`/register` and `/cockpit` need).
 
 ## Reverse proxy (HTTPS)
 
@@ -378,10 +456,17 @@ If FileMorph should only be accessible within your organization (no public inter
 
 **Option A — Bind to internal IP only**
 
-In `.env`:
-```env
-APP_HOST=192.168.1.50    # your server's internal IP
+`APP_HOST` in `.env` has no effect under Docker (see the note under
+"Edit `.env` for production" above) — bind the **host** side of the
+port mapping in `docker-compose.yml` instead:
+
+```yaml
+ports:
+  - "192.168.1.50:8000:8000"   # your server's internal IP
 ```
+
+Running without Docker (`python run.py`), `APP_HOST` in `.env` does
+apply directly.
 
 **Option B — Use a firewall**
 
@@ -397,7 +482,9 @@ sudo ufw deny 8000
 # docker-compose.yml — no port exposed externally
 services:
   filemorph:
-    build: .
+    build:
+      context: .
+      target: base   # omit this and Docker builds the last stage (office, ~280 MB larger)
     expose:
       - "8000"          # accessible only within Docker network
     networks:
@@ -431,7 +518,6 @@ route returns 404.
 |---|---|---|---|
 | `http_requests_total` | counter | `handler`, `method`, `status` | Throughput + error rate per route |
 | `http_request_duration_seconds` | histogram | `handler`, `method` | Latency percentiles (p50/p95/p99) |
-| `http_request_size_bytes` / `http_response_size_bytes` | summary | `handler` | Upload / download volume |
 | `filemorph_conversions_total` | counter | `operation`, `src`, `tgt`, `status` | Per-format-pair conversion KPIs |
 
 The endpoint emits only aggregate counters and timings — never file
@@ -474,7 +560,7 @@ scrape_configs:
 
 Grafana dashboards and alert rules (uptime, error-rate, p95 latency)
 are not bundled in this repo — wire your own against the metric families
-above, or use the dashboards the Compliance Edition ships.
+above.
 
 ---
 
@@ -561,6 +647,22 @@ No restart required — keys are re-read on every request.
 2. Update your application/service with the new key
 3. Remove the old hash from `data/api_keys.json`
 
+### Cloud Edition — dashboard keys
+
+Signed-in users manage their own keys from the dashboard instead of
+the shared file, via `POST /api/v1/keys` (create, rate-limited
+10/minute per account), `GET /api/v1/keys` (list) and `DELETE
+/api/v1/keys/{key_id}` (revoke, 204). Each account can hold at most
+**25 active keys**; `POST /api/v1/keys` past that cap returns `409`
+with a message pointing at revoking an unused key first. A key is
+shown once, at creation, and stored only as a SHA-256 hash — same
+model as the Community Edition file.
+
+Any rejected `X-API-Key` — a wrong dashboard key or a wrong key from the
+key file — normally answers `401`. Past **30 failed attempts per minute
+per IP** it answers `429` with `Retry-After` instead — a valid key is
+never affected by this budget, only guessing is throttled.
+
 ---
 
 ## AI file operations (commercial add-on)
@@ -606,6 +708,13 @@ GET /api/v1/health
 Example with **uptime monitoring** (e.g. UptimeRobot, Gatus):
 - URL: `https://filemorph.example.com/api/v1/health`
 - Expected keyword: `"status":"ok"`
+
+Both `/api/v1/health` and `/api/v1/ready` are rate-limited to 30
+requests/minute per IP, each counted separately — limits are set per
+route by `@limiter.limit(...)` decorators, not globally. A monitor
+polling more often than that will start seeing `429` instead of a real
+health signal — keep the check interval at 5 seconds or slower (or
+poll from more than one source IP).
 
 ### Log access
 
@@ -723,7 +832,7 @@ when the Cloud Edition is on (Postgres + SMTP configured):
 | `POST /api/v1/auth/register` | Sign up | Fires a verification email best-effort; SMTP failure does not block registration. |
 | `POST /api/v1/auth/verify-email` | Mark `users.email_verified_at` | Token bound to email-at-issuance (`eat` claim, 7-day TTL). Email rotation silently invalidates stale links. |
 | `POST /api/v1/auth/resend-verification` | New verify link | Auth-required (no spam vector). 200 no-op when already verified. |
-| `DELETE /api/v1/auth/account` | Self-service delete | Three-field re-confirmation; last-active-admin guard returns 409; Stripe-touched accounts return 409 directing to your support contact. Confirmation email sent post-commit. |
+| `DELETE /api/v1/auth/account` | Self-service delete | Three-field re-confirmation; last-active-admin guard returns 409. Free / never-paid accounts hard-delete; accounts that have touched Stripe cancel any active subscription first, then keep a restricted record (email, Stripe customer id, tier, created-at only) for the HGB §257 / AO §147 ten-year tax-retention window. Confirmation email sent post-commit. |
 
 All four endpoints write `auth.*` events to the audit-log hash
 chain. Outbound email uses the same `SMTP_*` configuration as
@@ -734,6 +843,23 @@ in the user-facing copy — self-hosters ship their own support
 identity. See [`docs/email-setup.md`](email-setup.md) for the SMTP
 walkthrough (provider options, port/TLS choice, sandbox-mode pitfalls,
 DSGVO sub-processor disclosure).
+
+### Promoting an admin
+
+Phase 1 has no cockpit UI for promoting the first admin — registration
+always creates a regular user. Run this on the server (or `docker
+compose exec`) after registering the account that should have access
+to `/cockpit`:
+
+```bash
+docker compose exec filemorph python scripts/promote_admin.py you@example.com
+```
+
+It looks the user up by email and sets `role=admin`; running it again
+on an already-promoted address is a no-op. This is also the recovery
+path if the last admin was demoted — there is no other way back into
+the cockpit. It only sets the role: it does not reactivate a
+deactivated account. Requires `DATABASE_URL` (Cloud Edition).
 
 ### Updating
 
@@ -749,7 +875,9 @@ API keys in `./data/` are preserved across updates.
 
 ## systemd service (without Docker)
 
-For running FileMorph directly as a Linux service:
+For running FileMorph directly as a Linux service, behind the same
+reverse proxy used above (Caddy/nginx on `127.0.0.1:8000` — see
+"Reverse proxy (HTTPS)"):
 
 ```ini
 # /etc/systemd/system/filemorph.service
@@ -762,17 +890,53 @@ After=network.target
 Type=simple
 User=filemorph
 WorkingDirectory=/opt/filemorph
-Environment="PATH=/opt/filemorph/.venv/bin"
-# Cloud Edition: DATABASE_URL and JWT_SECRET in a root-owned file, mode 600
-# (see "JWT secret (Cloud Edition)" above), never in an Environment= line.
-# EnvironmentFile=/etc/filemorph/filemorph.env
-ExecStart=/opt/filemorph/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
+Environment="PATH=/opt/filemorph/.venv/bin:/usr/bin"
+# Variables the app reads only from the process environment (DATABASE_URL,
+# FORWARDED_ALLOW_IPS, FILEMORPH_IMAGE_MAX_MEGAPIXELS) and, for the Cloud
+# Edition, JWT_SECRET: in a root-owned file, mode 600 (see "JWT secret
+# (Cloud Edition)" above), never in an Environment= line.
+EnvironmentFile=-/etc/filemorph/filemorph.env
+ExecStart=/opt/filemorph/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
 Restart=on-failure
 RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
 ```
+
+The leading `-` in `EnvironmentFile=-` makes the file optional, so the
+service also starts on a Community Edition install that has none.
+
+Three things this unit gets right that a naive copy of the Docker
+setup would miss:
+
+- **`PATH` includes `/usr/bin`.** The venv's `bin/` only holds Python
+  entry points; `ffmpeg`, `gs` (Ghostscript) and `soffice`
+  (`filemorph:office`-equivalent installs) are system binaries under
+  `/usr/bin`. Without it on `PATH`, uvicorn starts fine but video/audio
+  conversion and the Ghostscript PDF/A re-render path silently fall back
+  or fail.
+- **`EnvironmentFile=` puts these variables into the process environment.**
+  `DATABASE_URL`, `FORWARDED_ALLOW_IPS` and
+  `FILEMORPH_IMAGE_MAX_MEGAPIXELS` are read directly from the process
+  environment (`os.environ`), not through the application's own
+  `.env` parsing (that only covers the settings pydantic-settings
+  declares). Under Docker, `env_file:` in `docker-compose.yml` does
+  this for you; under systemd nothing does unless you add
+  `EnvironmentFile=` yourself — without it, a `.env` sitting in
+  `WorkingDirectory` is silently ignored for these three variables. Put
+  them in the same root-owned file as `JWT_SECRET`.
+- **Bind `127.0.0.1`, not `0.0.0.0`.** Consistent with the reverse-proxy
+  guidance above: the proxy is the only thing that should be reachable
+  from outside, and binding the app to loopback makes that true at the
+  socket level instead of relying on a firewall rule.
+
+**Run one process** (the unit above has no `--workers` flag, which
+defaults to 1). The rate limiter and the `/convert` + `/compress`
+concurrency caps (`MAX_GLOBAL_CONCURRENCY` and friends, see "Capacity
+tuning" above) are in-memory and per-process, so every additional
+process gets its own set — `--workers N` and `N` separate `.service`
+instances behind the proxy alike silently multiply those limits by `N`.
 
 ```bash
 sudo systemctl daemon-reload
@@ -788,8 +952,12 @@ sudo systemctl status filemorph
 - [ ] Set `APP_DEBUG=false` in production
 - [ ] Cloud Edition: set `JWT_SECRET` to a generated value of at least 32 characters (see [JWT secret](#jwt-secret-cloud-edition))
 - [ ] Keep `data/api_keys.json` out of version control (it is in `.gitignore`)
-- [ ] Use HTTPS (see nginx + Certbot above)
+- [ ] Use HTTPS (see Caddy or nginx above)
+- [ ] Bind the published port to loopback (`ports: ["127.0.0.1:8000:8000"]`) once a reverse proxy is in front of it
+- [ ] Set `FORWARDED_ALLOW_IPS` to your proxy's actual address, never `*` (see "HSTS behind Docker" above)
 - [ ] Set `MAX_UPLOAD_SIZE_MB` to a sensible limit for your use case
 - [ ] Restrict network access if the service is internal-only
+- [ ] Restrict `/api/v1/metrics` at the reverse proxy — it is unauthenticated while `METRICS_ENABLED` is on, which is the default (see [Monitoring & metrics](#monitoring--metrics))
 - [ ] Rotate API keys regularly
+- [ ] Cloud Edition: set a strong `POSTGRES_PASSWORD` (the overlay falls back to `changeme`)
 - [ ] Monitor disk usage (temp files are cleaned up, but check `/tmp` if issues occur)
