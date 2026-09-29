@@ -9,6 +9,33 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — self-hosting and security docs: systemd unit, licences and release facts
+
+The self-hosting, installation, development, security and licensing docs had
+drifted from the code they describe. The systemd unit was missing `/usr/bin`
+on `PATH` (ffmpeg/Ghostscript/LibreOffice invisible to a non-Docker install),
+never loaded `.env` into the process environment (`DATABASE_URL`,
+`FORWARDED_ALLOW_IPS` and `FILEMORPH_IMAGE_MAX_MEGAPIXELS` are read directly
+from `os.environ`, not through the app's own `.env` parsing), bound
+`0.0.0.0` instead of `127.0.0.1`, and ran multiple workers despite the rate
+limiter and concurrency caps being per-process. Account deletion, the Stripe
+webhook table and the audit-log hash paragraph described a pre-launch state
+(Stripe-touched accounts refused with 409) instead of the shipped
+tax-retained deletion path. `third-party-licenses.md` was missing
+Ghostscript, LibreOffice, `pillow-avif-plugin` and the vendored Chart.js /
+Tailwind assets, still listed `httpx` as a runtime dependency (it's dev-only),
+and pointed at a scan/SBOM that predates the lockfile-parity and
+SBOM-hardening work. `patch-policy.md` claimed every merge is tagged and a
+release lands every 1–4 weeks; it now describes the actual two-track model
+(continuous `latest`/`sha-*` builds on every merge, a `vX.Y.Z`/`X.Y.Z` tag at
+the maintainer's discretion — one so far, `v1.1.0`). Smaller fixes:
+`/ready` doesn't check ffmpeg (DB + tempdir only), `APP_PORT` is read only by
+`run.py`, `python3.11` is no longer an installable apt package on current
+Ubuntu/Debian, a Docker UID/GID mismatch on `./data` needs a `chown` not a
+`chmod`, the email-setup guide's "no SMTP" behaviour is `200` + a log line
+(not `503`), and the pentest report's Tailwind-CDN / inline-script claims
+are corrected in place rather than silently rewritten.
+
 ### Fixed — compliance templates describe what the code does
 
 The DPA template and its TOM annex, the records-of-processing template, the
