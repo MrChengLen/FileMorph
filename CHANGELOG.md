@@ -9,6 +9,28 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed — dependency batch: pypdf 6.19.0 and pillow-heif 1.8.0 in one lock pass
+
+Dependabot opened five PRs on 2026-09-28. Three were merged one at a time:
+#158 (`python-dotenv>=1.2.3`) and #159 (`markdown>=3.10.3`) raised floors the
+lockfile already met — 1.2.3 and 3.10.3 are the locked versions — and #157
+(`python-minor-patch`) moved `ruff` to 0.16.9 and `uv` to 0.12.19 in
+`requirements-dev.txt`. This batch supersedes the other two, #160
+(`pypdf>=6.19.0`) and #161 (`pillow-heif>=1.8.0`), and recompiles the lockfile
+once: exactly those two packages move (pypdf 6.16.2 -> 6.19.0, pillow-heif
+1.7.0 -> 1.8.0), every other pin stays. The next image ships them; the full
+suite passes against both. Both matter for a service that parses untrusted
+uploads: pypdf 6.17.0–6.19.0 add six upstream limits for crafted PDFs (token
+lengths, FlateDecode recovery, font `/Widths`, page labels), and pillow-heif
+1.8.0 fixes a segmentation fault on HEIC files whose metadata item type is not
+valid UTF-8 — HEIC decoding runs inside the server process, so such a file
+could take the worker down. Neither fix comes with a published advisory.
+
+The lockfile is compiled with `uv` 0.12.19, the version the lockfile jobs now
+read from `requirements-dev.txt` themselves (#169), and `requirements-sbom.lock`
+recompiles byte-identical with it. `ruff` 0.16.9 leaves every file as
+formatted, so no reformat rides along.
+
 ### Fixed — README, SECURITY.md and contributor docs match the repository
 
 The README said no release had been tagged. It now names v1.1.0 (2026-06-01),

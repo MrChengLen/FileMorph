@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""No workflow may wait for a ``release`` event.
+"""Trigger rules that a workflow could break without a failed run to show for it.
+
+No workflow may wait for a ``release`` event.
 
 ``release.yml`` publishes every release with the built-in ``GITHUB_TOKEN``,
 and GitHub starts no workflow runs for events that token causes (apart from
@@ -11,6 +13,10 @@ release without its SBOM until that step moved into ``release.yml``, and
 
 Work that follows a release belongs in ``release.yml`` itself, as a step or a
 job with ``needs:``.
+
+And ``notify-ops.yml`` may start a deploy only after a push or a manual run in
+this repository, never after a run for a pull request; see
+``test_notify_ops_deploys_only_after_pushes_and_manual_runs``.
 """
 
 from __future__ import annotations
@@ -65,3 +71,42 @@ def test_triggers_detects_release(tmp_path: Path, on: str) -> None:
     workflow = tmp_path / "workflow.yml"
     workflow.write_text(f"{on}\njobs: {{}}\n", encoding="utf-8", newline="\n")
     assert "release" in _triggers(workflow)
+
+
+# notify-ops.yml's condition for starting a deploy, whitespace aside.
+_DEPLOY_CONDITION = (
+    "github.event.workflow_run.conclusion == 'success' && "
+    "github.event.workflow_run.head_repository.full_name == github.repository && "
+    "(github.event.workflow_run.event == 'push' || "
+    "github.event.workflow_run.event == 'workflow_dispatch')"
+)
+
+
+def test_notify_ops_deploys_only_after_pushes_and_manual_runs() -> None:
+    """notify-ops.yml starts a deploy only after a successful run of the
+    workflows it listens for that a push or a manual dispatch started in this
+    repository, on main. A run for a pull request, docker-pr.yml's among them,
+    never leads to one. The trigger and the condition are pinned word for
+    word: an edit to either changes what reaches production, so it should come
+    with an edit here.
+    """
+    notify = yaml.safe_load((_WORKFLOW_DIR / "notify-ops.yml").read_text(encoding="utf-8"))
+    trigger = notify.get("on", notify.get(True))["workflow_run"]
+    assert trigger == {"workflows": ["Docker"], "types": ["completed"], "branches": ["main"]}, (
+        f"notify-ops.yml's workflow_run trigger changed: {trigger}"
+    )
+    names = {
+        (yaml.safe_load(path.read_text(encoding="utf-8")) or {}).get("name")
+        for path in _workflow_files()
+    }
+    for name in trigger["workflows"]:
+        assert name in names, (
+            f"notify-ops.yml listens for a workflow named {name!r}, but none is called "
+            f"that: nothing would be deployed after a merge"
+        )
+    for name, job in notify["jobs"].items():
+        condition = " ".join(str(job.get("if", "")).split())
+        assert condition == _DEPLOY_CONDITION, (
+            f"notify-ops.yml job `{name}` runs under `if: {condition}`, not the pinned "
+            f"condition: {_DEPLOY_CONDITION}"
+        )
