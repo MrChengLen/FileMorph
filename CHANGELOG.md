@@ -9,6 +9,55 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — the Docker images carry a signed SBOM attestation
+
+`docker.yml` now attests the CycloneDX SBOM to each image it pushes — slim and
+office, on release tags, on every build of `main` and on manual rebuilds — so
+`:latest` and `:office` carry one too. Until now the SBOM was a file attached
+to the release, tied to the image by nothing but its name: `release.yml` finds
+the image digest only by tag, best effort, a minute after the tag push.
+
+- **What it covers.** The Python packages the image installs from
+  `requirements.lock`, at the locked versions, plus the `pip` of the virtualenv
+  the SBOM is generated from. It comes from a clean install of the lockfile,
+  not from scanning the image, so the Python interpreter and the Debian
+  packages of the base image and of the `apt` layers (FFmpeg, Ghostscript, the
+  Cairo/Pango stack, LibreOffice) are not in it. `docs/release-signing.md` says
+  so next to the verification command. Images built before this change,
+  v1.1.0 among them, have no attestation.
+- **How.** A new `sbom` job runs `sbom.yml`'s three SBOM steps, verbatim, with
+  read access only. `attest-sbom` then signs the SBOM for each image variant
+  with `actions/attest` v4.2.2 — Sigstore keyless, like the cosign signature —
+  bound to the digest the build step reported, stores it with the repository's
+  attestations and pushes it to GHCR. That job holds `attestations: write`,
+  `id-token: write` and `packages: write`, checks nothing out, installs
+  nothing, logs in with the docker CLI and runs only GitHub's own actions.
+  `actions/attest-sbom` has been deprecated since v4.0.0 and only wraps
+  `actions/attest`, so the latter is pinned directly.
+- **Verify** with `gh attestation verify` as `docs/release-signing.md` shows
+  it. `--predicate-type https://cyclonedx.org/bom` is required: without it,
+  `gh` accepts only SLSA provenance and the check fails. `--signer-workflow`,
+  `--source-ref` and `--source-digest` pin the workflow, the tag and the
+  commit whose signed tag was verified; `--owner` alone would accept an
+  attestation from any repository of the account.
+- **What it costs.** The images are attested once both are built, so a deploy
+  from `main` starts a little later. `notify-ops` deploys only after the whole
+  Docker run succeeds, so a failure in the SBOM job (PyPI) or the attestation
+  (Sigstore, the attestations API, GHCR) now holds back the deploy, a manual
+  redeploy included, until "Re-run failed jobs" gets through; the SBOM
+  artifact is kept for a week so that the re-run needs no new build. If one
+  image fails to build, neither is attested; the other stays pushed and signed.
+- **Guards.** `tests/test_supply_chain_hygiene.py` keeps `docker.yml`'s SBOM
+  steps identical to `sbom.yml`'s, and fails if an image variant loses its
+  attestation or its own digest output, if the attestation stops naming the
+  build's digest or stops going to GHCR, if either job gets an `if:` or
+  `continue-on-error` (on the job or a step), if the attesting job gains an
+  action, a permission or any command besides the registry login, if the SBOM
+  job gains write access, a secret, a cache or kept credentials, if the two
+  jobs stop agreeing on the SBOM's file name, or if the documented command
+  drops `--predicate-type` or names a workflow that does not attest. Each of
+  42 simulated regressions fails at least one guard.
+
 ### Fixed — compliance templates describe what the code does
 
 The DPA template and its TOM annex, the records-of-processing template, the
