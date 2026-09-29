@@ -9,6 +9,51 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — README, SECURITY.md and contributor docs match the repository
+
+The README said no release had been tagged. It now names v1.1.0 (2026-06-01),
+with its SBOM and image digest, as the one release so far. It states that
+PDF/A-2b, the EXIF/XMP/IPTC strip and `X-Output-SHA256` are AGPL engine
+features in every edition (the Compliance Edition adds the commercial licence,
+a DPA, an SLA and a liable contact), and that `app/ee/` is commercial-only. It
+also covers:
+- the API usage guide and release signing, now in the docs table;
+- the office image for high-fidelity DOCX → PDF;
+- `scripts/promote_admin.py` for the cockpit;
+- the GTK/Pango (WeasyPrint) and Ghostscript that Windows source runs need;
+- the `pip install` that `dev.ps1` runs on every start;
+- the current homepage navigation and quick actions in the sketch.
+
+SECURITY.md names email to security@filemorph.io as the reporting channel.
+GitHub's advisory form, which it pointed to before, is not enabled on this
+repository. "Supported versions" now says there is one release so far and
+that fixes land on `main`. CONTRIBUTING.md (new "CI gates" section) and the PR
+template list every step of the required `lint-and-test` check next to
+`secret-scan` and `scope-check`:
+- ruff;
+- the Python-version gate;
+- template classes;
+- Tailwind bundle freshness;
+- i18n drift;
+- `pip-audit -r requirements.lock`;
+- pytest against the lockfile pins.
+
+veraPDF and `lockfile-drift` also run, but are not required. `app/ee/` files
+carry the commercial SPDX header.
+
+`.env.example` comments now match the code:
+- `APP_HOST`/`APP_PORT` are read only by `run.py`.
+- `APP_DEBUG` only sets the log level; `/docs` is always on.
+- Without SMTP, mail is skipped and logged; there is no 503.
+- `METRICS_ENABLED` also exposes the unauthenticated `/api/v1/metrics`.
+- `FORWARDED_ALLOW_IPS`, `DATABASE_URL` and `FILEMORPH_IMAGE_MAX_MEGAPIXELS`
+  come from the process environment only.
+- `POSTGRES_PASSWORD` and `OFFICE_SUBPROCESS_TIMEOUT_SECONDS` are listed.
+
+`app/ee/README.md` no longer refers to a non-public document.
+`COMMERCIAL-LICENSE.md` no longer promises a 4-hour reaction time for the
+KRITIS and air-gap variants: response times are agreed per contract.
+
 ### Added — `API_KEYS_FILE_TIER`: API keys on a self-hosted instance can run on a bigger tier
 
 Without `DATABASE_URL` there are no accounts, so every caller of a Community
