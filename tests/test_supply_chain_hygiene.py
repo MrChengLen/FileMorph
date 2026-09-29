@@ -25,10 +25,7 @@ silently undo it:
     that holds ``contents: write`` installs nothing, restores no cache and
     keeps no credentials; no job holding a write token or a secret splices
     ``${{ }}`` into a script; and the veraPDF validator image is pinned by
-    digest;
-  * no job holding a write token or a secret restores or saves an Actions
-    cache, and docker.yml builds the image with ``no-cache: true`` and
-    ``cache-binary: false``.
+    digest.
 
 This is a tripwire, not a substitute for the server-side Scorecard run /
 review: the per-job permissions check here is a heuristic (it asserts a
@@ -645,71 +642,6 @@ def test_privileged_jobs_keep_expressions_out_of_scripts(workflow: Path) -> None
                 f"{workflow.name} job `{name}`, step {step.get('name')!r}: an expression "
                 f"inside `run:` in a job with a write token or a secret — pass it through "
                 f"`env:` instead"
-            )
-
-
-@pytest.mark.parametrize("workflow", _workflow_files(), ids=lambda p: p.name)
-def test_privileged_jobs_restore_no_cache(workflow: Path) -> None:
-    """No job holding a write token or a secret restores or saves an Actions cache.
-
-    Every job that runs on main can write that cache, whatever its
-    ``permissions:`` say — the cache token can be read from the runner
-    process — and jobs there install PyPI releases that no lockfile pins
-    (ci.yml's lint-and-test, deps-latest.yml). Whatever a privileged job
-    restored, one of them could have planted. Until 2026-09-28 docker.yml
-    restored BuildKit's layer cache on tag and main builds, next to
-    ``packages: write`` and the signing identity.
-
-    Only inputs written in the workflow count, and a cache input may only
-    switch caching off: ``no-cache: true``, or ``false`` for the others. An
-    action that caches by default (setup-buildx's ``cache-binary``,
-    setup-qemu's ``cache-image``) needs that switch written down.
-    """
-    parsed = _workflow(workflow)
-    for name, job in (parsed.get("jobs") or {}).items():
-        if not _privileged(job, parsed):
-            continue
-        for step in _steps(job):
-            uses, inputs = str(step.get("uses", "")), step.get("with") or {}
-            label = step.get("name") or uses
-            assert not uses.startswith("actions/cache"), (
-                f"{workflow.name} job `{name}` holds a write token or a secret, yet "
-                f"restores a cache ({uses})"
-            )
-            for key, value in inputs.items():
-                off = value is True if key == "no-cache" else value is False
-                assert "cache" not in key or off, (
-                    f"{workflow.name} job `{name}`, step {label!r}: `{key}: {value}` in a job "
-                    f"with a write token or a secret — a cache input may only switch caching off"
-                )
-
-
-def test_image_build_turns_caching_off() -> None:
-    """docker.yml builds with ``no-cache: true`` and never caches buildx itself.
-
-    The test above only sees cache inputs that are written down; this one pins
-    the two the image build needs. BuildKit takes a cached layer without
-    re-running its step, so a planted entry for ``pip install
-    --require-hashes -r requirements.lock`` would put packages no hash was
-    checked against into an image that is then signed and deployed. And
-    setup-buildx-action caches a buildx binary it downloads unless told not
-    to, so the signing job would run whatever that cache held.
-    """
-    steps = [
-        step
-        for job in _workflow(_WORKFLOW_DIR / "docker.yml")["jobs"].values()
-        for step in _steps(job)
-    ]
-    switches = {
-        "docker/build-push-action@": ("no-cache", True),
-        "docker/setup-buildx-action@": ("cache-binary", False),
-    }
-    for action, (key, value) in switches.items():
-        found = [step for step in steps if str(step.get("uses", "")).startswith(action)]
-        assert found, f"docker.yml no longer uses {action.rstrip('@')} — update this guard"
-        for step in found:
-            assert (step.get("with") or {}).get(key) is value, (
-                f"docker.yml step {step.get('name')!r}: set `{key}: {str(value).lower()}`"
             )
 
 

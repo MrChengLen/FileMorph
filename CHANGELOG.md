@@ -9,41 +9,6 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Security — the Docker image is built without a restored build cache
-
-`docker.yml` restored BuildKit's GitHub Actions cache (`cache-from: type=gha`)
-in the job that holds `packages: write` and the cosign signing identity, on
-tag builds and on main. Every job that runs on main can write that cache,
-whatever its `permissions:` say — the cache token can be read from the runner
-process — and jobs there install PyPI releases that no lockfile pins, such as
-`ci.yml`'s lint-and-test (the dev tools) and the weekly `deps-latest.yml`.
-BuildKit reuses a cached layer without re-running its step, so a malicious
-release could have planted the layer for `pip install --require-hashes -r
-requirements.lock`. The image would then have carried packages no hash was
-checked against and been signed all the same — and deployed from main, or
-named in a release's `IMAGE_DIGEST.txt` from a tag. Found by the security
-review of PR #163; it took a compromised upstream release, not an outside
-push.
-
-- **No cache on any build.** The build step sets `no-cache: true` and neither
-  restores nor exports a cache, and `setup-buildx-action` gets
-  `cache-binary: false`, so a buildx binary it downloads would not go through
-  the cache either. Main gets no exception: its builds read main's entries
-  directly and deploy.
-- **What it costs.** A warm cached build took 29 s for the slim image and 75 s
-  for the office image; built cold, they take about 60 s and 110 s. Every
-  build now installs the current Debian packages (ffmpeg, Ghostscript, …)
-  instead of reusing a cached layer, and those layers get new digests each
-  time: pulling an update downloads everything above the Python base image —
-  about 300 MB compressed for the slim image, 440 MB for the office image —
-  not only the layers after `COPY . .`.
-- **Guards.** `tests/test_supply_chain_hygiene.py` now fails if any job that
-  holds a write token or a secret restores or saves an Actions cache — an
-  `actions/cache` step, or a cache input that does not switch caching off —
-  or if `docker.yml` drops `no-cache: true` or `cache-binary: false`. Each of
-  14 simulated regressions, a tag-only `no-cache` among them, fails at least
-  one guard.
-
 ### Fixed — README, SECURITY.md and contributor docs match the repository
 
 The README said no release had been tagged. It now names v1.1.0 (2026-06-01),
