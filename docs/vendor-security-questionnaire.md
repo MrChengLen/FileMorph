@@ -24,6 +24,10 @@ to a questionnaire instead of re-deriving the answers each time.
 > the code they are running; deployment-level questions (hosting,
 > network, on-call, backup) they answer for themselves. The same split
 > appears in [`dpa-tom-annex.md`](./dpa-tom-annex.md).
+>
+> Application-level answers describe the current code on `main`. The
+> only tagged release so far, v1.1.0 (2026-06-01), predates several of
+> them — see the "Unreleased" section of [`CHANGELOG.md`](../CHANGELOG.md).
 
 ---
 
@@ -39,7 +43,7 @@ to a questionnaire instead of re-deriving the answers each time.
 | Licensing contact | `licensing@filemorph.io` ([`COMMERCIAL-LICENSE.md`](../COMMERCIAL-LICENSE.md)) |
 | Support contact | `support@filemorph.io` ([`support-sla.md`](./support-sla.md)) |
 | Public source code | [`github.com/MrChengLen/FileMorph`](https://github.com/MrChengLen/FileMorph) |
-| Product editions | **Community Edition** (AGPL-3.0, self-host, anonymous conversions) and **Compliance Edition** (per-server commercial licence, `app/ee/`-features unlocked via licence key) — see [`COMMERCIAL-LICENSE.md`](../COMMERCIAL-LICENSE.md) |
+| Product editions | **Community Edition** (AGPL-3.0, self-host, anonymous conversions) and **Compliance Edition** (the same code under a per-server commercial licence, with DPA, support agreement and onboarding) — see [`COMMERCIAL-LICENSE.md`](../COMMERCIAL-LICENSE.md) |
 
 ## 1. Product overview
 
@@ -54,11 +58,11 @@ the application after the response is returned.
 
 ### 1.2 Where does it run?
 
-The product is a single Linux container — Python 3.11 + FastAPI on
+The product is a single Linux container — Python 3.14 + FastAPI on
 Uvicorn. It runs behind any reverse proxy (the deployment templates use
 Caddy with automatic HTTPS) on any host the customer chooses. The
-public SaaS at filemorph.io runs on Hetzner Online GmbH in Frankfurt,
-Germany. Self-hosted deployments place themselves wherever the
+public SaaS at filemorph.io runs on Hetzner Online GmbH — data centre in
+the EU. Self-hosted deployments place themselves wherever the
 customer requires — on-premises, sovereign cloud, air-gapped.
 
 ### 1.3 What deployment models are supported?
@@ -68,10 +72,13 @@ customer requires — on-premises, sovereign cloud, air-gapped.
 - **Self-hosted Community Edition** under AGPL-3.0 — operator runs the
   unmodified container; no licence cost.
 - **Self-hosted Compliance Edition** under the per-server commercial
-  licence — adds the `app/ee/` feature set (audit-chain hard-mode,
-  PDF/A-2b validation gate, signed release-tag verification, dedicated
-  support, offline-update tooling); details in
-  [`COMMERCIAL-LICENSE.md`](../COMMERCIAL-LICENSE.md).
+  licence — the same code under a commercial licence instead of the
+  AGPL, plus the contract chain (DPA, support agreement, onboarding)
+  and, for Enterprise / KRITIS, backports and offline-update tooling as
+  agreed; details in [`COMMERCIAL-LICENSE.md`](../COMMERCIAL-LICENSE.md).
+  The audit-log fail-closed mode (`AUDIT_FAIL_CLOSED`) and PDF/A-2b
+  conversion are part of the AGPL code and available to every
+  deployment, and every release tag is GPG-signed (§8.3).
 
 ### 1.4 Who is the typical customer?
 
@@ -92,8 +99,8 @@ segment.
 
 ### 2.1 Where is data hosted?
 
-For the SaaS at filemorph.io: Hetzner Online GmbH, Frankfurt / Falkenstein,
-Germany (EU). Hetzner's datacentres are ISO 27001-certified. For a
+For the SaaS at filemorph.io: Hetzner Online GmbH — data centre in the
+EU. Hetzner's datacentres are ISO 27001-certified. For a
 self-hosted deployment: wherever the customer runs the container —
 their answer governs.
 
@@ -104,9 +111,12 @@ content, file names, or file hashes to any third party. The only
 outbound calls in the application code are:
 
 - PostgreSQL queries to the configured database (Cloud features).
-- SMTP submissions to the configured relay for authentication / billing
-  emails — never for file content (Cloud features).
-- Stripe Checkout-Session creation and webhook responses (paid tiers
+- SMTP submissions to the configured relay: account and billing emails
+  (Cloud features) and contact-form messages to the operator — never
+  file content.
+- Stripe API calls — creating the customer and the Checkout and
+  Billing-Portal sessions, cancelling subscriptions when an account is
+  deleted — and responses to Stripe's signed webhooks (paid tiers
   only).
 
 There is no analytics beacon, no telemetry endpoint, no "phone home"
@@ -122,20 +132,25 @@ For the SaaS:
   the United States, covered by the Stripe DPA and EU Standard
   Contractual Clauses (SCCs). Card data is collected by Stripe directly
   and never reaches FileMorph.
-- Transactional email transits **Zoho Corporation B.V.**, hosted in
-  Frankfurt, Germany — no third-country transfer.
-- Server hosting and DNS sit on Hetzner Online GmbH — no third-country
-  transfer.
+- Transactional email transits **Zoho Corporation B.V.**, EU data
+  centres in Amsterdam (NL) and Dublin (IE) — no third-country transfer.
+- Server hosting sits on Hetzner Online GmbH, data centre in the EU —
+  no third-country transfer.
+- DNS and the edge proxy are **Cloudflare Inc.** (United States). The
+  edge terminates TLS, so every request — uploaded files included — and
+  every response passes through Cloudflare's network, which is global;
+  covered by the Cloudflare DPA and EU Standard Contractual Clauses.
 
 For a self-hoster: their own configuration governs. The application
-defaults emit no third-country traffic unless the operator wires Stripe
-or a non-EU SMTP relay.
+defaults emit no third-country traffic unless the operator wires Stripe,
+a non-EU SMTP relay, or a non-EU edge proxy.
 
 ### 2.4 Sub-processors
 
 Default sub-processors for an operator that enables every Cloud feature:
-Hetzner (hosting), Cloudflare (optional edge), Stripe (payments), Zoho
-(transactional email), GitHub (source distribution and issue tracking).
+Hetzner (hosting), Cloudflare (optional edge proxy and DNS), Stripe
+(payments), Zoho (transactional email and contact-form delivery), GitHub
+(source distribution and issue tracking).
 Each is listed with data category, region, and the toggle that disables
 it in [`docs/sub-processors.md`](./sub-processors.md). A Community-Edition
 self-host with no database, no SMTP relay, and no Stripe key contacts
@@ -205,15 +220,18 @@ refers to and attaches to the counter-signed contract.
 
 ### 3.5 How are data-subject rights handled?
 
-- **Access (Art. 15):** by request to `hallo@filemorph.io`. The data
-  set is small — email, tier, usage records, audit-event payload
-  digests — and can be exported as JSON.
-- **Rectification (Art. 16):** users update email and password from the
-  dashboard; tier changes happen via the Stripe customer portal.
+- **Access (Art. 15):** by request to `privacy@filemorph.io`. The data
+  set is small — email, tier, usage records, audit events — and can be
+  exported as JSON.
+- **Rectification (Art. 16):** by request to `privacy@filemorph.io` — the
+  dashboard has no email or password change; a password is changed
+  through the reset email. Tier changes happen via the Stripe customer
+  portal.
 - **Erasure (Art. 17):** self-service at `DELETE /api/v1/auth/account`.
   Two modes:
-  - **Free / never-paid accounts** → hard delete (cascades).
-  - **Paid accounts** → restricted delete (HGB §257 / AO §147,
+  - **Accounts without a Stripe customer id** → hard delete (cascades).
+  - **Accounts with a Stripe customer id** (paid, or a checkout started
+    but never paid) → restricted delete (HGB §257 / AO §147,
     Art. 17(3)(b)): `email`, `stripe_customer_id`, `tier`, `created_at`
     retained for tax purposes; the rest is nulled, `password_hash` is
     replaced with a sentinel, `deleted_at` is set; ApiKeys deleted,
@@ -223,7 +241,7 @@ refers to and attaches to the counter-signed contract.
 - **Portability (Art. 20):** the export above is JSON; nothing is held
   in a proprietary format.
 - **Restriction / objection (Art. 18 / 21):** by request to
-  `hallo@filemorph.io`.
+  `privacy@filemorph.io`.
 
 ### 3.6 What is the retention regime?
 
@@ -237,10 +255,12 @@ refers to and attaches to the counter-signed contract.
 - **Billing records:** statutory retention under HGB §257 / AO §147
   (typically 10 years from the end of the calendar year of the last
   transaction).
-- **Audit log:** governed by `AUDIT_RETENTION_DAYS`, set by the
-  operator to match the privacy notice. On account deletion the
-  actor identifier is nulled; the event type and payload digest
-  survive.
+- **Audit log:** no built-in retention period — rows are append-only
+  and are not pruned automatically; pruning takes a privileged
+  database role that bypasses the append-only trigger. The operator
+  sets the period to match the privacy notice. On a hard delete
+  (accounts without a Stripe customer id) the actor identifier is
+  nulled; the event type and payload survive.
 - **Server access logs:** operator-side, per the operator's log-rotation
   policy.
 
@@ -310,7 +330,7 @@ and renews certificates automatically.
 | API-key comparison | Key file: `hmac.compare_digest` (constant-time); per-user keys: lookup by SHA-256 hash | `app/core/security.py::validate_api_key`, `::find_active_api_key` |
 | Password hashing | bcrypt, adaptive cost | `app/core/auth.py::hash_password` |
 | Password verification | bcrypt `checkpw` | `app/core/auth.py::verify_password` |
-| Session tokens | JWT HS256, 15-min access + 30-day refresh | `app/core/auth.py::create_access_token` |
+| Session tokens | JWT HS256, 15-min access + 30-day refresh | `app/core/tokens.py::create_access_token` |
 | Audit-log integrity | SHA-256 hash chain | `app/core/audit.py` |
 | Output integrity | Streaming SHA-256, returned as `X-Output-SHA256` header and recorded in the audit-log payload | `app/core/audit.py`, `app/api/routes/convert.py`, `compress.py` |
 | Release signing | GPG (OpenPGP) | [`docs/release-signing.md`](./release-signing.md) |
@@ -392,12 +412,13 @@ are not in the AGPL or default-Compliance build today.
 
 Every upload passes through:
 
-1. **Magic-byte allow-list** — `BLOCKED_MAGIC = [b"MZ", b"\x7fELF",
-   b"#!/", b"<?ph"]` rejects PE / ELF / shell / PHP payloads before
-   any decoder runs.
-2. **MIME type from content, not client** — the `Content-Type` claimed
-   by the client is informational; the actual format is determined
-   from bytes.
+1. **Magic-byte deny-list** — `BLOCKED_MAGIC = [b"MZ", b"\x7fELF",
+   b"#!/", b"<?ph"]` in `app/core/processing.py` rejects files that
+   start with a PE, ELF, shell-script or PHP signature before any
+   decoder runs.
+2. **Format from the file extension** — the converter is chosen from
+   the file extension, not detected from content; the `Content-Type`
+   the client sends is not used.
 3. **Path safety** — the original filename is never used as a
    filesystem path. Temp paths use UUID stems under `fm_`-prefixed
    directories.
@@ -443,13 +464,18 @@ in [`docs/security-overview.md`](./security-overview.md). Highlights:
 ### 6.3 What about CSP, CORS, and security headers?
 
 - **CSP:** `default-src 'self'`; `script-src 'self' 'sha256-…'` (the
-  only inline script is the Tailwind config in the page head, pinned
-  by its SHA-256 hash; drift invalidates the hash and the script
-  refuses to run); `connect-src 'self'` extended to `API_BASE_URL`
-  when set; `frame-ancestors 'none'`.
+  only hash is that of the inline JSON-LD structured-data block,
+  computed from the same bytes the template renders —
+  `app/core/jsonld.py`; Tailwind is a self-hosted stylesheet, and
+  `tests/test_csp_no_unpinned_inline_scripts.py` fails on any
+  executable inline script whose hash the policy does not list);
+  `style-src 'self' 'unsafe-inline'`; `connect-src 'self'` extended to
+  `API_BASE_URL` when set; `frame-ancestors 'none'`.
 - **CORS:** `CORS_ORIGINS` allow-list, never `*` with credentials;
-  `expose_headers=["Content-Disposition"]` so cross-origin client
-  code can read the download filename.
+  `expose_headers` lists the response headers the web UI reads
+  cross-origin — `Content-Disposition` for the download filename, the
+  `X-FileMorph-*` result headers, `X-Output-SHA256` and
+  `X-Data-Classification`.
 - **Defensive headers:** HSTS (deployment-dependent, §4.1),
   `X-Content-Type-Options:
   nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy:
@@ -461,9 +487,21 @@ Regression guards in `tests/test_security_headers.py` and
 
 ### 6.4 Rate limiting and concurrency
 
-- **Per-endpoint slowapi limits** — `app/core/rate_limit.py`.
+- **Per-endpoint slowapi limits** — `app/core/rate_limit.py`. API
+  endpoints have explicit limits, from 1 to 120 requests per minute
+  (the contact form: 5 per hour), counted per client IP; the account
+  endpoints (API keys, billing, email language) count per signed-in
+  account instead. Every limit, and the four endpoints exempt on
+  purpose, are listed in
+  [`api-reference.md` § Rate Limiting](./api-reference.md#rate-limiting).
   In-memory; effective for a single instance. Multi-instance
   deployments need an external store (Redis); on the backlog.
+- **Failed API keys** — rejected `X-API-Key` attempts have their own
+  budget: past 30 per minute per IP they get `429` with `Retry-After`
+  instead of `401`. The count starts only after both key checks have
+  failed, so a valid key is never refused.
+- **No IPs in the log** — the limiter's own "limit exceeded" log lines,
+  which carry the client IP or account ID, are suppressed.
 - **Concurrency limiter** — global semaphore + per-actor tier-bound
   semaphore with 0.5 s acquire timeout returns 503 (global capacity)
   / 429 (per-actor) with `Retry-After`. Every synchronous C-binding
@@ -479,25 +517,42 @@ Regression guards in `tests/test_security_headers.py` and
   token, neither of which is sent automatically by the browser cross-
   origin. Cookie-based session state is not used for authenticated
   API calls — see the cookie-hygiene CI guard
-  (`tests/test_no_cookies.py`).
+  (`tests/test_security_headers.py::test_no_set_cookie_on_public_pages`).
 
 ### 6.6 Are there file-format risks?
 
 The threat model lists the known classes:
 
-- **Decompression bombs (image)** — Pillow's `MAX_IMAGE_PIXELS`
-  default (~89 megapixels) is in effect; the per-tier output cap
-  rejects oversized output even when the input passes. Tightening
-  this to `DecompressionBombError` is on the backlog (open-tasks
-  P3-4).
+- **Decompression bombs (image)** — an image above Pillow's
+  `MAX_IMAGE_PIXELS` threshold (~89 megapixels by default, adjustable
+  via `FILEMORPH_IMAGE_MAX_MEGAPIXELS`) is rejected before it is
+  decoded: the warning is turned into an error at start-up, and the
+  route answers `400` with `X-FileMorph-Error-Code: decompression_bomb`
+  (since v1.1.0) — `app/core/image_hardening.py`. The per-tier output
+  cap still rejects oversized output even when the input passes.
 - **Zip slip / archive escape** — extraction routines normalise paths
   to a fixed temp directory and reject `..` components.
 - **PDF metadata injection** — PDF/A-2b conversion strips uncontrolled
-  metadata; the integrity gate (veraPDF where available) verifies
-  conformance before the response is streamed.
+  metadata. veraPDF validates the converter's output in CI, on every
+  pull request and push to `main`, against a worst-case fixture
+  (`.github/workflows/verapdf.yml`); no validator runs on individual
+  requests.
 - **EXIF / GPS leakage** — image conversions and compressions strip
   EXIF / XMP / IPTC metadata by default; ICC colour profile preserved
   so wide-gamut workflows are not visibly desaturated.
+
+### 6.7 Do error messages disclose internals?
+
+No (CWE-209). When a conversion or compression fails, the client gets
+a fixed message ("Conversion failed. Verify …", "Compression failed.
+…") and the exception is logged on the server only. The texts that do
+reach the client are the routes' own messages (size limit, blocked
+file type, output cap) and hints a converter writes for the user,
+such as "Re-save it as UTF-8". The same rule covers each file of a
+batch — the per-file message, the `X-FileMorph-Batch-Failures` header
+and `manifest.json`; the batch routes used to echo library exception
+text there, such as a decoder's codec and byte offset. Unhandled
+errors on API routes return "Internal server error."
 
 **See also:** [`docs/security-overview.md`](./security-overview.md),
 [`docs/security-pentest-report.md`](./security-pentest-report.md),
@@ -522,36 +577,49 @@ rows protected by a database trigger
 detects retroactive edits from a SQL dump alone — compatible with
 ISO 27001 A.12.4.1, BORA §50, and BeurkG §39a expectations.
 
-The chain records actor identifiers as hashed-email values, not raw
-emails. Account-affecting events (registration, login, API-key
-creation, password reset, email change, account deletion) and every
-conversion / compression land in the chain.
+The chain identifies an actor by account ID (a random UUID), never by
+email address; failed logins, duplicate registrations, password-reset
+requests and contact-form messages also record a SHA-256 hash of the
+email address in the payload. Recorded: registration, login (success
+and failure), email verification, password reset, account deletion,
+subscription and payment events (including the withdrawal waiver at
+checkout and dunning emails), single-file conversions and compressions
+(success and failure), contact-form messages, and PII redactions where
+enabled. Not recorded: API-key creation or revocation, admin changes in
+the cockpit, batch conversions / compressions, and the `/pdf/*` tools.
+There is no email-change function.
 
 ### 7.3 What about output integrity?
 
-Every successful conversion / compression response carries an
-`X-Output-SHA256` header — a streaming SHA-256 of the bytes the
-client receives. The same hash lands in the audit-log payload
-(`output_sha256`), so an external auditor can verify a file matches
-the attestation FileMorph made at conversion time without trusting
+Every successful response of the single-file `/convert` and
+`/compress` endpoints carries an `X-Output-SHA256` header — a
+streaming SHA-256 of the bytes the client receives; batch ZIPs, the
+`/pdf/*` tools and PII redaction do not. The same hash lands in the
+audit-log payload (`output_sha256`), so an external auditor can verify
+a file matches the attestation FileMorph made at conversion time without trusting
 the application path. This is the anchor that turns the audit-log
 hash chain into something a downstream archival workflow (GoBD,
 beA-Anhang-Trail, eDiscovery) can act on.
 
 ### 7.4 What about logs as a data category?
 
-Audit-log retention is governed by `AUDIT_RETENTION_DAYS`, set by
-the operator to match their privacy notice. On account deletion the
-actor identifier is nulled while the event type and payload digest
-survive — the chain integrity is preserved.
+The application sets no audit-log retention period itself: rows are
+append-only and are not pruned automatically. Pruning takes a
+privileged database role that bypasses the append-only trigger, and the
+operator sets the period to match their privacy notice. On a hard
+delete (accounts without a Stripe customer id) the actor identifier is
+nulled while the event type and payload survive — the chain integrity
+is preserved.
 
 Server access logs (IP, request time, URL, status, response size)
-are written by the OS-level web server, not the FileMorph
-application. Retention is per the operator's log-rotation policy.
+are written by the reverse proxy and by the application server:
+uvicorn's per-request access line (client address, method, path,
+status) is on in the shipped container (`entrypoint.sh`). The
+application log itself records a client IP in one case — when the
+contact form's spam trap is triggered. Retention is per the
+operator's log-rotation policy.
 
-**See also:** [`docs/security-overview.md`](./security-overview.md)
-§ "Audit logging",
-[`docs/records-of-processing-template.md`](./records-of-processing-template.md) A5.
+**See also:** [`docs/records-of-processing-template.md`](./records-of-processing-template.md) A5.
 
 ---
 
@@ -569,9 +637,10 @@ SLAs:
 | Medium | 4.0 – 6.9 | next regular release |
 | Low | 0.1 – 3.9 | next regular release |
 
-A *regular release* historically lands every 1–4 weeks. Enterprise /
-KRITIS customers contract for backports onto a fixed `vX.Y` line
-plus offline-update tooling — see
+So far there has been one tagged release, v1.1.0 (2026-06-01); there
+is no established release cadence yet, so "next regular release" has
+no fixed date. Enterprise / KRITIS customers contract for backports
+onto a fixed `vX.Y` line plus offline-update tooling — see
 [`COMMERCIAL-LICENSE.md`](../COMMERCIAL-LICENSE.md).
 
 ### 8.2 How are dependency vulnerabilities found?
@@ -606,15 +675,15 @@ process:
 
 | Stage | Target |
 |---|---|
-| Acknowledgement | Within 72 hours |
-| Initial triage | Within 7 days |
-| Patch and disclosure | Within 90 days |
+| Acknowledgement | Within 72 hours of receipt |
+| Initial triage + severity | Within 7 days |
+| Fix released | Critical within 7 days of triage, High within 30 days, Medium / Low in the next regular release (§8.1) |
 
 Critical / High issues are also published as GitHub Security
 Advisories out-of-band from the regular release cycle. Bug-bounty
-rewards are not currently offered. PGP-encrypted reports are on the
-backlog; plain email to `security@filemorph.io` is the current
-channel.
+rewards are not currently offered. Reports go by email to
+`security@filemorph.io`; for encrypted mail, the PGP key is available
+on request at the same address.
 
 ### 8.5 What about penetration testing?
 
@@ -685,7 +754,7 @@ the first KRITIS-tier engagement.
 For the SaaS at filemorph.io:
 
 - **Database** (Postgres) — daily snapshots, encrypted at rest, retained
-  per the operator's published retention policy. The audit log is a
+  per the operator's retention policy. The audit log is a
   Postgres table and is part of the same backup set.
 - **Application code and configuration** — Git is the source of truth;
   releases are tagged, signed, and published as immutable container
@@ -701,13 +770,12 @@ rebuild.
 
 ### 10.2 RTO / RPO targets
 
-The SaaS operator targets are documented in the published privacy
-notice and reviewed annually. Self-hosters set their own targets in
-their DPA Annex II `[operator: …]` placeholders.
+No RTO / RPO targets are published for the SaaS. Self-hosters set
+their own targets in their DPA Annex II `[operator: …]` placeholders.
 
-For Compliance Edition customers the RTO / RPO targets are part of
-the commercial agreement and may be tighter than the SaaS defaults
-depending on the engagement (e.g. KRITIS B3S hospital deployments).
+For Compliance Edition customers, RTO / RPO targets are agreed
+individually in the commercial agreement (e.g. for KRITIS B3S hospital
+deployments).
 
 ### 10.3 Restore testing
 
@@ -723,12 +791,15 @@ register.
 
 Yes. The full source is published at
 [`github.com/MrChengLen/FileMorph`](https://github.com/MrChengLen/FileMorph)
-under AGPL-3.0-or-later. Every Python file carries an SPDX header
-(`# SPDX-License-Identifier: AGPL-3.0-or-later`). Compliance-Edition
-features live in `app/ee/` under a separate commercial licence — the
-source is in the same public repository but the feature is inert
-without a valid licence key. The combined model and the rationale
-for not splitting the repo are documented in
+under AGPL-3.0-or-later. Every Python file carries an SPDX header —
+`AGPL-3.0-or-later`, or `LicenseRef-FileMorph-Commercial` for the
+modules under `app/ee/`. The commercial-only
+modules live in `app/ee/` (currently PII redaction) under a separate
+commercial licence — the source is in the same public repository, and
+the modules stay inert unless their environment is configured
+(`AI_OPERATIONS_ENABLED`); there is no licence-key mechanism. The
+combined model and the rationale for not splitting the repo are
+documented in
 [`COMMERCIAL-LICENSE.md`](../COMMERCIAL-LICENSE.md).
 
 ### 11.2 What is in the SBOM?
@@ -736,8 +807,13 @@ for not splitting the repo are documented in
 A CycloneDX SBOM (`filemorph-{version}.cdx.json`) is generated per
 release and attached to the GitHub release. It lists every direct
 and transitive Python dependency with version pin, licence, and CPE
-where available. Self-hosters who fork the repo regenerate it after
-their dependency updates.
+where available — the set `requirements.lock` installs into the image.
+Operating-system packages of the image (e.g. FFmpeg, Ghostscript) are
+not in it. The SBOM attached to v1.1.0, the only release so far, was
+generated before the current method: it also lists the SBOM
+generator's own packages, and components that declare their licence
+only as a `License-Expression` appear without one. Self-hosters who
+fork the repo regenerate it after their dependency updates.
 
 ### 11.3 Third-party licence compliance
 
@@ -757,6 +833,17 @@ dynamically and isolated per AGPL §13 best practice.
 - Container images cosign-signed (keyless OIDC).
 - Git tags GPG-signed.
 - SBOM attached to each release.
+- The release workflow runs as two jobs: `sbom` installs the image's
+  dependency set and the SBOM generator with read-only repository
+  access; `verify-and-publish` checks the tag's GPG signature and
+  publishes with write access, installs nothing, and receives the SBOM
+  as an artifact. Neither job restores a cache or keeps the checkout's
+  credentials. The generator is installed hash-pinned and wheels-only
+  from `requirements-sbom.lock` — `.github/workflows/release.yml`,
+  guarded by `tests/test_supply_chain_hygiene.py`.
+- `.dockerignore` keeps secrets and local state (`.env*`, the API-key
+  file in `data/`, `.git`, Python environments) out of the image build
+  context — `tests/test_dockerignore.py`.
 - Dependabot opens weekly update PRs for the Python requirements,
   GitHub Actions and the Docker base image; a Python update reaches
   the image once `requirements.lock` is recompiled.
@@ -873,8 +960,9 @@ orderly export.
 
 For SaaS subscriptions, the user terminates from the dashboard
 (Stripe customer portal) and triggers self-service account deletion;
-the tax-retention path (HGB §257 / AO §147) keeps the four mandated
-fields, the rest is nulled.
+the tax-retention path (HGB §257 / AO §147), which every account with a
+Stripe customer id takes, keeps the four mandated fields, the rest is
+nulled.
 
 ### 14.2 How is data exported?
 
@@ -888,8 +976,9 @@ migration to another system.
 The product is published under AGPL-3.0 in a single public repository
 and runs on commodity infrastructure. A customer ending the engagement
 can run the same container themselves with no re-implementation.
-Compliance Edition features in `app/ee/` go inert without a licence
-key; the AGPL base remains fully functional.
+The commercial-only modules in `app/ee/` (PII redaction) stay inert
+unless enabled by environment; the AGPL base remains fully functional
+without them.
 
 **See also:** [`docs/dpa-template.md`](./dpa-template.md) §10,
 [`docs/gdpr-account-deletion-design.md`](./gdpr-account-deletion-design.md).
@@ -989,17 +1078,9 @@ trigger:
 - **Public status page** — before the first KRITIS-tier engagement.
 - **Redis-backed multi-instance rate limiting** — when a customer
   deployment requires more than one instance.
-- **`MAX_IMAGE_PIXELS` hard-error** — tightening from `DecompressionBomb
-  Warning` to `DecompressionBombError`; tracked as open-tasks P3-4.
-- **PGP key for `security@filemorph.io`** — on the backlog; plain
-  email is the current channel.
-
-The full list of open work is maintained in
-`docs-internal/open-tasks.md` (operator-internal — not in the public
-repo).
 
 ---
 
-*Last revised: 2026-05-18.* This document is reviewed at least annually
+*Last revised: 2026-09-28.* This document is reviewed at least annually
 and on any material change to the application, the sub-processor list,
 or the contract chain.

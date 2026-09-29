@@ -9,6 +9,41 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — compliance templates describe what the code does
+
+The DPA template and its TOM annex, the records-of-processing template, the
+vendor security questionnaire, the sub-processor list, the support framework,
+both GDPR documents, the AGPL guide for public bodies and the commercial
+licence agreement template claimed more than the code does in places. They
+now say that the audit log names actors by account ID (an email hash only for
+failed logins, duplicate registrations, reset requests and contact-form
+messages), stores its payload as JSON rather than a digest, and does not record
+API-key management, admin changes, batch jobs or the `/pdf/*` tools; that
+`X-Output-SHA256` comes only from single-file `/convert` and `/compress`; that
+the upload check is a magic-byte deny-list and the converter is chosen by file
+extension, not from content; that `app/ee/` holds only PII redaction, switched
+on by `AI_OPERATIONS_ENABLED` rather than a licence key; that veraPDF runs in
+CI, not per request; that a
+leftover temp directory can last about 70 minutes, not 10; that uvicorn's
+access log is on and a TLS-terminating edge proxy sees uploads; and that the
+SMTP relay also carries contact-form messages but no receipts. Hosting and
+email locations, the Python version, CSP, CORS, disclosure targets and code
+anchors are updated, and vulnerability reports go to `security@filemorph.io`
+only (PGP key on request); v1.1.0 is named as the only release so far, along
+with what its SBOM lacks, and support response times as set per agreement. The
+documents no longer name an `AUDIT_RETENTION_DAYS` setting, which never
+existed: the audit log has no built-in retention period, and the operator
+states theirs. Data-subject requests go to `privacy@filemorph.io`, as in the
+privacy policy. The TOM annex and the questionnaire gain the rate limits and
+failed-key budget, the two-job release workflow with its hash-pinned SBOM
+generator and `.dockerignore`; the questionnaire also covers error messages
+that no longer echo library internals, and the records of processing gain the
+contact form. The account-deletion design and the questionnaire note that the
+code takes the paid path for any account with a Stripe customer id; audit
+events lose their actor ID only on a hard delete. In the agreement template,
+no VAT is charged only while §19 UStG applies; it and the AGPL guide exclude
+`app/ee/` from the AGPL.
+
 ### Security — the Docker image is built without a restored build cache
 
 `docker.yml` restored BuildKit's GitHub Actions cache (`cache-from: type=gha`)

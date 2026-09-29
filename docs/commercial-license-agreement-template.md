@@ -1,7 +1,7 @@
 # Commercial License Agreement — Template
 
 **Status:** Skeleton template — **not a binding contract as it stands.**
-**Last reviewed:** 2026-05-12
+**Last reviewed:** 2026-09-28
 
 This document is the starting point for the **Commercial License
 Agreement** between a FileMorph Compliance-Edition customer (*Licensee*)
@@ -46,7 +46,10 @@ Read that first; this document is the contractual form of it.
   `https://github.com/MrChengLen/FileMorph`, at the version line stated
   in Schedule A, together with its Documentation.
 - **"AGPL"** — the GNU Affero General Public License v3.0 under which the
-  Software is also published (see `LICENSE` in the repository).
+  Software, except the modules under `app/ee/`, is also published (see
+  `LICENSE` in the repository). The modules under `app/ee/` are
+  published source-available under the commercial licence only (see
+  `COMMERCIAL-LICENSE.md`).
 - **"Licensed Scope"** — the deployment scope licensed under this
   Agreement: the tier, number of servers, and employee band stated in
   Schedule A.
@@ -78,7 +81,9 @@ Scope.
 the band in Schedule A, or use by a different legal entity — AGPL-3.0
 governs unless and until the Licensed Scope is extended by a written
 amendment (a "true-up", typically a move to a higher tier per
-[`COMMERCIAL-LICENSE.md`](../COMMERCIAL-LICENSE.md)).
+[`COMMERCIAL-LICENSE.md`](../COMMERCIAL-LICENSE.md)). This does not
+apply to the modules under `app/ee/`: they are not available under
+AGPL-3.0, so they may be used only within the Licensed Scope.
 
 3.3 This Agreement does not remove AGPL-3.0 from the public repository
 and does not affect any other party's rights under AGPL-3.0. The
@@ -114,9 +119,11 @@ Licensee relies on it for the Licensee's own compliance.
 invoiced annually in advance, due within thirty (30) days of the invoice
 date.
 
-6.2 Fees are exclusive of VAT. For cross-border supplies within the EU
-to a VAT-registered business, the reverse-charge mechanism applies and
-the Licensee provides a valid VAT-ID.
+6.2 As long as the Licensor applies the small-business scheme under
+§19 UStG (Kleinunternehmerregelung), no VAT is charged on the Fees. For
+cross-border supplies within the EU to a VAT-registered business, the
+reverse-charge mechanism applies and the Licensee provides a valid
+VAT-ID.
 
 6.3 Overdue amounts bear interest at the statutory rate (§288 BGB) from
 the due date.
@@ -253,7 +260,8 @@ disclosure, is independently developed without use of the disclosing
 party's information, or must be disclosed by law or court order (with
 prior notice to the other party where lawful).
 
-15.3 The Software itself is published under AGPL-3.0 and is not
+15.3 The Software's source code is public — under AGPL-3.0, and
+source-available for the modules under `app/ee/` — and is not
 confidential.
 
 15.4 This §15 survives termination for three (3) years.
@@ -262,9 +270,12 @@ confidential.
 
 16.1 On termination or expiry of this Agreement, the licence in §3 (and
 §4, if applicable) ends. The Licensee's continued use of the Software is
-thereafter governed by AGPL-3.0.
+thereafter governed by AGPL-3.0, except for the modules under `app/ee/`:
+they are not available under AGPL-3.0, so the right to use them ends
+with this Agreement.
 
-16.2 Existing installations may continue to run; the Licensor does not
+16.2 Existing installations may continue to run, with the modules under
+`app/ee/` disabled (§16.1); the Licensor does not
 disable or force-update deployed instances. Continued updates after
 termination require a current commercial licence or compliance with
 AGPL-3.0; the Documentation as a contractual deliverable, the Support
@@ -314,7 +325,7 @@ Germany, to the extent permitted by law.
 | Tier | `[Starter / Standard / Enterprise / KRITIS–air-gap / OEM]` |
 | Number of servers licensed | `[N]` |
 | Employee band | `[≤ 50 / ≤ 2 000 / unlimited / as agreed]` |
-| Annual Fee (excl. VAT) | `[€ … — per COMMERCIAL-LICENSE.md, or as negotiated for Enterprise / KRITIS / OEM]` |
+| Annual Fee (no VAT charged while the Licensor applies §19 UStG — see §6.2) | `[€ … — per COMMERCIAL-LICENSE.md, or as negotiated for Enterprise / KRITIS / OEM]` |
 | Multi-year discount, if any | `[…]` |
 | OEM redistribution terms (OEM tier only) | `[…]` |
 | Licensed version line | `[e.g. v1.x — see docs/patch-policy.md]` |
@@ -327,7 +338,7 @@ filled at finalisation:
 
 | Item | Value |
 |---|---|
-| Severity response windows (P1 / P2 / P3 / P4) | `[per the tier — see docs/support-sla.md]` |
+| Severity response windows (P1 / P2 / P3 / P4) | `[as agreed for this Agreement — docs/support-sla.md gives the framework, not figures]` |
 | Coverage hours | `[business hours Europe/Berlin / extended / 24×7 — as agreed]` |
 | Named support contact | `[…]` |
 | Escalation path | `[…]` |
