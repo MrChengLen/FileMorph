@@ -9,6 +9,109 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — compliance templates describe what the code does
+
+The DPA template and its TOM annex, the records-of-processing template, the
+vendor security questionnaire, the sub-processor list, the support framework,
+both GDPR documents, the AGPL guide for public bodies and the commercial
+licence agreement template claimed more than the code does in places. They
+now say that the audit log names actors by account ID (an email hash only for
+failed logins, duplicate registrations, reset requests and contact-form
+messages), stores its payload as JSON rather than a digest, and does not record
+API-key management, admin changes, batch jobs or the `/pdf/*` tools; that
+`X-Output-SHA256` comes only from single-file `/convert` and `/compress`; that
+the upload check is a magic-byte deny-list and the converter is chosen by file
+extension, not from content; that `app/ee/` holds only PII redaction, switched
+on by `AI_OPERATIONS_ENABLED` rather than a licence key; that veraPDF runs in
+CI, not per request; that a
+leftover temp directory can last about 70 minutes, not 10; that uvicorn's
+access log is on and a TLS-terminating edge proxy sees uploads; and that the
+SMTP relay also carries contact-form messages but no receipts. Hosting and
+email locations, the Python version, CSP, CORS, disclosure targets and code
+anchors are updated, and vulnerability reports go to `security@filemorph.io`
+only (PGP key on request); v1.1.0 is named as the only release so far, along
+with what its SBOM lacks, and support response times as set per agreement. The
+documents no longer name an `AUDIT_RETENTION_DAYS` setting, which never
+existed: the audit log has no built-in retention period, and the operator
+states theirs. Data-subject requests go to `privacy@filemorph.io`, as in the
+privacy policy. The TOM annex and the questionnaire gain the rate limits and
+failed-key budget, the two-job release workflow with its hash-pinned SBOM
+generator and `.dockerignore`; the questionnaire also covers error messages
+that no longer echo library internals, and the records of processing gain the
+contact form. The account-deletion design and the questionnaire note that the
+code takes the paid path for any account with a Stripe customer id; audit
+events lose their actor ID only on a hard delete. In the agreement template,
+no VAT is charged only while §19 UStG applies; it and the AGPL guide exclude
+`app/ee/` from the AGPL.
+
+### Fixed — website texts match what the service does
+
+The public pages were checked claim by claim against the code:
+
+- **Terms §8** no longer quotes subscription prices (they come from the
+  pricing page) and describes cancellation by email.
+- **Privacy policy:** the rate-limit description is accurate (set per route,
+  from 5 contact messages per hour to 120 requests per minute); the list of
+  stored data adds the preferred language, the email-verification timestamp
+  and per-request usage rows; sub-processor locations are corrected (Hetzner:
+  a data centre in the EU; Zoho: Amsterdam and Dublin); paid plans are not
+  yet available; the date is refreshed. Logging out now also removes the
+  legacy `filemorph_api_key` browser entry (`auth.js`), as §6 says — a test
+  in `tests/test_cookie_notice.py` pins it.
+- **/pricing and /enterprise:** API access without a key, v1.1.0 as the
+  tagged release, the audit log's scope, the veraPDF gate, "180+ format
+  pairs" (distinct pairs, pinned by a test), support response times agreed
+  per contract, and a PGP key on request.
+- **/formats** limits exact target-size compression to JPEG, WebP and AVIF.
+- **Dashboard:** account deletion names the 10-year tax-retention record.
+- **/security** and `/.well-known/security.txt` drop the GitHub Security
+  Advisories option, which is not enabled on this repository.
+- The redaction page no longer calls its engine AGPL open source (`app/ee`
+  is commercially licensed); the JSON-LD `featureList` adds the PDF tools
+  and PDF → PDF/A.
+- `tests/test_pricing_centralized.py` fails if the terms page hardcodes a
+  euro price in either language.
+
+### Security — the Docker image is built without a restored build cache
+
+`docker.yml` restored BuildKit's GitHub Actions cache (`cache-from: type=gha`)
+in the job that holds `packages: write` and the cosign signing identity, on
+tag builds and on main. Every job that runs on main can write that cache,
+whatever its `permissions:` say — the cache token can be read from the runner
+process — and jobs there install PyPI releases that no lockfile pins, such as
+`ci.yml`'s lint-and-test (the dev tools) and the weekly `deps-latest.yml`.
+BuildKit reuses a cached layer without re-running its step, so a malicious
+release could have planted the layer for `pip install --require-hashes -r
+requirements.lock`. The image would then have carried packages no hash was
+checked against and been signed all the same — and deployed from main, or
+named in a release's `IMAGE_DIGEST.txt` from a tag. Found by the security
+review of PR #163; it took a compromised upstream release, not an outside
+push.
+
+- **No cache on any build.** The build step sets `no-cache: true` and neither
+  restores nor exports a cache, and `setup-buildx-action` gets
+  `cache-binary: false`, so a buildx binary it downloads would not go through
+  the cache either. Main gets no exception: its builds read main's entries
+  directly and deploy. The pull-request image check (`docker-pr.yml`, added
+  in PR #174) builds without the cache as well, and without a cached buildx:
+  with nothing left writing the cache, what it found would be stale or
+  planted, and its smoke test would pass on layers the pull request never
+  built.
+- **What it costs.** A warm cached build took 29 s for the slim image and 75 s
+  for the office image; built cold, they take about 60 s and 110 s. Every
+  build now installs the current Debian packages (ffmpeg, Ghostscript, …)
+  instead of reusing a cached layer, and those layers get new digests each
+  time: pulling an update downloads everything above the Python base image —
+  about 300 MB compressed for the slim image, 440 MB for the office image —
+  not only the layers after `COPY . .`.
+- **Guards.** `tests/test_supply_chain_hygiene.py` now fails in three cases:
+  a job that holds a write token or a secret restores or saves an Actions
+  cache (an `actions/cache` step, or a cache input that does not switch
+  caching off); `docker.yml` drops `no-cache: true`; or a buildx step in any
+  workflow uses `cache-from` or `cache-to`, or sets up buildx without
+  `cache-binary: false`. Each of 17 simulated regressions, a tag-only
+  `no-cache` among them, fails at least one guard.
+
 ### Fixed — API docs: keys are optional, video compression and converter registration described correctly
 
 The API reference marked every file route "Authentication: Required", and the

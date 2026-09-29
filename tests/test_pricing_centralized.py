@@ -16,6 +16,8 @@ free of drift:
 
 from __future__ import annotations
 
+import re
+
 from app.core.config import settings
 
 
@@ -79,3 +81,13 @@ def test_commercial_pages_make_no_false_certification_claims(client, monkeypatch
         body = client.get(url).text
         assert "ISO 27001 certified" not in body
         assert "SOC 2" not in body
+
+
+def test_terms_page_has_no_hardcoded_euro_price(client):
+    """Terms §8 must point to /pricing for the current amount, never hardcode
+    a euro price that can drift from app/core/pricing.py / settings (it used
+    to quote "Pro €7/month, Business €19/month" — already stale)."""
+    for url in ("/de/terms", "/en/terms"):
+        body = client.get(url).text
+        # "€7" (en) as well as "7 €" (de)
+        assert not re.search(r"€\s?\d|\d\s?€", body), f"{url} hardcodes a euro price in Terms"

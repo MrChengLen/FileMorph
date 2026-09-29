@@ -35,6 +35,20 @@ def test_notice_is_not_a_consent_dialog(client):
     assert "cookie-notice-reject" not in html
 
 
+def test_logout_clears_every_signed_in_localstorage_key():
+    """privacy.html §6 promises that the keys written while signed in go on
+    logout — including the legacy ``filemorph_api_key`` older versions stored."""
+    from pathlib import Path
+
+    js = (Path(__file__).parent.parent / "app" / "static" / "js" / "auth.js").read_text(
+        encoding="utf-8"
+    )
+    body = re.search(r"function logout\(\) \{(.*?)\n  \}", js, re.S)
+    assert body, "logout() not found in auth.js"
+    for key in ("ACCESS_KEY", "REFRESH_KEY", "'filemorph_api_key'"):
+        assert f"localStorage.removeItem({key})" in body.group(1), f"logout keeps {key}"
+
+
 def test_notice_deep_links_privacy_cookies_section(client):
     assert 'href="/privacy#cookies"' in client.get("/").text
     assert 'id="cookies"' in client.get("/privacy").text

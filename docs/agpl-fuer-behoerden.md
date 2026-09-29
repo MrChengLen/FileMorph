@@ -1,7 +1,9 @@
 # AGPLv3 für Behörden, Krankenhäuser und Kanzleien
 
 FileMorph steht unter der **GNU Affero General Public License v3** (AGPLv3).
-Diese Lizenz wird in Beschaffungsabteilungen gelegentlich als
+Ausgenommen sind die Module unter `app/ee/` (PII-Schwärzung); sie sind
+nur kommerziell lizenziert.
+Die AGPLv3 wird in Beschaffungsabteilungen gelegentlich als
 "problematisch" wahrgenommen, weil das Wort *Affero* den Eindruck einer
 Veröffentlichungspflicht erweckt. Dieses Dokument räumt das auf und
 erklärt, was die AGPLv3 für eine deutsche Verwaltungs-, Kranken- oder
@@ -104,12 +106,13 @@ Die Compliance-Edition (kommerzielle Lizenz) lohnt sich, wenn …
   ausstatten, die unter eigener Lizenz bleiben sollen,
 - Sie **vertraglich abgesicherte Support-SLAs** und einen festen
   Ansprechpartner für sicherheitskritische Updates benötigen,
-- Sie eine **Air-Gap- oder KRITIS-Variante** mit garantierten
-  Reaktionszeiten und Patch-Backports einsetzen wollen.
+- Sie eine **Air-Gap- oder KRITIS-Variante** mit individuell
+  vereinbarten Reaktionszeiten und Patch-Backports einsetzen wollen.
 
 Für die rein interne Verwaltungs- oder Klinik-Nutzung ist dagegen die
-**AGPLv3-Edition kostenfrei und vollumfänglich nutzbar**. Die meisten
-unserer Behörden-Deployments laufen unter AGPLv3.
+**AGPLv3-Edition kostenfrei und vollumfänglich nutzbar**. Ausgenommen
+sind die Module unter `app/ee/` (PII-Schwärzung); sie sind nur
+kommerziell lizenziert.
 
 ## Was im EVB-IT-Vertragswerk zu beachten ist
 
@@ -122,7 +125,13 @@ Vertragsabschluss ein **Software Bill of Materials (SBOM)** verlangt
 werden — ein fehlendes oder unvollständiges SBOM kann künftig einen
 Mangel darstellen. FileMorph liefert dieses Artefakt im
 CycloneDX-Format mit jedem Release als `filemorph-{version}.cdx.json`
-(siehe [`patch-policy.md`](./patch-policy.md)).
+(siehe [`patch-policy.md`](./patch-policy.md)). Es erfasst die
+Python-Abhängigkeiten des Images, nicht dessen Betriebssystem-Pakete
+wie FFmpeg oder Ghostscript. Das SBOM zum bisher einzigen Release,
+v1.1.0 vom 1. Juni 2026, entstand noch mit dem früheren Verfahren: Es
+führt zusätzlich die Pakete des SBOM-Generators auf, und Komponenten,
+die ihre Lizenz nur als `License-Expression` angeben, stehen darin
+ohne Lizenzangabe.
 
 > **Wichtig für die Vertragswahl:** Die Reform betraf 8 der 11
 > EVB-IT-Vertragstypen. **EVB-IT Cloud** und **EVB-IT Überlassung

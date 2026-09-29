@@ -75,6 +75,8 @@ def build_site_jsonld(app_base_url: str) -> tuple[str, str]:
         "Convert audio (MP3, WAV, FLAC, OGG, M4A, AAC, WMA, Opus)",
         "Convert video (MP4, MOV, AVI, MKV, WebM, FLV, WMV)",
         "Compress images to an exact target size",
+        "Split, extract and compress PDF files",
+        "Convert PDF to PDF/A-2b",
         "No account required",
         "Self-hostable via Docker",
         "REST API for programmatic conversion",

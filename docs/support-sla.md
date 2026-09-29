@@ -67,8 +67,9 @@ After an issue is triaged and confirmed (severity by CVSS v3.x base score):
 | Medium | 4.0 – 6.9 | next regular release |
 | Low | 0.1 – 3.9 | next regular release |
 
-A *regular release* historically lands every 1–4 weeks. Self-hosters who pin to
-a `vX.Y` line and cannot take the latest `main` tag can request a backport of a
+So far there has been one tagged release, v1.1.0 (2026-06-01); there is no
+established release cadence yet. Self-hosters who pin to a `vX.Y` line and
+cannot take the latest `main` tag can request a backport of a
 Critical/High fix onto that line — contact `security@filemorph.io` with the
 version; see [`patch-policy.md`](./patch-policy.md) for the release-line model.
 (For Enterprise / KRITIS agreements, backports onto a fixed version line plus
@@ -127,9 +128,8 @@ agreement specifies:
 - **Email:** `support@filemorph.io` — for any licensed customer.
 - **Dedicated contact:** named in the agreement for Standard and above; a named
   escalation path for Enterprise / KRITIS.
-- **Security incidents** always *also* go through `security@filemorph.io` or a
-  private [GitHub Security Advisory](https://github.com/MrChengLen/FileMorph/security/advisories/new),
-  per [`SECURITY.md`](../SECURITY.md) — the security-disclosure process runs in
+- **Security incidents** always *also* go to `security@filemorph.io`, per
+  [`SECURITY.md`](../SECURITY.md) — the security-disclosure process runs in
   parallel with, not instead of, any support arrangement.
 
 ## What support does not cover
@@ -150,9 +150,9 @@ agreement specifies:
 ## How to raise something
 
 For a **suspected vulnerability** — anyone, paid or not — use the disclosure
-channel in [`SECURITY.md`](../SECURITY.md): email `security@filemorph.io` or
-open a private GitHub Security Advisory. That routes it correctly and starts the
-security-fix clock.
+channel in [`SECURITY.md`](../SECURITY.md): email `security@filemorph.io` (for
+encrypted mail, the PGP key is available on request at the same address). That
+routes it correctly and starts the security-fix clock.
 
 For a **support request** under a commercial agreement, email
 `support@filemorph.io` (or your dedicated contact) with:

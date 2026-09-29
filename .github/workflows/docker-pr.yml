@@ -73,11 +73,16 @@ jobs:
       # so a Dockerfile accepted here is accepted after merge too.
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        with:
+          # As in docker.yml: a buildx it downloaded would otherwise come from
+          # the Actions cache, which nothing trustworthy writes.
+          cache-binary: false
 
       # `context: .` builds the checkout, canaries included; without it the
-      # action would build the Git ref. Reads the layer cache the main builds
-      # write, and writes none: a pull request's cache entries serve only that
-      # pull request, and would crowd main's out of the cache.
+      # action would build the Git ref. No layer cache: docker.yml no longer
+      # writes one, so whatever the Actions cache held would be stale or
+      # planted by a job on main, and the smoke test would pass on layers this
+      # pull request never built.
       - name: Build the ${{ matrix.target }} image (not pushed)
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
@@ -86,7 +91,6 @@ jobs:
           push: false
           load: true
           tags: ${{ env.IMAGE }}
-          cache-from: type=gha,scope=${{ matrix.target }}
 
       # The image as built, not a running container: the first start writes
       # data/api_keys.json itself.

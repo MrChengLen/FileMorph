@@ -52,6 +52,8 @@
   function logout() {
     localStorage.removeItem(ACCESS_KEY);
     localStorage.removeItem(REFRESH_KEY);
+    // Legacy key older versions stored; privacy.html §6 promises it goes on logout.
+    localStorage.removeItem('filemorph_api_key');
     window.location.href = '/login';
   }
 
