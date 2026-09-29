@@ -5,8 +5,8 @@ on:
     branches: ["main"]
     tags: ["v*"]
   # Manual rebuild: dispatched on main, runs the whole chain (build, push,
-  # sign, `notify-ops`, deploy) without a code change, e.g. to redeploy
-  # during an incident.
+  # sign, attest the SBOM, `notify-ops`, deploy) without a code change, e.g.
+  # to redeploy during an incident.
   workflow_dispatch:
 
 env:
@@ -29,6 +29,14 @@ jobs:
           - target: office
             suffix: "-office"
             description: "Office image (adds LibreOffice for high-fidelity docx→pdf)"
+    # Each variant's exact digest, for `attest-sbom`. The legs of a matrix
+    # share one set of job outputs, so every variant writes a name of its
+    # own (a name both legs set would keep whichever leg finished last) and
+    # leaves the other empty: the runner does not write an empty output, so
+    # it cannot overwrite the other leg's digest.
+    outputs:
+      digest-base: ${{ matrix.target == 'base' && steps.build.outputs.digest || '' }}
+      digest-office: ${{ matrix.target == 'office' && steps.build.outputs.digest || '' }}
     permissions:
       contents: read
       packages: write
@@ -118,3 +126,116 @@ jobs:
           for tag in $TAGS; do
             cosign sign --yes "${tag}@${DIGEST}"
           done
+
+  # The SBOM that `attest-sbom` binds to the images, generated in a job that
+  # can only read: installing the image's dependency set and the generator
+  # runs over a hundred third-party packages, and none of that code runs next
+  # to the tokens that push, sign and attest. The three SBOM steps are
+  # sbom.yml's, verbatim — tests/test_supply_chain_hygiene.py fails if they
+  # differ — so dispatching sbom.yml on a branch tries them; this workflow
+  # pushes images and cannot be tried that way.
+  sbom:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          # Must match the Dockerfile's base image — the app is only ever
+          # tested on the version it ships on. scripts/check_python_version.py
+          # gates this; see its docstring for the drift it exists to prevent.
+          python-version: "3.14"
+          # No `cache: "pip"`: code running on main can write it, and
+          # --require-hashes does not cover every cached file (see sbom.yml).
+
+      - name: Install the image's dependency set
+        run: |
+          python -m venv "$RUNNER_TEMP/image-env"
+          "$RUNNER_TEMP/image-env/bin/pip" install --require-hashes -r requirements.lock
+
+      - name: Install CycloneDX generator
+        run: |
+          pip install --require-hashes --only-binary :all: -r requirements-sbom.lock
+
+      - name: Generate CycloneDX SBOM (JSON)
+        env:
+          VERSION: ${{ github.sha }}
+        run: |
+          cyclonedx-py environment "$RUNNER_TEMP/image-env/bin/python" \
+            --PEP-639 \
+            --output-file "filemorph-${VERSION}.cdx.json" \
+            --output-format JSON
+
+      - name: Hand the SBOM to the attestation job
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sbom
+          path: filemorph-${{ github.sha }}.cdx.json
+          if-no-files-found: error
+          # A week, so that a failed attestation can be re-run ("Re-run failed
+          # jobs") after a weekend without building the images again.
+          retention-days: 7
+
+  # Binds the SBOM to each image's digest as a signed attestation: signed
+  # keyless through Sigstore like the cosign signature, stored with the
+  # repository's attestations and pushed to GHCR next to the image. Every
+  # build gets one — tags, main and manual rebuilds — so `:latest` and
+  # `:office` carry one too. docs/release-signing.md shows how to verify it.
+  #
+  # What the SBOM covers: the Python packages the image installs from
+  # requirements.lock, at the locked versions, plus the pip of the venv it
+  # is generated from, whose version can differ from the image's. It is
+  # generated from the lockfile, not by scanning the image, so the Python
+  # interpreter and the Debian packages of the base image and of the apt
+  # layers (ffmpeg, Ghostscript, the Cairo/Pango stack, LibreOffice in the
+  # office image) are not in it.
+  #
+  # This job can sign and push, so it checks nothing out and installs
+  # nothing: it downloads the SBOM, logs in with the docker CLI and runs
+  # GitHub's attest action.
+  attest-sbom:
+    needs: [build-and-push, sbom]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [base, office]
+    permissions:
+      attestations: write  # store the attestation with the repository
+      id-token: write      # OIDC token for the Sigstore signing certificate
+      packages: write      # push the attestation to GHCR
+    steps:
+      # Into a directory of its own: the artifact comes from a job that ran
+      # third-party code.
+      - name: Download the SBOM
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: sbom
+          path: sbom
+
+      # The docker CLI rather than docker/login-action, so that only GitHub's
+      # own actions run next to this job's tokens. The attest action reads
+      # the login from the docker config file this writes.
+      - name: Log in to GitHub Container Registry
+        env:
+          ACTOR: ${{ github.actor }}
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$TOKEN" | docker login "$REGISTRY" --username "$ACTOR" --password-stdin
+
+      - name: Attest the SBOM to the ${{ matrix.target }} image
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          # No tag: the digest identifies the image. The action lowercases
+          # the name, as registry paths must be.
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          subject-digest: ${{ needs.build-and-push.outputs[format('digest-{0}', matrix.target)] }}
+          sbom-path: sbom/filemorph-${{ github.sha }}.cdx.json
+          push-to-registry: true
+          # Storage records exist for organisation-owned repositories only,
+          # and would need `artifact-metadata: write`.
+          create-storage-record: false

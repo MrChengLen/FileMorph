@@ -30,7 +30,12 @@ silently undo it:
   * no job holding a write token or a secret restores or saves an Actions
     cache, docker.yml builds the image with ``no-cache: true``, and no buildx
     step anywhere uses a cache (no ``cache-from``/``cache-to``,
-    ``cache-binary: false``).
+    ``cache-binary: false``);
+  * docker.yml attests the SBOM to every image variant it pushes, by the
+    digest its build step reports: the SBOM comes from sbom.yml's steps in a
+    job that can only read, and the job that signs the attestation checks
+    nothing out, installs nothing and runs only GitHub's own actions;
+    docs/release-signing.md verifies it the way it is made.
 
 This is a tripwire, not a substitute for the server-side Scorecard run /
 review: the per-job permissions check here is a heuristic (it asserts a
@@ -68,7 +73,7 @@ _UV_FROM_DEV = (
     "uv_pin=$(grep -oE '^uv==[0-9][0-9A-Za-z.!+-]*' requirements-dev.txt)",
     'pip install --only-binary :all: "$uv_pin"',
 )
-# The steps release.yml copies from sbom.yml, which is the one that can be run.
+# The steps release.yml and docker.yml copy from sbom.yml, the one that can be run.
 _SBOM_STEPS = (
     "Install the image's dependency set",
     "Install CycloneDX generator",
@@ -92,6 +97,11 @@ _PULL_REQUEST_EVENTS = {
     "pull_request_review_comment",
     "pull_request_target",
 }
+# The only actions that run in docker.yml's job holding `attestations: write`,
+# and the one command it runs: the registry login the attest action reads.
+_ATTEST_ACTIONS = ("actions/download-artifact@", "actions/attest@")
+_ATTEST_LOGIN = 'echo "$TOKEN" | docker login "$REGISTRY" --username "$ACTOR" --password-stdin'
+_RELEASE_SIGNING_DOC = _REPO_ROOT / "docs" / "release-signing.md"
 
 _SHA40_RE = re.compile(r"^[0-9a-f]{40}$")
 # `uses: owner/repo@ref` or `uses: owner/repo/path@ref`, tolerating a
@@ -412,7 +422,7 @@ def test_deps_latest_mirrors_lint_and_test() -> None:
         )
 
 
-@pytest.mark.parametrize("workflow", ["sbom.yml", "release.yml", "verapdf.yml"])
+@pytest.mark.parametrize("workflow", ["sbom.yml", "release.yml", "docker.yml", "verapdf.yml"])
 def test_workflow_installs_what_the_image_ships(workflow: str) -> None:
     """The SBOM lists, and veraPDF validates, the image's dependency set.
 
@@ -430,7 +440,7 @@ def test_workflow_installs_what_the_image_ships(workflow: str) -> None:
     )
 
 
-@pytest.mark.parametrize("workflow", ["sbom.yml", "release.yml"])
+@pytest.mark.parametrize("workflow", ["sbom.yml", "release.yml", "docker.yml"])
 def test_sbom_describes_the_lockfile_venv_only(workflow: str) -> None:
     """``cyclonedx-py environment`` reads the lockfile venv, not its own.
 
@@ -450,7 +460,7 @@ def test_sbom_describes_the_lockfile_venv_only(workflow: str) -> None:
     )
 
 
-@pytest.mark.parametrize("workflow", ["sbom.yml", "release.yml"])
+@pytest.mark.parametrize("workflow", ["sbom.yml", "release.yml", "docker.yml"])
 def test_sbom_generator_installs_from_its_hashed_lockfile(workflow: str) -> None:
     """Every pip install in the SBOM workflows is hash-checked, and the
     generator comes from requirements-sbom.lock, as wheels only.
@@ -487,8 +497,9 @@ def test_sbom_generator_lockfile_is_hash_pinned() -> None:
     the lockfile test above), because the SBOM jobs run the generator on it.
     """
     assert _SBOM_LOCKFILE.is_file(), (
-        "requirements-sbom.lock missing, but sbom.yml and release.yml install from it — "
-        "recompile it with the command in requirements-sbom.txt, or run the deps-lock workflow"
+        "requirements-sbom.lock missing, but sbom.yml, release.yml and docker.yml install from "
+        "it — recompile it with the command in requirements-sbom.txt, or run the deps-lock "
+        "workflow"
     )
     for entry in _lock_entries(_SBOM_LOCKFILE):
         assert re.fullmatch(r"[A-Za-z0-9._-]+==\S+( --hash=sha256:[0-9a-f]{64})+", entry), (
@@ -798,26 +809,28 @@ def test_buildx_actions_restore_no_cache(workflow: Path) -> None:
                 assert inputs.get("cache-binary") is False, f"{label}: set `cache-binary: false`"
 
 
-def test_release_sbom_steps_match_sbom_workflow() -> None:
-    """release.yml runs sbom.yml's SBOM steps verbatim, with the flags the
-    locked generator accepts.
+@pytest.mark.parametrize("workflow", ["release.yml", "docker.yml"])
+def test_sbom_steps_match_sbom_workflow(workflow: str) -> None:
+    """release.yml and docker.yml run sbom.yml's SBOM steps verbatim, with the
+    flags the locked generator accepts.
 
-    release.yml only runs on a signed tag, so a mistake there would first show
-    in a release. sbom.yml runs the same steps on every push to main and can
-    be dispatched on a branch; keeping the two identical makes that run the
-    test of the release path.
+    Neither can be tried before it counts: release.yml runs on a signed tag,
+    and docker.yml pushes the images it builds, so a mistake would first show
+    in a release or on main. sbom.yml runs the same steps on every push to
+    main and can be dispatched on a branch; keeping them identical makes that
+    run the test of both paths.
     """
 
     def named_steps(name: str) -> dict[str, dict]:
         jobs = _workflow(_WORKFLOW_DIR / name)["jobs"].values()
         return {step["name"]: step for job in jobs for step in _steps(job) if "name" in step}
 
-    sbom, release = named_steps("sbom.yml"), named_steps("release.yml")
+    sbom, copy = named_steps("sbom.yml"), named_steps(workflow)
     for name in _SBOM_STEPS:
         assert name in sbom, f"sbom.yml has no step {name!r} — update this guard"
-        assert name in release, f"release.yml has no step {name!r}"
-        assert release[name].get("run") == sbom[name].get("run"), (
-            f"release.yml and sbom.yml differ in step {name!r} — keep them identical"
+        assert name in copy, f"{workflow} has no step {name!r}"
+        assert copy[name].get("run") == sbom[name].get("run"), (
+            f"{workflow} and sbom.yml differ in step {name!r} — keep them identical"
         )
     generate = sbom["Generate CycloneDX SBOM (JSON)"]["run"]
     generator = Version(_lock_pins(_SBOM_LOCKFILE)[canonicalize_name("cyclonedx-bom")])
@@ -829,9 +842,207 @@ def test_release_sbom_steps_match_sbom_workflow() -> None:
         )
     else:
         assert "--PEP-639" not in generate, (
-            f"cyclonedx-bom {generator} no longer accepts --PEP-639 — drop it from sbom.yml "
-            f"and release.yml, or both SBOM jobs fail"
+            f"cyclonedx-bom {generator} no longer accepts --PEP-639 — drop it from sbom.yml, "
+            f"release.yml and docker.yml, or every SBOM job fails"
         )
+
+
+def test_docker_attests_the_sbom_to_every_image_it_pushes() -> None:
+    """docker.yml binds the SBOM to each image variant by the digest it pushed.
+
+    release.yml can only look an image up by tag, best effort, a minute after
+    the tag push; an attestation has to name exactly what was built, pushed
+    and signed, which is the digest the build step reports. The legs of a
+    matrix share one set of job outputs, so each variant needs an output of
+    its own: one name for both would hand both attestations whichever digest
+    was written last. The attestation also goes to GHCR, and it runs on every
+    build, main as well as tags (a decision of 2026-09-28), so ``:latest``
+    carries one too: no ``if:`` may skip either job or a step of it, and no
+    ``continue-on-error`` may let the run, and with it the deploy, succeed
+    without an attestation. The SBOM crosses over by file name, and none of
+    this can be tried before it runs on main, so the names have to line up
+    here.
+    """
+    jobs = _workflow(_WORKFLOW_DIR / "docker.yml")["jobs"]
+    build = jobs["build-and-push"]
+    targets = [leg["target"] for leg in build["strategy"]["matrix"]["include"]]
+    outputs = build.get("outputs") or {}
+    for target in targets:
+        value = str(outputs.get(f"digest-{target}", ""))
+        assert "steps.build.outputs.digest" in value and f"'{target}'" in value, (
+            f"docker.yml: build-and-push must output `digest-{target}`, the build step's "
+            f"digest set by the {target} leg only"
+        )
+
+    attesting = [
+        name
+        for name, job in jobs.items()
+        if any(str(step.get("uses", "")).startswith("actions/attest@") for step in _steps(job))
+    ]
+    assert attesting == ["attest-sbom"], (
+        f"docker.yml: expected one job running actions/attest, `attest-sbom`; found {attesting}"
+    )
+    sbom_jobs = [
+        name
+        for name, job in jobs.items()
+        if any("cyclonedx-py" in (step.get("run") or "") for step in _steps(job))
+    ]
+    assert len(sbom_jobs) == 1, (
+        f"docker.yml: expected one job generating the SBOM, found {sbom_jobs}"
+    )
+    job, sbom = jobs["attest-sbom"], jobs[sbom_jobs[0]]
+    needs = job.get("needs") or []
+    needs = [needs] if isinstance(needs, str) else needs
+    assert {"build-and-push", sbom_jobs[0]} <= set(needs), (
+        f"docker.yml: `attest-sbom` must need build-and-push and {sbom_jobs[0]}, it needs {needs}"
+    )
+    for name in ("attest-sbom", sbom_jobs[0]):
+        for part in (jobs[name], *_steps(jobs[name])):
+            assert "if" not in part and not part.get("continue-on-error"), (
+                f"docker.yml job `{name}`: an `if:` or `continue-on-error` lets a build push "
+                f"images without an attestation — it runs on every build, main as well as tags"
+            )
+    attested = (job.get("strategy") or {}).get("matrix", {}).get("target") or []
+    assert sorted(attested) == sorted(targets), (
+        f"docker.yml: `attest-sbom` must cover every image variant built, {targets}"
+    )
+
+    attest = next(s for s in _steps(job) if str(s.get("uses", "")).startswith("actions/attest@"))
+    inputs = attest.get("with") or {}
+    assert inputs.get("subject-digest") == (
+        "${{ needs.build-and-push.outputs[format('digest-{0}', matrix.target)] }}"
+    ), "docker.yml: attest each variant's digest as build-and-push reported it"
+    assert inputs.get("subject-name") == "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}", (
+        "docker.yml: the attestation's subject is the image name the build pushed, without a tag"
+    )
+    assert inputs.get("push-to-registry") is True, (
+        "docker.yml: push the attestation to GHCR (`push-to-registry: true`)"
+    )
+
+    generate = next(s for s in _steps(sbom) if s.get("name") == "Generate CycloneDX SBOM (JSON)")
+    output = re.search(r'--output-file "([^"]+)"', generate.get("run") or "")
+    assert output, 'docker.yml: the SBOM step no longer writes `--output-file "…"`'
+    version = str((generate.get("env") or {}).get("VERSION"))
+    file_name = output.group(1).replace("${VERSION}", version)
+    upload = next(
+        s for s in _steps(sbom) if str(s.get("uses", "")).startswith("actions/upload-artifact@")
+    )
+    download = next(
+        s for s in _steps(job) if str(s.get("uses", "")).startswith("actions/download-artifact@")
+    )
+    handed = upload.get("with") or {}
+    received = download.get("with") or {}
+    assert handed.get("path") == file_name and handed.get("if-no-files-found") == "error", (
+        f"docker.yml: upload exactly `{file_name}`, and fail if it is missing"
+    )
+    assert received.get("name") == handed.get("name") and received.get("path") == "sbom", (
+        "docker.yml: download the SBOM artifact by its name into `sbom/`, a directory of its own"
+    )
+    assert inputs.get("sbom-path") == f"sbom/{file_name}", (
+        f"docker.yml: attest `sbom/{file_name}`, the file the SBOM job generated"
+    )
+
+
+def test_docker_attestation_runs_apart_from_third_party_code() -> None:
+    """docker.yml's attesting job installs nothing; the SBOM job can only read.
+
+    A signed attestation vouches for the SBOM inside it. Generating that SBOM
+    installs the image's dependency set and the generator — over a hundred
+    packages — so that job holds read access only and no secret, restores no
+    cache and keeps no credentials. The job that can sign and push checks
+    nothing out, uses only ``_ATTEST_ACTIONS``, like release.yml's publish
+    job, and runs one command, the registry login: a pattern of forbidden
+    commands would miss ``apt-get`` or ``docker run``. Its permissions are
+    exactly what attesting to GHCR needs, and no other job may attest.
+    """
+    workflow = _workflow(_WORKFLOW_DIR / "docker.yml")
+    jobs = workflow["jobs"]
+    can_attest = [
+        name
+        for name, job in jobs.items()
+        if (job.get("permissions") or {}).get("attestations") == "write"
+    ]
+    assert can_attest == ["attest-sbom"], (
+        f"docker.yml: only `attest-sbom` may hold `attestations: write`, found {can_attest}"
+    )
+    job = jobs["attest-sbom"]
+    assert job["permissions"] == {
+        "attestations": "write",
+        "id-token": "write",
+        "packages": "write",
+    }, f"docker.yml: `attest-sbom` holds {job['permissions']}"
+    runs = [step["run"].strip() for step in _steps(job) if "run" in step]
+    assert runs == [_ATTEST_LOGIN], (
+        f"docker.yml job `attest-sbom` can sign and push, so it runs only `{_ATTEST_LOGIN}`; "
+        f"found {runs}"
+    )
+    for step in _steps(job):
+        uses = step.get("uses")
+        assert not uses or str(uses).startswith(_ATTEST_ACTIONS), (
+            f"docker.yml job `attest-sbom` runs `{uses}` — only "
+            f"{', '.join(_ATTEST_ACTIONS)} run next to its tokens"
+        )
+
+    for name, sbom in jobs.items():
+        if not any("cyclonedx-py" in (step.get("run") or "") for step in _steps(sbom)):
+            continue
+        assert sbom.get("permissions") == {"contents": "read"}, (
+            f"docker.yml job `{name}` runs third-party code, so it may only read"
+        )
+        assert not _privileged(sbom, workflow), (
+            f"docker.yml job `{name}` runs third-party code, so it may hold no secret"
+        )
+        for step in _steps(sbom):
+            uses, inputs = str(step.get("uses", "")), step.get("with") or {}
+            assert not uses.startswith("actions/cache") and not any("cache" in k for k in inputs), (
+                f"docker.yml job `{name}`, step {step.get('name') or uses!r}: restores a cache, "
+                f"and the SBOM it generates gets attested"
+            )
+            if uses.startswith("actions/checkout@"):
+                assert inputs.get("persist-credentials") is False, (
+                    f"docker.yml job `{name}`: checkout without `persist-credentials: false`"
+                )
+
+
+def test_docs_verify_the_sbom_attestation_as_docker_yml_makes_it() -> None:
+    """docs/release-signing.md verifies the attestation the way it is made, and
+    says what the SBOM leaves out.
+
+    ``gh attestation verify`` looks for SLSA provenance unless told otherwise,
+    so without ``--predicate-type https://cyclonedx.org/bom`` the documented
+    command fails on every image. The workflow it names as signer has to be
+    the one that attests. And the SBOM lists the Python packages from
+    requirements.lock only: without saying that the image's Debian packages
+    are not in it, the attestation reads as a complete inventory.
+    """
+    text = _RELEASE_SIGNING_DOC.read_text(encoding="utf-8")
+    section = re.search(r"^## Verifying the SBOM attestation\n(.*?)(?=^## |\Z)", text, re.M | re.S)
+    assert section, "docs/release-signing.md has no `## Verifying the SBOM attestation` section"
+    body = section.group(1)
+    blocks = "\n".join(re.findall(r"```bash\n(.*?)```", body, re.S))
+    commands = [
+        " ".join(match.replace("\\\n", " ").split())
+        for match in re.findall(r"gh attestation verify(?:[^\n]*\\\n)*[^\n]*", blocks)
+    ]
+    assert commands, "docs/release-signing.md shows no `gh attestation verify` command"
+    for command in commands:
+        assert "--predicate-type https://cyclonedx.org/bom" in command, (
+            f"`{command}` fails: without `--predicate-type https://cyclonedx.org/bom`, gh looks "
+            f"for SLSA provenance, which docker.yml does not attest"
+        )
+        signer = re.search(
+            r"--signer-workflow MrChengLen/FileMorph/\.github/workflows/(\S+)", command
+        )
+        assert signer and (_WORKFLOW_DIR / signer.group(1)).is_file(), (
+            f"`{command}` names no workflow of this repository as `--signer-workflow`"
+        )
+        assert "actions/attest@" in _workflow_code(signer.group(1)), (
+            f"`{command}`: {signer.group(1)} does not attest — name the workflow that does"
+        )
+    assert "requirements.lock" in body and "Debian" in body, (
+        "docs/release-signing.md: say that the SBOM covers requirements.lock's Python packages "
+        "only, not the image's Debian packages"
+    )
 
 
 def test_verapdf_image_is_digest_pinned() -> None:
