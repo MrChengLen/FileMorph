@@ -58,9 +58,10 @@ contact is added to the response thread before the advisory goes public.
    image is signed and pushed, and the advisory is published. Compliance-
    Edition customers on the security mailing list receive the advisory
    five working days before public disclosure when feasible.
-6. **Post-mortem.** Within 30 days of disclosure the maintainer publishes
-   a short post-mortem in the project's `runbooks/` (where a runbook
-   directory exists) or as a follow-up release note. Format below.
+6. **Post-mortem.** Within 30 days of disclosure the maintainer records a
+   short post-mortem in a private incident log and, where the details are
+   appropriate for a public audience, publishes a follow-up release note.
+   Format below.
 
 ## Post-mortem template
 

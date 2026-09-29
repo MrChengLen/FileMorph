@@ -154,18 +154,22 @@ cd FileMorph
 .\dev.ps1
 ```
 
-On first run, `dev.ps1` automatically:
+`dev.ps1` automates four steps on every start, then launches the server:
 
 | Step | What happens |
 |------|-------------|
-| 1/4 | Creates `.venv` virtual environment |
-| 2/4 | Installs all dependencies from `requirements.txt` |
-| 3/4 | Copies `.env.example` to `.env` |
-| 4/4 | Generates your API key (shown once — save it) |
+| 1/4 | Creates `.venv` virtual environment (skipped once it exists) |
+| 2/4 | Installs / verifies dependencies from `requirements.txt` |
+| 3/4 | Copies `.env.example` to `.env` (skipped once `.env` exists) |
+| 4/4 | Generates your API key (skipped once one exists — shown once, save it) |
 | Done | Starts uvicorn at `http://127.0.0.1:8000` with `--reload` |
 
-On subsequent starts, all setup steps are skipped. The server starts in seconds,
-with no internet connection required.
+Steps 1, 3 and 4 are skipped once their target already exists, so a repeat
+start is fast — but step 2 runs `pip install` **every time**, not just on
+first run, so a `git pull` that added a dependency is picked up
+automatically. That means every start needs network access to reach the
+package index, even when nothing actually changed (a no-op check, but
+not an offline one).
 
 ### Optional — Desktop shortcut
 
@@ -176,6 +180,28 @@ with no internet connection required.
 Places a `FileMorph` shortcut on your Desktop. Double-clicking it starts the server
 without opening a terminal manually. The window stays open so you can see server logs
 and any errors.
+
+### Optional — PDF rendering support (WeasyPrint, Ghostscript)
+
+DOCX, Markdown, HTML and EML → PDF render through WeasyPrint, which needs
+the Pango/GTK native libraries; TXT → PDF does not (it uses `reportlab`,
+pure Python, no extra install). On Windows, the pinned WeasyPrint version
+(`weasyprint>=69.0,<70`) looks for those libraries in
+`C:\msys64\mingw64\bin` or `C:\Program Files\GTK3-Runtime Win64\bin` by
+default (override with the `WEASYPRINT_DLL_DIRECTORIES` env var, `;`-separated) —
+install either an MSYS2 `mingw64` environment with Pango, or the standalone
+GTK3 Runtime Win64 installer. Full steps:
+[doc.courtbouillon.org/weasyprint/stable/first_steps.html#installation](https://doc.courtbouillon.org/weasyprint/stable/first_steps.html#installation).
+Without it, those four conversions fail at request time; everything else
+(images, audio, video, spreadsheets, TXT → PDF) is unaffected.
+
+`pdf → pdfa` (full PDF/A-2b conformance) needs Ghostscript on PATH —
+install it from [ghostscript.com](https://www.ghostscript.com/releases/)
+and make sure its `bin` folder (containing `gswin64c.exe`) is on PATH.
+Without it, `pdf → pdfa` still works but falls back to a markup-only
+output that veraPDF rejects if the source has unembedded fonts — same
+trade-off as the Docker image, see
+[`docs/self-hosting.md`](self-hosting.md#pdfa-2b-conformance-optional-ghostscript).
 
 ### Stopping the server
 
@@ -198,12 +224,21 @@ git pull
 ```bash
 sudo apt update
 sudo apt install -y \
-  python3.11 python3.11-venv python3-pip \
+  python3 python3-venv python3-pip \
   ffmpeg \
   ghostscript \
   libheif-dev \
   libcairo2 libpangocairo-1.0-0 libgdk-pixbuf2.0-0
+python3 --version   # must be 3.11 or newer
 ```
+
+`python3.11` as a specific apt package name is a moving target — current
+Ubuntu (24.04+) and Debian (13+) ship a newer default `python3` (3.12 /
+3.13) and no longer carry a `python3.11` package at all, so pinning that
+exact name in the install command fails on a fresh system. Use the
+distro's own `python3` and confirm the version is ≥ 3.11; if your distro's
+default is older, add the [deadsnakes PPA](https://launchpad.net/~deadsnakes/+archive/ubuntu/ppa)
+(Ubuntu) or use `pyenv` instead of chasing a specific apt package name.
 
 > `ghostscript` is optional but enables full PDF/A-2b conformance. Without it,
 > `pdf → pdfa` falls back to markup-only output. See
@@ -215,7 +250,7 @@ sudo apt install -y \
 git clone https://github.com/MrChengLen/FileMorph.git
 cd FileMorph
 
-python3.11 -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
 
 pip install -r requirements.txt
@@ -241,9 +276,12 @@ Expected response:
 ```
 
 `/api/v1/health` is the unauthenticated liveness probe — minimal by design so it
-discloses no version or codec details. To verify ffmpeg is on PATH (needed for video
-and audio), call `GET /api/v1/ready`, which reports operational state without leaking
-it to the public internet.
+discloses no version or codec details. `GET /api/v1/ready` reports whether the app
+can actually serve traffic: the database (Cloud Edition; reported `skipped` when
+none is configured) and the tempdir are writable. It does **not** check ffmpeg —
+if ffmpeg is missing, `/ready` still reports healthy, and the only signal is a
+`ffmpeg not found on PATH` line in the startup log (video/audio conversion then
+fails at request time instead).
 
 ---
 
@@ -264,7 +302,7 @@ Audio and video conversion will not work until ffmpeg is installed.
 - **Linux:** `sudo apt install ffmpeg`
 - **Docker:** ffmpeg is bundled in the image — no action needed
 
-### Cloud-mode 500s on `/auth/register` after `docker compose up`
+### Cloud-mode 503s (`Database not configured.`) on `/auth/register`
 
 You started the default community-mode compose, which has no Postgres.
 Either use the community-mode flow (no accounts), or layer the Cloud
@@ -282,13 +320,22 @@ On a slow connection, increase the timeout:
 
 ### Port 8000 already in use
 
-Change the port in `.env`:
+`APP_PORT` in `.env` is read only by `run.py` (the PyInstaller / direct
+`python run.py` entry point) — it does **not** change the port for the
+other three installation methods, which all hardcode `8000`:
 
-```env
-APP_PORT=8080
-```
-
-Then restart the server.
+- **Docker** (Methods 1 and 2): the container always listens on `8000`
+  internally (`entrypoint.sh`). Change the **host** side of the port
+  mapping in `docker-compose.yml` instead — e.g. `"8080:8000"` — and
+  reach the app at `http://localhost:8080`.
+- **`dev.ps1`** (Method 3): also starts uvicorn on a hardcoded `8000`.
+  Edit the `--port 8000` argument in `dev.ps1` itself if you need a
+  different port.
+- **Manual `uvicorn app.main:app`** (Method 4): pass `--port 8080` on
+  the command line; `APP_PORT` has no effect here either since
+  `uvicorn`'s CLI flags take precedence over anything in `.env`.
+- **`python run.py`**: this is the one path that honours `APP_PORT` —
+  set it in `.env` and restart.
 
 ### "ModuleNotFoundError: No module named 'pillow_heif'"
 
@@ -300,6 +347,24 @@ On Linux, also install: `sudo apt install libheif-dev`
 
 ### Permission denied on `data/api_keys.json` (Linux)
 
+Usually a UID mismatch on the bind-mounted `./data` directory: the
+Docker image runs as a non-root `appuser` (a system user whose UID the
+Dockerfile does not pin, typically 999), so if the host
+`./data` directory is owned by root or by your own user account, the
+container can't create or update files inside it. Look up the UID and GID the container actually runs as,
+then give `./data` to them:
+
 ```bash
-chmod 600 data/api_keys.json
+docker compose run --rm --entrypoint id filemorph
+# prints e.g. uid=999(appuser) gid=999(appuser) groups=999(appuser)
+
+sudo chown -R <uid>:<gid> ./data    # the two numbers from that line
+docker compose restart filemorph
 ```
+
+If the container is already running, `docker compose exec filemorph id`
+prints the same line.
+
+Running outside Docker (Method 4), the file is owned by whoever
+generated it — `chmod 600 data/api_keys.json` restricts it to that
+user if it was created with looser permissions.
