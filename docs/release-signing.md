@@ -13,6 +13,11 @@ Both claims are independent: a forged tag would fail (1); a forged
 image at the published digest would fail (2). A consumer who needs
 end-to-end provenance verifies both.
 
+The images also carry a signed **SBOM attestation** listing the Python
+packages they ship. [Verifying the SBOM
+attestation](#verifying-the-sbom-attestation) says what it covers and
+how to check it.
+
 ## Why this matters for the Compliance edition
 
 EVB-IT contracts (March 2026 update) require the procurer to be able
@@ -59,6 +64,55 @@ A successful verification prints the signing certificate (issuer
 `https://token.actions.githubusercontent.com`, subject
 `https://github.com/MrChengLen/FileMorph/.github/workflows/docker.yml@refs/tags/...`),
 plus a Rekor transparency-log inclusion proof.
+
+## Verifying the SBOM attestation
+
+[`docker.yml`](../.github/workflows/docker.yml) attests the CycloneDX
+SBOM to every image it pushes: the slim and the office image, for each
+release tag and each build of `main`. The attestation binds the SBOM to
+the image digest and is signed through Sigstore keyless OIDC, like the
+image. It is stored with the repository's attestations and pushed to
+GHCR next to the image. Images built before this was introduced, v1.1.0
+among them, have none: `gh` then finds no attestation to verify.
+
+**What the SBOM covers:** the Python packages the image installs from
+`requirements.lock`, at the locked versions, plus the `pip` of the
+virtualenv it is generated from, whose version can differ from the
+image's. It is generated from a clean install of the lockfile, not by
+scanning the image, so it does not list the Python interpreter, the
+Debian packages of the `python:3.14-slim` base image, or those the
+Dockerfile adds with `apt` (FFmpeg, Ghostscript, the Cairo/Pango stack,
+LibreOffice in the office image). Scan the image itself for those. For a
+release, the attested SBOM comes from the same lockfile, by the same
+steps, as the `filemorph-vX.Y.Z.cdx.json` attached to the release.
+
+Verify with the [GitHub CLI](https://cli.github.com/), logged in to any
+GitHub account (`gh auth login`):
+
+```bash
+gh attestation verify oci://ghcr.io/mrchenglen/filemorph:1.2.3 \
+  --owner MrChengLen \
+  --signer-workflow MrChengLen/FileMorph/.github/workflows/docker.yml \
+  --source-ref refs/tags/v1.2.3 \
+  --predicate-type https://cyclonedx.org/bom
+```
+
+- `--predicate-type` is required: by default `gh` accepts only SLSA
+  build-provenance attestations, and the check fails.
+- `--signer-workflow` and `--source-ref` accept only an attestation that
+  `docker.yml` made for a push of that tag. After [verifying the
+  tag](#verifying-a-release-tag), also add
+  `--source-digest "$(git rev-parse 'v1.2.3^{commit}')"` in that clone:
+  it ties the attestation to the commit the tag's signature covers, so an
+  image built after the tag was moved to another commit fails.
+- For the office image, verify `filemorph:1.2.3-office`. `:latest` and
+  `:office` move with every build of `main` and every release; verify
+  them with the ref of the build that pushed them: `--source-ref
+  refs/heads/main`, or `refs/tags/vX.Y.Z` right after a release.
+- `--bundle-from-oci` reads the attestation from GHCR instead of the
+  GitHub API.
+- To print the attested SBOM, add
+  `--format json --jq '.[0].verificationResult.statement.predicate'`.
 
 ## First-time setup — generating the maintainer signing key
 
@@ -129,7 +183,7 @@ git push origin vX.Y.Z
 The push triggers two parallel workflows:
 
 - [`docker.yml`](../.github/workflows/docker.yml) builds and
-  cosign-signs the container image.
+  cosign-signs the container image, and attests its SBOM to it.
 - [`release.yml`](../.github/workflows/release.yml) verifies the
   tag against the keys below, builds the source tarball, and
   publishes the GitHub release with an `IMAGE_DIGEST.txt`
