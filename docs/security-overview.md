@@ -432,21 +432,27 @@ mechanically.
 - Email and bcrypt-hashed password live in Postgres (`users`
   table).
 - API keys live as SHA-256 hashes in `api_keys`.
-- File-content hashes, original filenames, or upload metadata are
-  not persisted. The `usage_records` table records only an
-  operation type, byte counts, and a timestamp.
+- Original filenames and upload metadata are not persisted. The
+  `usage_records` table records only an operation type, byte counts,
+  and a timestamp. The output SHA-256 of a single-file convert/compress
+  result *is* persisted, though — as `output_sha256` in the audit-log
+  payload (see "File data" above); that hash is the verification anchor
+  the audit trail is built on, not a record of the file's contents.
 - **Self-service account deletion** lives at `DELETE
-  /api/v1/auth/account` (Art. 17 GDPR). The free path is fully
-  self-service: three-field re-confirmation (`password`,
-  `confirm_email`, `confirm_word="DELETE"`), last-active-admin
-  guard returning 409, and a confirmation email after commit.
-  Cascade is hybrid: `api_keys` rows are removed, `file_jobs` and
-  `usage_records` actor IDs are nulled (analytics integrity
-  preserved), audit-event `actor_user_id` is nulled (the
-  `event_type` and payload survive). Accounts that have ever
-  touched Stripe are refused with 409 directing the user to the
-  operator support contact until the paid-path tax-retention
-  flow ships under HGB §257 / AO §147 — see
+  /api/v1/auth/account` (Art. 17 GDPR), fully self-service on both
+  paths: three-field re-confirmation (`password`, `confirm_email`,
+  `confirm_word="DELETE"`), a last-active-admin guard returning 409,
+  and a confirmation email after commit (204 on success). Free /
+  never-paid accounts get a full hard-delete: `api_keys` rows are
+  removed, and `file_jobs` and `usage_records` actor IDs are nulled
+  (analytics integrity preserved).
+  Accounts that have ever touched Stripe take the restricted
+  **tax-retained** path instead: any active subscription is
+  cancelled first (a Stripe error aborts the whole request with 500
+  and leaves the account unchanged), then the `users` row is kept
+  with only `email` / `stripe_customer_id` / `tier` / `created_at`
+  surviving, for the HGB §257 / AO §147 ten-year retention window
+  (permitted under Art. 17(3)(b) GDPR) — see
   [`gdpr-account-deletion-design.md`](./gdpr-account-deletion-design.md)
   § 5.B for the design.
 
@@ -559,11 +565,13 @@ Single-instance deployments are not affected.
 
 ### Stripe webhook coverage
 
-The webhook handler currently dispatches on
-`customer.subscription.*` and `checkout.session.completed`.
-`invoice.payment_failed` and `invoice.payment_succeeded` are not
-yet wired, so dunning state on a failed renewal will not flow
-back to the application until the next subscription event.
+The webhook handler dispatches on `customer.subscription.created`,
+`customer.subscription.updated`, `customer.subscription.deleted` (tier
+reverts to Free) and `invoice.payment_failed` (sends the debounced
+dunning email). `checkout.session.completed` and
+`invoice.payment_succeeded` are not handled — the subscription events
+above already carry the tier change, so a successful checkout or
+renewal doesn't need a separate handler to take effect.
 
 ### Email verification
 
@@ -615,7 +623,10 @@ alert rules for uptime / error-rate / p95 latency) lives in the
 private `filemorph-ops` repo and is tracked as a follow-up. Until
 it is deployed there is no alerting on rate-limit hits, error
 rates, or latency percentiles. Treat the dashboard/alert layer as
-required before public launch.
+a prerequisite for running the metrics endpoint unattended in
+production — wire your own scrape + alerting stack against the
+metric families in [`self-hosting.md`](./self-hosting.md#monitoring--metrics)
+until then.
 
 ### API key in browser localStorage (PT-010)
 
@@ -631,10 +642,14 @@ across the files in a batch upload. A batch designed to scrape
 the per-file cap many times over could still produce a large
 total egress. An aggregate cap is on the backlog.
 
-### No PGP key for security@
+### No published PGP key for encrypted reports
 
-`security@filemorph.io` accepts plain email today. Publishing a
-PGP key for encrypted reports is on the backlog.
+`security@filemorph.io` accepts plain email; encrypted mail is
+welcome on request — see [`SECURITY.md`](../SECURITY.md) for the
+current disclosure channel. The maintainer public keys in
+[`release-signing.md`](./release-signing.md) verify release signatures;
+for an encrypted report, ask for a key at the same address, as
+`SECURITY.md` says.
 
 ### No public bug-bounty programme
 
@@ -647,8 +662,10 @@ but monetary rewards are not offered.
 
 ### Reporting a finding
 
-Send email to `security@filemorph.io`. Plain email is acceptable;
-encryption is not currently offered.
+See [`SECURITY.md`](../SECURITY.md) for the current disclosure
+channel, or send email directly to `security@filemorph.io`. Plain
+email is acceptable; encrypted mail is welcome — request a PGP key
+at the same address.
 
 In the report, please include:
 
@@ -696,6 +713,20 @@ Self-hosters who fork this repository should recompile
 `pip-audit -r requirements.lock` — the lockfile, not
 `requirements.txt`, is what the image installs.
 
+### Accepted advisories
+
+Two advisories are currently allow-listed in CI
+(`--ignore-vuln` in `.github/workflows/ci.yml`) rather than blocking
+the build, each with a documented reason and a re-evaluation trigger:
+
+| Advisory | Package | Why it's accepted |
+|---|---|---|
+| PYSEC-2026-1325 (CVE-2024-23342, GHSA-wj6h-64fc-37mp) | `ecdsa`, transitive via `python-jose` | Minerva timing side-channel in ECDSA sign/keygen/ECDH. No fixed version exists upstream. Not reachable here: FileMorph's JWTs are HS256-only (`app/core/tokens.py`), so no ECDSA code path ever runs. Added 2026-07-15; drop once the project migrates off `python-jose` or upstream ships a fix. |
+| CVE-2026-55073 (GHSA-jf6q-chmf-3h3v), CVSS 6.2 | `weasyprint` &lt; 70.0 | SSRF-protection bypass: two `write_pdf()` parameters (`xmp_metadata`, `stylesheets`, both accepting a URL) build a fresh default fetcher instead of honouring a custom `url_fetcher`. Not reachable here: every `write_pdf()` call site passes only the output path, never those parameters. The fix (70.0) reworks the `url_fetcher` contract in a way that would break `_deny_url_fetcher`; re-evaluate once that port happens. Added 2026-09-09. |
+
+The full reasoning (with exact code line references) lives in the
+`ci.yml` comments next to the `pip-audit` step.
+
 ### Update cadence
 
 - `pip-audit -r requirements.lock` runs in CI as a blocking gate
@@ -732,9 +763,12 @@ For readers who want to jump directly to the code:
 
 ---
 
-*Last revised 2026-05-06. The findings synthesised here are
+*Last revised 2026-09-28. The findings synthesised here are
 sourced from the static code review dated 2026-04-19 and the
-current state of the repository. The 2026-05-06 revision lands
-the self-service account-deletion endpoint, the email-verification
-flow, and the deployment-agnostic support contact (no FileMorph
-SaaS addresses leak into self-hosted error messages).*
+current state of the repository. The 2026-09-28 revision corrects
+drift against the code: the account-deletion section now reflects
+the shipped tax-retained deletion path (no longer a 409 refusal),
+the Stripe webhook coverage table matches what is actually wired,
+the audit-log paragraph acknowledges the persisted output-hash
+attestation, and the accepted-advisories table lists the two
+CVEs currently allow-listed in CI.*

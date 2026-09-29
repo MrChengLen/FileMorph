@@ -17,29 +17,42 @@ filemorph/
 │   │       ├── convert.py       # POST /api/v1/convert
 │   │       ├── compress.py      # POST /api/v1/compress
 │   │       ├── formats.py       # GET  /api/v1/formats
-│   │       └── health.py        # GET  /api/v1/health
+│   │       ├── health.py        # GET  /api/v1/health, /ready
+│   │       ├── auth.py          # Cloud Edition: register / login / account
+│   │       ├── keys.py          # Cloud Edition: dashboard API-key CRUD
+│   │       ├── billing.py       # Cloud Edition: Stripe checkout + webhook
+│   │       └── cockpit.py       # Cloud Edition: admin routes
 │   ├── core/
 │   │   ├── config.py            # Settings loaded from .env via pydantic-settings
-│   │   └── security.py          # API key generation, hashing, validation
+│   │   ├── security.py          # API key generation, hashing, validation
+│   │   ├── rate_limit.py        # slowapi limiter + failed-key budget
+│   │   ├── quotas.py            # Per-tier size / concurrency / output caps
+│   │   └── audit.py             # Tamper-evident audit-log hash chain
 │   ├── converters/
-│   │   ├── base.py              # AbstractConverter base class
+│   │   ├── base.py              # BaseConverter base class
 │   │   ├── registry.py          # Converter registry (@register decorator)
-│   │   ├── image.py             # Image conversions (Pillow + pillow-heif)
+│   │   ├── image.py             # Image conversions (Pillow + pillow-heif + pillow-avif-plugin)
 │   │   ├── document.py          # Document conversions (docx, pdf, txt, md)
 │   │   ├── video.py             # Video conversions (ffmpeg-python)
 │   │   ├── audio.py             # Audio conversions (ffmpeg-python)
 │   │   └── spreadsheet.py       # Spreadsheet conversions (openpyxl, csv, json)
 │   ├── compressors/
-│   │   ├── image.py             # Image quality compression (Pillow)
-│   │   └── video.py             # Video CRF compression (ffmpeg)
+│   │   ├── image.py             # Image quality / target-size compression (Pillow)
+│   │   ├── video.py             # Video CRF compression (ffmpeg)
+│   │   └── pdf.py               # PDF compression
+│   ├── db/                      # SQLAlchemy models + async engine (Cloud Edition)
+│   ├── ee/                      # Commercial-licensed add-ons (PII redaction) — inert by default
 │   ├── models/
 │   │   └── schemas.py           # Pydantic response schemas
-│   ├── static/                  # CSS and JavaScript
+│   ├── static/                  # CSS, JavaScript and vendored assets (Chart.js)
 │   └── templates/               # Jinja2 HTML templates
+├── alembic/                     # Cloud Edition schema migrations
 ├── tests/
 ├── scripts/
 │   ├── generate_api_key.py      # CLI key generator
-│   └── first_run.py             # Called by Docker entrypoint on first start
+│   ├── promote_admin.py         # Promote a registered user to the admin role
+│   ├── first_run.py             # Called by Docker entrypoint on first start
+│   └── build-tailwind.sh        # Rebuilds the self-hosted Tailwind bundle
 ├── data/
 │   └── api_keys.json            # Hashed API keys (gitignored)
 ├── run.py                       # Entry point for direct Python runs
@@ -48,7 +61,11 @@ filemorph/
 ├── start.bat                    # Windows launcher: Docker mode
 ├── start.sh                     # Linux/macOS launcher: Docker mode
 ├── entrypoint.sh                # Docker container entrypoint (first-run key setup)
-└── docker-compose.yml
+├── docker-compose.yml           # Community Edition (default)
+├── docker-compose.cloud.yml     # Cloud Edition overlay (Postgres, JWT, billing)
+├── docker-compose.office.yml    # High-fidelity docx→pdf overlay (LibreOffice)
+├── requirements.txt             # Direct dependencies (source of truth for versions)
+└── requirements.lock            # Hash-pinned lockfile — what the image actually installs
 ```
 
 ---
@@ -67,13 +84,21 @@ cd FileMorph
 first run, and starts uvicorn with `--reload`. Code changes are picked up automatically
 without restarting the server.
 
+`dev.ps1` installs only `requirements.txt` (the runtime dependencies). To run
+tests or lint locally, also install the dev tools it doesn't cover
+(`pytest`, `ruff`, `pip-audit`, …):
+
+```powershell
+.venv\Scripts\pip.exe install -r requirements-dev.txt
+```
+
 ### Linux / macOS
 
 ```bash
 git clone https://github.com/MrChengLen/FileMorph.git
 cd FileMorph
 
-python3.11 -m venv .venv
+python3 -m venv .venv   # Python 3.11 or newer
 source .venv/bin/activate
 
 pip install -r requirements-dev.txt
@@ -85,7 +110,7 @@ uvicorn app.main:app --reload
 
 ### Live reload
 
-With `--reload`, uvicorn watches `Z:\Python\projects\filemorph` for file changes and
+With `--reload`, uvicorn watches the project directory for file changes and
 restarts the server process automatically. No manual restart needed when editing Python files.
 
 ---
@@ -101,7 +126,8 @@ Run a single test file:
 pytest tests/test_convert_image.py -v
 ```
 
-Run with coverage:
+Run with coverage (optional — `pytest-cov` isn't in `requirements-dev.txt`,
+install it separately: `pip install pytest-cov`):
 ```bash
 pytest tests/ --cov=app --cov-report=term-missing
 ```
@@ -248,9 +274,11 @@ def test_epub_to_txt(client, auth_headers, tmp_path):
     assert len(res.content) > 0
 ```
 
-### Step 6 — Update format documentation
+### Step 6 — Update the format lists
 
-Add the new format to [docs/formats.md](formats.md).
+Formats are also listed by hand in several places — [docs/formats.md](formats.md) is one —
+and tests compare them with the registry, so the build fails until they agree. The full
+list, with the test that pins each place, is under "Parity places" below.
 
 ---
 
@@ -268,6 +296,33 @@ def compress_image(input_path: Path, output_path: Path, quality: int = 85) -> Pa
 Add the new format to the `_SUPPORTED_FORMATS` list in the relevant compressor file,
 and import + call it from `app/api/routes/compress.py`.
 
+**Parity places to update in the same PR**, for either a new converter or a new
+compressor format — each is pinned by a test, so a missed one fails the build:
+
+- `docs/formats.md` (the From → To tables and the Audio/Video lists), the README
+  (the drop-zone mockup and the "Supported Formats" table), the homepage FAQ
+  answer "Which file formats can I convert?" (EN + DE), the "FileMorph converts …"
+  sentence in `/llms.txt`, and the "Convert …" entries of the JSON-LD `featureList`
+  (`app/core/jsonld.py`) — `tests/test_format_lists_match_registry.py` compares
+  each with the registry.
+- The homepage drop-zone captions `#supported-convert` and `#supported-compress`
+  (`app/templates/partials/convert_tool.html`, EN + DE) —
+  `tests/test_homepage_drop_zone_modes.py` compares them with `/api/v1/formats`.
+- `_HOMEPAGE_ADVERTISED` in `tests/test_format_registry.py` — the test's own list of
+  the formats the homepage names. Add the format there; the test only checks that
+  every listed format is registered, so a missing entry goes unnoticed.
+- `_FORMAT_CATEGORY` in `app/api/routes/pages.py` — `tests/test_formats_categories.py`
+  fails for a source format without a category (it would land in the "Other"
+  bucket on `/formats`).
+- If the format supports exact-size compression, `TARGET_SIZE_FORMATS` in
+  `app/compressors/image.py` **and** the matching `TARGET_SIZE_FORMATS` array
+  in `app/static/js/app.js` — `tests/test_target_size_formats_parity.py`
+  fails the build if the two disagree, and also pins the hand-written claims about
+  which formats hit an exact target (homepage FAQ, `/formats`, `/llms.txt`, the
+  OpenAPI form-field docs, the `/tools` card); the `/compress` page copy is pinned
+  by `tests/test_compress_page.py`.
+- A test per new format/pair (Step 5 above / the equivalent for compressors).
+
 ---
 
 ## API key internals
@@ -284,21 +339,25 @@ All logic is in `app/core/security.py`.
 
 ## Environment variables reference
 
-Defined in `app/core/config.py` using pydantic-settings:
+Defined in `app/core/config.py` using pydantic-settings — a representative
+slice (the real class has ~40 fields: JWT, Stripe, SMTP, audit-log,
+concurrency, AI-redaction and office-engine settings besides these):
 
 ```python
 class Settings(BaseSettings):
     app_host: str = "0.0.0.0"
     app_port: int = 8000
     app_debug: bool = False
-    app_version: str = "1.0.0"
-    api_keys_file: str = "data/api_keys.json"
+    app_version: str = "1.1.0"
+    api_keys_file: str = ""  # resolved to data/api_keys.json if left empty
     max_upload_size_mb: int = 100
-    cors_origins: str = "*"
+    cors_origins: str = "http://localhost:8000"
 ```
 
-All settings can be overridden via environment variables or `.env` (uppercase, same names):
-`APP_HOST`, `APP_PORT`, `APP_DEBUG`, `API_KEYS_FILE`, `MAX_UPLOAD_SIZE_MB`, `CORS_ORIGINS`
+All settings can be overridden via environment variables or `.env`
+(uppercase, same names). [`.env.example`](../.env.example) is the
+source of truth for the full list — every variable there carries a
+one-line description; this section only shows the shape.
 
 ---
 

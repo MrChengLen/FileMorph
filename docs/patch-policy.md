@@ -8,15 +8,22 @@ compatible with their patch-management requirements.
 
 ## Release line
 
-FileMorph uses a single `main` branch. Each merge to `main` that ships a
-user-visible change is tagged `vX.Y.Z` and built into a Docker image
-published to GitHub Container Registry under
-`ghcr.io/mrchenglen/filemorph`.
+FileMorph uses a single `main` branch. **Every merge to `main`** builds
+and pushes the `latest` (slim) and `office` Docker images, plus a
+`sha-<short-commit>` tag for each — this is the continuous path, and how
+most fixes reach a self-hoster: pull `latest` / `office` again.
+Separately, at the maintainer's discretion, a commit on `main` gets a
+GPG-signed git tag `vX.Y.Z`; that tag build additionally pushes the
+image tags `X.Y.Z` and `X.Y` — **no `v` prefix on the image tag, and no
+bare-major tag** (pin `X.Y.Z` or `X.Y`, never just `X`). As of this
+writing there has been one such tagged release, `v1.1.0` (2026-06-01) —
+see [GitHub Releases](https://github.com/MrChengLen/FileMorph/releases)
+for the current list.
 
-There is no long-term-support branch. Self-hosters track the latest
-`main` tag, or pin to a specific `vX.Y.Z` and upgrade on their own
-schedule. Pinning to a major version (e.g. `v1`) is supported and
-follows the SemVer guarantee below.
+There is no long-term-support branch. Self-hosters either track `latest`
+/ `office` for continuous fixes with no version pinning, or pin to a
+specific `X.Y.Z` / `X.Y` image tag and upgrade deliberately on their own
+schedule.
 
 ## Versioning
 
@@ -45,8 +52,11 @@ uses (CVSS v3.x base score). The patch-release timelines below apply
 | Medium | 4.0 – 6.9 | next regular release |
 | Low | 0.1 – 3.9 | next regular release |
 
-A *regular release* is the next planned `MINOR` or `PATCH` cut, which
-historically lands every 1–4 weeks.
+A *regular release* is the next tagged `vX.Y.Z` cut, made at the
+maintainer's discretion rather than on a fixed cadence — see "Release
+line" above. Independently of tagged releases, a merged fix reaches the
+continuously built `latest` / `sha-*` images as soon as it lands on
+`main`.
 
 For deployments behind an air-gap or with a fixed change-window, we
 publish patch-only branches on request — contact `security@filemorph.io`
@@ -125,14 +135,17 @@ the new `MAJOR` along with the migration guide.
 
 Recommended cadence:
 
-1. Pin to a `vX.Y` tag (e.g. `v1.0`).
+1. Pin to a specific image tag (`X.Y.Z` or `X.Y`, e.g. `1.1.0`) for
+   controlled, deliberate upgrades — or track `latest` / `office` if you
+   want fixes as soon as they merge to `main`.
 2. Subscribe to GitHub Releases on this repository (the *Watch → Custom →
-   Releases* setting).
-3. Schedule a redeploy after every PATCH or MINOR release, or at minimum
-   monthly.
+   Releases* setting) to hear about tagged `vX.Y.Z` cuts.
+3. If pinned to a version tag, redeploy when a new one ships. If tracking
+   `latest`, re-pull periodically — otherwise fixes that already merged
+   never reach your instance.
 4. Subscribe to GitHub Security Advisories on this repository to be
-   notified of Critical and High issues out-of-band from the regular
-   release cycle.
+   notified of Critical and High issues out-of-band from tagged
+   releases.
 
 For deployments where each upgrade requires an internal change-window,
 the SBOM and signed image attestations let your security team
