@@ -9,41 +9,6 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Fixed — API docs: keys are optional, video compression and converter registration described correctly
-
-The API reference marked every file route "Authentication: Required", and the
-`/docs` page said all endpoints require the `X-API-Key` header. The file routes
-(`/convert`, `/compress`, the batch, `/pdf/*` and `/ai/redact/*` routes) take a
-key but don't need one: without credentials a request runs on the anonymous
-tier, a key that is sent must be valid (`401`, and `429` once an IP has sent 30
-rejected keys in a minute), and keys come from the dashboard or
-`scripts/generate_api_key.py`. The API guide now says what an expired Bearer
-token does there — the request runs anonymously instead of getting a `401` —
-and tells clients to refresh before the 15 minutes are up. `docs/formats.md`
-said video compression always writes MP4 with libx264; it keeps the container,
-picks the codec by container (H.264, VP9 for WebM, MPEG-4 for AVI), cannot
-compress FLV or WMV, and the table now gives the real quality → CRF/qscale
-values. `docs/tech-stack-rationale.md` showed a `@register("src", "tgt")`
-function decorator and a registry that finds new modules on its own;
-converters are `BaseConverter` classes registered with `("src", "tgt")` tuples,
-and a new module must be imported in `_ensure_loaded()`.
-
-Also corrected: the middleware list in `docs/architecture.md` (every layer
-now named), which attachments are optional on which edition
-(SMTP serves the contact form everywhere; ffmpeg is a local program), the
-rate-limiter switch for tests (`RATELIMIT_ENABLED`), the Stripe webhook events,
-the licence map (Starlette, python-multipart, Pillow and email-validator
-corrected, pillow-avif-plugin and prometheus-client added — checked against
-the installed package metadata), phone detection in
-`docs/pii-redaction.md` (`+49`/`0049` or a leading `0` only, no other country
-codes), the `/ready` checks, the API-key list fields, the
-checkout audit event name and the `/formats` example. Newly documented: the
-`X-FileMorph-Batch-*`, `X-FileMorph-Error-Code` and `X-FileMorph-Warnings`
-headers, the download-name rule, the redaction entity types, `.redacted.txt`
-output and credits, and the 600-second ffmpeg time limit. A new test in
-`tests/test_docs_match_code.py` fails if a doc calls the key required on a
-file route or the `/docs` text says "require".
-
 ### Fixed — README, SECURITY.md and contributor docs match the repository
 
 The README said no release had been tagged. It now names v1.1.0 (2026-06-01),
@@ -130,6 +95,7 @@ and AI boundaries) and three new checks in `tests/test_docs_match_code.py`.
 `scripts/make_testdata_api_keys_file_tier.py` writes byte-stable fixtures for
 checking this by hand (two small pictures and a 35 MB BMP) to a gitignored
 local folder; only the script ships.
+
 
 ### Security — the Cloud Edition refuses to start with a public or short `JWT_SECRET`
 
