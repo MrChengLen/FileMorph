@@ -418,3 +418,35 @@ def test_api_reference_retry_after_row_matches_the_code():
         assert exc.headers["Retry-After"] == "5"
         assert f"`{exc.status_code}" in set_on, f"the row leaves out {exc.status_code}"
     assert "except the rate limiter's (slowapi" in set_on
+
+
+# ── Authentication ───────────────────────────────────────────────────────────
+
+# How the docs used to say that a file route needs an API key: the per-route
+# "**Authentication**: Required" line, or a sentence making X-API-Key required.
+_KEY_REQUIRED = re.compile(
+    r"\*\*Authentication\*\*: Required"
+    r"|requires? (?:the |an? )?`?X-API-Key"
+    r"|X-API-Key`? header\)? (?:is )?required",
+    re.IGNORECASE,
+)
+
+
+def test_docs_do_not_claim_the_file_routes_need_a_key(client, sample_jpg):
+    """A file route runs a request without credentials on the anonymous tier;
+    only a key that is sent has to be valid. The API reference said "Required"
+    on every file route, and the /docs page said all endpoints require the key."""
+    files = {"file": ("a.jpg", sample_jpg.read_bytes(), "image/jpeg")}
+    data = {"target_format": "png"}
+    assert client.post("/api/v1/convert", files=files, data=data).status_code == 200
+    r = client.post("/api/v1/convert", headers={"X-API-Key": "not-a-key"}, files=files, data=data)
+    assert r.status_code == 401
+    assert not _KEY_REQUIRED.search(" ".join(app.description.split())), (
+        "the /docs text calls the key required"
+    )
+    claims = [
+        f"{doc.name}: {match.group(0)!r}"
+        for doc in sorted(DOCS.glob("*.md"))
+        for match in _KEY_REQUIRED.finditer(" ".join(doc.read_text(encoding="utf-8").split()))
+    ]
+    assert not claims, f"docs say the file routes need an API key: {claims}"

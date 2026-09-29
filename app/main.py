@@ -218,8 +218,12 @@ app = FastAPI(
     title="FileMorph",
     description=(
         "Convert and compress files between formats via REST API or Web UI.\n\n"
-        "**Authentication**: All API endpoints require the `X-API-Key` header.\n"
-        "Generate a key with: `python scripts/generate_api_key.py`"
+        "**Authentication**: optional on the file endpoints — without credentials a "
+        "request runs on the anonymous tier. An `X-API-Key` that is sent must be valid "
+        "(otherwise 401; 429 once an IP has sent 30 rejected keys in a minute). Keys "
+        "come from the dashboard (Cloud Edition) or from "
+        "`python scripts/generate_api_key.py` (self-hosted). The account endpoints take "
+        "`Authorization: Bearer <token>` from `/api/v1/auth/login`."
     ),
     version=settings.app_version,
     lifespan=lifespan,

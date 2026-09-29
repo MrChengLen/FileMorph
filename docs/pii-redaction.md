@@ -16,12 +16,14 @@ endpoints return 503 and the `/redact` page returns 404.
 |---|---|
 | IBAN | regex + ISO 13616 mod-97 checksum |
 | Email address | local-part + domain pattern |
-| Phone number | leading-zero / international digit runs (confidence 0.85 — flagged for review) |
+| Phone number | a `+49` or `0049` prefix, or a national leading `0`, then 7–15 digits in total (confidence 0.85 — flagged for review). Numbers written with another country code (`+33`, `+44`, `+1`, …) are not detected |
 | IPv4 address | dotted quad + octet-range validation |
 | Credit-card number | 13–19 digits passing the Luhn checksum |
 
-Checksum/format validation gives effectively complete recall on these structured
-types with near-zero false negatives.
+IBANs and card numbers must pass their checksum, and IPv4 addresses the
+octet-range check; a number that fails its check is not flagged. Detection is
+pattern-based, though: a value written in another format is not found — for
+example a phone number with a country code other than +49 (`+33 …`, `+1 …`).
 
 ## Supported formats
 
@@ -44,7 +46,13 @@ UTF-8 **text** (txt, md, csv, json, …), **DOCX** (Word) and **XLSX** (Excel).
    value, location, confidence — and a credit estimate. Nothing is charged.
 2. **`apply` (paid, credit-metered):** produce the redacted file. Each value is
    `replace`d with a `[TYPE]` label, `mask`ed with asterisks, or `remove`d — your
-   choice. Paid-tier only.
+   choice. Paid-tier only. DOCX and XLSX come back in their own format; every
+   text input comes back as UTF-8 text named `<name>.redacted.txt`. Each
+   successful `apply` costs `AI_CREDIT_COST_REDACT` credits (default 1) from the
+   tier's monthly allotment; a run that fails verification costs nothing.
+
+Both phases take an optional `entity_types` filter — a comma-separated subset of
+`EMAIL`, `IBAN`, `PHONE`, `IPV4`, `CREDIT_CARD`; empty means all.
 
 ## Fail-closed verification
 
