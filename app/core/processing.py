@@ -9,10 +9,10 @@ Three helpers live here:
 - ``sha256_file(path)`` — streaming SHA-256 used for the
   ``X-Output-SHA256`` integrity header (NEU-B.2). Synchronous; call
   through ``asyncio.to_thread`` from async routes.
-- ``actor_id(request, user)`` — stable identity used by the per-actor
+- ``actor_id(request, user, tier)`` — stable identity used by the per-actor
   concurrency cap (NEU-D.1) and, soon, the monthly call-count quota
-  (PR-M). User-id when authenticated, IP otherwise; the API-key value
-  itself is never exposed here.
+  (PR-M). User-id when authenticated, IP otherwise (plus the tier of a
+  key-file key); the API-key value itself is never exposed here.
 
 The duplicated copies that used to live in ``convert.py`` and
 ``compress.py`` are removed by PR-R2. PR-M will be the third caller —
@@ -51,15 +51,21 @@ def sha256_file(path: Path, *, chunk_size: int = 64 * 1024) -> str:
     return h.hexdigest()
 
 
-def actor_id(request: Request, user: User | None) -> str:
+def actor_id(request: Request, user: User | None, tier: str) -> str:
     """Stable identity for per-actor caps (concurrency, quotas).
 
     Authenticated callers key on the user UUID — the same person across
-    IPs, the same cap. Anonymous callers fall back to the remote IP,
-    which is the only stable handle we have without making them
-    register. The ``X-API-Key`` value itself is never used as the key
-    (it's a secret; we don't want it in any log extra dict, even
-    hashed)."""
+    IPs, the same cap. Everyone else falls back to the remote IP, which
+    is the only stable handle we have without making them register. A
+    key from the key file that ``API_KEYS_FILE_TIER`` lifts above
+    anonymous adds its tier, so an IP's keyed and keyless requests never
+    share one semaphore: ``_per_actor_semaphore`` rebuilds it whenever
+    the tier's cap changes, and alternating tiers would lift the cap. ``tier``
+    has no default so that no route can leave it out: pass the tier the
+    request's slot is taken for. The ``X-API-Key`` value itself is never
+    used as the key (it's a secret; we don't want it in any log extra
+    dict, even hashed)."""
     if user is not None:
         return f"user:{user.id}"
-    return f"ip:{request.client.host if request.client else 'unknown'}"
+    ip = request.client.host if request.client else "unknown"
+    return f"ip:{ip}" if tier == "anonymous" else f"ip:{ip}:{tier}"

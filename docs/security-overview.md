@@ -499,7 +499,11 @@ to be effective. The following list is grouped by importance.
 4. **Use a strong `JWT_SECRET` (Cloud Edition).** Minimum 32
    bytes of cryptographic randomness. Rotation invalidates all
    active sessions, which is the desired behaviour after a
-   suspected compromise.
+   suspected compromise. With `DATABASE_URL` set, the app refuses
+   to start when `JWT_SECRET` is shorter than 32 characters or one
+   of the placeholders published in this repository; that check
+   cannot judge randomness, so generate the value (e.g.
+   `secrets.token_urlsafe(32)`).
 5. **`pip-audit -r requirements.lock` is a blocking gate in CI.**
    The lockfile is audited rather than `requirements.txt` because it
    is what the image installs: every direct and transitive Python

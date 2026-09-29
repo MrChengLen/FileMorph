@@ -179,6 +179,80 @@ def test_self_hosting_quotes_the_per_tier_concurrency():
     assert documented == {tier: q.concurrency for tier, q in QUOTAS.items()}
 
 
+_CE_LIMITS = "## Limits on a Community Edition instance"
+
+
+def test_docs_quote_the_community_edition_limits():
+    """Without a database every caller is anonymous, API keys included (unless
+    ``API_KEYS_FILE_TIER`` says otherwise) — the docs quote those limits."""
+    anonymous = QUOTAS["anonymous"]
+    section = " ".join(_section("self-hosting.md", _CE_LIMITS).split())
+    match = re.search(
+        r"(\d+) MB per file, (\d+) file per batch, a (\d+) MB output cap "
+        r"and (\d+) concurrent request per client IP",
+        section,
+    )
+    assert match, "self-hosting.md: the Community Edition limits sentence was not found"
+    size, batch, output, concurrency = map(int, match.groups())
+    assert (size * _MB, batch, output * _MB, concurrency) == (
+        anonymous.max_file_size_bytes,
+        anonymous.max_files_per_batch,
+        anonymous.output_cap_bytes,
+        anonymous.concurrency,
+    )
+    # installation.md and the .env.example comment quote the first two.
+    env_example = (DOCS.parent / ".env.example").read_text(encoding="utf-8")
+    for name, text in [
+        ("installation.md", _text("installation.md")),
+        (".env.example", re.sub(r"\n#\s*", " ", env_example)),
+    ]:
+        short = re.search(r"(\d+) MB per file, (\d+) file per batch", " ".join(text.split()))
+        assert short, f"{name}: the Community Edition limits sentence was not found"
+        assert (int(short[1]) * _MB, int(short[2])) == (
+            anonymous.max_file_size_bytes,
+            anonymous.max_files_per_batch,
+        ), name
+
+
+def test_self_hosting_sizes_a_key_tier_by_the_code():
+    """What one key-file key can take: a batch's memory and the global slots."""
+    section = " ".join(_section("self-hosting.md", _CE_LIMITS).split())
+    memory = re.search(r"files per batch × output cap \(`(\w+)`: (\d+) × (\d+) MB\)", section)
+    assert memory, "self-hosting.md: the batch memory sentence was not found"
+    quota = QUOTAS[memory[1]]
+    assert (int(memory[2]), int(memory[3]) * _MB) == (
+        quota.max_files_per_batch,
+        quota.output_cap_bytes,
+    )
+    slots = re.search(
+        r"`business` \((\d+)\) and `enterprise` \((\d+)\) allow more parallel requests "
+        r"than the default `MAX_GLOBAL_CONCURRENCY` of (\d+)",
+        section,
+    )
+    assert slots, "self-hosting.md: the parallel-requests sentence was not found"
+    business, enterprise, global_cap = map(int, slots.groups())
+    assert (business, enterprise, global_cap) == (
+        QUOTAS["business"].concurrency,
+        QUOTAS["enterprise"].concurrency,
+        Settings.model_fields["max_global_concurrency"].default,
+    )
+    assert min(business, enterprise) > global_cap, "the sentence says both exceed the cap"
+
+
+def test_docs_name_the_api_keys_file_tier_setting():
+    default = Settings.model_fields["api_keys_file_tier"].default
+    env_example = (DOCS.parent / ".env.example").read_text(encoding="utf-8")
+    assert re.findall(r"^API_KEYS_FILE_TIER=(\w+)$", env_example, re.M) == [default]
+    section = " ".join(_section("self-hosting.md", _CE_LIMITS).split())
+    choices = re.search(r"set `API_KEYS_FILE_TIER` to ((?:`\w+`(?:, | or )?)+)", section)
+    assert choices, "self-hosting.md: the list of API_KEYS_FILE_TIER values was not found"
+    assert re.findall(r"`(\w+)`", choices[1]) == [tier for tier in QUOTAS if tier != default]
+    # MAX_UPLOAD_SIZE_MB alone never unlocked the larger tiers on a self-host.
+    guide = " ".join(_text("api-usage-guide.md").split())
+    assert "raise it if the larger tier limits should apply" not in guide
+    assert "`API_KEYS_FILE_TIER`" in guide
+
+
 def test_api_guide_duplicate_name_example_matches_build_batch_zip():
     same = BatchFileResult(name="a.png", status="ok", size_in=1, size_out=1, content=b"x")
     zip_bytes, _summary = build_batch_zip([same] * 3, operation="convert", duration_ms=0)

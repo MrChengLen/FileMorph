@@ -41,7 +41,7 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, Response
 from starlette.background import BackgroundTask
 
-from app.api.deps import require_api_key
+from app.api.deps import caller_tier, require_api_key
 from app.api.routes.auth import get_optional_user
 from app.compressors.pdf import compress_pdf_to_target
 from app.converters.pdf_pages import (
@@ -54,7 +54,7 @@ from app.core.concurrency import acquire_slot
 from app.core.metrics import increment as metric_increment
 from app.core.observability import record_conversion
 from app.core.processing import BLOCKED_MAGIC, actor_id
-from app.core.quotas import _MB, get_quota, tier_for
+from app.core.quotas import _MB, get_quota
 from app.core.rate_limit import limiter
 from app.core.usage import enforce_monthly_quota, record_usage
 from app.core.utils import safe_download_name
@@ -80,11 +80,11 @@ def _write_upload_and_check_magic(upload: UploadFile, input_path: Path) -> int:
     return input_path.stat().st_size
 
 
-def _enforce_input_size(file: UploadFile, quota, user: User | None) -> None:
+def _enforce_input_size(file: UploadFile, quota, tier: str) -> None:
     """Tier-based input-size cap — identical semantics to /convert."""
     if file.size is not None and file.size > quota.max_file_size_bytes:
         limit_mb = quota.max_file_size_bytes // _MB
-        if user is None:
+        if tier == "anonymous":
             detail = (
                 f"File too large ({limit_mb} MB max for anonymous). "
                 "Register free to upload larger files."
@@ -106,8 +106,8 @@ async def pdf_extract(
     pages: str = Form(..., description="1-based pages/ranges, e.g. '1-3,5'"),
     user: User | None = Depends(get_optional_user),
 ) -> Response:
-    tier = tier_for(user)
-    async with acquire_slot(actor_id=actor_id(request, user), tier=tier):
+    tier = caller_tier(request, user)
+    async with acquire_slot(actor_id=actor_id(request, user, tier), tier=tier):
         return await _do_extract(request, file, pages, user, tier)
 
 
@@ -126,7 +126,7 @@ async def _do_extract(
         )
 
     quota = get_quota(tier)
-    _enforce_input_size(file, quota, user)
+    _enforce_input_size(file, quota, tier)
     await enforce_monthly_quota(user)
 
     original_stem = Path(file.filename or "result").stem
@@ -160,7 +160,7 @@ async def _do_extract(
             )
 
         output_disk_size = output_path.stat().st_size
-        _enforce_output_cap(output_disk_size, quota, user)
+        _enforce_output_cap(output_disk_size, quota, tier)
 
         download_name = safe_download_name(original_stem, "_pages.pdf")
         duration_ms = round((time.monotonic() - _t0) * 1000)
@@ -210,8 +210,8 @@ async def pdf_split(
     file: UploadFile,
     user: User | None = Depends(get_optional_user),
 ) -> Response:
-    tier = tier_for(user)
-    async with acquire_slot(actor_id=actor_id(request, user), tier=tier):
+    tier = caller_tier(request, user)
+    async with acquire_slot(actor_id=actor_id(request, user, tier), tier=tier):
         return await _do_split(request, file, user, tier)
 
 
@@ -229,7 +229,7 @@ async def _do_split(
         )
 
     quota = get_quota(tier)
-    _enforce_input_size(file, quota, user)
+    _enforce_input_size(file, quota, tier)
     await enforce_monthly_quota(user)
 
     _t0 = time.monotonic()
@@ -262,7 +262,7 @@ async def _do_split(
         # bytes before building the ZIP so a pathological many-page PDF is
         # rejected without buffering the archive.
         total_out = sum(len(b) for _, b in outputs)
-        _enforce_output_cap(total_out, quota, user)
+        _enforce_output_cap(total_out, quota, tier)
 
         results = [
             BatchFileResult(
@@ -321,14 +321,14 @@ async def _do_split(
     )
 
 
-def _enforce_output_cap(output_size: int, quota, user: User | None) -> None:
+def _enforce_output_cap(output_size: int, quota, tier: str) -> None:
     """Reject before streaming if the output exceeds the tier bandwidth cap."""
     if output_size > quota.output_cap_bytes:
         cap_mb = quota.output_cap_bytes // _MB
         out_mb = output_size // _MB
         hint = (
             "Extract a smaller page range or register for a higher cap."
-            if user is None
+            if tier == "anonymous"
             else "Extract a smaller page range or upgrade your plan."
         )
         raise HTTPException(
@@ -358,8 +358,8 @@ async def pdf_compress(
     ),
     user: User | None = Depends(get_optional_user),
 ) -> Response:
-    tier = tier_for(user)
-    async with acquire_slot(actor_id=actor_id(request, user), tier=tier):
+    tier = caller_tier(request, user)
+    async with acquire_slot(actor_id=actor_id(request, user, tier), tier=tier):
         return await _do_compress(request, file, target_kb, user, tier)
 
 
@@ -378,7 +378,7 @@ async def _do_compress(
         )
 
     quota = get_quota(tier)
-    _enforce_input_size(file, quota, user)
+    _enforce_input_size(file, quota, tier)
 
     target_bytes = target_kb * 1024
     # Fence the requested target against the tier output cap *before* any
@@ -434,7 +434,7 @@ async def _do_compress(
         # (nothing to recompress). Keep the same hard bandwidth backstop
         # the other routes use so a pathological output can never exceed
         # the tier cap.
-        _enforce_output_cap(output_disk_size, quota, user)
+        _enforce_output_cap(output_disk_size, quota, tier)
 
         download_name = safe_download_name(original_stem, "_compressed.pdf")
         duration_ms = round((time.monotonic() - _t0) * 1000)

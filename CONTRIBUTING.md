@@ -31,7 +31,7 @@ cp .env.example .env
 
 # 4. Make your changes
 
-# 5. Run tests and lint
+# 5. Run tests and lint (the full list of CI checks is under "CI gates" below)
 pytest tests/ -v
 ruff check .
 ruff format .
@@ -43,6 +43,43 @@ git push origin feature/add-epub-support
 
 # 7. Open a Pull Request on GitHub
 ```
+
+---
+
+## CI gates
+
+Merging into `main` requires three green checks: **lint-and-test**,
+**secret-scan** and **scope-check**. `lint-and-test`
+([`ci.yml`](.github/workflows/ci.yml)) runs the steps below — run the ones
+your change touches before you push:
+
+- **Lint + format** — `ruff check .` and `ruff format --check .`
+- **Python version** — `python scripts/check_python_version.py`: the
+  Dockerfile, the workflows, `requirements.lock` and `pyproject.toml` must agree.
+- **Template classes** — `python scripts/check_template_classes.py`: no Jinja
+  expression glued into a class name in `app/templates/`.
+- **Tailwind bundle** — after adding or changing classes in templates or JS,
+  run `bash scripts/build-tailwind.sh` and commit `app/static/css/`. CI
+  rebuilds the bundle and fails if anything in `app/static/css/` changes.
+- **i18n drift** — after adding, changing or removing `_()` strings, run
+  `python scripts/i18n.py extract`, then `python scripts/i18n.py update`,
+  translate the new entries in `locale/de/LC_MESSAGES/messages.po` (the `en`
+  catalogue needs a translation only where the source string is not English)
+  and clear any `#, fuzzy` marks, since compiling skips fuzzy entries. Then run
+  `python scripts/i18n.py compile` and commit `locale/`. CI runs
+  `python scripts/i18n.py drift-check`.
+- **Dependency audit** — `pip-audit -r requirements.lock` (CI adds the
+  `--ignore-vuln` flags listed in `ci.yml`).
+- **Tests** — `pytest tests/`. CI runs them on Python 3.14 with
+  `requirements-dev.txt` constrained to the versions pinned in
+  `requirements.lock`, so they test what the Docker image ships.
+
+`secret-scan` runs the gitleaks secret scanner; `scope-check` rejects
+operations files and internal documents, which do not belong in this public
+repository. Two more checks run on pull requests without blocking the merge:
+`lockfile-drift` (`requirements.lock` must match `requirements.txt` — see
+[docs/development.md](docs/development.md)) and the veraPDF validation of the
+PDF/A-2b output.
 
 ---
 
@@ -140,6 +177,9 @@ projects such as Sentry, GitLab, and Grafana Labs. If you cannot agree to
 clause 2, please open an issue first — we can work out a CLA-free alternative
 (e.g. maintainer writes an equivalent patch) so your idea still gets in.
 
-Every Python file in the project carries the SPDX header
+Python files carry the SPDX header
 `# SPDX-License-Identifier: AGPL-3.0-or-later`. Please preserve it in files
-you modify, and add it to any new files you create.
+you modify, and add it to any new files you create. The exceptions are the
+files under [`app/ee/`](app/ee/README.md) and `tests/test_ai_redaction.py`:
+that code is commercially licensed, not AGPL, and carries
+`# SPDX-License-Identifier: LicenseRef-FileMorph-Commercial` instead.

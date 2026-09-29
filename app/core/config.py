@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-from pydantic import AliasChoices, Field
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.compat import data_dir
+from app.core.quotas import QUOTAS
 
 
 def _default_keys_file() -> str:
@@ -18,6 +19,13 @@ class Settings(BaseSettings):
     app_version: str = "1.1.0"
 
     api_keys_file: str = ""  # resolved below if empty
+
+    # Quota tier for the keys in ``api_keys_file``. No account stands behind
+    # them, so they get the anonymous limits unless the operator names a tier
+    # from app/core/quotas.py here. Accounts (JWT, dashboard keys) keep their
+    # own tier and callers without a key stay anonymous — see
+    # ``app/api/deps.py::caller_tier`` and docs/self-hosting.md.
+    api_keys_file_tier: str = "anonymous"
 
     max_upload_size_mb: int = 100
 
@@ -237,6 +245,17 @@ class Settings(BaseSettings):
     # converts long or HD footage.
     media_subprocess_timeout_seconds: int = 600
 
+    @field_validator("api_keys_file_tier")
+    @classmethod
+    def _known_tier(cls, v: str) -> str:
+        # A typo must stop the start-up: ``get_quota`` would quietly fall
+        # back to anonymous, and the setting would look like it did nothing.
+        # An empty value is unset, as for ``API_KEYS_FILE`` and ``API_BASE_URL``.
+        tier = v.strip().lower() or "anonymous"
+        if tier not in QUOTAS:
+            raise ValueError(f"must be one of: {', '.join(QUOTAS)}")
+        return tier
+
     def model_post_init(self, __context) -> None:
         if not self.api_keys_file:
             self.api_keys_file = _default_keys_file()
@@ -254,6 +273,39 @@ class Settings(BaseSettings):
     @property
     def ai_eligible_tiers_list(self) -> list[str]:
         return [t.strip() for t in self.ai_eligible_tiers.split(",") if t.strip()]
+
+
+# JWT_SECRET values published in this repository: the default above, and the
+# value docker-compose.cloud.yml filled in when JWT_SECRET was unset (until
+# 2026-09). Fine for the Community Edition, which issues no logins.
+_PUBLISHED_JWT_SECRETS = frozenset(
+    {"dev-secret-change-me-min-32-chars-long", "change-me-in-production-min-32-chars"}
+)
+
+
+def jwt_secret_error(secret: str) -> str | None:
+    """Why ``secret`` must not sign Cloud Edition logins, or ``None`` if it may.
+
+    Logins are HS256 JWTs: with a published or short secret, anyone who knows
+    a user's id can sign a valid token for that account. The message is meant
+    for the operator's log, so it never quotes the secret.
+    """
+    # Env files passed on verbatim (``docker run --env-file``) keep quotes and
+    # trailing spaces, so match the placeholders without them.
+    if secret.strip("\"' \t\r\n") in _PUBLISHED_JWT_SECRETS:
+        problem = "is unset or a published placeholder"
+    elif len(secret) < 32:
+        problem = "is shorter than 32 characters"
+    else:
+        return None
+    return (
+        f"Refusing to start: DATABASE_URL is set, so user accounts are on, but JWT_SECRET "
+        f"{problem}. Anyone could sign a valid login token with it. Set JWT_SECRET to at "
+        "least 32 random characters, for example the output of "
+        'python -c "import secrets; print(secrets.token_urlsafe(32))", in .env or the '
+        "app's environment. See .env.example and docs/self-hosting.md. A new JWT_SECRET "
+        "signs every user out."
+    )
 
 
 settings = Settings()

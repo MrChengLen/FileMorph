@@ -29,6 +29,8 @@ docker compose exec filemorph python scripts/generate_api_key.py
 
 Keys are stored as SHA-256 hashes in `data/api_keys.json`. The plaintext key is shown exactly once at generation time. There is no key-rotation endpoint in the Community Edition — generate a new key and remove the old hash from the JSON file.
 
+Requests with these keys run on the anonymous tier unless `API_KEYS_FILE_TIER` names another one — see [Limits on a Community Edition instance](self-hosting.md#limits-on-a-community-edition-instance).
+
 ### JWT Bearer (Cloud overlay)
 
 When `DATABASE_URL` is configured, the Cloud overlay enables registration / login / refresh:
@@ -64,7 +66,7 @@ All tokens (access, refresh, password-reset, email-verify) carry the RFC 7519 `i
 
 ### Cloud-Edition endpoints (account / billing / keys)
 
-The endpoints in this section only respond when the Cloud overlay is configured (`DATABASE_URL` set, and where applicable `JWT_SECRET`, `STRIPE_SECRET_KEY`). Without those, they return `503 Service Unavailable`. All require `Authorization: Bearer <jwt>` unless noted.
+The endpoints in this section only respond when the Cloud overlay is configured (`DATABASE_URL` set, and where applicable `STRIPE_SECRET_KEY`). Without those, they return `503 Service Unavailable`. With `DATABASE_URL` set, the app does not start at all unless `JWT_SECRET` is at least 32 characters and not a published placeholder (see [`docs/self-hosting.md`](self-hosting.md#jwt-secret-cloud-edition)). All require `Authorization: Bearer <jwt>` unless noted.
 
 **Auth (`/api/v1/auth/*`)**
 

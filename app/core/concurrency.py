@@ -23,7 +23,9 @@ layer the route needs:
 
 The "actor" key is the user ID for authenticated callers
 (``user:<id>``, whichever key or token they send) and the IP for
-anonymous ones (``ip:<host>``) — see ``app/core/processing.py::actor_id``.
+anonymous ones (``ip:<host>``) — plus the tier for a key-file key that
+``API_KEYS_FILE_TIER`` lifts (``ip:<host>:<tier>``); see
+``app/core/processing.py::actor_id``.
 That gives a stable identity across requests without forcing us
 to hand out keys to anonymous users.
 
@@ -122,8 +124,9 @@ def _per_actor_semaphore(actor_id: str, tier: str) -> asyncio.Semaphore:
     against the new cap, so the actor can briefly exceed it by that
     many; the global semaphore still bounds the total.
 
-    Assumes an actor key maps to one tier at a time (every caller
-    passes ``tier_for(user)`` for that user): tiers alternating between
+    Assumes an actor key maps to one tier at a time (a user runs on
+    ``tier_for(user)`` on every route, and ``actor_id`` puts a lifted
+    key-file tier into the IP's key): tiers alternating between
     requests would rebuild the semaphore on each change and lift the
     cap.
 

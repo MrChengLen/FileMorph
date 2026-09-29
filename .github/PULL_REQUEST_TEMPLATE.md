@@ -1,8 +1,9 @@
 <!--
   Thanks for contributing to FileMorph! This checklist mirrors the project's
-  standards. It is a reminder, not a hard gate — but the CI gates below
-  (ruff, tests, pip-audit, gitleaks, scope-guard, veraPDF) WILL block the
-  merge until they are green. See CONTRIBUTING.md for details.
+  standards. It is a reminder, not a hard gate — but the three required checks
+  (lint-and-test, secret-scan, scope-check) WILL block the merge until they
+  are green. lockfile-drift and the veraPDF run are reported but not required.
+  See CONTRIBUTING.md § "CI gates" for what each check runs.
 -->
 
 ## Summary
@@ -19,13 +20,18 @@
 
 ## Checklist
 
-**Code quality (CI will enforce these):**
+**Code quality (the `lint-and-test` check enforces these):**
 - [ ] `ruff check .` passes
 - [ ] `ruff format --check .` passes
 - [ ] `pytest tests/` passes locally
-- [ ] New `.py` files carry the `# SPDX-License-Identifier: AGPL-3.0-or-later` header
+- [ ] Templates touched: `python scripts/check_template_classes.py` passes
+- [ ] Classes added or changed in templates/JS: `bash scripts/build-tailwind.sh` run and `app/static/css/` committed
+- [ ] `_()` strings added, changed or removed: `python scripts/i18n.py extract`, `update`, German entries translated, `compile` — `locale/` committed
+- [ ] Dependencies changed: `pip-audit -r requirements.lock` clean; also recompile `requirements.lock` (compared by the separate, non-required `lockfile-drift` check)
+- [ ] Python version changed anywhere: `python scripts/check_python_version.py` passes
 
 **Tests & docs (reviewer will check these):**
+- [ ] New `.py` files carry the `# SPDX-License-Identifier: AGPL-3.0-or-later` header — under `app/ee/`, `LicenseRef-FileMorph-Commercial` instead
 - [ ] New behaviour has tests (at minimum one test per new converter / route)
 - [ ] Docs updated **in the same PR** (`README.md`, `docs/*`) where user-visible behaviour changed
 - [ ] `CHANGELOG.md` `[Unreleased]` updated for any user-visible change
