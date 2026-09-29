@@ -76,10 +76,12 @@ your change touches before you push:
 
 `secret-scan` runs the gitleaks secret scanner; `scope-check` rejects
 operations files and internal documents, which do not belong in this public
-repository. Two more checks run on pull requests without blocking the merge:
+repository. More checks run on pull requests without blocking the merge:
 `lockfile-drift` (`requirements.lock` must match `requirements.txt` — see
-[docs/development.md](docs/development.md)) and the veraPDF validation of the
-PDF/A-2b output.
+[docs/development.md](docs/development.md)), the veraPDF validation of the
+PDF/A-2b output, and `smoke-test (base)` and `smoke-test (office)`
+([`docker-pr.yml`](.github/workflows/docker-pr.yml)), which build both Docker
+images without pushing them and smoke-test each one.
 
 ---
 
