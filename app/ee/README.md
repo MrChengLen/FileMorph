@@ -29,6 +29,6 @@ the *operator's reservation* in `COMMERCIAL-LICENSE.md`.
 - SPDX header on every file: `# SPDX-License-Identifier: LicenseRef-FileMorph-Commercial`.
 - Cost-revealing values (model IDs, token math, cost→credit mapping) live in
   **private environment**, never in source — client- and repo-facing surfaces
-  are credit-denominated only. See `docs-internal/ki-integration-konzept.md`.
+  are credit-denominated only.
 - EE code may import the AGPL engine; the engine must never import `app.ee.*`
   at startup — only the gated, lazily-loaded feature routes may.
