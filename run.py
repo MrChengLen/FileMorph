@@ -25,7 +25,7 @@ def _first_run_setup() -> None:
     print(f"  API KEY: {key}")
     print(border)
     print("  IMPORTANT: Save this key — it will NOT be shown again.")
-    print("  Enter it in the Web UI under the 'API Key' field.")
+    print("  Send it as the X-API-Key header from your own client.")
     print(f"{border}\n")
 
 

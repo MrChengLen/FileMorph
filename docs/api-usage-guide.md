@@ -501,8 +501,13 @@ client IP and per endpoint, the same for every caller — 10/min on
 requests per minute.
 
 Every instance also caps each whole request at `MAX_UPLOAD_SIZE_MB`
-(default 100 MB; a batch is one request). On a self-hosted instance,
-raise it if the larger tier limits should apply.
+(default 100 MB; a batch is one request). The tiers above anonymous
+come with an account, and accounts need the Cloud Edition database. A
+self-hosted Community Edition instance has none, so every caller there
+gets the anonymous row — API keys included — unless the operator gives
+the keys a tier with `API_KEYS_FILE_TIER` and raises
+`MAX_UPLOAD_SIZE_MB` to match (see
+[self-hosting](self-hosting.md#limits-on-a-community-edition-instance)).
 
 Exact values live in [`app/core/quotas.py`](../app/core/quotas.py) —
 the same source the server enforces and the `/pricing` page renders —

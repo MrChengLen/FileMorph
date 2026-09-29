@@ -6,6 +6,11 @@ The default mode is **Community Edition** — single-container, anonymous + API-
 auth, no database. The optional **Cloud Edition** overlay adds Postgres for user
 accounts, JWT login, Stripe billing, and the admin cockpit.
 
+Without accounts, every caller gets the anonymous limits — 30 MB per file,
+1 file per batch — API keys included, unless you give your keys a bigger tier
+with `API_KEYS_FILE_TIER` (see
+[Limits on a Community Edition instance](self-hosting.md#limits-on-a-community-edition-instance)).
+
 ---
 
 ## Method 1: Docker, Community Edition (recommended for self-hosting)
@@ -78,7 +83,12 @@ cp .env.example .env
 Then edit `.env` and set:
 
 - `POSTGRES_PASSWORD` — a strong random string
-- `JWT_SECRET` — at least 32 random characters
+- `JWT_SECRET` — at least 32 random characters, e.g. from
+  `python -c "import secrets; print(secrets.token_urlsafe(32))"`; uncomment
+  its line in `.env`. Without it `docker compose` stops with an error, and the
+  app refuses to start with a shorter secret or one of the placeholders
+  published in this repository (see
+  [`docs/self-hosting.md`](self-hosting.md#jwt-secret-cloud-edition))
 
 Optional but recommended for production:
 

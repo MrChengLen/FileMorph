@@ -8,7 +8,7 @@ reverse proxy setup (Caddy or nginx), HTTPS/SSL, and operational best practices.
 ## Why self-host?
 
 - **Data privacy (DSGVO / GDPR)**: Files never leave your own infrastructure
-- **Limits you control**: The per-IP rate limits and tier caps ship with the code and apply to your instance too — change them in the `@limiter.limit(...)` decorators in `app/api/routes/*.py` and in `app/core/quotas.py`
+- **Limits you control**: The per-IP rate limits and tier caps ship with the code and apply to your instance too — change them in the `@limiter.limit(...)` decorators in `app/api/routes/*.py` and in `app/core/quotas.py`, and pick the tier your API keys get with `API_KEYS_FILE_TIER` ([Limits on a Community Edition instance](#limits-on-a-community-edition-instance))
 - **Custom access**: Issue API keys to your own users or services
 - **Integration**: Run FileMorph inside your existing network, accessible only to internal services
 
@@ -32,6 +32,9 @@ APP_PORT=8000
 APP_DEBUG=false
 
 API_KEYS_FILE=data/api_keys.json
+# Tier for those keys: anonymous (default), free, pro, business or enterprise.
+# See "Limits on a Community Edition instance" below.
+API_KEYS_FILE_TIER=anonymous
 
 MAX_UPLOAD_SIZE_MB=100
 
@@ -475,6 +478,59 @@ above, or use the dashboards the Compliance Edition ships.
 
 ---
 
+## Limits on a Community Edition instance
+
+Without `DATABASE_URL` there are no accounts, so by default no caller
+gets past the anonymous tier: every request gets 30 MB per file, 1 file
+per batch, a 90 MB output cap and 1 concurrent request per client IP
+(the [tier table](api-usage-guide.md#tier-quotas--discovery)). That
+includes requests with a key from `data/api_keys.json` — the key gets a
+request past the API-key check, not onto a bigger tier.
+
+To give your keys a bigger tier, set `API_KEYS_FILE_TIER` to `free`,
+`pro`, `business` or `enterprise`, and raise `MAX_UPLOAD_SIZE_MB` with it:
+
+```env
+API_KEYS_FILE_TIER=pro
+MAX_UPLOAD_SIZE_MB=250
+```
+
+Every valid key from the key file then gets that tier's file size, batch
+size, output cap and concurrency. A value outside the list stops the
+start-up with an error instead of falling back to anonymous; an empty
+value means `anonymous`. Pick the smallest tier that covers your
+clients' files — the tier decides how much of the server one key can
+use:
+
+- **Memory:** single-file results stream from disk, but a batch holds
+  every result in RAM until its ZIP is built, and the output cap applies
+  per file — so one batch can buffer up to the tier's files per batch ×
+  output cap (`pro`: 50 × 400 MB). Give keys only to clients you trust
+  with that, and size `MAX_UPLOAD_SIZE_MB` and `MAX_GLOBAL_CONCURRENCY`
+  to your RAM (see *Capacity tuning* below).
+- **Parallel requests:** `business` (6) and `enterprise` (10) allow more
+  parallel requests than the default `MAX_GLOBAL_CONCURRENCY` of 4, so
+  one busy key can take every slot, and callers without a key get `503`
+  until one frees up.
+- **`MAX_UPLOAD_SIZE_MB` (default 100 MB) still caps every whole
+  request** before any tier limit; a batch is one request.
+- **Rate limits don't change:** the per-minute limits count per client
+  IP and are the same for every tier.
+
+What the setting leaves alone:
+
+- **Callers without a key stay anonymous** — the web UI included, which
+  has no field for a key.
+- **Accounts keep their own tier.** With the Cloud Edition database,
+  logins and dashboard-minted keys run on their account's tier; the
+  setting only covers keys from the key file.
+- **Monthly API-call quotas count per account**, so key-file keys are
+  never counted — on a Cloud Edition deployment, where accounts are
+  metered, leave the setting at `anonymous`. The paid AI `apply` keeps
+  requiring an account on an eligible tier.
+
+---
+
 ## API Key management
 
 ### Generate a new key
@@ -576,9 +632,11 @@ defaults are sized for a 4 GB host:
 | `CONCURRENCY_RETRY_AFTER_SECONDS` | `5` | Value sent in the `Retry-After` response header. Should match the typical drain time of a saturated pool. |
 | `MEDIA_SUBPROCESS_TIMEOUT_SECONDS` | `600` | Hard kill-switch for a single ffmpeg run (video/audio convert + video compress). Protects worker threads from a crafted or very long media file; raise it if you regularly convert long or HD footage. |
 
-Per-actor limits (per user for authenticated callers, per IP for
-anonymous) are tier-bound and not env-tunable: anonymous and free
-get 1 concurrent request, Pro 3, Business 6, Enterprise 10. A
+Per-actor limits (per user for authenticated callers, per client IP
+for everyone else) are tier-bound and not env-tunable: anonymous and
+free get 1 concurrent request, Pro 3, Business 6, Enterprise 10.
+`API_KEYS_FILE_TIER` only picks the tier your key-file keys run on;
+their requests count apart from the keyless ones from the same IP. A
 request past the per-actor cap returns `429 Too Many Requests`
 with `Retry-After`. These numbers are documented on the public
 [`/pricing`](/pricing) page so callers can size their own client
@@ -614,6 +672,46 @@ Without `gs`, `pdf → pdfa` still succeeds — it just produces
 markup-only output that veraPDF will reject if the source has
 unembedded fonts. The structured log records `mode=rerender` vs
 `mode=markup` for each conversion so you can spot the gap.
+
+### JWT secret (Cloud Edition)
+
+With `DATABASE_URL` set, every login is a JWT signed with `JWT_SECRET`.
+Whoever knows the secret can sign a valid login token for any account,
+so in that mode the app refuses to start unless `JWT_SECRET` is at least
+32 characters long and not one of the placeholders published in this
+repository. It logs `Refusing to start` with the reason and exits with
+status 3, which uvicorn and gunicorn treat as a failed start, so a server
+with several workers stops as well. The Community Edition (no
+`DATABASE_URL`) issues no logins and does not need the variable.
+
+Generate a secret:
+
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+With Docker Compose, put it in `.env` (`.env.example` has the line
+commented out):
+
+```env
+JWT_SECRET=<the generated value>
+```
+
+Everywhere else, hand it to the app in a file rather than on a command
+line: `docker run --env-file .env`, or for systemd an `EnvironmentFile=`
+outside the app directory, e.g. `/etc/filemorph/filemorph.env`, owned by
+root with mode `600`. Don't make the app's own `.env` root-only instead: the
+app reads that file itself and would fail to start. A systemd `Environment=`
+line can be read by every local user (`systemctl show`). The app reads
+`DATABASE_URL` only from the process environment, so it belongs in the same
+file.
+
+`docker-compose.cloud.yml` has no fallback for `JWT_SECRET`: without it,
+every `docker compose` command that includes the overlay stops with a
+message, `down` and `logs` too. The length check cannot tell a random
+secret from a guessable one, so always generate it. Changing the secret
+signs every user out on their next request, which is also the response to
+a suspected leak.
 
 ### Auth flows (Cloud Edition)
 
@@ -665,6 +763,9 @@ Type=simple
 User=filemorph
 WorkingDirectory=/opt/filemorph
 Environment="PATH=/opt/filemorph/.venv/bin"
+# Cloud Edition: DATABASE_URL and JWT_SECRET in a root-owned file, mode 600
+# (see "JWT secret (Cloud Edition)" above), never in an Environment= line.
+# EnvironmentFile=/etc/filemorph/filemorph.env
 ExecStart=/opt/filemorph/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
 Restart=on-failure
 RestartSec=5
@@ -685,6 +786,7 @@ sudo systemctl status filemorph
 
 - [ ] Set `CORS_ORIGINS` to your specific domain(s), not `*`
 - [ ] Set `APP_DEBUG=false` in production
+- [ ] Cloud Edition: set `JWT_SECRET` to a generated value of at least 32 characters (see [JWT secret](#jwt-secret-cloud-edition))
 - [ ] Keep `data/api_keys.json` out of version control (it is in `.gitignore`)
 - [ ] Use HTTPS (see nginx + Certbot above)
 - [ ] Set `MAX_UPLOAD_SIZE_MB` to a sensible limit for your use case
