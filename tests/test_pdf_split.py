@@ -273,6 +273,19 @@ def test_route_extract_corrupt_pdf_is_400(client, auth_headers):
     )
     assert res.status_code == 400, res.text
     assert res.status_code != 500
+    # The file is the problem, not the selection — the UI says so.
+    assert res.headers.get("X-FileMorph-Error-Code") == "invalid_pdf"
+
+
+def test_route_extract_page_out_of_range_is_invalid_page_selection(client, auth_headers):
+    res = client.post(
+        "/api/v1/pdf/extract",
+        headers=auth_headers,
+        files={"file": ("doc.pdf", _pdf_bytes(1), _PDF_MIME)},
+        data={"pages": "9"},
+    )
+    assert res.status_code == 400, res.text
+    assert res.headers.get("X-FileMorph-Error-Code") == "invalid_page_selection"
 
 
 def test_route_extract_blocks_disguised_executable(client, auth_headers):

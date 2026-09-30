@@ -500,6 +500,11 @@ Common per-file `error_message` values:
   CSV or JSON file in another encoding (e.g. Excel's default CSV export
   on Windows). Single-file `/convert` returns the same message as a
   `400` with `X-FileMorph-Error-Code: invalid_input`.
+- `"Could not read the PDF. Verify the file is valid."` — a PDF
+  converted to `txt` or `pdf` that is damaged, password-protected or
+  over one of the PDF reader's safety limits. Single-file `/convert`
+  returns the same message as a `400` with
+  `X-FileMorph-Error-Code: invalid_input`.
 - `"Conversion failed. Verify the file is valid."` (compress:
   `"Compression failed. …"`) — any other error while processing that
   file, e.g. corrupt content. The details stay in the server log.

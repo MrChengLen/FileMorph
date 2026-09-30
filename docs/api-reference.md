@@ -535,9 +535,9 @@ can branch on (the `detail` text may change):
 | `output_cap_exceeded` | `413` | The result is larger than your tier's output cap |
 | `target_size_exceeds_cap` | `413` | `target_size_kb` (`/compress`, `/compress/batch`) or `target_kb` (`/pdf/compress`) is above your tier's output cap — rejected before any work |
 | `decompression_bomb` | `400` | The image's dimensions exceed the decoder's safety limit (`/convert`, `/compress`) |
-| `invalid_input` | `400` | A problem you can fix, named in `detail` — e.g. a Markdown, CSV or JSON file that isn't UTF-8 (`/convert`) |
-| `invalid_page_selection` | `400` | `/pdf/extract`: the `pages` selection is invalid, or the PDF can't be read |
-| `invalid_pdf` | `400` | `/pdf/split`, `/pdf/compress`: the PDF can't be read; `/pdf/split` also for a PDF with no pages or more than 10 000 |
+| `invalid_input` | `400` | A problem you can fix, named in `detail` — e.g. a Markdown, CSV or JSON file that isn't UTF-8, or a PDF that can't be read (`/convert`) |
+| `invalid_page_selection` | `400` | `/pdf/extract`: the `pages` selection is invalid, or the PDF has no pages |
+| `invalid_pdf` | `400` | `/pdf/extract`, `/pdf/split`, `/pdf/compress`: the PDF can't be read; `/pdf/split` also for a PDF with no pages or more than 10 000 |
 
 The redaction endpoints add codes of their own, listed under
 [AI operations](#ai-operations--pii-redaction-enterprise-edition-add-on).
