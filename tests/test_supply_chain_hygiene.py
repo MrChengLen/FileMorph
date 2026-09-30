@@ -119,6 +119,9 @@ _FROM_ANY_RE = re.compile(r"^FROM\s+\S+", re.MULTILINE)
 # backslash may continue the line. The file name must end in a word character
 # or hyphen, so a sentence's full stop is not captured.
 _PIP_AUDIT_RE = re.compile(r"pip[-_]audit\b[^\n`]*?\s+(?:-r|--requirement)(?:\s+|=)([\w./-]*[\w-])")
+# An image tag that starts with `v`, with or without the registry path in
+# front (`filemorph:v1.2.3`, `filemorph:vX.Y.Z`). docker.yml pushes none.
+_V_IMAGE_TAG_RE = re.compile(r"\bfilemorph:v", re.IGNORECASE)
 
 
 def _workflow_files() -> list[Path]:
@@ -188,6 +191,28 @@ def _lock_pins(lockfile: Path) -> dict[str, str]:
 def _lock_python_version(lockfile: Path) -> str | None:
     found = re.search(r"--python-version[= ](\d+\.\d+)", lockfile.read_text(encoding="utf-8"))
     return found.group(1) if found else None
+
+
+def _tracked_docs() -> list[str]:
+    """The public docs: tracked Markdown at the top level and under docs/,
+    CHANGELOG.md aside."""
+    if not (_REPO_ROOT / ".git").exists():
+        pytest.skip("not a git checkout (e.g. an unpacked release tarball)")
+    tracked = subprocess.run(
+        ["git", "ls-files", "-z", "--", "*.md"],
+        cwd=_REPO_ROOT,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=True,
+    ).stdout.split("\0")
+    return [
+        rel
+        for rel in tracked
+        if rel.endswith(".md")
+        and ("/" not in rel or rel.startswith("docs/"))
+        and rel != "CHANGELOG.md"
+    ]
 
 
 def test_workflow_dir_exists() -> None:
@@ -317,26 +342,9 @@ def test_docs_quote_the_lockfile_as_the_pip_audit_target() -> None:
     local notes (e.g. a gitignored CLAUDE.md). CHANGELOG.md records history
     and is not checked.
     """
-    if not (_REPO_ROOT / ".git").exists():
-        pytest.skip("not a git checkout (e.g. an unpacked release tarball)")
-    tracked = subprocess.run(
-        ["git", "ls-files", "-z", "--", "*.md"],
-        cwd=_REPO_ROOT,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        check=True,
-    ).stdout.split("\0")
-    docs = [
-        rel
-        for rel in tracked
-        if rel.endswith(".md")
-        and ("/" not in rel or rel.startswith("docs/"))
-        and rel != "CHANGELOG.md"
-    ]
     stale = [
         f"{rel}: pip-audit -r {target}"
-        for rel in docs
+        for rel in _tracked_docs()
         for target in _PIP_AUDIT_RE.findall((_REPO_ROOT / rel).read_text(encoding="utf-8"))
         if target != _LOCKFILE.name
     ]
@@ -344,6 +352,48 @@ def test_docs_quote_the_lockfile_as_the_pip_audit_target() -> None:
         f"docs quote a pip-audit target other than {_LOCKFILE.name}, the file "
         f"CI audits and the image installs: {stale}"
     )
+
+
+def test_docs_name_no_v_prefixed_image_tag() -> None:
+    """No public doc names a ``filemorph:v…`` image tag: docker.yml pushes none.
+
+    docker.yml tags the release images with metadata-action's semver patterns
+    ``{{version}}`` and ``{{major}}.{{minor}}``, which drop the Git tag's
+    ``v``: tag ``v1.2.3`` pushes the version tags ``1.2.3``, ``1.2``,
+    ``1.2.3-office`` and ``1.2-office``. docs/patch-policy.md had readers
+    ``cosign verify`` a ``:vX.Y.Z`` image, a command that failed for every
+    release.
+    """
+    stale = [
+        f"{rel}:{number}: {line.strip()}"
+        for rel in _tracked_docs()
+        for number, line in enumerate(
+            (_REPO_ROOT / rel).read_text(encoding="utf-8").splitlines(), start=1
+        )
+        if _V_IMAGE_TAG_RE.search(line)
+    ]
+    assert not stale, (
+        "docs name an image tag starting with `v`, which docker.yml never pushes — "
+        f"release images are tagged `X.Y.Z` and `X.Y.Z-office`: {stale}"
+    )
+
+
+# The docs hold no `filemorph:v…` any more, so the test above never meets one;
+# this keeps the pattern catching the placeholder the bug used, not only a digit.
+@pytest.mark.parametrize(
+    ("line", "stale"),
+    [
+        ("cosign verify ghcr.io/mrchenglen/filemorph:vX.Y.Z \\", True),
+        ("docker pull ghcr.io/mrchenglen/filemorph:v1.2.3-office", True),
+        ("verify `filemorph:v1.2.3`", True),
+        ("cosign verify ghcr.io/mrchenglen/filemorph:X.Y.Z \\", False),
+        ("--source-ref refs/tags/v1.2.3", False),
+        ("sbom/filemorph-v1.2.3.cdx.json", False),
+    ],
+    ids=["placeholder", "version", "short-name", "fixed", "git-ref", "sbom-file"],
+)
+def test_v_image_tag_pattern_recognises_any_v_tag(line: str, stale: bool) -> None:
+    assert bool(_V_IMAGE_TAG_RE.search(line)) is stale
 
 
 def test_lockfile_is_hash_pinned_and_matches_the_image_python() -> None:

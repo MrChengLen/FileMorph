@@ -9,6 +9,20 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — patch-policy's `cosign verify` names an image tag that exists
+
+`docs/patch-policy.md` told readers to verify the release image
+`ghcr.io/mrchenglen/filemorph` under the tag `vX.Y.Z`. No such tag exists:
+`docker.yml` tags a release's images with metadata-action's semver patterns,
+which drop the Git tag's `v`, so release `v1.2.3` pushes the version tags
+`1.2.3`, `1.2`, `1.2.3-office` and `1.2-office`. GHCR shows it for v1.1.0:
+`1.1.0` resolves, `v1.1.0` is not found. The documented command therefore
+failed for every release. It now names `X.Y.Z` without the `v`, like the
+`filemorph:1.2.3` in `docs/release-signing.md`; its identity flags are
+unchanged. `tests/test_supply_chain_hygiene.py` now fails if a public doc
+names an image tag that starts with `v`, with or without the registry path in
+front; run against the old text, it reports that line.
+
 ### Added — pull requests build and smoke-test both Docker images
 
 `docker.yml` builds the images only after merge, and `notify-ops.yml` deploys

@@ -106,7 +106,7 @@ Each released Docker image is signed with [cosign](https://github.com/sigstore/c
 using GitHub's OIDC keyless flow. To verify before pulling:
 
 ```bash
-cosign verify ghcr.io/mrchenglen/filemorph:vX.Y.Z \
+cosign verify ghcr.io/mrchenglen/filemorph:X.Y.Z \
   --certificate-identity-regexp '^https://github\.com/MrChengLen/FileMorph/' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
