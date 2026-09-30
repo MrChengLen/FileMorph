@@ -35,7 +35,7 @@ from app.core.tokens import (
     create_refresh_token,
     decode_email_verify_token,
     decode_password_reset_token,
-    decode_token_full,
+    decode_session_token,
     password_hash_version,
 )
 
@@ -45,8 +45,8 @@ from app.core.tokens import (
 # every other decoder with the same token and assert it raises.
 
 _TYPES: list[tuple[str, callable]] = [
-    ("access", lambda: create_access_token("user-id-1", role="user")),
-    ("refresh", lambda: create_refresh_token("user-id-1")),
+    ("access", lambda: create_access_token("user-id-1", phv="phv-1", role="user")),
+    ("refresh", lambda: create_refresh_token("user-id-1", phv="phv-1")),
     (
         "reset",
         lambda: create_password_reset_token(
@@ -58,11 +58,11 @@ _TYPES: list[tuple[str, callable]] = [
 
 
 def _decode_as_access(token: str) -> None:
-    decode_token_full(token, expected_type="access")
+    decode_session_token(token, expected_type="access")
 
 
 def _decode_as_refresh(token: str) -> None:
-    decode_token_full(token, expected_type="refresh")
+    decode_session_token(token, expected_type="refresh")
 
 
 def _decode_as_reset(token: str) -> None:
