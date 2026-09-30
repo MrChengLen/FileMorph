@@ -9,6 +9,37 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — after a release, `:latest` is the slim image, not the office image
+
+`docker.yml` tags the slim image `:latest` and the office image `:office`, but
+`docker/metadata-action` added a `latest` tag of its own on every release: with
+its default flavor, `latest=auto`, a release tag (`vX.Y.Z` without a
+pre-release part) that matches a `type=semver` entry gets `latest` as well, and
+the office entries' `suffix=-office` does not apply to it. Both images were
+pushed as `:latest`, and the one that finished last kept the tag — usually the
+office image, the slower build. Whoever pulled `:latest` then got LibreOffice
+without choosing the office image, and with the default
+`FILEMORPH_OFFICE_ENGINE=auto` complex DOCX files were converted through it.
+In the v1.1.0 run the office image's build and push finished 12 seconds after
+the slim image's, so on 2026-06-01 `:latest` was most likely the office image
+for about an hour, until the next build of `main`; if you pulled it then and
+not since, pull it again. Builds of `main` were not affected. Found by the security review of
+PR #180.
+
+- **Fix.** The metadata step sets `flavor: latest=false`, so `:latest` comes
+  only from the `type=raw` entry that names it for the slim image. The other
+  tags stay as they were: `:office`, and `X.Y.Z`, `X.Y` and `sha-…`, each with
+  `-office` on the office image. The docs already call `:latest` the slim
+  image; that now holds right after a release too. `docker.yml` pushes images
+  and cannot be tried before merge, so the pinned action (v6.2.0) was run
+  locally on the workflow's inputs: it now tags only the slim image `latest`,
+  on a release tag, a pre-release tag and `main`. The next release is the
+  first real test.
+- **Guard.** `tests/test_supply_chain_hygiene.py` fails if the metadata step's
+  flavor is anything but `latest=false`, if another of its tag entries names
+  `latest`, or if the matrix loses the unsuffixed `base` leg the `type=raw`
+  entry is meant for.
+
 ### Fixed — patch-policy's `cosign verify` names an image tag that exists
 
 `docs/patch-policy.md` told readers to verify the release image
