@@ -35,9 +35,10 @@ def _uuid_col(name: str, *args, **kwargs) -> sa.Column:
 
 
 def upgrade() -> None:
-    tier_enum.create(op.get_bind(), checkfirst=True)
-    job_status_enum.create(op.get_bind(), checkfirst=True)
-
+    # No explicit tier_enum/job_status_enum.create() here: op.create_table
+    # creates each enum type with its first table, without checkfirst, so a
+    # type created beforehand made a fresh Postgres fail with "type already
+    # exists".
     op.create_table(
         "users",
         _uuid_col("id", primary_key=True),
