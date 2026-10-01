@@ -9,59 +9,6 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Security — deps-lock pushes from a job that installs nothing; uv is installed hash-checked
-
-A security review of PR #164 found (Low) that `lockfile-drift` in `ci.yml` and
-the `deps-lock` workflow installed uv from PyPI by version alone, without a
-hash. PyPI accepts new files for a release that is already published, and pip
-takes the wheel with the most specific platform tag, so a malicious wheel added
-to uv 0.12.19 later would have been installed — in `deps-lock` inside its one
-job, which held `contents: write` and a checkout that kept its credentials,
-right before the step that commits and pushes. Exploiting it took a compromised
-uv upload to PyPI, not access to this repository.
-
-- **Two jobs.** `compile` installs uv, recompiles `requirements.lock` and
-  `requirements-sbom.lock`, hands the two files over as an artifact and then
-  test-installs them, with `contents: read`, no cache and a checkout that keeps
-  no credentials. `commit` holds `contents: write`, installs nothing and runs
-  only GitHub's checkout and download actions. It unpacks the artifact outside
-  its checkout, takes the two lockfiles out of it by name, fails if git sees
-  any other change in the checkout, and commits and pushes as before.
-- **Hash-checked uv.** Both jobs that compile the lockfiles now run `pip install
-  --require-hashes --only-binary :all: -r requirements-uv.lock`. The new
-  `requirements-uv.lock` pins the uv version `requirements-dev.txt` pins,
-  0.12.19, with the hashes of all 19 files of that release; they match the
-  digests PyPI publishes, and all 19 were uploaded within a minute on
-  2026-09-25. The split alone would not be enough: a tampered uv in `compile`
-  could not push, but it could write the lockfiles `commit` pushes.
-- **What it costs.** `requirements-dev.txt` stays the one place the version is
-  set, and Dependabot keeps bumping it there, but it does not edit
-  `requirements-uv.lock`. A uv bump therefore fails `lint-and-test` until the
-  file is regenerated with the command in `requirements-dev.txt`: red on
-  purpose, where the workflows used to install whatever the new release held.
-  `dependabot.yml` says so as well.
-- **What the required check reads.** `lint-and-test` only checked that
-  `requirements.lock` carries a hash somewhere, and its install step skips
-  indented lines, which pip still reads. Every entry now has to be an exact,
-  hashed pin, as in `requirements-sbom.lock` already, so an unhashed pin or an
-  indented `--extra-index-url` or URL line fails the required check, not only
-  `lockfile-drift`, which is not one.
-- **Guards.** `tests/test_supply_chain_hygiene.py` fails if
-  `requirements-uv.lock` is missing, pins anything besides uv, pins it without
-  hashes, or at a different version than `requirements-dev.txt`; if a job that
-  compiles a lockfile installs uv any other way, runs an action besides
-  checkout, setup-python and upload-artifact, or installs or fetches anything
-  except through a hash-checked `pip install`; or if `deps-lock.yml` compiles
-  in a job that can push, restores a cache or keeps credentials there, lets the
-  pushing job install or fetch anything or run any other action, unpacks the
-  artifact inside the checkout, or takes anything but the two lockfiles out of
-  it. Each of 37 simulated regressions fails at least one guard, the one-job
-  `deps-lock.yml` from before this change among them.
-
-uv 0.12.19, installed from the new file, writes both lockfiles byte for byte as
-they are committed, so neither changes, and the commands recorded in their
-headers, which `lockfile-drift` diffs, stay as they are.
-
 ### Security — urllib3 2.8.0: three advisories published on 2026-09-30
 
 On 2026-10-01 `pip-audit` flagged urllib3 2.7.0 in `requirements.lock`, and
