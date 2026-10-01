@@ -168,8 +168,8 @@ def test_token_rejects_wrong_type():
 
     for bogus in (
         create_password_reset_token("user-123", "phv-deadbeef"),
-        create_access_token("user-123"),
-        create_refresh_token("user-123"),
+        create_access_token("user-123", phv="phv-deadbeef"),
+        create_refresh_token("user-123", phv="phv-deadbeef"),
     ):
         with pytest.raises(HTTPException) as exc:
             decode_email_verify_token(bogus)

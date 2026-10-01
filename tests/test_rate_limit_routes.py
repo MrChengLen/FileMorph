@@ -54,7 +54,7 @@ from app.core import audit as audit_module
 from app.core.auth import hash_password
 from app.core.config import settings
 from app.core.rate_limit import account_or_ip, limiter
-from app.core.tokens import create_access_token, create_refresh_token
+from app.core.tokens import create_access_token, create_refresh_token, password_hash_version
 from app.db.base import Base, get_db
 from app.db.models import ApiKey, AuditEvent, TierEnum, User
 from app.main import app
@@ -170,7 +170,9 @@ async def _insert_user(
 
 
 def _bearer_headers(user: User) -> dict[str, str]:
-    token = create_access_token(str(user.id), role=user.role.value)
+    token = create_access_token(
+        str(user.id), phv=password_hash_version(user.password_hash), role=user.role.value
+    )
     return {"Authorization": f"Bearer {token}"}
 
 
@@ -464,25 +466,15 @@ def test_auth_refresh_is_exempt_from_rate_limiting(client, rate_limiter_enabled)
     session. 350 garbage tokens all fail at JWT decode (401, before any DB
     access) and must never turn into 429; a VALID token right after must
     still succeed.
-
-    The valid-token call runs with the ``get_db`` override popped: ``refresh``
-    compares the JWT subject (a plain ``str``) against the UUID ``User.id``
-    column with no ``uuid.UUID(...)`` cast, unlike ``get_current_user`` (which
-    casts defensively). That still raises under the SQLite test engine
-    whenever a database is configured — a separate, pre-existing issue,
-    unrelated to rate limiting and not fixed here.
     """
     for i in range(350):
         res = client.post("/api/v1/auth/refresh", json={"refresh_token": "x"})
         assert res.status_code == 401, f"junk request {i + 1}/350: {res.text}"
 
-    token = create_refresh_token(str(uuid4()))
-    saved_override = app.dependency_overrides.pop(get_db)
-    try:
-        res = client.post("/api/v1/auth/refresh", json={"refresh_token": token})
-        assert res.status_code == 200, res.text
-    finally:
-        app.dependency_overrides[get_db] = saved_override
+    user = asyncio.run(_insert_user(email=f"rl-refresh-{uuid4().hex}@example.com"))
+    token = create_refresh_token(str(user.id), phv=password_hash_version(user.password_hash))
+    res = client.post("/api/v1/auth/refresh", json={"refresh_token": token})
+    assert res.status_code == 200, res.text
 
 
 # ══ Privacy: slowapi's own logger must never leak an IP or account ═══════════

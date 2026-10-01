@@ -9,6 +9,16 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed — a sign-in lasts 30 days from login
+
+- `POST /auth/refresh` returns a new access token together with the refresh
+  token it was sent, so a sign-in ends 30 days after login; without a
+  database it answers `503`, like login.
+- Everyone who is signed in has to sign in once more after this update.
+- `docs/api-reference.md` and `docs/api-usage-guide.md` describe refresh and
+  password reset; tests in `tests/test_auth_refresh.py` (new),
+  `tests/test_password_reset.py` and `tests/test_upload_auth_resolution.py`.
+
 ### Fixed — patch-policy's `cosign verify` names an image tag that exists
 
 `docs/patch-policy.md` told readers to verify the release image
