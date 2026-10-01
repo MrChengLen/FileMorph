@@ -1,7 +1,7 @@
 -r requirements.txt
 pytest>=9.1.1
 pytest-asyncio>=1.4.0
-httpx>=0.27.0
+httpx>=0.28.1
 aiosqlite>=0.22.1
 # Pinned exactly: unpinned ruff drifted in CI and reddened every PR on
 # 2026-07-31 while local runs stayed green. Bump deliberately, together with a
