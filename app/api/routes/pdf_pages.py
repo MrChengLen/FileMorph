@@ -46,6 +46,7 @@ from app.api.routes.auth import get_optional_user
 from app.compressors.pdf import compress_pdf_to_target
 from app.converters.pdf_pages import (
     PageSelectionError,
+    UnreadablePdfError,
     extract_pages,
     split_pdf,
 )
@@ -146,11 +147,16 @@ async def _do_extract(
         except PageSelectionError as exc:
             # Caller-safe message already (no pypdf internals). 400 — the
             # client's page selection or PDF was the problem, not the server.
+            # The code tells the UI which one, so it doesn't blame the
+            # selection for a file pypdf can't read.
             logger.info("pdf extract rejected: %s", exc)
+            code = (
+                "invalid_pdf" if isinstance(exc, UnreadablePdfError) else "invalid_page_selection"
+            )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(exc),
-                headers={"X-FileMorph-Error-Code": "invalid_page_selection"},
+                headers={"X-FileMorph-Error-Code": code},
             )
         except Exception:
             logger.exception("PDF extract error")
