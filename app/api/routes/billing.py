@@ -1,19 +1,27 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Stripe billing routes: checkout, customer portal, webhook."""
+"""Stripe billing routes: checkout, customer portal, webhook, online cancellation."""
 
+import asyncio
+import hashlib
+import html as html_mod
 import logging
+from datetime import datetime, timezone
 
 import stripe
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.routes.auth import get_current_user
-from app.core.audit import record_event
+from app.core import email as email_mod
+from app.core.audit import AuditWriteError, record_event
+from app.core.billing import cancel_subscription_at_period_end
 from app.core.config import settings
+from app.core.i18n import get_locale
 from app.core.rate_limit import account_or_ip, limiter
 from app.db.base import get_db
 from app.db.models import TierEnum, User
-from app.models.schemas import CheckoutRequest
+from app.models.schemas import CancellationRequest, CheckoutRequest
 
 logger = logging.getLogger(__name__)
 
@@ -114,7 +122,9 @@ async def customer_portal(request: Request, user: User = Depends(get_current_use
             status_code=status.HTTP_400_BAD_REQUEST, detail="No billing account found."
         )
     stripe.api_key = settings.stripe_secret_key
-    session = stripe.billing_portal.Session.create(
+    # The Stripe SDK blocks on HTTP — keep it off the event loop.
+    session = await asyncio.to_thread(
+        stripe.billing_portal.Session.create,
         customer=user.stripe_customer_id,
         return_url=_app_url("/dashboard"),
     )
@@ -383,3 +393,368 @@ async def _send_dunning_email(user: User, *, next_attempt_ts: int | None, db: As
         )
     except Exception:
         logger.warning("dunning email failed for user %s", user.id, exc_info=True)
+
+
+# ── Online cancellation (§ 312k BGB) ─────────────────────────────────────────
+
+# The operator mail is German (the operator reads it) and its subject never
+# carries user input.
+_CANCELLATION_OPERATOR_SUBJECT = "[FileMorph Kündigung] Bitte manuell bearbeiten"
+
+_KIND_DE = {"ordinary": "ordentliche Kündigung", "extraordinary": "außerordentliche Kündigung"}
+
+_MANUAL_REASON_DE = {
+    "no_account": "Kein Konto mit dieser E-Mail-Adresse gefunden.",
+    "ambiguous_account": "Mehrere Konten mit dieser Adresse (nur Groß-/Kleinschreibung verschieden).",
+    "extraordinary": "Außerordentliche Kündigung – Grund prüfen.",
+    "specific_date": "Kündigung zu einem bestimmten Datum gewünscht.",
+    "no_live_subscription": "Kein laufendes Stripe-Abonnement gefunden.",
+    "contract_mismatch": "Das laufende Stripe-Abonnement ist nicht der angegebene Vertrag.",
+    "multiple_subscriptions": "Mehrere laufende Stripe-Abonnements.",
+    "stripe_error": "Stripe-Aufruf fehlgeschlagen – Stand im Stripe-Dashboard prüfen.",
+    "honeypot": (
+        "Spam-Verdacht: das versteckte Feld wurde ausgefüllt. Kann auch ein Passwort-Manager "
+        "gewesen sein – bitte prüfen; ist die Kündigung echt, bearbeiten und die Bestätigung "
+        "von Hand schicken."
+    ),
+}
+
+
+@router.post("/cancellation")
+@limiter.limit("10/hour")
+async def submit_cancellation(
+    body: CancellationRequest,
+    request: Request,
+    db: AsyncSession | None = Depends(get_db),
+):
+    """Cancel a Pro/Business contract online, without logging in (§ 312k BGB).
+
+    Consumers must be able to cancel online without a login (OLG Köln
+    6 U 62/24, OLG Nürnberg 3 U 2214/23, KG Berlin 5 UKl 10/25 and
+    5 U 6/25), so no password can be asked for: the email address alone
+    identifies the account. The confirmation of content, date and time of
+    receipt and the end of the contract that § 312k (4) requires immediately
+    in text form goes to the address stored on the matching account — its
+    owner's mailbox is the only check there is — or, without exactly one
+    matching account, to the address entered. It is sent in every case but
+    a filled honeypot (below). The free-text reason is repeated in it only
+    for a matching account's own mailbox; anywhere else a fixed text stands
+    in, or anyone could send their words to any address from our domain.
+
+    An ordinary cancellation "at the earliest possible date" for an address
+    with exactly one live subscription of the named plan is executed at once
+    (Stripe ``cancel_at_period_end``). Every other case — no account or more
+    than one, extraordinary, a specific date, no, several or a different
+    subscription, a Stripe error, a filled honeypot — is emailed to the
+    operator to handle.
+
+    The answer is the same whether or not the address belongs to an account
+    (``received_at`` + ``email_sent``), so the form can't be used to find out
+    who is a customer. A received cancellation is never answered with an
+    error, and success is never reported for one that wasn't received.
+
+    Spam: 10 requests per hour per IP, and the ``website`` honeypot. Unlike
+    ``/contact``, a filled honeypot is not dropped: a password manager may
+    fill it on a real cancellation. It is received, audited and mailed to
+    the operator as suspected spam like any manual case — but nothing is
+    changed in Stripe and no confirmation goes to the entered address, so
+    bots still can't use the form to mail strangers. The answer says
+    ``email_sent: false``, so the page tells the visitor to keep it as proof.
+
+    Accepted residual risks:
+
+    * Anyone who knows a customer's address can cancel that subscription at
+      the end of the billing period — asking for a password is what the law
+      rules out. The owner gets the confirmation mail and can undo the
+      cancellation in the Stripe customer portal until the period ends.
+    * Without a matching account, the confirmation (minus the reason) goes to
+      whatever address was entered; the rate limit bounds how often.
+    * Answering takes a little longer when Stripe is called, which hints
+      that an address has a paid subscription.
+    """
+    _stripe_enabled()
+    if db is None:
+        # Stripe without DATABASE_URL: there are no accounts to cancel.
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Billing not configured."
+        )
+
+    received = datetime.now(timezone.utc).replace(microsecond=0)
+    received_at = received.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    email = body.email.strip()
+    normalised = email.lower()
+    email_domain = normalised.rsplit("@", 1)[-1]
+    # ``lower() ==`` rather than ``ilike``: ``_`` and ``%`` are legal in an
+    # address and would act as wildcards. Two live rows (addresses differing
+    # only in case) are ambiguous — a person decides.
+    rows = (
+        (
+            await db.execute(
+                select(User)
+                .where(func.lower(User.email) == normalised, User.deleted_at.is_(None))
+                .limit(2)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    user = rows[0] if len(rows) == 1 else None
+    # Ends the read transaction so the pooled connection goes back before the
+    # slow part (Stripe, SMTP) — on a public route, held connections would let
+    # slow upstreams drain the pool. ``expire_on_commit=False`` keeps ``user``.
+    await db.commit()
+    actor_user_id = user.id if user else None
+    # The stored address, not the typed spelling: without a password,
+    # reaching the account owner's own mailbox is the safeguard.
+    recipient = user.email if user else email
+
+    # With AUDIT_FAIL_CLOSED a failed write raises here → 500. Nothing has
+    # been done yet, so the consumer is correctly told it didn't go through.
+    # No ``actor_ip`` on the cancellation events: the audit log is to keep no
+    # IP addresses (other events still record one until that change lands).
+    await record_event(
+        "billing.cancellation.received",
+        actor_user_id=actor_user_id,
+        payload={
+            "email_hash": hashlib.sha256(normalised.encode("utf-8")).hexdigest(),
+            "contract": body.contract,
+            "kind": body.kind,
+            "end": body.end,
+            "end_date": body.end_date.isoformat() if body.end_date else None,
+            "matched": user is not None,
+        },
+    )
+
+    manual_reason: str | None
+    ends_at: datetime | None = None
+    if body.website.strip():
+        manual_reason = "honeypot"  # a bot, or a password manager — a person checks
+    elif user is None:
+        manual_reason = "ambiguous_account" if rows else "no_account"
+    elif body.kind == "extraordinary":
+        manual_reason = "extraordinary"
+    elif body.end == "date":
+        manual_reason = "specific_date"
+    elif not user.stripe_customer_id:
+        manual_reason = "no_live_subscription"
+    else:
+        price_id = (
+            settings.stripe_pro_price_id
+            if body.contract == "pro"
+            else settings.stripe_business_price_id
+        )
+        try:
+            outcome = await cancel_subscription_at_period_end(user.stripe_customer_id, price_id)
+            manual_reason, ends_at = outcome.manual_reason, outcome.ends_at
+        except stripe.StripeError:
+            logger.warning("cancellation: Stripe call failed for user %s", user.id, exc_info=True)
+            manual_reason = "stripe_error"
+        except Exception:
+            # Anything else (an odd response shape, a bug): the cancellation
+            # was received, so it goes to a person rather than into a 500.
+            logger.exception("cancellation: Stripe step failed for user %s", user.id)
+            manual_reason = "stripe_error"
+    ends_on = ends_at.strftime("%Y-%m-%d") if ends_at else None
+
+    try:
+        if manual_reason is None:
+            await record_event(
+                "billing.cancellation.scheduled",
+                actor_user_id=actor_user_id,
+                payload={"ends_at": ends_on},
+            )
+        else:
+            await record_event(
+                "billing.cancellation.manual_review",
+                actor_user_id=actor_user_id,
+                payload={"reason": manual_reason},
+            )
+    except AuditWriteError:
+        # Fail-closed refuses to hand out a result it can't log — but this
+        # cancellation is already set in Stripe or about to be mailed to the
+        # operator, and "received" is in the chain. Failing now would tell
+        # the consumer it didn't arrive — the one answer § 312k rules out —
+        # and invite a second submission. So: log loudly and carry on.
+        logger.error(
+            "cancellation: outcome audit event not written (user=%s, outcome=%s)",
+            actor_user_id,
+            manual_reason or "scheduled",
+        )
+
+    email_sent = False
+    # No confirmation for a filled honeypot: that is what keeps bots from
+    # using this form to mail arbitrary addresses.
+    if manual_reason != "honeypot":
+        email_sent = await _send_cancellation_confirmation(
+            to=recipient,
+            locale=(user.preferred_lang if user else None) or await get_locale(request),
+            body=body,
+            received=received,
+            show_reason=user is not None,
+            scheduled=manual_reason is None,
+            ends_on=ends_on,
+        )
+
+    if manual_reason is not None or not email_sent:
+        await _mail_operator_about_cancellation(
+            _cancellation_operator_text(
+                received=received,
+                email=email,
+                body=body,
+                user=user,
+                ambiguous=len(rows) > 1,
+                manual_reason=manual_reason,
+                ends_on=ends_on,
+                email_sent=email_sent,
+            ),
+            reply_to=recipient,
+        )
+
+    logger.info(
+        "cancellation: received (domain=%s, user=%s, outcome=%s, confirmation_sent=%s)",
+        email_domain,
+        actor_user_id,
+        manual_reason or "scheduled",
+        email_sent,
+    )
+    return {"received_at": received_at, "email_sent": email_sent}
+
+
+async def _send_cancellation_confirmation(
+    *,
+    to: str,
+    locale: str,
+    body: CancellationRequest,
+    received: datetime,
+    show_reason: bool,
+    scheduled: bool,
+    ends_on: str | None,
+) -> bool:
+    """Render and send the § 312k confirmation to ``to``; ``True`` once it
+    was handed to SMTP.
+
+    Never raises: the cancellation stands either way, and the caller mails
+    the operator when this returns ``False``. With ``show_reason`` off, a
+    non-empty reason is replaced by a fixed text rather than repeated.
+    """
+    base_url = settings.app_base_url.rstrip("/")
+    operator = email_mod.operator_recipient()
+    try:
+        subject, html, text = email_mod.render_email(
+            "cancellation_confirmation",
+            locale=locale,
+            received_at=received.strftime("%Y-%m-%d %H:%M UTC"),
+            user_email=to,
+            tier_label=_TIER_LABELS[TierEnum(body.contract)],
+            kind=body.kind,
+            reason=body.reason if show_reason else "",
+            reason_withheld=bool(body.reason) and not show_reason,
+            end_date=body.end_date.isoformat() if body.end_date else None,
+            scheduled=scheduled,
+            ends_on=ends_on,
+            contact=operator or f"{base_url}/contact",
+            contact_href=f"mailto:{operator}" if operator else f"{base_url}/contact",
+            app_base_url=base_url,
+        )
+        await email_mod.send_email(
+            to=to, subject=subject, html=html, text=text, reply_to=operator or None
+        )
+    except email_mod.EmailSendError:
+        return False  # send_email has already logged the failure
+    except Exception:
+        # E.g. a translation with a broken placeholder: must not turn a
+        # processed cancellation into a 500 — the operator mail flags it.
+        logger.exception("cancellation: confirmation email could not be built or sent")
+        return False
+    # send_email returns quietly without SMTP — then nothing went out.
+    return bool(settings.smtp_host)
+
+
+def _cancellation_operator_text(
+    *,
+    received: datetime,
+    email: str,
+    body: CancellationRequest,
+    user: User | None,
+    ambiguous: bool,
+    manual_reason: str | None,
+    ends_on: str | None,
+    email_sent: bool,
+) -> str:
+    """Plain German summary for the operator. The consumer's free-text
+    reason goes last, below ``---``, so it can't pose as one of the
+    fields above it."""
+    if user is not None:
+        account = f"gefunden (ID {user.id}, Tarif {user.tier.value})"
+    elif ambiguous:
+        account = "mehrdeutig – mehrere Konten mit dieser Adresse"
+    else:
+        account = "nicht gefunden"
+    requested_end = (
+        f"zum {body.end_date.isoformat()}" if body.end_date else "zum nächstmöglichen Zeitpunkt"
+    )
+    lines = [
+        f"Eingang: {received:%Y-%m-%d %H:%M:%S} UTC",
+        f"E-Mail: {email}",
+        f"Konto: {account}",
+        f"Vertrag: FileMorph {_TIER_LABELS[TierEnum(body.contract)]}",
+        f"Art: {_KIND_DE[body.kind]}",
+        f"Gewünschtes Ende: {requested_end}",
+    ]
+    if manual_reason is None:
+        lines.append(
+            "Automatisch erledigt: in Stripe zum Ende der Abrechnungsperiode gekündigt, "
+            f"Vertragsende {ends_on or 'unbekannt (Ende der laufenden Abrechnungsperiode)'}"
+        )
+    else:
+        lines.append(f"Warum manuell: {_MANUAL_REASON_DE[manual_reason]}")
+        if manual_reason != "honeypot":  # the Spam-Verdacht line says what to do
+            lines.append(
+                "Zu tun: bearbeiten und dem Kunden das Vertragsende per E-Mail bestätigen."
+            )
+    if manual_reason == "honeypot":
+        confirmation = "NICHT versendet (Spam-Verdacht)"
+    elif email_sent:
+        confirmation = "versendet"
+    else:
+        confirmation = "NICHT versendet – bitte manuell nachholen"
+    lines.append(f"Bestätigung an Kunden: {confirmation}")
+    text = "\n".join(lines) + "\n"
+    if body.reason:
+        text += f"---\nGrund:\n{body.reason}\n"
+    return text
+
+
+async def _mail_operator_about_cancellation(text: str, *, reply_to: str) -> None:
+    """Send the summary to the operator inbox; ``Reply-To`` is the consumer.
+
+    A missing operator address or an SMTP failure is logged, not answered
+    with an error — the cancellation has been received either way. Plain
+    text in an escaped ``<pre>``, like ``/contact``.
+    """
+    recipient = email_mod.operator_recipient()
+    if not recipient:
+        logger.error(
+            "cancellation: needs a person, but no operator address is set "
+            "(CONTACT_FORM_RECIPIENT_EMAIL / SMTP_REPLY_TO / SMTP_FROM_EMAIL)"
+        )
+        return
+    html_body = (
+        '<pre style="white-space:pre-wrap;font-family:inherit;margin:0">'
+        + html_mod.escape(text)
+        + "</pre>"
+    )
+    try:
+        await email_mod.send_email(
+            to=recipient,
+            subject=_CANCELLATION_OPERATOR_SUBJECT,
+            html=html_body,
+            text=text,
+            reply_to=reply_to,
+        )
+    except email_mod.EmailSendError:
+        logger.error(
+            "cancellation: operator mail failed (recipient_domain=%s)",
+            recipient.rsplit("@", 1)[-1],
+        )

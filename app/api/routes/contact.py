@@ -40,7 +40,6 @@ from pydantic import BaseModel, EmailStr, Field
 
 from app.core import email as email_mod
 from app.core.audit import record_event as audit_record
-from app.core.config import settings
 from app.core.i18n import resolve_locale
 from app.core.rate_limit import limiter
 
@@ -59,12 +58,6 @@ class ContactRequest(BaseModel):
     # tell the bot it was caught. Accepted and bounded; the endpoint
     # checks it and silently drops a non-empty value with a fake 200.
     website: str = Field("", max_length=200)
-
-
-def _recipient() -> str:
-    return (
-        settings.contact_form_recipient_email or settings.smtp_reply_to or settings.smtp_from_email
-    )
 
 
 @router.post("/contact", status_code=status.HTTP_200_OK)
@@ -106,7 +99,7 @@ async def submit_contact(request: Request, body: ContactRequest):
         + "</pre>"
     )
 
-    recipient = _recipient()
+    recipient = email_mod.operator_recipient()
     try:
         await email_mod.send_email(
             to=recipient,
