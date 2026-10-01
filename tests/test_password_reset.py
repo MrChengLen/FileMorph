@@ -246,3 +246,66 @@ def test_reset_password_short_password_rejected(client, mock_send_email):
     )
     # Pydantic validator fails before the route body runs → 422.
     assert res.status_code == 422
+
+
+# ── /reset-password — sessions ─────────────────────────────────────────────────
+
+
+def _login(client, email: str, password: str) -> dict:
+    res = client.post("/api/v1/auth/login", json={"email": email, "password": password})
+    assert res.status_code == 200, res.text
+    return res.json()
+
+
+def _reset_via_email_link(client, mock_send_email, email: str, new_password: str) -> None:
+    client.post("/api/v1/auth/forgot-password", json={"email": email})
+    token = _extract_token_from_mock(mock_send_email)
+    res = client.post(
+        "/api/v1/auth/reset-password",
+        json={"token": token, "new_password": new_password},
+    )
+    assert res.status_code == 200, res.text
+
+
+def _bearer(access_token: str) -> dict[str, str]:
+    return {"Authorization": f"Bearer {access_token}"}
+
+
+def test_reset_password_ends_sessions_from_before_the_reset(client, mock_send_email):
+    """A reset signs out every session that existed before it — the access
+    token and the refresh token alike, so the refresh token can't mint a new
+    access token either."""
+    asyncio.run(_insert_user(email="sess@example.com", password="old-password-123"))
+    before = _login(client, "sess@example.com", "old-password-123")
+
+    _reset_via_email_link(client, mock_send_email, "sess@example.com", "new-password-456")
+
+    me = client.get("/api/v1/auth/me", headers=_bearer(before["access_token"]))
+    assert me.status_code == 401
+    refreshed = client.post("/api/v1/auth/refresh", json={"refresh_token": before["refresh_token"]})
+    assert refreshed.status_code == 401
+
+
+def test_sessions_started_after_the_reset_work(client, mock_send_email):
+    asyncio.run(_insert_user(email="after@example.com", password="old-password-123"))
+    _reset_via_email_link(client, mock_send_email, "after@example.com", "new-password-456")
+
+    after = _login(client, "after@example.com", "new-password-456")
+    assert client.get("/api/v1/auth/me", headers=_bearer(after["access_token"])).status_code == 200
+
+    refreshed = client.post("/api/v1/auth/refresh", json={"refresh_token": after["refresh_token"]})
+    assert refreshed.status_code == 200, refreshed.text
+    me = client.get("/api/v1/auth/me", headers=_bearer(refreshed.json()["access_token"]))
+    assert me.status_code == 200
+    assert me.json()["email"] == "after@example.com"
+
+
+def test_every_new_hash_changes_the_phv():
+    """Reset links and sessions both end because a new password hash has a
+    new ``phv``. Hashing the same password twice must therefore give two
+    fingerprints — a hash format whose first 16 characters never vary (every
+    argon2id hash starts ``$argon2id$v=19$m``) would silently keep both
+    alive."""
+    first = password_hash_version(hash_password("same-password-123"))
+    second = password_hash_version(hash_password("same-password-123"))
+    assert first != second

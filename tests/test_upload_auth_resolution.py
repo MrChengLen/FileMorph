@@ -26,16 +26,18 @@ from __future__ import annotations
 
 import asyncio
 import io
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
+from jose import jwt
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 from app.core.auth import hash_password
+from app.core.config import settings
 from app.core.security import validate_api_key
-from app.core.tokens import create_access_token
+from app.core.tokens import ALGORITHM, create_access_token, password_hash_version
 from app.db.base import Base, get_db
 from app.db.models import ApiKey, TierEnum, User
 from app.main import app
@@ -123,7 +125,9 @@ def _mint_dashboard_key(client, user: User) -> str:
     """Mint a key the way the dashboard does (``POST /api/v1/keys``). It
     lands only in the DB ``api_keys`` table — never in the file store that
     self-host/CLI keys live in."""
-    token = create_access_token(str(user.id), role=user.role.value)
+    token = create_access_token(
+        str(user.id), phv=password_hash_version(user.password_hash), role=user.role.value
+    )
     res = client.post(
         "/api/v1/keys", json={"label": "cli"}, headers={"Authorization": f"Bearer {token}"}
     )
@@ -162,7 +166,9 @@ def test_batch_resolves_bearer_jwt_to_user_tier(client, sample_jpg):
     ``tier_for(user)`` sees ``business`` (limit 100) and a 2-file batch
     is not rejected with ``tier limit of 1``."""
     user = asyncio.run(_insert_business_user())
-    token = create_access_token(str(user.id), role=user.role.value)
+    token = create_access_token(
+        str(user.id), phv=password_hash_version(user.password_hash), role=user.role.value
+    )
 
     res = client.post(
         "/api/v1/convert/batch",
@@ -212,6 +218,55 @@ def test_batch_anonymous_still_capped_at_one(client, sample_jpg):
         "/api/v1/convert/batch",
         files=_two_jpegs(sample_jpg),
         data={"target_formats": ["png", "png"]},
+    )
+    assert res.status_code == 400
+    assert "tier limit of 1" in res.json()["detail"]
+
+
+def _token_from_before_a_password_change(client, user: User) -> str:
+    login = client.post(
+        "/api/v1/auth/login", json={"email": user.email, "password": "test-password"}
+    )
+    assert login.status_code == 200, login.text
+    asyncio.run(_update_owner(user, password_hash=hash_password("changed-password")))
+    return login.json()["access_token"]
+
+
+def _token_without_a_password_binding(client, user: User) -> str:
+    """An access token without the ``phv`` claim."""
+    claims = {
+        "sub": str(user.id),
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=10),
+        "type": "access",
+        "role": "user",
+        "iss": settings.jwt_issuer,
+        "aud": settings.jwt_audience,
+    }
+    return jwt.encode(claims, settings.jwt_secret, algorithm=ALGORITHM)
+
+
+@pytest.mark.parametrize(
+    "stale_token",
+    [_token_from_before_a_password_change, _token_without_a_password_binding],
+    ids=["password-changed", "no-phv-claim"],
+)
+def test_batch_ignores_a_bearer_that_no_longer_stands_for_the_account(
+    client, sample_jpg, stale_token
+):
+    """``get_optional_user`` resolves a Bearer token through the same check as
+    the account routes. A token issued before the password changed — or one
+    without the ``phv`` claim at all — no longer stands for the account: the
+    request falls back to the anonymous tier (no 401, no 500), where a
+    two-file batch hits the limit of 1."""
+    # Login validates the address, which rejects the reserved ``.test`` TLD.
+    user = asyncio.run(_insert_business_user(email="biz@example.com"))
+    token = stale_token(client, user)
+
+    res = client.post(
+        "/api/v1/convert/batch",
+        files=_two_jpegs(sample_jpg),
+        data={"target_formats": ["png", "png"]},
+        headers={"Authorization": f"Bearer {token}"},
     )
     assert res.status_code == 400
     assert "tier limit of 1" in res.json()["detail"]

@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """JWT token primitives — issuance, decoding, and the password-hash-version
-fingerprint that binds reset tokens to a specific stored password.
+fingerprint that binds session and reset tokens to a specific stored password.
 
 Four token types share the JWT secret and are discriminated only by the
 ``type`` claim:
 
-- ``access``  — short-lived bearer credential (15 min)
-- ``refresh`` — rotating session token (30 d)
+- ``access``  — short-lived bearer credential (15 min, bound to ``phv``)
+- ``refresh`` — session token (30 d from login, bound to ``phv``)
 - ``reset``   — single-use password-reset link (30 min, bound to ``phv``)
 - ``verify``  — email-verification link (7 d, bound to ``eat``)
 
@@ -75,34 +75,40 @@ def _decode(token: str) -> dict[str, Any]:
 
 
 # ── Access / refresh tokens ───────────────────────────────────────────────────
+#
+# Both carry the ``phv`` of the password hash they were issued under (see
+# ``password_hash_version`` below). ``_session_user`` in ``app/api/routes/auth.py``
+# compares it with the current hash, so a password change ends every session
+# issued before it. A token without ``phv`` is rejected outright.
 
 
-def create_access_token(subject: str, role: str = "user") -> str:
+def create_access_token(subject: str, *, phv: str, role: str = "user") -> str:
     expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     return jwt.encode(
-        _encode_claims({"sub": subject, "exp": expire, "type": "access", "role": role}),
+        _encode_claims({"sub": subject, "exp": expire, "type": "access", "role": role, "phv": phv}),
         settings.jwt_secret,
         algorithm=ALGORITHM,
     )
 
 
-def create_refresh_token(subject: str) -> str:
+def create_refresh_token(subject: str, *, phv: str) -> str:
     expire = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
     return jwt.encode(
-        _encode_claims({"sub": subject, "exp": expire, "type": "refresh"}),
+        _encode_claims({"sub": subject, "exp": expire, "type": "refresh", "phv": phv}),
         settings.jwt_secret,
         algorithm=ALGORITHM,
     )
 
 
 def decode_token(token: str, expected_type: str = "access") -> str:
-    """Return the subject claim. Use `decode_token_full` if the role claim is needed."""
-    sub, _role = decode_token_full(token, expected_type=expected_type)
+    """Return the subject claim. Resolving a token to a user needs the ``phv``
+    check too — see ``_session_user`` in ``app/api/routes/auth.py``."""
+    sub, _phv = decode_session_token(token, expected_type=expected_type)
     return sub
 
 
-def decode_token_full(token: str, expected_type: str = "access") -> tuple[str, str]:
-    """Return ``(subject, role)``. The role defaults to ``"user"`` for legacy tokens."""
+def decode_session_token(token: str, expected_type: str = "access") -> tuple[str, str]:
+    """Return ``(subject, phv)`` of an access or refresh token."""
     try:
         payload = _decode(token)
         if payload.get("type") != expected_type:
@@ -110,10 +116,10 @@ def decode_token_full(token: str, expected_type: str = "access") -> tuple[str, s
                 status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type."
             )
         sub: str | None = payload.get("sub")
-        if not sub:
+        phv: str | None = payload.get("phv")
+        if not sub or not phv:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token.")
-        role: str = payload.get("role", "user")
-        return sub, role
+        return sub, phv
     except JWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token."
@@ -125,22 +131,28 @@ def decode_token_full(token: str, expected_type: str = "access") -> tuple[str, s
 # A reset token is a short-lived JWT bound to a *version* of the user's
 # current password hash. Changing the password — either via a successful
 # reset or an admin intervention — rotates the version and silently
-# invalidates every outstanding reset token. No DB table, no cleanup job,
-# and single-use is implicit.
+# invalidates every outstanding reset token (and every session, whose
+# tokens carry the same version). No DB table, no cleanup job, and
+# single-use is implicit.
 
 
 def password_hash_version(password_hash: str) -> str:
     """Return a short stable fingerprint of a password hash.
 
-    We take the SHA-256 of the first 16 characters of the hash so a single
-    reset token cannot be replayed after a successful password change. The
-    bcrypt string starts with ``$2b$12$`` plus a 22-char salt; these 16
-    chars are enough entropy to diverge on any new hash.
+    We take the SHA-256 of the first 16 characters of the hash so neither a
+    reset token nor a session token outlives a password change. The bcrypt
+    string starts with ``$2b$12$`` plus a 22-char salt; these 16 chars are
+    enough entropy to diverge on any new hash.
 
-    If we ever migrate to argon2 the prefix shape changes — bump the reset
-    JWT ``type`` claim (e.g. ``reset`` → ``reset_v2``) at the same time so
-    in-flight tokens from the old scheme are rejected, then update this
-    function.
+    If we ever migrate to argon2 the prefix shape changes — and every
+    argon2id hash starts with the same 16 characters, so this function must
+    change with it or the fingerprint never changes again
+    (``test_every_new_hash_changes_the_phv`` pins that two hashes of one
+    password get different fingerprints). Bump the reset JWT ``type`` claim
+    (e.g. ``reset`` → ``reset_v2``) at the same time so in-flight tokens
+    from the old scheme are rejected. If login ever rehashes a password
+    (e.g. a higher bcrypt cost), that changes the fingerprint too and signs
+    the user's other sessions out.
     """
     return hashlib.sha256(password_hash[:16].encode()).hexdigest()
 

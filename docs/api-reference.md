@@ -74,11 +74,11 @@ The endpoints in this section only respond when the Cloud overlay is configured 
 |---|---|---|
 | `POST /api/v1/auth/register` | none | Create account; returns access + refresh tokens. Sends a verification email (fire-and-forget) in the request locale, and stores that locale as `preferred_lang`. |
 | `POST /api/v1/auth/login` | none | Exchange email + password for access (15 min) + refresh (30 d) tokens. |
-| `POST /api/v1/auth/refresh` | none (refresh-token in body) | Issue a new access token. |
+| `POST /api/v1/auth/refresh` | none (refresh-token in body) | Issue a new access token. The refresh token in the response is the one you sent, so a sign-in ends 30 d after login. |
 | `GET /api/v1/auth/me` | Bearer | Return the currently authenticated user (`id`, `email`, `tier`, `role`, `created_at`, `subscription_status`, `preferred_lang`). |
 | `PUT /api/v1/auth/account/language` | Bearer | Set the language for this user's transactional email. Body: `{"preferred_lang": "de"\|"en"}` — an unsupported value is a `422`. Returns the updated user object. This is **email** locale only; the web-UI locale stays URL-prefix driven (no cookie). |
 | `POST /api/v1/auth/forgot-password` | none | Issue a single-use password-reset link via email (30 min TTL). |
-| `POST /api/v1/auth/reset-password` | reset-token in body | Set a new password and invalidate older sessions via password-hash rotation. |
+| `POST /api/v1/auth/reset-password` | reset-token in body | Set a new password. Every access and refresh token issued before the reset stops working, so all existing sign-ins end. |
 | `POST /api/v1/auth/verify-email` | verify-token | Mark the user's email as verified. |
 | `POST /api/v1/auth/resend-verification` | Bearer | Re-send the verification mail (auth-required to avoid spam). |
 | `DELETE /api/v1/auth/account` | Bearer | Self-service account deletion (GDPR Art. 17). Requires re-confirmation: current password, registered email, and the literal string `DELETE`. Success is `204`. Free / never-paid accounts are hard-deleted; an account linked to Stripe is retained in a restricted state — only `email`, the Stripe customer id, the last `tier`, and `created_at` are kept for the 10-year HGB §257 / AO §147 invoice record (permitted by GDPR Art. 17(3)(b)), every other personal field is erased, and the row is hard-deleted at the end of the retention period. Any active Stripe subscription is cancelled first; a Stripe API error returns `500` and leaves the account unchanged. See [`docs/gdpr-account-deletion-design.md`](./gdpr-account-deletion-design.md). |

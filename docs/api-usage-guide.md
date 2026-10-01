@@ -76,7 +76,7 @@ callers are also accepted — you get the `anonymous` tier.
      │  ◄──── no 401: runs on the anonymous tier          │
      │                                                    │
      │  POST /auth/refresh  { refresh_token }             │
-     │  ◄──── { access_token, refresh_token }  (rotated)  │
+     │  ◄──── { access_token, the same refresh_token }    │
      │                                                    │
      │  POST /api/v1/convert  (new bearer)                │
      │  ◄──── 200 OK                                      │
@@ -128,8 +128,10 @@ async function login(email, password) {
 ### Refresh the access token
 
 Before the access token expires, exchange your refresh token for a fresh
-access token. Refresh tokens rotate — store the new one and discard
-the old.
+access token. The response hands back the refresh token you sent —
+refreshing never extends a sign-in. It ends 30 days after login, or
+earlier when the account's password is reset; after that,
+`/auth/refresh` answers `401` and you log in again.
 
 Don't wait for a `401`. Endpoints that need an account — for example
 `/auth/me`, `/keys` and `/billing/checkout` — answer an expired token with
