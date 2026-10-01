@@ -11,7 +11,9 @@ of the markdown and compare them with the code, so the next quota change fails
 CI until the docs follow.
 
 The same goes for the status codes and error messages the docs quote: those
-tests call the route and look for its answer in the markdown.
+tests call the route and look for its answer in the markdown. And for what the
+docs say about the ``pillow-heif`` wheel: those tests read the installed wheel
+and ``requirements.lock``.
 
 A "not found" failure means a sentence was reworded: check the new wording
 against the code, then update the pattern here.
@@ -20,6 +22,7 @@ against the code, then update the pattern here.
 from __future__ import annotations
 
 import dataclasses
+import importlib.metadata
 import io
 import json
 import re
@@ -450,3 +453,84 @@ def test_docs_do_not_claim_the_file_routes_need_a_key(client, sample_jpg):
         for match in _KEY_REQUIRED.finditer(" ".join(doc.read_text(encoding="utf-8").split()))
     ]
     assert not claims, f"docs say the file routes need an API key: {claims}"
+
+
+# ── pillow-heif: licence and libheif ─────────────────────────────────────────
+
+
+def test_licence_docs_describe_the_installed_pillow_heif_wheel():
+    """pillow-heif's metadata declares BSD-3-Clause, and that is all pip-licenses
+    and the release SBOM report; the GPLv2 x265 its binary wheel bundles is
+    stated only in the wheel's LICENSES_bundled.txt. The docs said the metadata
+    declared GPLv2 and that a scan would flag it — true up to pillow-heif 1.5.0,
+    whose GPLv2 classifier 1.6.0 removed. Both facts are read back from the
+    installed wheel, so an upstream change fails here instead of in a licence
+    review."""
+    try:
+        dist = importlib.metadata.distribution("pillow-heif")
+    except importlib.metadata.PackageNotFoundError:
+        pytest.skip("pillow-heif not installed")
+    declared = dist.metadata.get("License-Expression") or dist.metadata.get("License")
+    classifiers = [
+        c for c in dist.metadata.get_all("Classifier") or [] if c.startswith("License ::")
+    ]
+    assert (declared, classifiers) == ("BSD-3-Clause", []), (declared, classifiers)
+    bundled = next((f for f in dist.files or [] if f.name == "LICENSES_bundled.txt"), None)
+    assert bundled is not None, "the pillow-heif wheel no longer ships LICENSES_bundled.txt"
+    notice = bundled.read_text(encoding="utf-8")
+    assert "binary wheels: GPLv2" in notice
+    assert re.search(r"^Name: x265\nLicense: GPLv2$", notice, re.MULTILINE), notice
+
+    heading = "### `pillow-heif` — BSD-3-Clause metadata, GPLv2 binary wheel"
+    section = " ".join(_section("third-party-licenses.md", heading).split())
+    assert f"both report pillow-heif as **{declared}** and nothing else" in section
+    assert "`x265` (GPL-2.0-or-later, HEVC *encode*)" in section
+    assert "`LICENSES_bundled.txt`" in section
+    rows = _first_table(_section("tech-stack-rationale.md", "## License Map"))
+    licence = next((row["License"] for row in rows if row["Library"] == "pillow-heif"), None)
+    assert licence is not None, "tech-stack-rationale.md: the pillow-heif row was not found"
+    assert licence.startswith(f"{declared} (metadata)") and "`x265`" in licence, licence
+
+
+_LIBHEIF_MINIMUM = re.compile(r"libheif (\d+\.\d+\.\d+) or newer")
+
+
+def _prose(path: Path) -> str:
+    """``path`` as one line of words, without Markdown blockquote markers or
+    Dockerfile comment markers, so a sentence wrapped over several lines reads
+    as it renders."""
+    marker = r"^\s*#\s?" if path.name == "Dockerfile" else r"^\s*>\s?"
+    lines = [re.sub(marker, "", line) for line in path.read_text(encoding="utf-8").splitlines()]
+    return " ".join(" ".join(lines).split())
+
+
+def test_docs_quote_the_libheif_minimum_of_the_locked_pillow_heif():
+    """Built from source, pillow-heif needs a recent libheif — 1.23.1 from 1.5.0
+    on, 1.23.4 from 1.8.0 on; its C source stops with an ``#error`` below it. The
+    docs sent Linux users to their distribution's ``libheif-dev``, older than
+    that on Debian 13 (1.19.8) until a security update. formats.md names the
+    minimum with the pillow-heif version it belongs to. When requirements.lock
+    moves pillow-heif, this fails until upstream's changelog has been checked
+    for a new minimum and every doc quotes the same one."""
+    lock = (DOCS.parent / "requirements.lock").read_text(encoding="utf-8")
+    locked = re.search(r"^pillow-heif==(\S+)", lock, re.MULTILINE)
+    assert locked, "requirements.lock: the pillow-heif pin was not found"
+    anchor = re.search(
+        r"`pillow-heif` (\d+\.\d+\.\d+), the version FileMorph pins, "
+        rf"requires {_LIBHEIF_MINIMUM.pattern}",
+        _prose(DOCS / "formats.md"),
+    )
+    assert anchor, "formats.md: the HEIC note no longer names the pinned pillow-heif"
+    assert anchor.group(1) == locked.group(1), (
+        f"formats.md gives the libheif minimum of pillow-heif {anchor.group(1)}, "
+        f"requirements.lock pins {locked.group(1)}: check upstream's changelog for "
+        "a new minimum, then update formats.md, installation.md, "
+        "third-party-licenses.md and the Dockerfile comment, including what they "
+        "say about Debian's libheif"
+    )
+
+    quoted: dict[str, list[str]] = {}
+    for path in (*sorted(DOCS.glob("*.md")), DOCS.parent / "README.md", DOCS.parent / "Dockerfile"):
+        for minimum in _LIBHEIF_MINIMUM.findall(_prose(path)):
+            quoted.setdefault(minimum, []).append(path.name)
+    assert set(quoted) == {anchor.group(2)}, f"the docs quote different minimums: {quoted}"

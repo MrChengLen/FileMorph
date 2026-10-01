@@ -353,7 +353,7 @@ signature-ready
 |---|---|
 | Docker (Option A or B) | Docker Desktop (Windows/macOS) or `docker` + `docker compose` (Linux) |
 | Local dev (`dev.ps1`) | Python 3.11+, Git; GTK/Pango for WeasyPrint (DOCX/Markdown/HTML/EML → PDF), Ghostscript (PDF/A-2b) — see [installation](docs/installation.md) |
-| Linux source | Python 3.11+, ffmpeg, libheif, Cairo/Pango, Ghostscript (PDF/A-2b) |
+| Linux source | Python 3.11+, ffmpeg, Cairo/Pango, Ghostscript (PDF/A-2b); libheif comes with the `pillow-heif` wheel |
 
 > **ffmpeg note:** Required for audio and video conversion. Not needed for images, documents, or spreadsheets. The Docker images include ffmpeg automatically.
 

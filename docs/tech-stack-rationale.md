@@ -249,7 +249,7 @@ libheif) caveats, and the machine-readable SBOM — is in
 | python-multipart | Apache-2.0 | Permissive. |
 | Jinja2, MarkupSafe | BSD-3-Clause | Permissive. |
 | Pillow | MIT-CMU (HPND-style) | Permissive. |
-| pillow-heif | wheel metadata: GPLv2 (bundled native HEVC stack) | The distributed wheels bundle `libheif`/`libde265` (LGPL-3.0) **+ `x265` (GPL-2.0+)**, and the metadata reflects the most-restrictive component. FileMorph uses it for HEIC *decode* only (the `libde265` path); `x265` is present but never invoked. An automated scan **will** flag this — explanation and the GPL-free build option in [`third-party-licenses.md`](./third-party-licenses.md). |
+| pillow-heif | BSD-3-Clause (metadata); binary wheel GPLv2 through the bundled `x265` | The metadata declares only BSD-3-Clause, the licence of pillow-heif's own source (pillow-heif 1.6.0 dropped the `GPLv2` classifier). The pre-built wheels bundle `libheif`/`libde265` (LGPL-3.0) **+ `x265` (GPL-2.0-or-later)**, which only the wheel's `LICENSES_bundled.txt` states. FileMorph uses it for HEIC *decode* only (the `libde265` path); `x265` is loaded with the bundled `libheif` but never called. A metadata-based scan will **not** flag this: `pip-licenses` and the release SBOM report BSD-3-Clause. Explanation and the GPL-free build option in [`third-party-licenses.md`](./third-party-licenses.md). |
 | pillow-avif-plugin | MIT | Permissive (the wheel bundles libavif). |
 | mammoth | BSD-2-Clause | Permissive (.docx → HTML for the *fallback* converter — the high-fidelity DOCX → PDF path delegates to LibreOffice in the `filemorph:office` image instead; see [`docs/formats.md`](./formats.md#notes-on-docx--pdf)). |
 | python-docx | MIT | Permissive. |
@@ -272,17 +272,19 @@ libheif) caveats, and the machine-readable SBOM — is in
 | Babel | BSD-3-Clause | Permissive (i18n message catalogs). |
 | prometheus-client | Apache-2.0 AND BSD-2-Clause | Permissive (`/api/v1/metrics`). |
 
-Everything in the current runtime tree is permissive (MIT, BSD,
-Apache-2.0, ISC, Unlicense, PSF, MIT-CMU) or weak/file-level
-copyleft (MPL-2.0: `pikepdf`, `certifi`). There is no GPL/AGPL
-strong-copyleft Python dependency that would constrain downstream
-users. The copyleft that exists is at the edges and documented in
+Everything in the current runtime tree declares a permissive licence
+(MIT, BSD, Apache-2.0, ISC, Unlicense, PSF, MIT-CMU) or a weak/file-level
+copyleft one (MPL-2.0: `pikepdf`, `certifi`), apart from the tri-licensed
+`pyphen` (GPLv2+ / LGPLv2+ / MPL-1.1, pick one). No Python package's own
+source is GPL/AGPL strong copyleft that would constrain downstream
+users. The copyleft that exists is native code at the edges, documented in
 [`third-party-licenses.md`](./third-party-licenses.md): `pillow-heif`'s
-wheel bundles a GPL-2.0+ HEVC encoder it never invokes (HEIC decode
-only), and the Docker image's FFmpeg is Debian's GPL build (a separate
-program, not linked in). Neither constrains FileMorph's dual-license
-offering. If a future PR brings in a GPL/AGPL Python
-dependency, this table and that doc are the place to flag it.
+binary wheel bundles a GPL-2.0-or-later HEVC encoder that FileMorph never
+calls (HEIC decode only) and that metadata scanners do not report, and the
+Docker image's FFmpeg is Debian's GPL build (a separate program, not linked
+in). Neither constrains FileMorph's dual-license offering. If a future PR
+brings in a GPL/AGPL Python dependency, this table and that doc are the
+place to flag it.
 
 ---
 
