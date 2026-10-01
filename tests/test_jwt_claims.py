@@ -60,6 +60,7 @@ def _hand_mint(claims: dict) -> str:
         "exp": datetime.now(timezone.utc) + timedelta(minutes=10),
         "type": "access",
         "role": "user",
+        "phv": "phv-1",
     }
     return jwt.encode({**base, **claims}, settings.jwt_secret, algorithm=ALGORITHM)
 
@@ -68,13 +69,13 @@ def _hand_mint(claims: dict) -> str:
 
 
 def test_access_token_carries_iss_and_aud():
-    claims = _decode_unverified(create_access_token("user-1"))
+    claims = _decode_unverified(create_access_token("user-1", phv="phv-1"))
     assert claims["iss"] == settings.jwt_issuer
     assert claims["aud"] == settings.jwt_audience
 
 
 def test_refresh_token_carries_iss_and_aud():
-    claims = _decode_unverified(create_refresh_token("user-1"))
+    claims = _decode_unverified(create_refresh_token("user-1", phv="phv-1"))
     assert claims["iss"] == settings.jwt_issuer
     assert claims["aud"] == settings.jwt_audience
 
@@ -95,11 +96,14 @@ def test_verify_token_carries_iss_and_aud():
 
 
 def test_access_token_round_trips():
-    assert decode_token(create_access_token("user-42")) == "user-42"
+    assert decode_token(create_access_token("user-42", phv="phv-1")) == "user-42"
 
 
 def test_refresh_token_round_trips():
-    assert decode_token(create_refresh_token("user-42"), expected_type="refresh") == "user-42"
+    assert (
+        decode_token(create_refresh_token("user-42", phv="phv-1"), expected_type="refresh")
+        == "user-42"
+    )
 
 
 def test_reset_token_round_trips():
@@ -172,6 +176,7 @@ def test_access_decoder_rejects_token_without_iss_or_aud():
             "exp": datetime.now(timezone.utc) + timedelta(minutes=10),
             "type": "access",
             "role": "user",
+            "phv": "phv-1",
         },
         settings.jwt_secret,
         algorithm=ALGORITHM,

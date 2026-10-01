@@ -22,7 +22,7 @@ from app.core.tokens import (
     create_refresh_token,
     decode_email_verify_token,
     decode_password_reset_token,
-    decode_token,
+    decode_session_token,
     password_hash_version,
 )
 from app.core.config import settings
@@ -160,12 +160,19 @@ async def get_current_user(
         )
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated.")
-    token = authorization.removeprefix("Bearer ")
-    user_id = decode_token(token, expected_type="access")
+    return await _session_user(db, authorization.removeprefix("Bearer "), expected_type="access")
+
+
+async def _session_user(db: AsyncSession, token: str, expected_type: str) -> User:
+    """Resolve an access or refresh token to its live user, or raise 401.
+
+    The token's ``phv`` must match the user's current password hash, so a
+    password reset ends every session issued before it."""
+    user_id, token_phv = decode_session_token(token, expected_type=expected_type)
     # asyncpg happily binds a str to a UUID column, but SQLAlchemy's generic
     # UUID type (used by the SQLite test engine) calls ``.hex`` on the value
-    # and blows up on bare strings. Cast explicitly so the dependency works
-    # on any backend and rejects malformed subjects cleanly.
+    # and blows up on bare strings. Cast explicitly so this works on any
+    # backend and rejects malformed subjects cleanly.
     try:
         user_uuid = uuid.UUID(user_id)
     except (ValueError, TypeError):
@@ -181,6 +188,10 @@ async def get_current_user(
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found.")
+    if password_hash_version(user.password_hash) != token_phv:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token."
+        )
     return user
 
 
@@ -236,6 +247,19 @@ def _db_required(db: AsyncSession | None) -> AsyncSession:
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database not configured."
         )
     return db
+
+
+def _token_pair(user: User, refresh_token: str | None = None) -> TokenResponse:
+    """Access + refresh token for ``user``, both bound to the current password.
+
+    ``/auth/refresh`` passes the presented refresh token back instead of
+    minting a new one, so refreshing never extends a sign-in: it ends when
+    that token expires, 30 days after login."""
+    phv = password_hash_version(user.password_hash)
+    return TokenResponse(
+        access_token=create_access_token(str(user.id), phv=phv, role=user.role.value),
+        refresh_token=refresh_token or create_refresh_token(str(user.id), phv=phv),
+    )
 
 
 def _email_hash(email: str) -> str:
@@ -345,10 +369,7 @@ async def register(
         actor_ip=_client_ip(request),
         payload={"trigger": "register"},
     )
-    return TokenResponse(
-        access_token=create_access_token(str(user.id), role=user.role.value),
-        refresh_token=create_refresh_token(str(user.id)),
-    )
+    return _token_pair(user)
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -387,10 +408,7 @@ async def login(request: Request, body: LoginRequest, db: AsyncSession | None = 
         actor_user_id=user.id,
         actor_ip=_client_ip(request),
     )
-    return TokenResponse(
-        access_token=create_access_token(str(user.id), role=user.role.value),
-        refresh_token=create_refresh_token(str(user.id)),
-    )
+    return _token_pair(user)
 
 
 # Deliberately unlimited. A request costs one signature check (plus one
@@ -401,17 +419,9 @@ async def login(request: Request, body: LoginRequest, db: AsyncSession | None = 
 @router.post("/refresh", response_model=TokenResponse)
 @limiter.exempt
 async def refresh(body: RefreshRequest, db: AsyncSession | None = Depends(get_db)):
-    user_id = decode_token(body.refresh_token, expected_type="refresh")
-    role = RoleEnum.user.value
-    if db is not None:
-        result = await db.execute(select(User).where(User.id == user_id, User.is_active.is_(True)))
-        user = result.scalar_one_or_none()
-        if user:
-            role = user.role.value
-    return TokenResponse(
-        access_token=create_access_token(user_id, role=role),
-        refresh_token=create_refresh_token(user_id),
-    )
+    db = _db_required(db)
+    user = await _session_user(db, body.refresh_token, expected_type="refresh")
+    return _token_pair(user, refresh_token=body.refresh_token)
 
 
 def _user_response(user: User) -> UserResponse:
