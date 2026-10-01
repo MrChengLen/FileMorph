@@ -9,6 +9,47 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — a PDF that pypdf can't read gets a 400, not a 500
+
+pypdf raises `LimitReachedError` when a crafted file trips one of its safety
+limits (declared stream length, decompressed size, font widths, page-tree
+depth). It derives from `PyPdfError`, not from the `PdfReadError` the PDF paths
+caught, and pypdf reads most of a file only when a page is copied or its text
+is extracted, after the one guarded open. Such a file got the generic 500 and a
+logged traceback instead of the 400 a broken upload gets. So did a PDF that
+failed after the open with another pypdf error (in a fuzz run mostly a damaged
+page object) on page extraction and splitting, and any unreadable or
+password-protected PDF converted to TXT, which caught nothing. No detail
+reached the client; the status and the log were wrong.
+
+Every pypdf step that reads the upload now answers "Could not read the PDF.
+Verify the file is valid." for `PyPdfError` and pypdf's plain `ValueError`s,
+and logs one line naming the error's class (not its message, which can quote
+the file):
+
+- `/pdf/extract`, `/pdf/split`: `400` with `X-FileMorph-Error-Code:
+  invalid_pdf`. `/pdf/extract` used to send `invalid_page_selection` for an
+  unreadable file, so its web page asked the user to fix a page selection that
+  was fine; an unreadable file no longer gets that code.
+- `/convert` (PDF → TXT, and the PDF → PDF pass-through): `400` with
+  `invalid_input`; `/convert/batch` reports the same message for that file
+  instead of "Conversion failed. Verify the file is valid."
+
+An error reading the server's own copy of the upload is now a 500 on
+`/pdf/extract` and `/pdf/split` too, not a 400: pypdf reads the whole file into
+memory first, so an `OSError` there is never the PDF's fault. And PDF → TXT
+failed with a 500 on text containing an unpaired surrogate, which a broken font
+map produces and UTF-8 can't encode; that character is now written as `?`.
+
+Tests build tiny PDFs that fail at each stage (a page tree deeper than 100
+levels, an 80 MB `/Length`, a page object without `/Type`, a font `/W` range of
+100 000 glyphs, a content stream that isn't ASCII85) and check that each route
+answers 400 without logging a traceback.
+
+`scripts/make_testdata_pdf_unreadable.py` writes byte-stable fixtures for
+checking this by hand (seven small PDFs, among them a password-protected one)
+to a gitignored local folder; only the script ships.
+
 ### Added — online cancellation without login: "Cancel contracts here" (§ 312k BGB)
 
 German consumer law (§ 312k BGB) requires a subscription sold online to be
