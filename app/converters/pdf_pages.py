@@ -28,15 +28,21 @@ clear 400 instead of a surprising empty/partial PDF.
 pypdf parsing of the *input* PDF still happens inside ``convert()`` /
 ``split_pdf()``; the route invokes both through ``asyncio.to_thread`` so
 the (synchronous, C-accelerated) parse never blocks the event loop —
-identical to every other converter.
+identical to every other converter. A PDF pypdf cannot read raises
+:class:`UnreadablePdfError`, a ``PageSelectionError`` with a fixed message.
 """
 
 from __future__ import annotations
 
+import logging
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
-from app.converters.base import BaseConverter
+from app.converters.base import BaseConverter, InvalidInputError
 from app.converters.registry import register
+
+logger = logging.getLogger(__name__)
 
 # Defensive ceiling on how many distinct pages a single selection may
 # resolve to. A crafted "1-1000000" against a 2-page PDF is already
@@ -46,8 +52,19 @@ from app.converters.registry import register
 _MAX_SELECTION_PAGES = 10_000
 
 
-class PageSelectionError(ValueError):
-    """Malformed or out-of-range page selection (caller-safe message)."""
+class PageSelectionError(InvalidInputError):
+    """Malformed or out-of-range page selection (caller-safe message).
+
+    An ``InvalidInputError``, so ``/convert`` and ``/convert/batch``
+    (``pdf`` → ``pdf``) answer it as a 400, like the page routes do.
+    """
+
+
+class UnreadablePdfError(PageSelectionError):
+    """pypdf could not read the input PDF; raised with ``_UNREADABLE_PDF``."""
+
+
+_UNREADABLE_PDF = "Could not read the PDF. Verify the file is valid."
 
 
 def parse_page_ranges(spec: str, page_count: int) -> list[int]:
@@ -122,25 +139,43 @@ def _parse_int(value: str, token: str) -> int:
     return n
 
 
-def _open_reader(input_path: Path):
-    """Open a PDF with pypdf, normalising any parse failure to a safe error.
+@contextmanager
+def _reading_pdf() -> Iterator[None]:
+    """Normalise a pypdf failure on the input PDF to a safe error.
 
-    pypdf raises a small zoo of exception types (``PdfReadError``,
-    ``EmptyFileError``, plain ``ValueError`` from the tokenizer) on a
-    corrupt or non-PDF input. The magic-byte guard in the route already
+    pypdf raises a small zoo of exception types on a corrupt or non-PDF
+    input: those derived from ``PyPdfError`` (``PdfReadError``,
+    ``EmptyFileError``, ``LimitReachedError`` when a crafted file trips one
+    of its resource limits) and plain ``ValueError`` (the tokenizer, a
+    damaged page object). ``PdfReadError`` alone misses
+    ``LimitReachedError``. pypdf parses lazily, so they surface while pages
+    are copied or written as well as on open: every step that reads the
+    input runs under this guard. The magic-byte guard in the route already
     blocks executables; this catch turns a genuinely malformed PDF into a
     single caller-safe error instead of leaking pypdf internals.
+
+    ``OSError`` stays a server error: pypdf reads the whole file into
+    memory first, so one can only come from our own disk. Only the
+    exception's class is logged — pypdf's messages can quote the file.
     """
-    from pypdf import PdfReader
-    from pypdf.errors import PdfReadError
+    from pypdf.errors import PyPdfError
 
     try:
+        yield
+    except (PyPdfError, ValueError) as exc:
+        logger.info("unreadable PDF: %s", type(exc).__name__)
+        raise UnreadablePdfError(_UNREADABLE_PDF) from exc
+
+
+def _open_reader(input_path: Path):
+    """Open a PDF with pypdf under :func:`_reading_pdf`."""
+    from pypdf import PdfReader
+
+    with _reading_pdf():
         reader = PdfReader(str(input_path))
         # Touch the page tree so a lazily-parsed corrupt xref surfaces here,
         # inside our guarded block, rather than later at iteration time.
         _ = len(reader.pages)
-    except (PdfReadError, ValueError, OSError) as exc:
-        raise PageSelectionError("Could not read the PDF. Verify the file is valid.") from exc
     return reader
 
 
@@ -152,10 +187,11 @@ def extract_pages(input_path: Path, output_path: Path, pages_spec: str) -> Path:
     indices = parse_page_ranges(pages_spec, len(reader.pages))
 
     writer = PdfWriter()
-    for idx in indices:
-        writer.add_page(reader.pages[idx])
-    with output_path.open("wb") as f:
-        writer.write(f)
+    with _reading_pdf():
+        for idx in indices:
+            writer.add_page(reader.pages[idx])
+        with output_path.open("wb") as f:
+            writer.write(f)
     return output_path
 
 
@@ -185,12 +221,13 @@ def split_pdf(input_path: Path) -> list[tuple[str, bytes]]:
 
     width = len(str(total))
     outputs: list[tuple[str, bytes]] = []
-    for i, page in enumerate(reader.pages, start=1):
-        writer = PdfWriter()
-        writer.add_page(page)
-        buf = io.BytesIO()
-        writer.write(buf)
-        outputs.append((f"page_{i:0{width}d}.pdf", buf.getvalue()))
+    with _reading_pdf():
+        for i, page in enumerate(reader.pages, start=1):
+            writer = PdfWriter()
+            writer.add_page(page)
+            buf = io.BytesIO()
+            writer.write(buf)
+            outputs.append((f"page_{i:0{width}d}.pdf", buf.getvalue()))
     return outputs
 
 
