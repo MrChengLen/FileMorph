@@ -6,7 +6,7 @@
    fm_cookie_notice_dismissed — a cookie here would contradict the claim the
    notice makes). Lives in partials/ (not _components/) so babel picks up
    the _() strings. #}
-<div id="cookie-notice" class="hidden fixed bottom-0 inset-x-0 z-50 border-t border-gray-800 bg-gray-900 px-6 py-4" role="region" aria-label="{{ _('Cookie notice') }}">
+<div id="cookie-notice" class="hidden fixed bottom-0 inset-x-0 z-50 border-t border-gray-800 bg-gray-900 px-6 py-4 print:hidden" role="region" aria-label="{{ _('Cookie notice') }}">
   <div class="max-w-4xl mx-auto flex flex-col sm:flex-row sm:items-center gap-3">
     <p class="text-sm text-gray-300 flex-1">
       {{ _('FileMorph sets no cookies and runs no tracking. In your browser we store only what is strictly necessary: your sign-in session, and a note that you closed this bar.') }}

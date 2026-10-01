@@ -20,7 +20,9 @@ silently undo it:
   * what CI tests, validates and publishes is the lockfile's dependency set —
     the test job installs with the lockfile as constraints, and the SBOM and
     veraPDF workflows install it the way the image does; the jobs that
-    recompile the lockfiles run the uv that requirements-dev.txt pins;
+    recompile the lockfiles run the uv that requirements-dev.txt pins,
+    hash-checked from requirements-uv.lock, and deps-lock.yml recompiles with
+    read access only and pushes from a job that installs nothing;
   * the SBOM generator installs from its own hash-pinned lockfile, as wheels
     only, and in release.yml it runs in a job without write access — the job
     that holds ``contents: write`` installs nothing, restores no cache and
@@ -35,7 +37,10 @@ silently undo it:
     digest its build step reports: the SBOM comes from sbom.yml's steps in a
     job that can only read, and the job that signs the attestation checks
     nothing out, installs nothing and runs only GitHub's own actions;
-    docs/release-signing.md verifies it the way it is made.
+    docs/release-signing.md verifies it the way it is made;
+  * only the slim image is tagged ``:latest``: docker.yml switches off
+    metadata-action's automatic ``latest`` tag, which a release would
+    otherwise add to the office image too.
 
 This is a tripwire, not a substitute for the server-side Scorecard run /
 review: the per-job permissions check here is a heuristic (it asserts a
@@ -65,14 +70,10 @@ _LOCKFILE = _REPO_ROOT / "requirements.lock"
 _SBOM_MANIFEST = _REPO_ROOT / "requirements-sbom.txt"
 _SBOM_LOCKFILE = _REPO_ROOT / "requirements-sbom.lock"
 _REQUIREMENTS_DEV = _REPO_ROOT / "requirements-dev.txt"
-# The `Install uv` step of every job that compiles a lockfile: the one exact
-# pin in requirements-dev.txt, as a wheel. An assignment first, so `bash -e`
-# stops the step when the pin is missing — pip takes an empty argument as
-# nothing to install and exits 0.
-_UV_FROM_DEV = (
-    "uv_pin=$(grep -oE '^uv==[0-9][0-9A-Za-z.!+-]*' requirements-dev.txt)",
-    'pip install --only-binary :all: "$uv_pin"',
-)
+_UV_LOCKFILE = _REPO_ROOT / "requirements-uv.lock"
+# The `Install uv` step of every job that compiles a lockfile: the uv that
+# requirements-dev.txt pins, from its hashed lockfile, as a wheel.
+_UV_INSTALL = "pip install --require-hashes --only-binary :all: -r requirements-uv.lock"
 # The steps release.yml and docker.yml copy from sbom.yml, the one that can be run.
 _SBOM_STEPS = (
     "Install the image's dependency set",
@@ -83,13 +84,18 @@ _GENERATOR_INSTALL = "pip install --require-hashes --only-binary :all: -r requir
 # `pip install`, `"$VENV/bin/pip" install` and `python -m pip install`.
 _PIP_INSTALL_RE = re.compile(r'\bpip"?\s+install\b')
 # In a `run:` script: a package manager, a download, or the SBOM generator.
-_INSTALLS_RE = re.compile(r'\b(?:pip3?|pipx|uvx?|npm|npx|curl|wget)"?\s|cyclonedx-py')
+_INSTALLS_RE = re.compile(r'\b(?:pip[\d.]*|pipx|uvx?|npm|npx|curl|wget)"?\s|cyclonedx-py')
 # The only actions that run in release.yml's job holding `contents: write`.
 _RELEASE_WRITE_ACTIONS = (
     "actions/checkout@",
     "actions/download-artifact@",
     "softprops/action-gh-release@",
 )
+# The only actions that run in deps-lock.yml's job holding `contents: write`.
+_DEPS_LOCK_WRITE_ACTIONS = ("actions/checkout@", "actions/download-artifact@")
+# The only actions that run in a job that compiles a lockfile: any other could
+# put a uv of its own first on PATH, ahead of the hash-checked one.
+_COMPILE_JOB_ACTIONS = ("actions/checkout@", "actions/setup-python@", "actions/upload-artifact@")
 # The events a pull request triggers.
 _PULL_REQUEST_EVENTS = {
     "pull_request",
@@ -405,6 +411,11 @@ def test_lockfile_is_hash_pinned_and_matches_the_image_python() -> None:
     the target in the header, which is what this reads.
     ``scripts/check_python_version.py`` is the CI gate; this is the
     regression guard for the posture itself.
+
+    Each entry must be an exact, hashed pin and nothing else. deps-lock
+    commits what a job running third-party code compiled, and lockfile-drift,
+    the gate that would notice a stray ``--extra-index-url`` or URL
+    requirement, is not a required check; this test runs in one.
     """
     assert _LOCKFILE.is_file(), (
         "requirements.lock missing, but the Dockerfile installs from it. "
@@ -416,6 +427,11 @@ def test_lockfile_is_hash_pinned_and_matches_the_image_python() -> None:
         "`pip-compile --generate-hashes`, or --require-hashes in the "
         "Dockerfile will reject it."
     )
+    for entry in _lock_entries(_LOCKFILE):
+        assert re.fullmatch(r"[A-Za-z0-9._-]+==\S+( --hash=sha256:[0-9a-f]{64})+", entry), (
+            f"requirements.lock: `{entry.split()[0]}` is not an exact, hashed pin — an option "
+            f"such as --extra-index-url, or a URL, lets the image install from elsewhere"
+        )
     shipped = _FROM_DIGEST_RE.search(_DOCKERFILE.read_text(encoding="utf-8"))
     assert shipped, "Dockerfile has no digest-pinned FROM line"
     version = re.search(r"python:(\d+\.\d+)-slim", shipped.group(0))
@@ -589,13 +605,20 @@ def test_lockfile_jobs_run_the_recorded_compile_command(lockfile: Path) -> None:
 
 
 def test_lockfile_jobs_install_the_uv_requirements_dev_pins() -> None:
-    """lockfile-drift and deps-lock read their uv version from requirements-dev.txt.
+    """lockfile-drift and deps-lock install the uv requirements-dev.txt pins,
+    hash-checked, from requirements-uv.lock.
 
     Another uv release can write the same lockfile differently, so the drift
     gate, deps-lock and a local recompile have to run the same one. Dependabot
     bumps only requirements-dev.txt, and while the workflows typed their own
     version they were left behind twice: on 0.12.13 while it moved to 0.12.16,
-    then on 0.12.16 while it moved to 0.12.19.
+    then on 0.12.16 while it moved to 0.12.19. The hashes make pip refuse a
+    file added to that release later — a wheel it would prefer, say — where
+    the lockfiles are written, so requirements-uv.lock has to follow every
+    bump of the pin, and this fails until it does. Nothing else in those jobs
+    may install or fetch: only the actions in ``_COMPILE_JOB_ACTIONS`` run
+    there (a setup-uv step would put its own uv first on PATH), and every
+    install is a hash-checked ``pip install``, with nothing chained to it.
     """
     lines = _REQUIREMENTS_DEV.read_text(encoding="utf-8").splitlines()
     # `uv` itself, not uvicorn, uv_build or uv-anything.
@@ -603,7 +626,19 @@ def test_lockfile_jobs_install_the_uv_requirements_dev_pins() -> None:
     assert len(pins) == 1 and re.fullmatch(r"uv==\d+(\.\d+)+", pins[0]), (
         f"requirements-dev.txt must pin uv exactly once, as a bare `uv==X.Y.Z` — found {pins}"
     )
-    expected = "\n".join(_UV_FROM_DEV)
+    assert _UV_LOCKFILE.is_file(), (
+        "requirements-uv.lock missing, but the lockfile jobs install uv from it — "
+        "regenerate it with the command in requirements-dev.txt"
+    )
+    entries = _lock_entries(_UV_LOCKFILE)
+    assert len(entries) == 1 and re.fullmatch(
+        r"uv==\S+( --hash=sha256:[0-9a-f]{64})+", entries[0]
+    ), f"requirements-uv.lock must pin uv alone, exactly and with its hashes — found {entries}"
+    locked = entries[0].split()[0]
+    assert locked == pins[0], (
+        f"requirements-dev.txt pins {pins[0]}, but requirements-uv.lock holds {locked} — "
+        f"regenerate it with the command in requirements-dev.txt"
+    )
     for path in _workflow_files():
         assert not re.search(r"\buv==\d", _workflow_code(path.name)), (
             f"{path.name} pins its own uv version, which Dependabot never bumps — "
@@ -618,10 +653,104 @@ def test_lockfile_jobs_install_the_uv_requirements_dev_pins() -> None:
                 for step in steps
                 if step.get("name") == "Install uv"
             ]
-            assert installs == [expected], (
+            assert installs == [_UV_INSTALL], (
                 f"{path.name} job `{name}` compiles a lockfile, so its one `Install uv` step "
-                f"must run exactly:\n{expected}"
+                f"must run exactly `{_UV_INSTALL}`"
             )
+            for step in steps:
+                uses = step.get("uses")
+                assert not uses or str(uses).startswith(_COMPILE_JOB_ACTIONS), (
+                    f"{path.name} job `{name}` compiles a lockfile, yet runs `{uses}` — only "
+                    f"{', '.join(_COMPILE_JOB_ACTIONS)} run there"
+                )
+                for line in (step.get("run") or "").splitlines():
+                    line = line.strip()
+                    if not _INSTALLS_RE.search(line):
+                        continue
+                    alone = not re.search(r"[;&|`]|\$\(", line)
+                    allowed = line.startswith("uv pip compile ") or bool(
+                        _PIP_INSTALL_RE.search(line) and "--require-hashes" in line
+                    )
+                    assert alone and allowed, (
+                        f"{path.name} job `{name}` compiles a lockfile, yet runs `{line}` — only "
+                        f"`uv pip compile` and a hash-checked `pip install` run there, each as a "
+                        f"command of its own"
+                    )
+
+
+def test_deps_lock_pushes_from_a_job_that_installs_nothing() -> None:
+    """deps-lock.yml compiles with read access only and pushes from a job that
+    installs nothing.
+
+    Its single job used to install uv, recompile the lockfiles and
+    test-install them next to ``contents: write`` and a checkout that kept
+    its credentials. ``compile`` now does all of that read-only, without a
+    cache or stored credentials, and hands the lockfiles over as an artifact.
+    ``commit`` runs no package manager or download, uses only the actions in
+    ``_DEPS_LOCK_WRITE_ACTIONS``, unpacks the artifact outside its checkout
+    and takes the two lockfiles out of it by name — a ``cp -r`` of the whole
+    artifact could bring a ``.git/config`` whose next ``git`` call runs code
+    next to the token.
+    """
+    workflow = _workflow(_WORKFLOW_DIR / "deps-lock.yml")
+    jobs = workflow["jobs"]
+    compiling = [
+        name
+        for name, job in jobs.items()
+        if any("uv pip compile" in (step.get("run") or "") for step in _steps(job))
+    ]
+    pushing = [name for name, job in jobs.items() if _privileged(job, workflow)]
+    assert compiling == ["compile"] and pushing == ["commit"], (
+        f"deps-lock.yml: expected `compile` to recompile the lockfiles and only `commit` to "
+        f"hold a write token or a secret; found {compiling} and {pushing}"
+    )
+    compile_job, commit_job = jobs["compile"], jobs["commit"]
+    for step in _steps(compile_job):
+        uses, inputs = str(step.get("uses", "")), step.get("with") or {}
+        assert not uses.startswith("actions/cache") and not any("cache" in k for k in inputs), (
+            f"deps-lock.yml job `compile`, step {step.get('name') or uses!r}: restores a cache, "
+            f"and the lockfiles it writes get committed"
+        )
+        if uses.startswith("actions/checkout@"):
+            assert inputs.get("persist-credentials") is False, (
+                "deps-lock.yml job `compile`: checkout without `persist-credentials: false`"
+            )
+    assert commit_job.get("needs") in ("compile", ["compile"]), (
+        "deps-lock.yml: `commit` must wait for `compile`"
+    )
+    for step in _steps(commit_job):
+        label = step.get("name") or step.get("uses")
+        assert not _INSTALLS_RE.search(step.get("run") or ""), (
+            f"deps-lock.yml job `commit` can push, yet step {label!r} installs, fetches or "
+            f"runs third-party packages. Do that in `compile`."
+        )
+        uses = step.get("uses")
+        assert not uses or str(uses).startswith(_DEPS_LOCK_WRITE_ACTIONS), (
+            f"deps-lock.yml job `commit` can push, yet runs `{uses}` — only "
+            f"{', '.join(_DEPS_LOCK_WRITE_ACTIONS)} run next to its token"
+        )
+
+    def artifact_inputs(job: dict, action: str) -> dict:
+        found = [step for step in _steps(job) if str(step.get("uses", "")).startswith(action)]
+        assert len(found) == 1, f"deps-lock.yml: expected one {action.rstrip('@')} step"
+        return found[0].get("with") or {}
+
+    handed = artifact_inputs(compile_job, "actions/upload-artifact@")
+    received = artifact_inputs(commit_job, "actions/download-artifact@")
+    assert received.get("name") == handed.get("name"), (
+        "deps-lock.yml: `commit` must download the artifact `compile` uploads, by its name"
+    )
+    assert str(received.get("path", "")).startswith("${{ runner.temp }}/"), (
+        "deps-lock.yml: unpack the artifact under ${{ runner.temp }}, outside the checkout, "
+        "so nothing in it can replace a file git or `commit` reads"
+    )
+    folder = str(received["path"]).removeprefix("${{ runner.temp }}/")
+    script = "\n".join(step.get("run") or "" for step in _steps(commit_job))
+    taken = re.findall(r'RUNNER_TEMP\}?"?/' + re.escape(folder) + r'/?([^\s"\']*)', script)
+    assert sorted(taken) == ["requirements-sbom.lock", "requirements.lock"], (
+        f"deps-lock.yml: `commit` must take requirements.lock and requirements-sbom.lock out "
+        f"of the artifact by name, and nothing else — found {taken}"
+    )
 
 
 def test_release_installs_nothing_where_it_can_write() -> None:
@@ -1093,6 +1222,49 @@ def test_docs_verify_the_sbom_attestation_as_docker_yml_makes_it() -> None:
         "docs/release-signing.md: say that the SBOM covers requirements.lock's Python packages "
         "only, not the image's Debian packages"
     )
+
+
+def test_only_the_slim_image_is_tagged_latest() -> None:
+    """docker.yml tags the slim image ``:latest``, and only the slim image.
+
+    metadata-action adds a ``latest`` tag of its own when a ``type=semver``
+    entry matches a release tag (``flavor: latest=auto``, its default), and
+    a tag entry's ``suffix=`` does not reach that tag: on a release both
+    variants pushed ``:latest``, and whichever finished last kept it —
+    usually the office image, the slower build. With ``latest=false`` the
+    ``type=raw`` entry that names ``latest`` for the unsuffixed base leg is
+    the only source of ``:latest``, so that entry and that leg have to stay.
+    The flavor is pinned whole: the action skips only lines that start with
+    ``#`` and unquotes CSV fields, so a looser match could pass a flavor it
+    reads differently.
+    """
+    job = _workflow(_WORKFLOW_DIR / "docker.yml")["jobs"]["build-and-push"]
+    legs = {leg["target"]: leg.get("suffix") for leg in job["strategy"]["matrix"]["include"]}
+    assert legs.get("base") == "", (
+        f"docker.yml: the `latest` entry is meant for the `base` leg, the slim image without "
+        f"a suffix; the matrix has {legs}"
+    )
+    steps = [s for s in _steps(job) if str(s.get("uses", "")).startswith("docker/metadata-action@")]
+    assert steps, "docker.yml no longer uses docker/metadata-action — update this guard"
+    raw_latest = "type=raw,value=${{ matrix.target == 'base' && 'latest' || 'office' }}"
+    for step in steps:
+        inputs = step.get("with") or {}
+        assert str(inputs.get("flavor", "")).strip() == "latest=false", (
+            f"docker.yml step {step.get('name')!r}: `flavor:` must be exactly `latest=false` "
+            f"(this guard pins it whole) — without it, a release tags the office image "
+            f"`:latest` as well"
+        )
+        latest = [
+            line.strip()
+            for line in str(inputs.get("tags", "")).splitlines()
+            # As in the action, only a line starting with "#" is a comment; an
+            # indented "# type=raw,value=latest" is a tag for both images.
+            if "latest" in line and not line.startswith("#")
+        ]
+        assert latest == [raw_latest], (
+            f"docker.yml step {step.get('name')!r}: `:latest` comes from one `type=raw` entry, "
+            f"for the base leg only; found {latest}"
+        )
 
 
 def test_verapdf_image_is_digest_pinned() -> None:

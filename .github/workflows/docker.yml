@@ -84,6 +84,12 @@ jobs:
             type=semver,pattern={{major}}.{{minor}},suffix=${{ matrix.suffix }}
             type=raw,value=${{ matrix.target == 'base' && 'latest' || 'office' }}
             type=sha,format=short,prefix=sha-,suffix=${{ matrix.suffix }}
+          # ``:latest`` comes from the raw entry above, and only from it. By
+          # default (``latest=auto``) the action also adds a ``latest`` tag
+          # to both variants on a release tag, without the ``-office``
+          # suffix, so whichever image finished last would keep ``:latest`` —
+          # usually the office image, the slower build.
+          flavor: latest=false
 
       - name: Build and push Docker image (${{ matrix.target }})
         id: build

@@ -129,9 +129,11 @@ physical assets of its own.
 - The FileMorph application transmits no file content, file names, or
   file hashes to any sub-processor — see [`sub-processors.md`](sub-processors.md);
   the only outbound calls are to the configured database, the SMTP relay
-  (account and billing mail, and contact-form messages to the operator),
-  and Stripe (creating the customer and the Checkout / Billing-Portal
-  sessions, and cancelling subscriptions when an account is deleted;
+  (account and billing mail, and contact-form messages and cancellations
+  that need manual handling to the operator), and Stripe (creating the
+  customer and the Checkout / Billing-Portal sessions, setting a
+  subscription to end when its holder cancels online, and cancelling
+  subscriptions when an account is deleted;
   Stripe's webhook calls come in the other direction and are
   signature-checked).
 - Output integrity: every file returned by the single-file `/convert`

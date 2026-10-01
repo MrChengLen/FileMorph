@@ -9,6 +9,175 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — online cancellation without login: "Cancel contracts here" (§ 312k BGB)
+
+German consumer law (§ 312k BGB) requires a subscription sold online to be
+cancellable online, through a button labelled "Verträge hier kündigen" that
+leads straight to a confirmation page, with the cancellation confirmed by
+email at once; the courts (OLG Köln 6 U 62/24, OLG Nürnberg 3 U 2214/23,
+KG Berlin 5 UKl 10/25 and 5 U 6/25) hold that it must work without logging
+in. Until now terms § 8 named only cancellation by email, and the dunning
+email sent users to a "Manage billing" button the dashboard did not have.
+
+- **A link on every page.** "Cancel contracts here" / „Verträge hier
+  kündigen" in the footer — shown only when `STRIPE_SECRET_KEY` is set —
+  opens `/cancel`, a page that holds nothing but the form (BGH I ZR 200/25:
+  no alternatives on that page): the account's email address, the contract
+  (Pro or Business), ordinary or extraordinary cancellation with an optional
+  reason, and the end (earliest possible date, or a later one), then "Cancel
+  now" / „jetzt kündigen". The site navigation is reduced there to the logo,
+  the language switch and the legal links — no tools, prices or account
+  links. A receipt with date and time follows, to print or save as PDF;
+  navigation, footer and cookie notice are left out of every printed page
+  now, so the receipt prints on its own.
+- **`POST /api/v1/billing/cancellation`** — public, 10 per hour per IP, `503`
+  without Stripe, and the same answer whether or not the address belongs to
+  an account. An ordinary cancellation at the earliest date, for an address
+  with exactly one live subscription of the named plan, is set to end with
+  the billing period in Stripe (`cancel_at_period_end`); every other case —
+  a later date, an extraordinary cancellation, an unknown address, another
+  plan, a Stripe error — goes to the operator inbox to be handled by hand.
+  The confirmation (what was declared, when it arrived, when the contract
+  ends) is emailed right away — to the account's own address when one
+  matches; a free-text reason is repeated in it only then, so the form
+  can't carry someone else's text to a stranger's inbox. A form whose
+  hidden anti-spam field is filled in is not dropped: it goes to the
+  operator for review, without a Stripe change or a confirmation email,
+  and the receipt says that no email went out. Two audit events record
+  receipt and outcome — the email address only as a hash, no reason, no IP
+  address.
+- **Dashboard.** Accounts with a Stripe subscription get a "Subscription"
+  card: the status, "Manage billing" — the Stripe customer portal, through
+  the existing `POST /api/v1/billing/portal`, which had no caller and now
+  calls Stripe off the event loop — and the cancellation link. The dunning
+  email's "Manage billing" now exists.
+- **Texts.** Terms § 8 names the link next to the email route; the privacy
+  policy describes the processing in a new § 2g (PII redaction moves to
+  § 2h); `email-setup.md`, `api-reference.md`, `.env.example`, the
+  records-of-processing template, the TOM annex, the sub-processor list and
+  the vendor questionnaire cover the new email and Stripe call.
+- The operator inbox (`CONTACT_FORM_RECIPIENT_EMAIL` → `SMTP_REPLY_TO` →
+  `SMTP_FROM_EMAIL`) is resolved in one place,
+  `app/core/email.py::operator_recipient()`, for the contact form, the
+  contact page and the cancellation flow.
+
+### Fixed — the Stripe webhook failed on every real event
+
+With stripe 15.x — the version `requirements.lock` has pinned since it was
+created — `Webhook.construct_event` returns Stripe objects that are no longer
+dicts, and the handlers' `.get()` raised `AttributeError`: every signed event
+ended in a `500`. Paid tiers would not have been granted after checkout, a
+failed payment would not have started dunning, and a cancelled subscription
+would not have dropped the account to Free. The webhook now converts the
+event object with `to_dict()` first. Until now the webhook tests covered only
+rejected requests and the handlers were tested with plain dicts; new tests
+post really signed `customer.subscription.updated`, `.deleted` and
+`invoice.payment_failed` events through the route. A deployment that took
+payments on an affected version should check each paying account's tier
+against Stripe.
+
+### Security — deps-lock pushes from a job that installs nothing; uv is installed hash-checked
+
+A security review of PR #164 found (Low) that `lockfile-drift` in `ci.yml` and
+the `deps-lock` workflow installed uv from PyPI by version alone, without a
+hash. PyPI accepts new files for a release that is already published, and pip
+takes the wheel with the most specific platform tag, so a malicious wheel added
+to uv 0.12.19 later would have been installed — in `deps-lock` inside its one
+job, which held `contents: write` and a checkout that kept its credentials,
+right before the step that commits and pushes. Exploiting it took a compromised
+uv upload to PyPI, not access to this repository.
+
+- **Two jobs.** `compile` installs uv, recompiles `requirements.lock` and
+  `requirements-sbom.lock`, hands the two files over as an artifact and then
+  test-installs them, with `contents: read`, no cache and a checkout that keeps
+  no credentials. `commit` holds `contents: write`, installs nothing and runs
+  only GitHub's checkout and download actions. It unpacks the artifact outside
+  its checkout, takes the two lockfiles out of it by name, fails if git sees
+  any other change in the checkout, and commits and pushes as before.
+- **Hash-checked uv.** Both jobs that compile the lockfiles now run `pip install
+  --require-hashes --only-binary :all: -r requirements-uv.lock`. The new
+  `requirements-uv.lock` pins the uv version `requirements-dev.txt` pins,
+  0.12.19, with the hashes of all 19 files of that release; they match the
+  digests PyPI publishes, and all 19 were uploaded within a minute on
+  2026-09-25. The split alone would not be enough: a tampered uv in `compile`
+  could not push, but it could write the lockfiles `commit` pushes.
+- **What it costs.** `requirements-dev.txt` stays the one place the version is
+  set, and Dependabot keeps bumping it there, but it does not edit
+  `requirements-uv.lock`. A uv bump therefore fails `lint-and-test` until the
+  file is regenerated with the command in `requirements-dev.txt`: red on
+  purpose, where the workflows used to install whatever the new release held.
+  `dependabot.yml` says so as well.
+- **What the required check reads.** `lint-and-test` only checked that
+  `requirements.lock` carries a hash somewhere, and its install step skips
+  indented lines, which pip still reads. Every entry now has to be an exact,
+  hashed pin, as in `requirements-sbom.lock` already, so an unhashed pin or an
+  indented `--extra-index-url` or URL line fails the required check, not only
+  `lockfile-drift`, which is not one.
+- **Guards.** `tests/test_supply_chain_hygiene.py` fails if
+  `requirements-uv.lock` is missing, pins anything besides uv, pins it without
+  hashes, or at a different version than `requirements-dev.txt`; if a job that
+  compiles a lockfile installs uv any other way, runs an action besides
+  checkout, setup-python and upload-artifact, or installs or fetches anything
+  except through a hash-checked `pip install`; or if `deps-lock.yml` compiles
+  in a job that can push, restores a cache or keeps credentials there, lets the
+  pushing job install or fetch anything or run any other action, unpacks the
+  artifact inside the checkout, or takes anything but the two lockfiles out of
+  it. Each of 37 simulated regressions fails at least one guard, the one-job
+  `deps-lock.yml` from before this change among them.
+
+uv 0.12.19, installed from the new file, writes both lockfiles byte for byte as
+they are committed, so neither changes, and the commands recorded in their
+headers, which `lockfile-drift` diffs, stay as they are.
+
+### Fixed — after a release, `:latest` is the slim image, not the office image
+
+`docker.yml` tags the slim image `:latest` and the office image `:office`, but
+`docker/metadata-action` added a `latest` tag of its own on every release: with
+its default flavor, `latest=auto`, a release tag (`vX.Y.Z` without a
+pre-release part) that matches a `type=semver` entry gets `latest` as well, and
+the office entries' `suffix=-office` does not apply to it. Both images were
+pushed as `:latest`, and the one that finished last kept the tag — usually the
+office image, the slower build. Whoever pulled `:latest` then got LibreOffice
+without choosing the office image, and with the default
+`FILEMORPH_OFFICE_ENGINE=auto` complex DOCX files were converted through it.
+In the v1.1.0 run the office image's build and push finished 12 seconds after
+the slim image's, so on 2026-06-01 `:latest` was most likely the office image
+for about an hour, until the next build of `main`; if you pulled it then and
+not since, pull it again. Builds of `main` were not affected. Found by the security review of
+PR #180.
+
+- **Fix.** The metadata step sets `flavor: latest=false`, so `:latest` comes
+  only from the `type=raw` entry that names it for the slim image. The other
+  tags stay as they were: `:office`, and `X.Y.Z`, `X.Y` and `sha-…`, each with
+  `-office` on the office image. The docs already call `:latest` the slim
+  image; that now holds right after a release too. `docker.yml` pushes images
+  and cannot be tried before merge, so the pinned action (v6.2.0) was run
+  locally on the workflow's inputs: it now tags only the slim image `latest`,
+  on a release tag, a pre-release tag and `main`. The next release is the
+  first real test.
+- **Guard.** `tests/test_supply_chain_hygiene.py` fails if the metadata step's
+  flavor is anything but `latest=false`, if another of its tag entries names
+  `latest`, or if the matrix loses the unsuffixed `base` leg the `type=raw`
+  entry is meant for.
+
+### Security — urllib3 2.8.0: three advisories published on 2026-09-30
+
+On 2026-10-01 `pip-audit` flagged urllib3 2.7.0 in `requirements.lock`, and
+`lint-and-test` has failed on every CI run since. urllib3 2.8.0 fixes all three:
+
+- CVE-2026-97687 (GHSA-8988-9cw3-xx77, High): the TLS configuration for HTTPS
+  proxies could be ignored or overridden.
+- CVE-2026-97689 (GHSA-vxq7-64xx-v4gw, High): `HTTPResponse.stream()` and
+  `read_chunked()` could buffer a chunk-size line of unbounded length.
+- CVE-2026-97688 (GHSA-gh4c-6fx4-qh6g, Medium): chunked Deflate streaming could
+  enter an infinite loop.
+
+At runtime the app uses urllib3 only through `requests`, which the Stripe SDK
+uses for its API calls (pip in the base image carries a copy of its own, which
+the app never runs). The lockfile now pins 2.8.0, and its two hashes match the
+digests PyPI publishes. Nothing else in the lockfile changed, its header
+included, and `lockfile-drift`'s command reproduces it byte for byte.
+
 ### Changed — a sign-in lasts 30 days from login
 
 - `POST /auth/refresh` returns a new access token together with the refresh

@@ -19,6 +19,7 @@ needs none of this. If you don't run the user-account features, leave the
 | Password reset | `POST /api/v1/auth/forgot-password` | Single-use reset link. **30-minute TTL**, invalidated by the next password change (hash-version pin). |
 | Account-deletion confirmation | `DELETE /api/v1/auth/account` | Post-commit notification with the user-facing support contact. |
 | Dunning / payment-failed | Stripe `invoice.payment_failed` webhook | "Update your card" notice, sent once per dunning cycle while Stripe retries the charge. |
+| Cancellation confirmation | `POST /api/v1/billing/cancellation` | The § 312k BGB confirmation of an online cancellation — what was declared, when it arrived, and when the contract is to end — sent at once: to the account's own address when the entered one belongs to an account, otherwise to the address entered, then without repeating a free-text reason. Cancellations that need manual handling, and any confirmation that could not be sent, also go to the operator inbox (`CONTACT_FORM_RECIPIENT_EMAIL`, else `SMTP_REPLY_TO`, else `SMTP_FROM_EMAIL`). |
 | Billing receipts | Stripe Customer Portal | Stripe sends these directly via the customer portal — FileMorph itself only sends the transactional mail above. |
 | Contact form | `POST /api/v1/contact` | Operator notification carrying the visitor's message; `Reply-To` is set to the visitor so the operator can answer directly. |
 
@@ -27,7 +28,9 @@ needs none of this. If you don't run the user-account features, leave the
 changeable from the dashboard, and `PUT /api/v1/auth/account/language`. When it
 is unset (NULL) the operator default `LANG_DEFAULT` applies. The dunning mail
 fires from a Stripe webhook with no HTTP request to derive a locale from, which
-is exactly why the column exists.
+is exactly why the column exists. The cancellation confirmation falls back to the
+language of the page it was sent from — not `LANG_DEFAULT` — when the address
+belongs to no account or the account has no saved language.
 
 If `SMTP_HOST` is empty, every feature above degrades gracefully — all of
 them return their normal success status regardless, and the outbound
@@ -46,6 +49,10 @@ send is silently skipped:
   The user can request a fresh link via `/resend-verification` once SMTP is wired.
 - `/auth/account` deletes the user even if the confirmation email cannot be sent;
   the deletion itself is the legally-binding action.
+- `/billing/cancellation` still records the cancellation and returns `200`, but with
+  `email_sent: false`, and the page asks the visitor to print or save the receipt
+  instead. The confirmation email § 312k BGB requires cannot go out without SMTP,
+  so a deployment that sells paid plans needs it.
 - `/contact` still returns `200` — the operator-notification email is fire-and-forget,
   so on an SMTP-less deployment the submission is logged and dropped (same behaviour
   as `/register`'s verification mail). Set SMTP for the contact form to actually work.
@@ -64,7 +71,7 @@ SMTP_PASSWORD=...                    # provider-issued app password / SMTP secre
 SMTP_FROM_EMAIL=no-reply@example.com # user-visible FROM address
 SMTP_FROM_NAME=YourBrand             # display name in the From: header
 SMTP_REPLY_TO=hallo@example.com      # optional; where users hit "reply"
-CONTACT_FORM_RECIPIENT_EMAIL=hallo@example.com  # optional; /contact recipient — falls back to SMTP_REPLY_TO, then SMTP_FROM_EMAIL
+CONTACT_FORM_RECIPIENT_EMAIL=hallo@example.com  # optional; /contact and manual-cancellation inbox — falls back to SMTP_REPLY_TO, then SMTP_FROM_EMAIL
 
 APP_BASE_URL=https://your-domain.example.com  # used to build link URLs
 ```

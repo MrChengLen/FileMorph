@@ -112,12 +112,12 @@ outbound calls in the application code are:
 
 - PostgreSQL queries to the configured database (Cloud features).
 - SMTP submissions to the configured relay: account and billing emails
-  (Cloud features) and contact-form messages to the operator — never
-  file content.
+  (Cloud features), and contact-form messages and cancellations that
+  need manual handling to the operator — never file content.
 - Stripe API calls — creating the customer and the Checkout and
-  Billing-Portal sessions, cancelling subscriptions when an account is
-  deleted — and responses to Stripe's signed webhooks (paid tiers
-  only).
+  Billing-Portal sessions, setting a subscription to end when its holder
+  cancels online, cancelling subscriptions when an account is deleted —
+  and responses to Stripe's signed webhooks (paid tiers only).
 
 There is no analytics beacon, no telemetry endpoint, no "phone home"
 call, no third-party CDN for static assets. Tailwind, fonts, and the
@@ -958,8 +958,10 @@ choice the processor either returns all personal data or deletes it,
 with confirmation in writing. The 30-day grace period covers an
 orderly export.
 
-For SaaS subscriptions, the user terminates from the dashboard
-(Stripe customer portal) and triggers self-service account deletion;
+For SaaS subscriptions, the user cancels through the "Cancel contracts
+here" link at the bottom of every page (no login needed, § 312k BGB) or
+in the Stripe customer portal ("Manage billing" on the dashboard), and
+triggers self-service account deletion;
 the tax-retention path (HGB §257 / AO §147), which every account with a
 Stripe customer id takes, keeps the four mandated fields, the rest is
 nulled.
