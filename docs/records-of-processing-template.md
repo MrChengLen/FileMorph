@@ -87,7 +87,7 @@ repository so that:
 |---|---|
 | Purpose | Process subscription payments and manage paid-tier entitlements |
 | Data subjects | Paying customers |
-| Personal data | Email address; internal user identifier. Card data is collected by Stripe directly and never reaches FileMorph. |
+| Personal data | Email address; internal user identifier; for an online cancellation, the declaration itself (contract, type of cancellation, a reason if one is given, the requested end date). Card data is collected by Stripe directly and never reaches FileMorph. |
 | Recipients | Stripe Inc. (payment processing) |
 | Third-country transfers | United States — covered by the Stripe DPA and EU Standard Contractual Clauses |
 | Retention / erasure | Tax-relevant records retained per HGB §257 / AO §147 (typically 10 years); other billing metadata until no longer needed for the subscription |
@@ -109,9 +109,9 @@ repository so that:
 
 | Field | |
 |---|---|
-| Purpose | Maintain a tamper-evident record of account and billing events (registration, login, email verification, password reset, account deletion, subscription and payment changes), of single-file conversion / compression operations, of contact-form messages and of PII redactions, for security and compliance evidence. API-key management, admin changes in the cockpit, batch jobs and the `/pdf/*` tools are not recorded |
-| Data subjects | Registered users |
-| Personal data | Account ID of the actor, where there is one (no email address stored); a SHA-256 hash of the email address for failed logins, duplicate registrations, password-reset requests and contact-form messages; the email domain for account deletions; actor IP address; event type; event payload (operation metadata such as format pair, byte counts, output hash — no file content); timestamp; hash of the previous event (chain integrity) |
+| Purpose | Maintain a tamper-evident record of account and billing events (registration, login, email verification, password reset, account deletion, subscription and payment changes, online cancellations), of single-file conversion / compression operations, of contact-form messages and of PII redactions, for security and compliance evidence. API-key management, admin changes in the cockpit, batch jobs and the `/pdf/*` tools are not recorded |
+| Data subjects | Registered users; senders of contact-form messages and online cancellations |
+| Personal data | Account ID of the actor, where there is one (no email address stored); a SHA-256 hash of the email address for failed logins, duplicate registrations, password-reset requests, contact-form messages and online cancellations; the email domain for account deletions; actor IP address; event type; event payload (operation metadata such as format pair, byte counts, output hash — no file content); timestamp; hash of the previous event (chain integrity) |
 | Recipients | None |
 | Third-country transfers | None |
 | Retention / erasure | `[operator: the audit log has no built-in retention period — rows are append-only and are not pruned automatically. State the period your privacy notice declares and how you prune (a privileged database role that bypasses the append-only trigger). On a hard delete (accounts without a Stripe customer id) the actor identifier is nulled while the event type and payload survive.]` |

@@ -13,6 +13,61 @@ async function loadUser() {
   // so reflect that in the picker.
   const langSel = document.getElementById('email-lang');
   if (langSel) langSel.value = u.preferred_lang || 'de';
+  renderBilling(u);
+}
+
+// ── Subscription card (rendered only on Stripe deployments) ───────────────────
+
+// Stripe statuses in which a contract still exists — the only ones where
+// "Cancel contracts here" makes sense. Everything else is shown as "Ended".
+const CANCELLABLE_STATUSES = ['active', 'trialing', 'past_due', 'incomplete'];
+
+function renderBilling(u) {
+  const card = document.getElementById('billing-card');
+  if (!card || !u.subscription_status) return; // no Stripe, or never subscribed
+  const line = document.getElementById('billing-status');
+  const s = u.subscription_status;
+  const plan = u.tier.charAt(0).toUpperCase() + u.tier.slice(1);
+  let warn = false;
+  if (s === 'active') {
+    line.textContent = plan + ' \u00b7 ' + line.dataset.statusActive;
+  } else if (s === 'trialing') {
+    line.textContent = plan + ' \u00b7 ' + line.dataset.statusTrialing;
+  } else if (s === 'past_due' || s === 'incomplete') {
+    line.textContent = plan + ' \u00b7 ' + line.dataset.statusPastDue;
+    warn = true;
+  } else {
+    line.textContent = line.dataset.statusEnded;
+  }
+  line.classList.toggle('text-amber-400', warn);
+  line.classList.toggle('text-ink-muted', !warn);
+  document.getElementById('cancel-contract-link').classList.toggle('hidden', !CANCELLABLE_STATUSES.includes(s));
+  card.classList.remove('hidden');
+}
+
+async function openBillingPortal() {
+  const btn = document.getElementById('manage-billing-btn');
+  const status = document.getElementById('billing-action-status');
+  status.textContent = '';
+  btn.disabled = true;
+  try {
+    const res = await window.FM.authFetch('/api/v1/billing/portal', { method: 'POST' });
+    if (res.status === 401) { window.location.href = '/login'; return; }
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.url) { window.location.assign(data.url); return; }
+    }
+    // data-err-400 / -429 / -503, else the generic data-err. getAttribute on
+    // purpose: dataset only camel-cases a dash before a LETTER, so data-err-400
+    // is dataset['err-400'] and dataset.err400 would be undefined.
+    status.textContent = status.getAttribute('data-err-' + res.status) || status.dataset.err;
+  } catch (err) {
+    status.textContent = status.dataset.err;
+  } finally {
+    // Also on success/redirect: a page restored from the back/forward cache
+    // must not keep a dead button.
+    btn.disabled = false;
+  }
 }
 
 async function saveEmailLang(value) {
@@ -151,6 +206,8 @@ document.addEventListener('DOMContentLoaded', function () {
   document.getElementById('copy-key-btn').addEventListener('click', copyKey);
   const langSel = document.getElementById('email-lang');
   if (langSel) langSel.addEventListener('change', function (e) { saveEmailLang(e.target.value); });
+  const billingBtn = document.getElementById('manage-billing-btn'); // absent unless Stripe is configured
+  if (billingBtn) billingBtn.addEventListener('click', openBillingPortal);
   document.getElementById('delete-account-btn').addEventListener('click', showDeleteForm);
   document.getElementById('delete-cancel-btn').addEventListener('click', hideDeleteForm);
   document.getElementById('delete-confirm-submit').addEventListener('click', confirmDeleteAccount);

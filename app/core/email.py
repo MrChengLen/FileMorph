@@ -11,11 +11,12 @@ Design notes
   blocks outbound 465 for new accounts by default, so 587 is the path of
   least friction unless you've explicitly opened 465 with Hetzner support.
 * ``reply_to`` defaults to :attr:`Settings.smtp_reply_to`; a caller may
-  override it per-message (the public ``/contact`` form sets it to the
-  submitter's address so the operator can hit "Reply"). A user-supplied
-  override is safe: ``EmailMessage`` rejects ``\r``/``\n`` in header
-  values and the only caller that passes one validates it as an
-  ``EmailStr`` first — header-injection is double-covered.
+  override it per-message (the public ``/contact`` form and the operator
+  mail of the cancellation form set it to the submitter's address so the
+  operator can hit "Reply"). A user-supplied override is safe:
+  ``EmailMessage`` rejects ``\r``/``\n`` in header values and both callers
+  that pass one validate it as an ``EmailStr`` first — header-injection is
+  double-covered.
 * Errors surface as :class:`EmailSendError` with no SMTP details so the
   caller can return a generic response without leaking infrastructure
   hints.
@@ -60,6 +61,7 @@ EMAIL_SUBJECTS: dict[str, str] = {
     "password_reset": N_("Reset your FileMorph password"),
     "account_deleted": N_("Your FileMorph account has been deleted"),
     "dunning": N_("Action needed: your FileMorph payment failed"),
+    "cancellation_confirmation": N_("We have received your FileMorph cancellation"),
 }
 
 
@@ -102,6 +104,19 @@ def render_email(template_stem: str, *, locale: str | None, **context) -> tuple[
     return subject, html, text
 
 
+def operator_recipient() -> str:
+    """The operator inbox for mail a person on this deployment must act on
+    (contact-form messages, cancellations that need manual handling) and the
+    address pages offer for writing to us directly.
+
+    ``CONTACT_FORM_RECIPIENT_EMAIL`` → ``SMTP_REPLY_TO`` → ``SMTP_FROM_EMAIL``;
+    ``""`` when none is set.
+    """
+    return (
+        settings.contact_form_recipient_email or settings.smtp_reply_to or settings.smtp_from_email
+    )
+
+
 class EmailSendError(RuntimeError):
     """Raised when SMTP delivery fails. The original SMTP error is logged but
     never included in the message — it may contain addresses or hostnames we
@@ -142,8 +157,9 @@ async def send_email(
     effective_reply_to = reply_to or settings.smtp_reply_to
     if effective_reply_to:
         # Header-injection safety: EmailMessage rejects \r/\n in header
-        # values, and the only caller passing a user-supplied reply_to
-        # (the /contact form) validates it as an EmailStr first.
+        # values, and both callers passing a user-supplied reply_to (the
+        # /contact form, the cancellation operator mail) validate it as an
+        # EmailStr first.
         msg["Reply-To"] = effective_reply_to
     msg.set_content(text)
     msg.add_alternative(html, subtype="html")

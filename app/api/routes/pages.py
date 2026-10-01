@@ -22,6 +22,7 @@ from fastapi import APIRouter, Request
 from app.compressors.image import _SUPPORTED_FORMATS as IMAGE_COMPRESS_FMTS
 from app.compressors.video import _SUPPORTED_FORMATS as VIDEO_COMPRESS_FMTS
 from app.converters.registry import get_public_conversions, get_supported_conversions
+from app.core import email as email_mod
 from app.core import pricing as pricing_mod
 from app.core.compress_content import get_compress_content
 from app.core.config import settings
@@ -255,13 +256,7 @@ async def contact_page(request: Request):
     # ``contact_email`` is "" and the template hides the "email us
     # directly" line; the form still renders (the POST then no-ops the
     # email, same as /forgot-password without SMTP).
-    contact_email = (
-        settings.contact_form_recipient_email
-        or settings.smtp_reply_to
-        or settings.smtp_from_email
-        or ""
-    )
-    return _render(request, "contact.html", contact_email=contact_email)
+    return _render(request, "contact.html", contact_email=email_mod.operator_recipient())
 
 
 @router.get("/login")
@@ -303,6 +298,31 @@ async def account_deleted_page(request: Request):
     # flow redirects here after a 204. Not in the nav, not in the sitemap
     # — there is nothing here to crawl.
     return _render(request, "account_deleted.html")
+
+
+@router.get("/cancel")
+async def cancel_page(request: Request):
+    # § 312k BGB "Kündigungsbutton" — the footer link "Cancel contracts here"
+    # lands here, and the law only applies where contracts can be concluded
+    # online, i.e. Stripe is configured. Without it the page 404s (same shape
+    # as /pricing) so a self-host never links or serves a dead cancellation
+    # form. Deliberately absent from the sitemap (seo.py): a legal entry point,
+    # not landing content. ``contact_email`` feeds the "or send it by email"
+    # fallback in the form's error messages (never a dead end).
+    # ``minimal_chrome``: BGH I ZR 200/25 — this confirmation page must not
+    # carry the site's offer or navigation links, so base.html renders only the
+    # logo, language switcher and the © line + Legal group (Impressum/Privacy
+    # stay reachable everywhere, DDG § 5).
+    if not settings.stripe_secret_key:
+        return templates.TemplateResponse(
+            request, "404.html", context=localized_context(request), status_code=404
+        )
+    return _render(
+        request,
+        "cancel.html",
+        contact_email=email_mod.operator_recipient(),
+        minimal_chrome=True,
+    )
 
 
 @router.get("/pricing")

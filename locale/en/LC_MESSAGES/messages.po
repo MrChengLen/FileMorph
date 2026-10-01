@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-29 08:59+0200\n"
+"POT-Creation-Date: 2026-10-01 12:19+0200\n"
 "PO-Revision-Date: 2026-05-07 13:43+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -100,7 +100,10 @@ msgstr ""
 msgid "2f. Contact form submissions:"
 msgstr ""
 
-msgid "2g. PII redaction (paid add-on):"
+msgid "2g. Online cancellation (Cloud Edition):"
+msgstr ""
+
+msgid "2h. PII redaction (paid add-on):"
 msgstr ""
 
 msgid "3 servers, ≤ 2,000 employees"
@@ -164,8 +167,10 @@ msgid "9. Right of Withdrawal (Consumers)"
 msgstr ""
 
 msgid ""
-"; cancellation takes effect at the end of the current billing period and "
-"you retain access for the remainder of that period."
+"; an ordinary cancellation takes effect at the end of the current billing"
+" period, or on a later date you name, and you retain access until then. A"
+" cancellation made through the link is confirmed to you by email "
+"immediately."
 msgstr ""
 
 msgid "A description of the vulnerability and its potential impact."
@@ -224,6 +229,9 @@ msgid "Account deleted"
 msgstr ""
 
 msgid "Account deletion:"
+msgstr ""
+
+msgid "Account email"
 msgstr ""
 
 msgid "Account-deletion design"
@@ -341,6 +349,12 @@ msgstr ""
 msgid "At least 8 characters"
 msgstr ""
 
+msgid "At the earliest possible date"
+msgstr ""
+
+msgid "At the earliest possible date (end of the current billing period)"
+msgstr ""
+
 msgid "Attempt to circumvent rate limits or security controls"
 msgstr ""
 
@@ -394,6 +408,9 @@ msgstr ""
 msgid "Billed monthly, cancel anytime"
 msgstr ""
 
+msgid "Billing is not available right now."
+msgstr ""
+
 msgid "Building a closed-source product, SaaS, or OEM integration on FileMorph?"
 msgstr ""
 
@@ -423,6 +440,15 @@ msgid "Can I self-host FileMorph or use it as an API?"
 msgstr ""
 
 msgid "Cancel"
+msgstr ""
+
+msgid "Cancel contracts here"
+msgstr ""
+
+msgid "Cancel now"
+msgstr ""
+
+msgid "Cancellation received"
 msgstr ""
 
 msgid "Choose a password you haven't used before"
@@ -576,6 +602,9 @@ msgstr ""
 msgid "Contact:"
 msgstr ""
 
+msgid "Contract"
+msgstr ""
+
 msgid "Conversion completed with notes"
 msgstr ""
 
@@ -633,6 +662,9 @@ msgstr "Could not create the key. Please try again in a minute."
 msgid ""
 "Could not load analytics — check server logs. The metrics pipeline may be"
 " misconfigured."
+msgstr ""
+
+msgid "Could not open the billing portal. Please try again."
 msgstr ""
 
 msgid "Could not read the PDF. Verify the file is valid."
@@ -700,6 +732,9 @@ msgstr ""
 
 msgid "Details"
 msgstr "Details"
+
+msgid "Didn't send this cancellation? Contact us right away:"
+msgstr ""
 
 msgid "Do I need the Enterprise tier for KRITIS?"
 msgstr ""
@@ -775,10 +810,19 @@ msgstr ""
 msgid "Email address"
 msgstr ""
 
+msgid "Email address of your FileMorph account"
+msgstr ""
+
 msgid "Email language"
 msgstr ""
 
 msgid "Embedded objects (Excel charts, Visio diagrams) were simplified"
+msgstr ""
+
+msgid "End date"
+msgstr ""
+
+msgid "Ended"
 msgstr ""
 
 msgid "Endnotes were simplified"
@@ -814,6 +858,12 @@ msgid ""
 msgstr ""
 
 msgid "Extract PDF pages"
+msgstr ""
+
+msgid "Extraordinary cancellation"
+msgstr ""
+
+msgid "Extraordinary cancellation (for good cause)"
 msgstr ""
 
 msgid "Failure rate (today)"
@@ -938,6 +988,11 @@ msgid ""
 "server-side and deleted immediately after the converted output is "
 "returned to you. No file content is stored, logged, or retained in any "
 "form."
+msgstr ""
+
+msgid ""
+"Fill in the form and press “Cancel now”. We confirm your cancellation by "
+"email right away."
 msgstr ""
 
 msgid ""
@@ -1103,6 +1158,22 @@ msgid ""
 msgstr ""
 
 msgid ""
+"If you cancel a paid plan with the “Cancel contracts here” form, we "
+"process what you enter — email address, contract, type of cancellation, a"
+" reason if you give one, and the requested end date — to find your "
+"contract, end it through Stripe (see § 3a) and email you the confirmation"
+" required by § 312k BGB. Our tamper-evident audit log records the time of"
+" receipt, the contract, the type of cancellation, the requested end, "
+"whether an account matched and how the cancellation was handled (the end "
+"date set, or why it went to manual handling), linked to your account if "
+"one matches; your email address appears there only as a hash, your IP "
+"address and the reason not at all. Cancellations we have to handle by "
+"hand, including the reason, are sent to our operator mailbox. Legal "
+"basis: Art. 6(1)(b) and (c) GDPR; for the audit record, Art. 6(1)(f) GDPR"
+" (proof that and when a cancellation arrived)."
+msgstr ""
+
+msgid ""
 "If you did not request this email, you can safely ignore it — your "
 "password will stay unchanged."
 msgstr ""
@@ -1249,8 +1320,8 @@ msgstr ""
 msgid "Language"
 msgstr ""
 
-msgid "Last updated: 2026-09-28 · Community + Cloud Edition"
-msgstr "Last updated: 2026-09-28 · Community + Cloud Edition"
+msgid "Last updated: 2026-10-01 · Community + Cloud Edition"
+msgstr ""
 
 msgid "Last used"
 msgstr ""
@@ -1292,6 +1363,9 @@ msgid "Looking up a specific format instead? Browse the"
 msgstr ""
 
 msgid "MB per file."
+msgstr ""
+
+msgid "Manage billing"
 msgstr ""
 
 msgid "Mask ****"
@@ -1360,6 +1434,9 @@ msgstr ""
 msgid "No account?"
 msgstr ""
 
+msgid "No billing account was found for your account."
+msgstr ""
+
 msgid "No conversion or compression jobs today yet."
 msgstr ""
 
@@ -1384,6 +1461,13 @@ msgstr ""
 msgid "Notice"
 msgstr ""
 
+#, python-format
+msgid "On %(end_date)s"
+msgstr ""
+
+msgid "On a later date"
+msgstr ""
+
 msgid "One click and you're done"
 msgstr ""
 
@@ -1391,6 +1475,9 @@ msgid "One of the files has no target format available. Remove it to proceed."
 msgstr ""
 
 msgid "One-command Docker deploy"
+msgstr ""
+
+msgid "Online cancellation is not available right now."
 msgstr ""
 
 msgid "Open Source · Self-Hosted"
@@ -1417,6 +1504,9 @@ msgid "Or choose directly"
 msgstr ""
 
 msgid "Or open the dashboard manually and click \"Manage billing\":"
+msgstr ""
+
+msgid "Ordinary cancellation"
 msgstr ""
 
 msgid "Other"
@@ -1505,7 +1595,8 @@ msgstr ""
 msgid ""
 "Paid plans are billed monthly via Stripe, at the prices shown on the "
 "pricing page at the time of your order, and renew automatically until "
-"cancelled. You may cancel at any time by emailing"
+"cancelled. You may cancel at any time, without logging in, through the "
+"“Cancel contracts here” link at the bottom of every page, or by emailing"
 msgstr ""
 
 msgid "Paid tiers — coming soon"
@@ -1526,6 +1617,12 @@ msgid "Passwords do not match."
 msgstr ""
 
 msgid "Patch policy"
+msgstr ""
+
+msgid "Payment failed — please update your payment method under “Manage billing”."
+msgstr ""
+
+msgid "Payment method and invoices are managed in Stripe’s customer portal."
 msgstr ""
 
 msgid ""
@@ -1558,6 +1655,11 @@ msgstr ""
 msgid ""
 "Please check the form: a valid email and a message of at least 20 "
 "characters are required."
+msgstr ""
+
+msgid ""
+"Please check the form: enter a valid email address, and a later end date "
+"must not be in the past."
 msgstr ""
 
 msgid "Please email us directly at"
@@ -1593,6 +1695,9 @@ msgid "Pricing"
 msgstr ""
 
 msgid "Pricing — free converter, paid plans"
+msgstr ""
+
+msgid "Print or save as PDF"
 msgstr ""
 
 msgid "Priority support (best effort)"
@@ -1665,6 +1770,12 @@ msgid "RFC 9116, with response times and scope"
 msgstr ""
 
 msgid "Ready for a 15-minute pilot call?"
+msgstr ""
+
+msgid "Reason"
+msgstr ""
+
+msgid "Reason for the extraordinary cancellation (optional)"
 msgstr ""
 
 msgid "Redact & download"
@@ -1756,6 +1867,9 @@ msgid "Request pilot call"
 msgstr ""
 
 msgid "Request pilot call by email"
+msgstr ""
+
+msgid "Requested end"
 msgstr ""
 
 msgid "Reset Password"
@@ -2061,6 +2175,9 @@ msgstr ""
 msgid "Subject (optional)"
 msgstr ""
 
+msgid "Subscription"
+msgstr ""
+
 msgid "Support"
 msgstr ""
 
@@ -2213,6 +2330,9 @@ msgid ""
 "version is the authoritative legal text in case of conflict."
 msgstr ""
 
+msgid "This form needs JavaScript. Please enable it and reload the page."
+msgstr ""
+
 msgid "This link is missing a reset token. Request a new one from"
 msgstr ""
 
@@ -2264,6 +2384,12 @@ msgstr ""
 msgid "Toggle menu"
 msgstr ""
 
+msgid "Too many attempts from your network right now. Please try again later."
+msgstr ""
+
+msgid "Too many attempts. Please try again in a minute."
+msgstr ""
+
 msgid "Too many attempts. Please try again later."
 msgstr ""
 
@@ -2279,6 +2405,9 @@ msgstr ""
 msgid "Tracking disabled — set"
 msgstr ""
 
+msgid "Trial"
+msgstr ""
+
 msgid "Trust basis before contract"
 msgstr ""
 
@@ -2286,6 +2415,9 @@ msgid "Try the compressor →"
 msgstr ""
 
 msgid "Type it again"
+msgstr ""
+
+msgid "Type of cancellation"
 msgstr ""
 
 msgid "Type the word DELETE to confirm:"
@@ -2370,6 +2502,18 @@ msgid ""
 msgstr ""
 
 msgid ""
+"We could not send the confirmation email right now. Please print or save "
+"this page as your proof of cancellation."
+msgstr ""
+
+msgid "We have received your FileMorph cancellation"
+msgstr ""
+
+#, python-brace-format
+msgid "We have sent a confirmation to {email}."
+msgstr ""
+
+msgid ""
 "We may update this policy when the service changes. Accounts are live; "
 "paid plans are not yet available. Persistent file history (Cloud Edition "
 "Phase 2) is planned but not yet implemented. The date at the top "
@@ -2390,6 +2534,21 @@ msgid ""
 "We received a request to reset the password for "
 "<strong>%(email)s</strong>. Click the button below to choose a new one. "
 "The link is valid for 30 minutes and can only be used once."
+msgstr ""
+
+#, python-format
+msgid "We received your cancellation on %(received_at)s."
+msgstr ""
+
+msgid "We use it to find your contract and send the confirmation to it."
+msgstr ""
+
+msgid "We use these details only to carry out your cancellation. See our"
+msgstr ""
+
+msgid ""
+"We will process your cancellation and confirm the end date of your "
+"contract by email."
 msgstr ""
 
 msgid "Welcome back to FileMorph"
@@ -2447,6 +2606,9 @@ msgid "What you give"
 msgstr ""
 
 msgid "What's in the Compliance Edition"
+msgstr ""
+
+msgid "When should the contract end?"
 msgstr ""
 
 msgid "When to use it"
@@ -2548,6 +2710,9 @@ msgstr ""
 msgid "You can also email us directly at"
 msgstr ""
 
+msgid "You can also send your cancellation by email to"
+msgstr ""
+
 msgid ""
 "You can delete your account at any time from the dashboard (\"Delete "
 "account\" in the Danger zone). The flow asks you to re-enter your email, "
@@ -2580,6 +2745,12 @@ msgid ""
 "us at"
 msgstr ""
 
+#, python-format
+msgid ""
+"You keep the %(tier_label)s features until then; after that your account "
+"continues on the Free plan."
+msgstr ""
+
 msgid ""
 "You keep the code (AGPLv3 stays). You lose the commercial license, the "
 "updated DPA, new releases with compliance features, and the support SLA. "
@@ -2590,6 +2761,12 @@ msgid "You may not use the Service to:"
 msgstr ""
 
 msgid "You pay for accountability, not permission."
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"You submitted this cancellation with the “Cancel now” button on "
+"{datetime}."
 msgstr ""
 
 msgid ""
@@ -2607,6 +2784,16 @@ msgstr ""
 msgid ""
 "You've seen the findings above. Redacting and downloading the file "
 "requires a Pro or Business plan."
+msgstr ""
+
+#, python-format
+msgid ""
+"Your %(tier_label)s subscription ends at the end of the current billing "
+"period."
+msgstr ""
+
+#, python-format
+msgid "Your %(tier_label)s subscription ends on %(ends_on)s."
 msgstr ""
 
 #, python-format
@@ -2629,6 +2816,15 @@ msgid "Your account does not have the admin role."
 msgstr ""
 
 msgid "Your account has been deleted"
+msgstr ""
+
+msgid "Your cancellation"
+msgstr ""
+
+msgid "Your cancellation could not be sent. Please try again."
+msgstr ""
+
+msgid "Your cancellation has been received"
 msgstr ""
 
 msgid "Your email is now verified."
@@ -2725,6 +2921,9 @@ msgid "from"
 msgstr ""
 
 msgid "full GitHub repository ↗"
+msgstr ""
+
+msgid "given in the form, not repeated in this email"
 msgstr ""
 
 msgid "here is why ↗"

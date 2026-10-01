@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% import "_components/text_input.html" as ti %}
+{% import "_components/textarea.html" as ta %}
+{% import "_components/button.html" as ub %}
+{% block title %}{{ _('Cancel contracts here') }} — FileMorph{% endblock %}
+{% block content %}
+{# § 312k BGB "Kündigungsbutton" / BGH I ZR 200/25: this page carries ONLY the
+   cancellation form, its single button and the receipt shown after submitting.
+   No alternatives, no pause/downgrade offers, no promo, no links to pricing,
+   upgrade or the billing portal — keep it that way (tests/test_cancel_page.py
+   pins it). Only the privacy-policy link is allowed. #}
+{# Appended to every error so a failed submission is never a dead end. #}
+{% set mail_fallback = (' ' ~ _('You can also send your cancellation by email to') ~ ' ' ~ contact_email ~ '.') if contact_email else '' %}
+<main class="max-w-2xl mx-auto px-6 py-12 space-y-6 text-gray-300 print:text-black">
+
+  <h1 class="text-2xl font-bold text-white print:text-black">{{ _('Cancel contracts here') }}</h1>
+
+  <div id="cancel-request" class="space-y-6">
+    <p class="text-sm text-gray-400">{{ _('Fill in the form and press “Cancel now”. We confirm your cancellation by email right away.') }}</p>
+
+    {# Without JavaScript the form cannot submit — say so instead of leaving a dead end. #}
+    <noscript class="block">
+      <p class="text-sm text-red-400">{{ _('This form needs JavaScript. Please enable it and reload the page.') }}{{ mail_fallback }}</p>
+    </noscript>
+
+    {# method="post" only matters if cancel.js does not run: the default GET would put the
+       address and the free-text reason into the URL (history, server logs). #}
+    <form id="cancel-form" method="post" novalidate class="space-y-6">
+      {{ ti.text_input('email', type='email', label=_('Email address of your FileMorph account'), help=_('We use it to find your contract and send the confirmation to it.'), autocomplete='email', required=True) }}
+
+      <fieldset class="space-y-1">
+        <legend class="text-sm font-medium text-ink-muted">{{ _('Contract') }}</legend>
+        <label class="flex items-start gap-2 py-1 text-sm cursor-pointer">
+          <input type="radio" name="contract" value="pro" checked class="mt-0.5 shrink-0" />
+          <span>FileMorph Pro</span>
+        </label>
+        <label class="flex items-start gap-2 py-1 text-sm cursor-pointer">
+          <input type="radio" name="contract" value="business" class="mt-0.5 shrink-0" />
+          <span>FileMorph Business</span>
+        </label>
+      </fieldset>
+
+      <fieldset class="space-y-1">
+        <legend class="text-sm font-medium text-ink-muted">{{ _('Type of cancellation') }}</legend>
+        <label class="flex items-start gap-2 py-1 text-sm cursor-pointer">
+          <input type="radio" name="kind" value="ordinary" checked class="mt-0.5 shrink-0" />
+          <span>{{ _('Ordinary cancellation') }}</span>
+        </label>
+        <label class="flex items-start gap-2 py-1 text-sm cursor-pointer">
+          <input type="radio" name="kind" value="extraordinary" class="mt-0.5 shrink-0" />
+          <span>{{ _('Extraordinary cancellation (for good cause)') }}</span>
+        </label>
+        {# Shown by cancel.js only while "extraordinary" is selected. #}
+        <div id="cancel-reason-wrap" class="hidden pt-1">
+          {{ ta.textarea('reason', label=_('Reason for the extraordinary cancellation (optional)'), rows=4) }}
+        </div>
+      </fieldset>
+
+      <fieldset class="space-y-1">
+        <legend class="text-sm font-medium text-ink-muted">{{ _('When should the contract end?') }}</legend>
+        <label class="flex items-start gap-2 py-1 text-sm cursor-pointer">
+          <input type="radio" name="end" value="earliest" checked class="mt-0.5 shrink-0" />
+          <span>{{ _('At the earliest possible date (end of the current billing period)') }}</span>
+        </label>
+        <label class="flex items-start gap-2 py-1 text-sm cursor-pointer">
+          <input type="radio" name="end" value="date" class="mt-0.5 shrink-0" />
+          <span>{{ _('On a later date') }}</span>
+        </label>
+        {# Shown by cancel.js only while "later date" is selected; it also sets
+           min = today. [color-scheme:dark] keeps the native picker icon visible
+           on the dark field (color-scheme is inherited by the input). #}
+        <div id="cancel-date-wrap" class="hidden pt-1 [color-scheme:dark]">
+          {{ ti.text_input('end_date', type='date', label=_('End date')) }}
+        </div>
+      </fieldset>
+
+      {# Honeypot — visually & a11y-hidden (display:none removes it from the
+         tab order and the accessibility tree). A real browser never fills it;
+         a non-empty value is handled server-side. #}
+      <div class="hidden" aria-hidden="true">
+        <label for="cancel-website">Website</label>
+        <input type="text" name="website" id="cancel-website" tabindex="-1" autocomplete="off" />
+      </div>
+
+      {# The one and only button of this form. Its label is fixed by § 312k
+         BGB ("jetzt kündigen") — nothing else may stand on it. #}
+      {{ ub.button(_('Cancel now'), id='cancel-submit', type='submit') }}
+
+      <p id="cancel-status" class="text-sm text-red-400" aria-live="polite"
+         data-err-422="{{ _('Please check the form: enter a valid email address, and a later end date must not be in the past.') }}{{ mail_fallback }}"
+         data-err-429="{{ _('Too many attempts from your network right now. Please try again later.') }}{{ mail_fallback }}"
+         data-err-503="{{ _('Online cancellation is not available right now.') }}{{ mail_fallback }}"
+         data-err-500="{{ _('Your cancellation could not be sent. Please try again.') }}{{ mail_fallback }}"></p>
+
+      <p class="text-xs text-gray-400">
+        {{ _('We use these details only to carry out your cancellation. See our') }}
+        <a href="{{ localized_url('/privacy', current_prefix) }}" class="text-brand hover:underline">{{ _('Privacy Policy') }}</a>.
+      </p>
+    </form>
+  </div>
+
+  {# Receipt — cancel.js hides the form and shows this after a successful
+     submit, then moves focus to the heading. The timestamp is the server's
+     receipt time; print/save-as-PDF is the consumer's durable copy. #}
+  <section id="cancel-receipt" class="hidden space-y-4 rounded-card border border-hairline bg-surface-raised p-card-pad-md print:bg-white" aria-labelledby="cancel-receipt-title">
+    <h2 id="cancel-receipt-title" tabindex="-1" class="text-xl font-bold text-white focus:outline-none print:text-black">{{ _('Cancellation received') }}</h2>
+    <p id="cancel-receipt-time" class="text-sm"
+       data-template="{{ _('You submitted this cancellation with the “Cancel now” button on {datetime}.') }}"></p>
+    <dl class="space-y-3 text-sm">
+      <div>
+        <dt class="text-xs text-gray-400 print:text-gray-700">{{ _('Email address') }}</dt>
+        <dd data-field="email" class="break-all"></dd>
+      </div>
+      <div>
+        <dt class="text-xs text-gray-400 print:text-gray-700">{{ _('Contract') }}</dt>
+        <dd data-field="contract"></dd>
+      </div>
+      <div>
+        <dt class="text-xs text-gray-400 print:text-gray-700">{{ _('Type of cancellation') }}</dt>
+        <dd data-field="kind"></dd>
+      </div>
+      <div id="cancel-receipt-reason-row" class="hidden">
+        <dt class="text-xs text-gray-400 print:text-gray-700">{{ _('Reason') }}</dt>
+        <dd data-field="reason" class="whitespace-pre-line break-words"></dd>
+      </div>
+      <div>
+        <dt class="text-xs text-gray-400 print:text-gray-700">{{ _('Requested end') }}</dt>
+        <dd data-field="end" data-end-earliest="{{ _('At the earliest possible date') }}"></dd>
+      </div>
+    </dl>
+    <p id="cancel-receipt-email" class="text-sm"
+       data-sent="{{ _('We have sent a confirmation to {email}.') }}"
+       data-not-sent="{{ _('We could not send the confirmation email right now. Please print or save this page as your proof of cancellation.') }}"></p>
+    <div class="print:hidden">
+      {{ ub.button(_('Print or save as PDF'), id='cancel-print', variant='secondary', type='button') }}
+    </div>
+  </section>
+
+</main>
+<script src="/static/js/cancel.js"></script>
+{% endblock %}

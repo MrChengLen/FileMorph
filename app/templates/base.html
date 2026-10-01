@@ -45,11 +45,21 @@
   <link rel="stylesheet" href="/static/css/{{ tailwind_css }}" />
   <link rel="stylesheet" href="/static/css/style.css" />
 </head>
-<body class="h-full bg-gray-950 text-gray-100 font-sans" data-api-base="{{ api_base_url }}"
+<body class="h-full bg-gray-950 text-gray-100 font-sans{% if minimal_chrome %} print:bg-white{% endif %}" data-api-base="{{ api_base_url }}"
   data-ai-eligible="{{ ai_eligible_tiers|join(',') if ai_operations_enabled else '' }}">
 
+  {# minimal_chrome — passed only by the /cancel route (§ 312k BGB, BGH I ZR 200/25): that
+     confirmation page must not carry the site's offer or navigation links. Header = logo +
+     language switcher, footer = © line + Legal group; menu, auth area, mobile menu, popular
+     conversions and the Tools/Product groups are left out. Undefined (falsy) on every other
+     page, so they all keep the full chrome. Nav, mobile menu, footer and cookie notice are
+     print:hidden everywhere so a printed page (the cancellation receipt) shows only <main>.
+     The body is print:bg-white on minimal_chrome pages ONLY: with "Background graphics" on,
+     the dark body would print dark and swallow the receipt's black heading. On every other
+     page that dark body is what keeps their light text legible when graphics are on (with
+     them off those pages already print white paper), so it must stay there. #}
   <!-- B-4: Shared navbar -->
-  <nav class="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
+  <nav class="border-b border-gray-800 px-6 py-4 flex items-center justify-between print:hidden">
     <a href="{{ localized_url('/', current_prefix) }}" class="flex items-center gap-3">
       <svg class="w-8 h-8 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -57,12 +67,17 @@
       </svg>
       <span class="text-xl font-bold tracking-tight">FileMorph</span>
     </a>
+    {% if not minimal_chrome %}
     <button id="nav-toggle" class="md:hidden text-gray-400 hover:text-white p-1" aria-label="{{ _('Toggle menu') }}">
       <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
       </svg>
     </button>
-    <div id="nav-menu" class="hidden md:flex items-center gap-6 text-sm">
+    {% endif %}
+    {# Minimal chrome: no menu links and no hamburger, so the language switcher is the only
+       item and stays visible at every width. #}
+    <div id="nav-menu" class="{% if minimal_chrome %}flex{% else %}hidden md:flex{% endif %} items-center gap-6 text-sm">
+      {% if not minimal_chrome %}
       <a href="{{ localized_url('/tools', current_prefix) }}" class="text-gray-400 hover:text-white transition-colors">{{ _('Tools') }}</a>
       {# Ungated: points to the always-rendered #self-hosted section on the
          homepage, so the OSS/self-host story is reachable on every
@@ -73,7 +88,8 @@
       <a href="/docs" target="_blank" class="text-gray-400 hover:text-white transition-colors">{{ _('API Docs') }}</a>
       <a href="https://github.com/MrChengLen/FileMorph" target="_blank"
          class="text-gray-400 hover:text-white transition-colors">GitHub</a>
-      <div role="group" aria-label="{{ _('Language') }}" class="flex items-center gap-2 border-l border-gray-800 pl-4">
+      {% endif %}
+      <div role="group" aria-label="{{ _('Language') }}" class="flex items-center gap-2{% if not minimal_chrome %} border-l border-gray-800 pl-4{% endif %}">
         <a href="{{ localized_url(base_path, 'de') }}"
            hreflang="de"
            aria-label="{{ _('Switch to German') }}"
@@ -86,13 +102,16 @@
            {% if locale == 'en' %}aria-current="true"{% endif %}
            class="text-xs uppercase tracking-wider {% if locale == 'en' %}text-white font-semibold{% else %}text-gray-500 hover:text-gray-300{% endif %} transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand rounded">EN</a>
       </div>
+      {% if not minimal_chrome %}
       <div id="nav-auth-desktop" class="flex items-center gap-3">
         <a href="{{ localized_url('/login', current_prefix) }}" class="text-sm text-gray-300 hover:text-white transition-colors">{{ _('Sign In') }}</a>
         <a href="{{ localized_url('/register', current_prefix) }}" class="text-sm px-4 py-1.5 rounded-lg bg-brand hover:bg-brand-dark text-white font-semibold transition-colors">{{ _('Register') }}</a>
       </div>
+      {% endif %}
     </div>
   </nav>
-  <div id="nav-mobile-menu" class="hidden md:hidden border-t border-gray-800 bg-gray-950 px-6 py-4 space-y-3 text-sm">
+  {% if not minimal_chrome %}
+  <div id="nav-mobile-menu" class="hidden md:hidden border-t border-gray-800 bg-gray-950 px-6 py-4 space-y-3 text-sm print:hidden">
     <a href="{{ localized_url('/tools', current_prefix) }}" class="block text-gray-400 hover:text-white transition-colors py-2.5">{{ _('Tools') }}</a>
     <a href="{{ localized_url('/', current_prefix) }}#self-hosted" class="block text-gray-400 hover:text-white transition-colors py-2.5">{{ _('Self-Hosted') }}</a>
     {% if pricing_enabled %}<a href="{{ localized_url('/pricing', current_prefix) }}" class="block text-gray-400 hover:text-white transition-colors py-2.5">{{ _('Pricing') }}</a>{% endif %}
@@ -118,11 +137,13 @@
       <a href="{{ localized_url('/register', current_prefix) }}" class="block text-brand hover:text-white py-2.5">{{ _('Register') }}</a>
     </div>
   </div>
+  {% endif %}
 
   {% block content %}{% endblock %}
   {% include "partials/cookie_notice.html" %}
-  <footer class="border-t border-gray-800 px-6 py-5 mt-auto">
+  <footer class="border-t border-gray-800 px-6 py-5 mt-auto print:hidden">
     <div class="max-w-4xl mx-auto space-y-4 text-xs text-gray-600">
+      {% if not minimal_chrome %}
       <!-- Popular conversions — surfaces the per-pair pages on every page for
            the internal link graph + discovery (footer_convert_links is added to
            every render context in app/core/i18n.py::localized_context). Explicit
@@ -136,13 +157,17 @@
           {% endfor %}
         </nav>
       </div>
-      <div class="border-t border-gray-800/60 pt-4 space-y-4">
+      {% endif %}
+      <div class="{% if not minimal_chrome %}border-t border-gray-800/60 pt-4 {% endif %}space-y-4">
         <p>{{ _('© 2026 FileMorph — AGPLv3 Open Source') }}</p>
+        {% if not minimal_chrome %}
         <!-- Three curated link groups (IA-rework PR 1, docs-internal/ia-navigation-konzept.md).
              "All tools →" (/tools) is the first Tools-group link (PR 2). Same label
              styling as the Popular-conversions heading above (uppercase micro-label
              <p> + aria-labelled <nav>). -->
+        {% endif %}
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          {% if not minimal_chrome %}
           <div class="space-y-2">
             <p class="font-semibold uppercase tracking-wider text-gray-600">{{ _('Tools') }}</p>
             <nav class="flex flex-col space-y-1" aria-label="{{ _('Tools') }}">
@@ -165,6 +190,7 @@
               <a href="https://github.com/MrChengLen/FileMorph" target="_blank" class="text-gray-500 hover:text-gray-300 transition-colors">GitHub ↗</a>
             </nav>
           </div>
+          {% endif %}
           <div class="space-y-2">
             <p class="font-semibold uppercase tracking-wider text-gray-600">{{ _('Legal') }}</p>
             <nav class="flex flex-col space-y-1" aria-label="{{ _('Legal') }}">
@@ -172,6 +198,8 @@
               <a href="{{ localized_url('/terms', current_prefix) }}" class="text-gray-500 hover:text-gray-300 transition-colors">{{ _('Terms of Use') }}</a>
               <a href="{{ localized_url('/impressum', current_prefix) }}" class="text-gray-500 hover:text-gray-300 transition-colors">{{ _('Impressum') }}</a>
               <a href="{{ localized_url('/contact', current_prefix) }}" class="text-gray-500 hover:text-gray-300 transition-colors">{{ _('Contact') }}</a>
+              {# § 312k BGB "Kündigungsbutton": permanently reachable without login on every page. Deliberately a notch brighter than its neighbours — the law requires it to be clearly legible. #}
+              {% if stripe_enabled %}<a href="{{ localized_url('/cancel', current_prefix) }}" class="text-gray-400 hover:text-white transition-colors">{{ _('Cancel contracts here') }}</a>{% endif %}
             </nav>
           </div>
         </div>

@@ -35,11 +35,12 @@ calls in the application code are:
 
 - PostgreSQL queries to the configured database (Cloud Edition).
 - SMTP submissions to the configured relay: account and billing emails
-  (Cloud Edition) and contact-form messages to the operator.
+  (Cloud Edition), and contact-form messages and cancellations that need
+  manual handling to the operator.
 - Stripe API calls — creating the customer and the Checkout and
-  Billing-Portal sessions, cancelling subscriptions when an account is
-  deleted — and responses to Stripe's signed webhooks (Cloud Edition,
-  paid tiers).
+  Billing-Portal sessions, setting a subscription to end when its holder
+  cancels online, cancelling subscriptions when an account is deleted —
+  and responses to Stripe's signed webhooks (Cloud Edition, paid tiers).
 
 There is no analytics beacon, no telemetry endpoint, no "phone home" call,
 and no third-party CDN for static assets — Tailwind, fonts, and the
