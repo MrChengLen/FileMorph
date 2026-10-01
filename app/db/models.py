@@ -279,7 +279,9 @@ class AuditEvent(Base):
 
     Append-only enforcement at the database layer (Postgres trigger in
     migration 005) means even a compromised application credential
-    cannot UPDATE or DELETE rows. SQLite (test harness only) skips the
+    cannot UPDATE or DELETE rows. The one exception (migration 012) is
+    the ``ON DELETE SET NULL`` cascade that clears ``actor_user_id``
+    when the account it names is deleted. SQLite (test harness only) skips the
     trigger — the migration scopes the trigger to ``dialect.name ==
     'postgresql'``.
 
@@ -307,6 +309,10 @@ class AuditEvent(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
     event_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    # Nulled by the database when the user is deleted (see the class
+    # docstring). A ``User.audit_events`` relationship would need
+    # ``passive_deletes="all"``: otherwise the ORM nulls the rows itself
+    # while the user still exists, and the trigger refuses the deletion.
     actor_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),
