@@ -9,43 +9,6 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Fixed — deleting a free account works on PostgreSQL
-
-`DELETE /api/v1/auth/account` failed with a 500 on PostgreSQL for every
-account without a Stripe customer id, and nothing was deleted. Deleting the
-`users` row makes Postgres null `audit_events.actor_user_id` through the
-foreign key's `ON DELETE SET NULL`, which it carries out as an UPDATE, and
-the audit log's append-only trigger (migration 005) refused every UPDATE, so
-the whole deletion rolled back. Every account has audit events naming it —
-at the latest the deletion request itself — so every such deletion failed.
-Migration 012 lets exactly that change through: `actor_user_id` goes from a
-value to NULL, nothing else in the row changes, and the account it named no
-longer exists. Every other UPDATE or DELETE of an audit event is still
-refused, including a direct UPDATE that nulls a live account's ID, and the
-hash chain still verifies. Accounts with a Stripe customer id were not
-affected: their `users` row is kept for the tax-retention period, so nothing
-cascades.
-
-The test suite runs on SQLite, which has no such trigger, so no test noticed.
-The `lint-and-test` job and the weekly `deps-latest` run now start a
-PostgreSQL 16 service, and `tests/test_audit_postgres.py` migrates an empty
-database with Alembic (which surfaced the migration 001 failure below),
-deletes an account through the API, and checks that its audit events are
-kept without the account ID, the chain verifies, and every other change to an
-event is refused. A guard fails if either workflow stops providing the
-database. The TOM annex and the vendor security questionnaire name migration
-012 next to 005.
-
-### Fixed — a fresh Cloud Edition database can be migrated
-
-On an empty PostgreSQL database, `alembic upgrade head`, which the container
-entrypoint runs on every Cloud Edition start, failed in the first migration
-with `type "tier_enum" already exists`: migration 001 created its two enum
-types itself and then again with their tables. A fresh Cloud Edition install
-therefore never started; the container kept restarting. Migration 001 now
-leaves creating the types to the tables. A database that already has the
-schema is not affected, since Alembic does not run migration 001 again.
-
 ### Fixed — after a release, `:latest` is the slim image, not the office image
 
 `docker.yml` tags the slim image `:latest` and the office image `:office`, but
