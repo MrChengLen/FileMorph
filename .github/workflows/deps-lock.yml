@@ -24,6 +24,14 @@
 # more — which is exactly what happens when keeping a lockfile current is
 # manual work nobody is reminded of.
 #
+# Two jobs, so that nothing it installs runs next to the write token. `compile`
+# installs uv, recompiles both lockfiles, hands them over as an artifact and
+# test-installs them, with read-only access and a checkout that keeps no
+# credentials. `commit` holds `contents: write`, installs nothing, and commits
+# the two files it takes out of the artifact by name. uv is still installed
+# hash-checked, from requirements-uv.lock: a tampered uv in `compile` could not
+# push, but it could write the lockfiles that `commit` pushes.
+#
 # Usage — from the Actions tab, or:
 #
 #     gh workflow run deps-lock.yml --ref <branch>
@@ -43,20 +51,22 @@ name: deps-lock
 on:
   workflow_dispatch:
 
-# Needs write access to push the regenerated lockfile back to the branch.
+# Read-only unless a job says otherwise; only `commit` does, to push.
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: deps-lock-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  recompile:
+  compile:
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -66,21 +76,35 @@ jobs:
           # version for consistency across workflows, which
           # scripts/check_python_version.py enforces.
           python-version: "3.14"
-          # No `cache: "pip"`: this job can push, and code on main can write
-          # that cache — including the uv install below, which is not hashed.
+          # No `cache: "pip"`: code on main can write that cache, and the
+          # lockfiles this job writes get committed.
 
-      # The uv requirements-dev.txt pins — see the note in ci.yml's
-      # lockfile-drift job.
+      # The uv requirements-dev.txt pins, hash-checked — see the note in
+      # ci.yml's lockfile-drift job.
       - name: Install uv
         run: |
-          uv_pin=$(grep -oE '^uv==[0-9][0-9A-Za-z.!+-]*' requirements-dev.txt)
-          pip install --only-binary :all: "$uv_pin"
+          pip install --require-hashes --only-binary :all: -r requirements-uv.lock
 
       # Must match ci.yml's commands and the committed headers verbatim.
       - name: Recompile the lockfiles
         run: |
           uv pip compile --generate-hashes --python-version 3.14 --python-platform x86_64-unknown-linux-gnu --output-file requirements.lock requirements.txt
           uv pip compile --generate-hashes --python-version 3.14 --python-platform x86_64-unknown-linux-gnu --output-file requirements-sbom.lock requirements-sbom.txt
+
+      # Handed over before the test installs. If a pin ever has to be built
+      # from source there, pip runs build code that no hash covers; that code
+      # then finds the files already uploaded, though with the runner's token
+      # it could still replace the artifact. `commit` runs only if this job
+      # succeeds.
+      - name: Hand the lockfiles to the commit job
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: lockfiles
+          path: |
+            requirements.lock
+            requirements-sbom.lock
+          if-no-files-found: error
+          retention-days: 1  # committed, or already in sync, by then
 
       - name: Verify the lockfiles install
         # A lockfile that resolves but cannot install is worse than none, since
@@ -94,13 +118,40 @@ jobs:
           python -m venv /tmp/sbomcheck
           /tmp/sbomcheck/bin/pip install --require-hashes --only-binary :all: -r requirements-sbom.lock
 
-      # The branch name reaches the script as $GITHUB_REF_NAME, not as `${{ }}`
-      # text: git allows `$(`, backticks and `;` in branch names.
+  commit:
+    needs: compile
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      # Keeps its credentials, unlike the checkout in `compile`: the push
+      # below needs them.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Outside the checkout: the artifact comes from the job that ran uv, so
+      # nothing in it may land where git or this job reads.
+      - name: Download the recompiled lockfiles
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: lockfiles
+          path: ${{ runner.temp }}/lockfiles
+
+      # Takes over the two lockfiles by name and fails if git sees any other
+      # change in the checkout. The branch name reaches the script as
+      # $GITHUB_REF_NAME, not as `${{ }}` text: git allows `$(`, backticks and
+      # `;` in branch names.
       - name: Commit if changed
         run: |
-          if git diff --quiet -- requirements.lock requirements-sbom.lock; then
+          cp -- "$RUNNER_TEMP/lockfiles/requirements.lock" "$RUNNER_TEMP/lockfiles/requirements-sbom.lock" .
+          changes="$(git status --porcelain --untracked-files=all --ignored)"
+          if [ -z "$changes" ]; then
             echo "requirements.lock and requirements-sbom.lock already in sync — nothing to commit."
             exit 0
+          fi
+          if printf '%s\n' "$changes" | grep -vxE ' M requirements(-sbom)?\.lock'; then
+            echo "::error::Only requirements.lock and requirements-sbom.lock may change, not the paths listed above."
+            exit 1
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
