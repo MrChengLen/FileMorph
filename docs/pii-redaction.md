@@ -73,7 +73,7 @@ objects are refused (their binary parts can't be certified clean).
 - **Metadata-only audit:** each redaction writes a tamper-evident audit entry with
   *operation, format, item count, tier* — never the content or any detected value.
 
-See [`privacy.html`](../app/templates/privacy.html) §2g, the Terms of Use
+See [`privacy.html`](../app/templates/privacy.html) §2h, the Terms of Use
 redaction clause, [`dpa-tom-annex.md`](dpa-tom-annex.md) and
 [`records-of-processing-template.md`](records-of-processing-template.md) (A1b).
 

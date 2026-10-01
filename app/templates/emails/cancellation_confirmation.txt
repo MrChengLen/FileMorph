@@ -1,0 +1,28 @@
+{{ _('We have received your FileMorph cancellation') }}
+============================================
+
+{% trans trimmed received_at=received_at %}
+We received your cancellation on {{ received_at }}.
+{% endtrans %}
+
+{{ _('Your cancellation') }}
+-----------------
+{{ _('Account email') }}: {{ user_email }}
+{{ _('Contract') }}: FileMorph {{ tier_label }}
+{{ _('Type of cancellation') }}: {% if kind == 'extraordinary' %}{{ _('Extraordinary cancellation') }}{% else %}{{ _('Ordinary cancellation') }}{% endif %}
+{% if reason %}{{ _('Reason') }}: {{ reason }}
+{% elif reason_withheld %}{{ _('Reason') }}: {{ _('given in the form, not repeated in this email') }}
+{% endif %}{{ _('Requested end') }}: {% if end_date %}{% trans end_date=end_date %}On {{ end_date }}{% endtrans %}{% else %}{{ _('At the earliest possible date (end of the current billing period)') }}{% endif %}
+
+{% if scheduled %}{% if ends_on %}{% trans trimmed tier_label=tier_label, ends_on=ends_on %}
+Your {{ tier_label }} subscription ends on {{ ends_on }}.
+{% endtrans %}{% else %}{% trans trimmed tier_label=tier_label %}
+Your {{ tier_label }} subscription ends at the end of the current billing period.
+{% endtrans %}{% endif %} {% trans trimmed tier_label=tier_label %}
+You keep the {{ tier_label }} features until then; after that your account continues on the Free plan.
+{% endtrans %}{% else %}{{ _('We will process your cancellation and confirm the end date of your contract by email.') }}{% endif %}
+
+{{ _("Didn't send this cancellation? Contact us right away:") }} {{ contact }}
+
+—
+FileMorph · {{ app_base_url }}

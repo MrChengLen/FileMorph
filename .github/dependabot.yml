@@ -24,6 +24,14 @@
 # was invisible manual work, it fell four packages behind. The same goes for
 # requirements-sbom.txt and requirements-sbom.lock.
 #
+# So does the uv pin in requirements-dev.txt: the lockfile jobs install that
+# uv hash-checked, from requirements-uv.lock, which Dependabot does not edit
+# either. A uv bump therefore fails `lint-and-test`
+# (tests/test_supply_chain_hygiene.py) until requirements-uv.lock is
+# regenerated with the command in requirements-dev.txt. That red is the price
+# of the hash check, which refuses a file added to a uv release after its
+# hashes were taken.
+#
 # A base-image bump also moves the Python version the app ships on. The
 # `python-version consistency` gate in ci.yml fails until the workflows and
 # the lockfile follow, so such a PR is never mergeable half-done (see
