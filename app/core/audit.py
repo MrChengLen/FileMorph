@@ -11,7 +11,9 @@ running our code.
 Three properties hold:
 
 1. **Append-only at the database layer.** Migration 005 installs a
-   Postgres trigger that raises on UPDATE / DELETE. SQLite (test
+   Postgres trigger that raises on UPDATE / DELETE; the one exception
+   (migration 012) is the ``ON DELETE SET NULL`` cascade that clears
+   ``actor_user_id`` when that account is deleted. SQLite (test
    harness only) skips the trigger; we cover the SQLite path with a
    "verify rejects tampering" test instead.
 2. **Forward chain.** ``record_hash[i] = SHA256(record_hash[i-1] ||

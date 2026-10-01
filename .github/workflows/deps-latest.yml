@@ -34,6 +34,21 @@ jobs:
   test-latest:
     runs-on: ubuntu-latest
 
+    # The same PostgreSQL service as ci.yml's lint-and-test; see the comment there.
+    services:
+      postgres:
+        image: postgres:16.15-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
+        env:
+          POSTGRES_DB: filemorph_test
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -h localhost -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -57,4 +72,6 @@ jobs:
         run: pip install -r requirements-dev.txt
 
       - name: Run tests
+        env:
+          FILEMORPH_TEST_POSTGRES_URL: postgresql+asyncpg://postgres@localhost:5432/filemorph_test
         run: pytest tests/ -v --tb=short
