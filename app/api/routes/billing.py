@@ -177,7 +177,9 @@ async def stripe_webhook(
         )
 
     event_type: str = event["type"]
-    obj = event["data"]["object"]
+    # stripe >= 15: a StripeObject is not a dict (its .get() raises), but the
+    # handlers below read the object with .get(); to_dict() is recursive.
+    obj = event["data"]["object"].to_dict()
 
     if event_type in ("customer.subscription.updated", "customer.subscription.created"):
         await _sync_subscription(obj, db)

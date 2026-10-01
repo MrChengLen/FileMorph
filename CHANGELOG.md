@@ -9,6 +9,21 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — the Stripe webhook failed on every real event
+
+With stripe 15.x — the version `requirements.lock` has pinned since it was
+created — `Webhook.construct_event` returns Stripe objects that are no longer
+dicts, and the handlers' `.get()` raised `AttributeError`: every signed event
+ended in a `500`. Paid tiers would not have been granted after checkout, a
+failed payment would not have started dunning, and a cancelled subscription
+would not have dropped the account to Free. The webhook now converts the
+event object with `to_dict()` first. Until now the webhook tests covered only
+rejected requests and the handlers were tested with plain dicts; new tests
+post really signed `customer.subscription.updated`, `.deleted` and
+`invoice.payment_failed` events through the route. A deployment that took
+payments on an affected version should check each paying account's tier
+against Stripe.
+
 ### Changed — a sign-in lasts 30 days from login
 
 - `POST /auth/refresh` returns a new access token together with the refresh
