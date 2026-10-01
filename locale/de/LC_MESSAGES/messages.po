@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-29 08:59+0200\n"
+"POT-Creation-Date: 2026-10-01 12:19+0200\n"
 "PO-Revision-Date: 2026-05-08 11:00+0200\n"
 "Last-Translator: FileMorph <hallo@filemorph.io>\n"
 "Language: de\n"
@@ -116,8 +116,11 @@ msgstr "2e. API-Keys:"
 msgid "2f. Contact form submissions:"
 msgstr "2f. Nachrichten über das Kontaktformular:"
 
-msgid "2g. PII redaction (paid add-on):"
-msgstr "2g. PII-Schwärzung (kostenpflichtige Zusatzfunktion):"
+msgid "2g. Online cancellation (Cloud Edition):"
+msgstr "2g. Online-Kündigung (Cloud Edition):"
+
+msgid "2h. PII redaction (paid add-on):"
+msgstr "2h. PII-Schwärzung (kostenpflichtige Zusatzfunktion):"
 
 msgid "3 servers, ≤ 2,000 employees"
 msgstr "3 Server, ≤ 2.000 Mitarbeitende"
@@ -180,11 +183,15 @@ msgid "9. Right of Withdrawal (Consumers)"
 msgstr "9. Widerrufsrecht (Verbraucher)"
 
 msgid ""
-"; cancellation takes effect at the end of the current billing period and "
-"you retain access for the remainder of that period."
+"; an ordinary cancellation takes effect at the end of the current billing"
+" period, or on a later date you name, and you retain access until then. A"
+" cancellation made through the link is confirmed to you by email "
+"immediately."
 msgstr ""
-" — die Kündigung wird dann zum Ende der laufenden Abrechnungsperiode "
-"wirksam, und du behältst für den Rest dieser Periode Zugriff."
+" — eine ordentliche Kündigung wird zum Ende der laufenden "
+"Abrechnungsperiode wirksam oder zu einem späteren Datum, das du angibst; "
+"bis dahin behältst du Zugriff. Eine Kündigung über den Link bestätigen "
+"wir dir sofort per E-Mail."
 
 msgid "A description of the vulnerability and its potential impact."
 msgstr ""
@@ -253,6 +260,9 @@ msgstr "Konto gelöscht"
 
 msgid "Account deletion:"
 msgstr "Konto-Löschung:"
+
+msgid "Account email"
+msgstr "E-Mail-Adresse des Kontos"
 
 msgid "Account-deletion design"
 msgstr "Konzept zur Kontolöschung"
@@ -379,6 +389,12 @@ msgstr "AVV-Vorlage nach Art. 28 DSGVO"
 msgid "At least 8 characters"
 msgstr "Mindestens 8 Zeichen"
 
+msgid "At the earliest possible date"
+msgstr "Zum nächstmöglichen Zeitpunkt"
+
+msgid "At the earliest possible date (end of the current billing period)"
+msgstr "Zum nächstmöglichen Zeitpunkt (Ende des laufenden Abrechnungszeitraums)"
+
 msgid "Attempt to circumvent rate limits or security controls"
 msgstr "Versuche zu unternehmen, Rate-Limits oder Sicherheitskontrollen zu umgehen"
 
@@ -449,6 +465,9 @@ msgstr "Beste Qualität"
 msgid "Billed monthly, cancel anytime"
 msgstr "Monatlich abgerechnet, jederzeit kündbar"
 
+msgid "Billing is not available right now."
+msgstr "Die Abrechnung ist gerade nicht verfügbar."
+
 msgid "Building a closed-source product, SaaS, or OEM integration on FileMorph?"
 msgstr ""
 "Sie bauen ein Closed-Source-Produkt, SaaS oder eine OEM-Integration auf "
@@ -485,6 +504,15 @@ msgstr "Kann ich FileMorph selbst hosten oder als API nutzen?"
 
 msgid "Cancel"
 msgstr "Abbrechen"
+
+msgid "Cancel contracts here"
+msgstr "Verträge hier kündigen"
+
+msgid "Cancel now"
+msgstr "jetzt kündigen"
+
+msgid "Cancellation received"
+msgstr "Kündigung eingegangen"
 
 msgid "Choose a password you haven't used before"
 msgstr "Wähle ein Passwort, das du vorher noch nicht verwendet hast"
@@ -649,6 +677,9 @@ msgstr "Auf Anfrage"
 msgid "Contact:"
 msgstr "Kontakt:"
 
+msgid "Contract"
+msgstr "Vertrag"
+
 msgid "Conversion completed with notes"
 msgstr "Konvertierung mit Hinweisen abgeschlossen"
 
@@ -721,6 +752,11 @@ msgstr ""
 "Analytics konnten nicht geladen werden — Server-Logs prüfen. Die Metrics-"
 "Pipeline ist möglicherweise falsch konfiguriert."
 
+msgid "Could not open the billing portal. Please try again."
+msgstr ""
+"Das Abrechnungsportal konnte nicht geöffnet werden. Bitte versuche es "
+"noch einmal."
+
 msgid "Could not read the PDF. Verify the file is valid."
 msgstr "Das PDF konnte nicht gelesen werden. Prüfe, ob die Datei gültig ist."
 
@@ -790,6 +826,9 @@ msgstr "Design-Partner-Programm: 3 Plätze, 6 Monate gratis."
 
 msgid "Details"
 msgstr "Details"
+
+msgid "Didn't send this cancellation? Contact us right away:"
+msgstr "Du hast diese Kündigung nicht abgeschickt? Melde dich sofort bei uns:"
 
 msgid "Do I need the Enterprise tier for KRITIS?"
 msgstr "Brauche ich für KRITIS die Enterprise-Stufe?"
@@ -865,11 +904,20 @@ msgstr "E-Mail"
 msgid "Email address"
 msgstr "E-Mail-Adresse"
 
+msgid "Email address of your FileMorph account"
+msgstr "E-Mail-Adresse deines FileMorph-Kontos"
+
 msgid "Email language"
 msgstr "E-Mail-Sprache"
 
 msgid "Embedded objects (Excel charts, Visio diagrams) were simplified"
 msgstr "Eingebettete Objekte (Excel-Charts, Visio-Diagramme) wurden vereinfacht"
+
+msgid "End date"
+msgstr "Enddatum"
+
+msgid "Ended"
+msgstr "Beendet"
 
 msgid "Endnotes were simplified"
 msgstr "Endnoten wurden vereinfacht"
@@ -910,6 +958,12 @@ msgstr ""
 
 msgid "Extract PDF pages"
 msgstr "PDF-Seiten extrahieren"
+
+msgid "Extraordinary cancellation"
+msgstr "Außerordentliche Kündigung"
+
+msgid "Extraordinary cancellation (for good cause)"
+msgstr "Außerordentliche Kündigung (aus wichtigem Grund)"
 
 msgid "Failure rate (today)"
 msgstr "Fehlerrate (heute)"
@@ -1083,6 +1137,13 @@ msgstr ""
 "ausschließlich serverseitig verarbeitet und sofort nach Rücksendung des "
 "konvertierten Outputs gelöscht. Keine Datei-Inhalte werden in irgendeiner"
 " Form gespeichert, geloggt oder aufbewahrt."
+
+msgid ""
+"Fill in the form and press “Cancel now”. We confirm your cancellation by "
+"email right away."
+msgstr ""
+"Fülle das Formular aus und klicke auf „jetzt kündigen“. Wir bestätigen "
+"dir die Kündigung sofort per E-Mail."
 
 msgid ""
 "Find and remove structured personal data (email, IBAN, phone, IPv4, card)"
@@ -1281,6 +1342,37 @@ msgstr ""
 " Recht, ein bezahltes Abonnement innerhalb von vierzehn (14) Tagen ab "
 "Vertragsschluss — dem Tag der Bestätigung deiner ersten Stripe-Zahlung — "
 "ohne Angabe von Gründen zu widerrufen."
+
+msgid ""
+"If you cancel a paid plan with the “Cancel contracts here” form, we "
+"process what you enter — email address, contract, type of cancellation, a"
+" reason if you give one, and the requested end date — to find your "
+"contract, end it through Stripe (see § 3a) and email you the confirmation"
+" required by § 312k BGB. Our tamper-evident audit log records the time of"
+" receipt, the contract, the type of cancellation, the requested end, "
+"whether an account matched and how the cancellation was handled (the end "
+"date set, or why it went to manual handling), linked to your account if "
+"one matches; your email address appears there only as a hash, your IP "
+"address and the reason not at all. Cancellations we have to handle by "
+"hand, including the reason, are sent to our operator mailbox. Legal "
+"basis: Art. 6(1)(b) and (c) GDPR; for the audit record, Art. 6(1)(f) GDPR"
+" (proof that and when a cancellation arrived)."
+msgstr ""
+"Wenn du einen kostenpflichtigen Tarif über das Formular „Verträge hier "
+"kündigen“ kündigst, verarbeiten wir deine Angaben — E-Mail-Adresse, "
+"Vertrag, Art der Kündigung, einen Grund, falls du einen nennst, und das "
+"gewünschte Vertragsende —, um deinen Vertrag zu finden, ihn über Stripe "
+"zu beenden (siehe § 3a) und dir die nach § 312k BGB vorgeschriebene "
+"Bestätigung per E-Mail zu schicken. Unser manipulationssicheres Audit-Log"
+" hält den Eingangszeitpunkt, den Vertrag, die Art der Kündigung und das "
+"gewünschte Ende fest, außerdem, ob ein Konto gefunden wurde und wie die "
+"Kündigung bearbeitet wurde (das gesetzte Vertragsende oder warum sie von "
+"Hand bearbeitet wird) — verknüpft mit deinem Konto, falls eines passt; "
+"deine E-Mail-Adresse steht dort nur als Hash, deine IP-Adresse und der "
+"Grund gar nicht. Kündigungen, die wir von Hand bearbeiten müssen, gehen "
+"samt Grund an unser Betreiber-Postfach. Rechtsgrundlage: Art. 6(1)(b) und"
+" (c) DSGVO; für den Audit-Eintrag Art. 6(1)(f) DSGVO (Nachweis, dass und "
+"wann eine Kündigung eingegangen ist)."
 
 msgid ""
 "If you did not request this email, you can safely ignore it — your "
@@ -1503,8 +1595,8 @@ msgstr ""
 msgid "Language"
 msgstr "Sprache"
 
-msgid "Last updated: 2026-09-28 · Community + Cloud Edition"
-msgstr "Stand: 28.09.2026 · Community + Cloud Edition"
+msgid "Last updated: 2026-10-01 · Community + Cloud Edition"
+msgstr "Stand: 01.10.2026 · Community + Cloud Edition"
 
 msgid "Last used"
 msgstr "Zuletzt verwendet"
@@ -1553,6 +1645,9 @@ msgstr "Suchst du eher ein bestimmtes Format? Hier ist die"
 
 msgid "MB per file."
 msgstr "MB pro Datei."
+
+msgid "Manage billing"
+msgstr "Abrechnung verwalten"
 
 msgid "Mask ****"
 msgstr "Maskieren ****"
@@ -1624,6 +1719,9 @@ msgstr "Kein Konto erforderlich"
 msgid "No account?"
 msgstr "Kein Konto?"
 
+msgid "No billing account was found for your account."
+msgstr "Für dein Konto wurde kein Abrechnungskonto gefunden."
+
 msgid "No conversion or compression jobs today yet."
 msgstr "Heute noch keine Konvertierungs- oder Komprimierungsjobs."
 
@@ -1650,6 +1748,13 @@ msgstr ""
 msgid "Notice"
 msgstr "Hinweis"
 
+#, python-format
+msgid "On %(end_date)s"
+msgstr "Zum %(end_date)s"
+
+msgid "On a later date"
+msgstr "Zu einem späteren Datum"
+
 msgid "One click and you're done"
 msgstr "Ein Klick und du bist fertig"
 
@@ -1660,6 +1765,9 @@ msgstr ""
 
 msgid "One-command Docker deploy"
 msgstr "Docker-Deployment mit einem Befehl"
+
+msgid "Online cancellation is not available right now."
+msgstr "Die Online-Kündigung ist gerade nicht verfügbar."
 
 msgid "Open Source · Self-Hosted"
 msgstr "Open Source · Self-Hosted"
@@ -1688,6 +1796,9 @@ msgstr "Oder direkt wählen"
 
 msgid "Or open the dashboard manually and click \"Manage billing\":"
 msgstr "Oder öffne das Dashboard manuell und klicke auf „Abrechnung verwalten“:"
+
+msgid "Ordinary cancellation"
+msgstr "Ordentliche Kündigung"
 
 msgid "Other"
 msgstr "Sonstige"
@@ -1790,12 +1901,14 @@ msgstr "Zu behaltende Seiten"
 msgid ""
 "Paid plans are billed monthly via Stripe, at the prices shown on the "
 "pricing page at the time of your order, and renew automatically until "
-"cancelled. You may cancel at any time by emailing"
+"cancelled. You may cancel at any time, without logging in, through the "
+"“Cancel contracts here” link at the bottom of every page, or by emailing"
 msgstr ""
 "Kostenpflichtige Tarife werden monatlich über Stripe abgerechnet, zu den "
 "Preisen, die zum Zeitpunkt deiner Bestellung auf der Preisseite angezeigt"
-" werden, und verlängern sich automatisch bis zur Kündigung. Zum Kündigen "
-"genügt jederzeit eine E-Mail an"
+" werden, und verlängern sich automatisch bis zur Kündigung. Kündigen "
+"kannst du jederzeit ohne Anmeldung über den Link „Verträge hier kündigen“"
+" unten auf jeder Seite oder per E-Mail an"
 
 msgid "Paid tiers — coming soon"
 msgstr "Bezahlte Tarife — demnächst verfügbar"
@@ -1818,6 +1931,14 @@ msgstr "Passwörter stimmen nicht überein."
 
 msgid "Patch policy"
 msgstr "Patch-Policy"
+
+msgid "Payment failed — please update your payment method under “Manage billing”."
+msgstr ""
+"Zahlung fehlgeschlagen — bitte aktualisiere deine Zahlungsmethode unter "
+"„Abrechnung verwalten“."
+
+msgid "Payment method and invoices are managed in Stripe’s customer portal."
+msgstr "Zahlungsmethode und Rechnungen verwaltest du im Kundenportal von Stripe."
 
 msgid ""
 "Payment processing is handled by Stripe Payments Europe Ltd.; Stripe's "
@@ -1860,6 +1981,13 @@ msgstr ""
 "Bitte prüfe das Formular: eine gültige E-Mail-Adresse und eine Nachricht "
 "mit mindestens 20 Zeichen sind erforderlich."
 
+msgid ""
+"Please check the form: enter a valid email address, and a later end date "
+"must not be in the past."
+msgstr ""
+"Bitte prüfe deine Angaben: Gib eine gültige E-Mail-Adresse an; ein "
+"späteres Enddatum darf nicht in der Vergangenheit liegen."
+
 msgid "Please email us directly at"
 msgstr "Bitte schreib uns direkt an"
 
@@ -1896,6 +2024,9 @@ msgstr "Preise"
 
 msgid "Pricing — free converter, paid plans"
 msgstr "Preise — Konverter gratis, bezahlte Tarife"
+
+msgid "Print or save as PDF"
+msgstr "Drucken oder als PDF speichern"
 
 msgid "Priority support (best effort)"
 msgstr "Priorisierter Support (Best Effort)"
@@ -1990,6 +2121,12 @@ msgstr "RFC 9116, mit Reaktionszeiten und Scope"
 
 msgid "Ready for a 15-minute pilot call?"
 msgstr "Bereit für ein 15-Minuten-Pilotgespräch?"
+
+msgid "Reason"
+msgstr "Grund"
+
+msgid "Reason for the extraordinary cancellation (optional)"
+msgstr "Grund für die außerordentliche Kündigung (optional)"
 
 msgid "Redact & download"
 msgstr "Schwärzen & herunterladen"
@@ -2105,6 +2242,9 @@ msgstr "Pilotgespräch anfragen"
 
 msgid "Request pilot call by email"
 msgstr "Pilotgespräch per E-Mail anfragen"
+
+msgid "Requested end"
+msgstr "Gewünschtes Vertragsende"
 
 msgid "Reset Password"
 msgstr "Passwort zurücksetzen"
@@ -2450,6 +2590,9 @@ msgstr "Sub-Processor-Liste"
 msgid "Subject (optional)"
 msgstr "Betreff (optional)"
 
+msgid "Subscription"
+msgstr "Abonnement"
+
 msgid "Support"
 msgstr "Support"
 
@@ -2645,6 +2788,11 @@ msgstr ""
 "Diese deutsche Fassung ist die rechtlich verbindliche Version. Die "
 "englische Übersetzung dient nur der Barrierefreiheit."
 
+msgid "This form needs JavaScript. Please enable it and reload the page."
+msgstr ""
+"Dieses Formular braucht JavaScript. Bitte aktiviere es und lade die Seite"
+" neu."
+
 msgid "This link is missing a reset token. Request a new one from"
 msgstr "Diesem Link fehlt ein Zurücksetzungs-Token. Fordere einen neuen an unter"
 
@@ -2713,6 +2861,14 @@ msgstr ""
 msgid "Toggle menu"
 msgstr "Menü umschalten"
 
+msgid "Too many attempts from your network right now. Please try again later."
+msgstr ""
+"Gerade gab es zu viele Versuche aus deinem Netzwerk. Bitte versuche es "
+"später noch einmal."
+
+msgid "Too many attempts. Please try again in a minute."
+msgstr "Zu viele Versuche. Bitte versuche es in einer Minute noch einmal."
+
 msgid "Too many attempts. Please try again later."
 msgstr "Zu viele Versuche. Bitte versuche es später erneut."
 
@@ -2728,6 +2884,9 @@ msgstr "Top-Format-Paare (nur Transforms)"
 msgid "Tracking disabled — set"
 msgstr "Tracking deaktiviert — setze"
 
+msgid "Trial"
+msgstr "Testphase"
+
 msgid "Trust basis before contract"
 msgstr "Vertrauensbasis vor dem Vertrag"
 
@@ -2736,6 +2895,9 @@ msgstr "Kompressor ausprobieren →"
 
 msgid "Type it again"
 msgstr "Erneut eingeben"
+
+msgid "Type of cancellation"
+msgstr "Art der Kündigung"
 
 msgid "Type the word DELETE to confirm:"
 msgstr "Gib zur Bestätigung das Wort DELETE ein:"
@@ -2840,6 +3002,20 @@ msgstr ""
 " einer Verbraucherschlichtungsstelle teilzunehmen (§ 36 VSBG)."
 
 msgid ""
+"We could not send the confirmation email right now. Please print or save "
+"this page as your proof of cancellation."
+msgstr ""
+"Die Bestätigungs-E-Mail konnte gerade nicht versendet werden. Bitte "
+"drucke oder speichere diese Seite als Nachweis deiner Kündigung."
+
+msgid "We have received your FileMorph cancellation"
+msgstr "Wir haben deine FileMorph-Kündigung erhalten"
+
+#, python-brace-format
+msgid "We have sent a confirmation to {email}."
+msgstr "Wir haben dir eine Bestätigung an {email} geschickt."
+
+msgid ""
 "We may update this policy when the service changes. Accounts are live; "
 "paid plans are not yet available. Persistent file history (Cloud Edition "
 "Phase 2) is planned but not yet implemented. The date at the top "
@@ -2873,6 +3049,25 @@ msgstr ""
 "<strong>%(email)s</strong> zurückzusetzen. Klicke auf den Button unten, "
 "um ein neues festzulegen. Der Link ist 30 Minuten gültig und kann nur "
 "einmal verwendet werden."
+
+#, python-format
+msgid "We received your cancellation on %(received_at)s."
+msgstr "Deine Kündigung ist am %(received_at)s bei uns eingegangen."
+
+msgid "We use it to find your contract and send the confirmation to it."
+msgstr "Darüber finden wir deinen Vertrag und schicken dir die Bestätigung."
+
+msgid "We use these details only to carry out your cancellation. See our"
+msgstr ""
+"Wir verwenden diese Angaben nur, um deine Kündigung auszuführen. Mehr "
+"dazu in unserer"
+
+msgid ""
+"We will process your cancellation and confirm the end date of your "
+"contract by email."
+msgstr ""
+"Wir bearbeiten deine Kündigung und bestätigen dir das Vertragsende per "
+"E-Mail."
 
 msgid "Welcome back to FileMorph"
 msgstr "Willkommen zurück bei FileMorph"
@@ -2934,6 +3129,9 @@ msgstr "Was Sie geben"
 
 msgid "What's in the Compliance Edition"
 msgstr "Inhalt der Compliance-Edition"
+
+msgid "When should the contract end?"
+msgstr "Wann soll der Vertrag enden?"
 
 msgid "When to use it"
 msgstr "Wann es sinnvoll ist"
@@ -3072,6 +3270,9 @@ msgstr ""
 msgid "You can also email us directly at"
 msgstr "Du kannst uns auch direkt schreiben an"
 
+msgid "You can also send your cancellation by email to"
+msgstr "Du kannst deine Kündigung auch per E-Mail senden an"
+
 msgid ""
 "You can delete your account at any time from the dashboard (\"Delete "
 "account\" in the Danger zone). The flow asks you to re-enter your email, "
@@ -3128,6 +3329,14 @@ msgstr ""
 "der Verarbeitung deiner personenbezogenen Daten (Art. 15–21 DSGVO). Um "
 "diese Rechte auszuüben, kontaktiere uns unter"
 
+#, python-format
+msgid ""
+"You keep the %(tier_label)s features until then; after that your account "
+"continues on the Free plan."
+msgstr ""
+"Bis dahin behältst du die %(tier_label)s-Funktionen; danach läuft dein "
+"Konto im Free-Tarif weiter."
+
 msgid ""
 "You keep the code (AGPLv3 stays). You lose the commercial license, the "
 "updated DPA, new releases with compliance features, and the support SLA. "
@@ -3143,6 +3352,14 @@ msgstr "Du darfst den Dienst nicht nutzen, um:"
 
 msgid "You pay for accountability, not permission."
 msgstr "Sie zahlen für Verantwortung, nicht für eine Erlaubnis."
+
+#, python-brace-format
+msgid ""
+"You submitted this cancellation with the “Cancel now” button on "
+"{datetime}."
+msgstr ""
+"Du hast diese Kündigung am {datetime} über die Schaltfläche „jetzt "
+"kündigen“ abgegeben."
 
 msgid ""
 "You'll receive a confirmation email shortly. You can re-register at any "
@@ -3171,6 +3388,18 @@ msgstr ""
 
 #, python-format
 msgid ""
+"Your %(tier_label)s subscription ends at the end of the current billing "
+"period."
+msgstr ""
+"Dein %(tier_label)s-Abonnement endet zum Ende des laufenden "
+"Abrechnungszeitraums."
+
+#, python-format
+msgid "Your %(tier_label)s subscription ends on %(ends_on)s."
+msgstr "Dein %(tier_label)s-Abonnement endet am %(ends_on)s."
+
+#, python-format
+msgid ""
 "Your FileMorph account %(email)s was deleted on %(deleted_at)s. This is a"
 " confirmation; the deletion is already complete."
 msgstr ""
@@ -3195,6 +3424,17 @@ msgstr "Dieses Konto hat keine Admin-Rolle."
 
 msgid "Your account has been deleted"
 msgstr "Dein Konto wurde gelöscht"
+
+msgid "Your cancellation"
+msgstr "Deine Kündigung"
+
+msgid "Your cancellation could not be sent. Please try again."
+msgstr ""
+"Deine Kündigung konnte nicht gesendet werden. Bitte versuche es noch "
+"einmal."
+
+msgid "Your cancellation has been received"
+msgstr "Deine Kündigung ist eingegangen"
 
 msgid "Your email is now verified."
 msgstr "Deine E-Mail-Adresse ist jetzt bestätigt."
@@ -3300,6 +3540,9 @@ msgstr "ab"
 
 msgid "full GitHub repository ↗"
 msgstr "vollständiges GitHub-Repository ↗"
+
+msgid "given in the form, not repeated in this email"
+msgstr "im Formular angegeben, in dieser E-Mail nicht wiederholt"
 
 msgid "here is why ↗"
 msgstr "hier ist warum ↗"
