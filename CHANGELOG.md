@@ -9,6 +9,24 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Security — urllib3 2.8.0: three advisories published on 2026-09-30
+
+On 2026-10-01 `pip-audit` flagged urllib3 2.7.0 in `requirements.lock`, and
+`lint-and-test` has failed on every CI run since. urllib3 2.8.0 fixes all three:
+
+- CVE-2026-97687 (GHSA-8988-9cw3-xx77, High): the TLS configuration for HTTPS
+  proxies could be ignored or overridden.
+- CVE-2026-97689 (GHSA-vxq7-64xx-v4gw, High): `HTTPResponse.stream()` and
+  `read_chunked()` could buffer a chunk-size line of unbounded length.
+- CVE-2026-97688 (GHSA-gh4c-6fx4-qh6g, Medium): chunked Deflate streaming could
+  enter an infinite loop.
+
+At runtime the app uses urllib3 only through `requests`, which the Stripe SDK
+uses for its API calls (pip in the base image carries a copy of its own, which
+the app never runs). The lockfile now pins 2.8.0, and its two hashes match the
+digests PyPI publishes. Nothing else in the lockfile changed, its header
+included, and `lockfile-drift`'s command reproduces it byte for byte.
+
 ### Changed — a sign-in lasts 30 days from login
 
 - `POST /auth/refresh` returns a new access token together with the refresh
