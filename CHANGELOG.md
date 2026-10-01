@@ -9,6 +9,16 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — a fresh Cloud Edition database can be migrated
+
+On an empty PostgreSQL database, `alembic upgrade head`, which the container
+entrypoint runs on every Cloud Edition start, failed in the first migration
+with `type "tier_enum" already exists`: migration 001 created its two enum
+types itself and then again with their tables. A fresh Cloud Edition install
+therefore never started; the container kept restarting. Migration 001 now
+leaves creating the types to the tables. A database that already has the
+schema is not affected, since Alembic does not run migration 001 again.
+
 ### Security — urllib3 2.8.0: three advisories published on 2026-09-30
 
 On 2026-10-01 `pip-audit` flagged urllib3 2.7.0 in `requirements.lock`, and
