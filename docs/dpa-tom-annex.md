@@ -144,8 +144,10 @@ physical assets of its own.
 ### Input control (Eingabekontrolle)
 
 - Tamper-evident audit log: SHA-256 hash chain, Postgres append-only
-  trigger — `app/core/audit.py`, Migration 005; the `verify_chain`
-  helper detects retroactive edits from a SQL dump alone. Compatible with
+  trigger — `app/core/audit.py`, Migrations 005 and 012 (the one change
+  the trigger allows: a hard account deletion nulls the account ID on
+  that account's events); the `verify_chain` helper detects retroactive
+  edits from a SQL dump alone. Compatible with
   ISO 27001 A.12.4.1 / BORA §50 / BeurkG §39a. It records registration,
   login, email verification, password reset and account deletion;
   subscription and payment events, including the withdrawal waiver at

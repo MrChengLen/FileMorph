@@ -304,8 +304,8 @@ and renews certificates automatically.
 - **API keys:** SHA-256 hashes only — `app/core/security.py`. Raw key
   is shown once at creation and never logged.
 - **Audit log:** plain Postgres rows protected by an append-only
-  trigger and a SHA-256 hash chain — `app/core/audit.py`, Migration
-  005. Backups protect the integrity of the at-rest copy; the chain
+  trigger and a SHA-256 hash chain — `app/core/audit.py`, Migrations
+  005 and 012. Backups protect the integrity of the at-rest copy; the chain
   detects retroactive edits from a SQL dump alone.
 - **Database backups:** operator-side. The Compliance Edition deployment
   encrypts backups at rest and stores them off-site; the AGPL operator
@@ -573,7 +573,10 @@ classification. **No file content** is logged. The regression guard is
 
 Yes. The audit log is a SHA-256 hash chain over append-only Postgres
 rows protected by a database trigger
-(`app/core/audit.py`, Migration 005). The `verify_chain` helper
+(`app/core/audit.py`, Migrations 005 and 012). The one change the
+trigger allows is the database nulling the account ID on an account's
+events when that account is hard-deleted (Art. 17 GDPR); the chain
+still verifies afterwards. The `verify_chain` helper
 detects retroactive edits from a SQL dump alone — compatible with
 ISO 27001 A.12.4.1, BORA §50, and BeurkG §39a expectations.
 
