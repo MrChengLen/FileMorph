@@ -40,7 +40,7 @@ reportlab>=4.1.0
 # affected parameters -- so the cap costs us nothing today. It does mean the
 # port to the 70 API carries a security benefit and should not sit here
 # indefinitely. ci.yml documents the matching pip-audit ignore.
-weasyprint>=69.0,<70
+weasyprint>=70.0,<71
 markdown>=3.10.3
 openpyxl>=3.1.5
 ffmpeg-python>=0.2.0
