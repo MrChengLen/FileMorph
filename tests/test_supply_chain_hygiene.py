@@ -37,7 +37,10 @@ silently undo it:
     digest its build step reports: the SBOM comes from sbom.yml's steps in a
     job that can only read, and the job that signs the attestation checks
     nothing out, installs nothing and runs only GitHub's own actions;
-    docs/release-signing.md verifies it the way it is made.
+    docs/release-signing.md verifies it the way it is made;
+  * only the slim image is tagged ``:latest``: docker.yml switches off
+    metadata-action's automatic ``latest`` tag, which a release would
+    otherwise add to the office image too.
 
 This is a tripwire, not a substitute for the server-side Scorecard run /
 review: the per-job permissions check here is a heuristic (it asserts a
@@ -1219,6 +1222,49 @@ def test_docs_verify_the_sbom_attestation_as_docker_yml_makes_it() -> None:
         "docs/release-signing.md: say that the SBOM covers requirements.lock's Python packages "
         "only, not the image's Debian packages"
     )
+
+
+def test_only_the_slim_image_is_tagged_latest() -> None:
+    """docker.yml tags the slim image ``:latest``, and only the slim image.
+
+    metadata-action adds a ``latest`` tag of its own when a ``type=semver``
+    entry matches a release tag (``flavor: latest=auto``, its default), and
+    a tag entry's ``suffix=`` does not reach that tag: on a release both
+    variants pushed ``:latest``, and whichever finished last kept it —
+    usually the office image, the slower build. With ``latest=false`` the
+    ``type=raw`` entry that names ``latest`` for the unsuffixed base leg is
+    the only source of ``:latest``, so that entry and that leg have to stay.
+    The flavor is pinned whole: the action skips only lines that start with
+    ``#`` and unquotes CSV fields, so a looser match could pass a flavor it
+    reads differently.
+    """
+    job = _workflow(_WORKFLOW_DIR / "docker.yml")["jobs"]["build-and-push"]
+    legs = {leg["target"]: leg.get("suffix") for leg in job["strategy"]["matrix"]["include"]}
+    assert legs.get("base") == "", (
+        f"docker.yml: the `latest` entry is meant for the `base` leg, the slim image without "
+        f"a suffix; the matrix has {legs}"
+    )
+    steps = [s for s in _steps(job) if str(s.get("uses", "")).startswith("docker/metadata-action@")]
+    assert steps, "docker.yml no longer uses docker/metadata-action — update this guard"
+    raw_latest = "type=raw,value=${{ matrix.target == 'base' && 'latest' || 'office' }}"
+    for step in steps:
+        inputs = step.get("with") or {}
+        assert str(inputs.get("flavor", "")).strip() == "latest=false", (
+            f"docker.yml step {step.get('name')!r}: `flavor:` must be exactly `latest=false` "
+            f"(this guard pins it whole) — without it, a release tags the office image "
+            f"`:latest` as well"
+        )
+        latest = [
+            line.strip()
+            for line in str(inputs.get("tags", "")).splitlines()
+            # As in the action, only a line starting with "#" is a comment; an
+            # indented "# type=raw,value=latest" is a tag for both images.
+            if "latest" in line and not line.startswith("#")
+        ]
+        assert latest == [raw_latest], (
+            f"docker.yml step {step.get('name')!r}: `:latest` comes from one `type=raw` entry, "
+            f"for the base leg only; found {latest}"
+        )
 
 
 def test_verapdf_image_is_digest_pinned() -> None:
