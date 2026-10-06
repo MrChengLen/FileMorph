@@ -1,7 +1,7 @@
 -r requirements.txt
 pytest>=9.1.1
 pytest-asyncio>=1.4.0
-httpx>=0.27.0
+httpx>=0.28.1
 aiosqlite>=0.22.1
 # Pinned exactly: unpinned ruff drifted in CI and reddened every PR on
 # 2026-07-31 while local runs stayed green. Bump deliberately, together with a
@@ -12,7 +12,7 @@ aiosqlite>=0.22.1
 # Markdown, which 0.15 ignored entirely. Nothing under app/ or tests/ moved; the
 # four docs/*.md files carrying ```python examples did, which is why that
 # reformat rides along in the same commit as this pin.
-ruff==0.16.9
+ruff==0.16.10
 # Pinned exactly for the same reason as ruff: uv resolves requirements.lock, and
 # a resolver update can legitimately produce a different lockfile — which would
 # turn the lockfile-drift gate red with no dependency change behind it. The CI
@@ -34,7 +34,7 @@ ruff==0.16.9
 # lockfile generated on Windows still carries the Linux-only packages (uvloop
 # via uvicorn[standard]). Both must match the CI command exactly, since uv
 # records the invocation in the lockfile header and the drift gate diffs it.
-uv==0.12.19
+uv==0.12.22
 pip-audit>=2.10.1
 beautifulsoup4>=4.15.0
 # Parses the workflows in tests/test_workflow_triggers.py and

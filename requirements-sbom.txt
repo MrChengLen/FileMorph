@@ -17,4 +17,4 @@
 # sbom.yml, release.yml and docker.yml (tests/test_supply_chain_hygiene.py
 # checks), and should dispatch sbom.yml on its branch before merging, since
 # neither release.yml nor docker.yml can be tried on a PR.
-cyclonedx-bom>=5,<6
+cyclonedx-bom>=5.5.0,<6
