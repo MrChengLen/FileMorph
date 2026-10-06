@@ -715,7 +715,7 @@ Self-hosters who fork this repository should recompile
 
 ### Accepted advisories
 
-Two advisories are currently allow-listed in CI
+Three advisories are currently allow-listed in CI
 (`--ignore-vuln` in `.github/workflows/ci.yml`) rather than blocking
 the build, each with a documented reason and a re-evaluation trigger:
 
@@ -723,6 +723,7 @@ the build, each with a documented reason and a re-evaluation trigger:
 |---|---|---|
 | PYSEC-2026-1325 (CVE-2024-23342, GHSA-wj6h-64fc-37mp) | `ecdsa`, transitive via `python-jose` | Minerva timing side-channel in ECDSA sign/keygen/ECDH. No fixed version exists upstream. Not reachable here: FileMorph's JWTs are HS256-only (`app/core/tokens.py`), so no ECDSA code path ever runs. Added 2026-07-15; drop once the project migrates off `python-jose` or upstream ships a fix. |
 | CVE-2026-55073 (GHSA-jf6q-chmf-3h3v), CVSS 6.2 | `weasyprint` &lt; 70.0 | SSRF-protection bypass: two `write_pdf()` parameters (`xmp_metadata`, `stylesheets`, both accepting a URL) build a fresh default fetcher instead of honouring a custom `url_fetcher`. Not reachable here: every `write_pdf()` call site passes only the output path, never those parameters. The fix (70.0) reworks the `url_fetcher` contract in a way that would break `_deny_url_fetcher`; re-evaluate once that port happens. Added 2026-09-09. |
+| CVE-2026-85394 (GHSA-3qf3-8w2g-rqmx), CVSS 9.1 | `python-jose` &le; 3.5.0 | Algorithm confusion: a DER-encoded public key is accepted as an HMAC secret, so a verifier that checks tokens with a public key and also allows HS256 accepts a token signed with that public key. No fixed release exists. Not reachable here: FileMorph has no asymmetric key. Every token is verified in one place (`app/core/tokens.py`) with the symmetric `JWT_SECRET` and `algorithms=["HS256"]`, and there is no JWKS, OIDC or SSO feature. Added 2026-10-06; review 2026-11-05 and at each release; drop once the project migrates off `python-jose` (required before any SSO work) or upstream ships a fix. |
 
 The full reasoning (with exact code line references) lives in the
 `ci.yml` comments next to the `pip-audit` step.
@@ -763,12 +764,13 @@ For readers who want to jump directly to the code:
 
 ---
 
-*Last revised 2026-09-28. The findings synthesised here are
+*Last revised 2026-10-06. The findings synthesised here are
 sourced from the static code review dated 2026-04-19 and the
 current state of the repository. The 2026-09-28 revision corrects
 drift against the code: the account-deletion section now reflects
 the shipped tax-retained deletion path (no longer a 409 refusal),
 the Stripe webhook coverage table matches what is actually wired,
 the audit-log paragraph acknowledges the persisted output-hash
-attestation, and the accepted-advisories table lists the two
-CVEs currently allow-listed in CI.*
+attestation, and the accepted-advisories table lists the
+CVEs currently allow-listed in CI; the 2026-10-06 revision adds
+CVE-2026-85394 (`python-jose`).*
