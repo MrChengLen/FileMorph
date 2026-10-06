@@ -9,6 +9,9 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+> New entries go in [`changelog.d/`](changelog.d/), one file per change;
+> `scripts/changelog.py` folds them in here, newest first.
+
 ### Fixed — a PDF that pypdf can't read gets a 400, not a 500
 
 pypdf raises `LimitReachedError` when a crafted file trips one of its safety

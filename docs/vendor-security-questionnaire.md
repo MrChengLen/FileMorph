@@ -27,7 +27,8 @@ to a questionnaire instead of re-deriving the answers each time.
 >
 > Application-level answers describe the current code on `main`. The
 > only tagged release so far, v1.1.0 (2026-06-01), predates several of
-> them — see the "Unreleased" section of [`CHANGELOG.md`](../CHANGELOG.md).
+> them — see the "Unreleased" section of [`CHANGELOG.md`](../CHANGELOG.md)
+> and the entries in [`changelog.d/`](../changelog.d/).
 
 ---
 

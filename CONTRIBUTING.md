@@ -30,6 +30,7 @@ pip install -r requirements-dev.txt
 cp .env.example .env
 
 # 4. Make your changes
+#    User-visible change? Add changelog.d/<YYYY-MM-DD>-<topic>.md (see changelog.d/README.md)
 
 # 5. Run tests and lint (the full list of CI checks is under "CI gates" below)
 pytest tests/ -v
