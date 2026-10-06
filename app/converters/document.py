@@ -8,7 +8,12 @@ import subprocess
 import zipfile
 from pathlib import Path
 
-from app.converters.base import BaseConverter, InvalidInputError, read_utf8_text
+from app.converters.base import (
+    BaseConverter,
+    EncryptedPdfError,
+    InvalidInputError,
+    read_utf8_text,
+)
 from app.converters.registry import register
 
 logger = logging.getLogger(__name__)
@@ -352,7 +357,7 @@ class TxtToPdfConverter(BaseConverter):
 class PdfToTxtConverter(BaseConverter):
     def convert(self, input_path: Path, output_path: Path, **kwargs) -> Path:
         from pypdf import PdfReader
-        from pypdf.errors import PyPdfError
+        from pypdf.errors import FileNotDecryptedError, PyPdfError
 
         # PyPdfError covers LimitReachedError (a crafted file tripping one of
         # pypdf's resource limits), which PdfReadError alone would miss. The
@@ -364,6 +369,8 @@ class PdfToTxtConverter(BaseConverter):
         except (PyPdfError, ValueError) as exc:
             # The class only — pypdf's messages can quote the file.
             logger.info("unreadable PDF: %s", type(exc).__name__)
+            if isinstance(exc, FileNotDecryptedError):
+                raise EncryptedPdfError() from exc
             raise InvalidInputError("Could not read the PDF. Verify the file is valid.") from exc
         # A broken font map can yield an unpaired surrogate, which UTF-8
         # can't encode: write that character as "?" instead of failing.

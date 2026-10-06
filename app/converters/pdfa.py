@@ -62,7 +62,7 @@ import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from app.converters.base import BaseConverter
+from app.converters.base import BaseConverter, EncryptedPdfError
 from app.converters.registry import register
 
 if TYPE_CHECKING:
@@ -249,6 +249,10 @@ class PdfToPdfaConverter(BaseConverter):
                     object_stream_mode=pikepdf.ObjectStreamMode.disable,
                     linearize=False,
                 )
+        except pikepdf.PasswordError as exc:
+            # A user password we don't have (ghostscript, where installed,
+            # already failed on it and left us the original).
+            raise EncryptedPdfError() from exc
         finally:
             if gs_intermediate is not None:
                 gs_intermediate.unlink(missing_ok=True)

@@ -28,8 +28,10 @@ clear 400 instead of a surprising empty/partial PDF.
 pypdf parsing of the *input* PDF still happens inside ``convert()`` /
 ``split_pdf()``; the route invokes both through ``asyncio.to_thread`` so
 the (synchronous, C-accelerated) parse never blocks the event loop —
-identical to every other converter. A PDF pypdf cannot read raises
-:class:`UnreadablePdfError`, a ``PageSelectionError`` with a fixed message.
+identical to every other converter. A PDF pypdf cannot read, or one without
+pages, raises :class:`UnreadablePdfError`, a ``PageSelectionError`` that
+blames the file rather than the selection. One that needs a password raises
+:class:`~app.converters.base.EncryptedPdfError`.
 """
 
 from __future__ import annotations
@@ -39,7 +41,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
-from app.converters.base import BaseConverter, InvalidInputError
+from app.converters.base import BaseConverter, EncryptedPdfError, InvalidInputError
 from app.converters.registry import register
 
 logger = logging.getLogger(__name__)
@@ -61,10 +63,23 @@ class PageSelectionError(InvalidInputError):
 
 
 class UnreadablePdfError(PageSelectionError):
-    """pypdf could not read the input PDF; raised with ``_UNREADABLE_PDF``."""
+    """The input PDF is the problem, not the page selection.
+
+    pypdf could not read it (raised with ``_UNREADABLE_PDF``), or it has no
+    pages. ``/pdf/extract`` answers it with ``invalid_pdf``.
+    """
 
 
 _UNREADABLE_PDF = "Could not read the PDF. Verify the file is valid."
+
+# PDF → PDF without a selection keeps every page, so it is held to the
+# selection cap — but the caller selected nothing, so the message names the
+# document's size and where to process it in parts.
+_TOO_MANY_PAGES_TO_CONVERT = (
+    f"This PDF has more than {_MAX_SELECTION_PAGES:,} pages, the most a PDF-to-PDF "
+    f"conversion handles in one request. Process it in parts of up to "
+    f"{_MAX_SELECTION_PAGES:,} pages with /api/v1/pdf/extract."
+)
 
 
 def parse_page_ranges(spec: str, page_count: int) -> list[int]:
@@ -79,10 +94,11 @@ def parse_page_ranges(spec: str, page_count: int) -> list[int]:
     error) on: empty spec, non-numeric token, zero/negative page number,
     reversed range (``b < a``), any page beyond ``page_count``, or a
     selection that would expand past ``_MAX_SELECTION_PAGES``. The message
-    is generic and safe to return to the client.
+    is generic and safe to return to the client. A ``page_count`` of 0
+    raises the :class:`UnreadablePdfError` subclass: the file is at fault.
     """
     if page_count <= 0:
-        raise PageSelectionError("The PDF has no pages to extract.")
+        raise UnreadablePdfError("The PDF has no pages to extract.")
     if spec is None or not spec.strip():
         raise PageSelectionError("No pages specified.")
 
@@ -157,13 +173,20 @@ def _reading_pdf() -> Iterator[None]:
     ``OSError`` stays a server error: pypdf reads the whole file into
     memory first, so one can only come from our own disk. Only the
     exception's class is logged — pypdf's messages can quote the file.
+
+    A PDF with a user password is readable, just not by us: pypdf tries
+    the empty password on open and raises ``FileNotDecryptedError`` on the
+    first object it then reads. That becomes :class:`EncryptedPdfError`,
+    whose message tells the user to remove the password.
     """
-    from pypdf.errors import PyPdfError
+    from pypdf.errors import FileNotDecryptedError, PyPdfError
 
     try:
         yield
     except (PyPdfError, ValueError) as exc:
         logger.info("unreadable PDF: %s", type(exc).__name__)
+        if isinstance(exc, FileNotDecryptedError):
+            raise EncryptedPdfError() from exc
         raise UnreadablePdfError(_UNREADABLE_PDF) from exc
 
 
@@ -211,7 +234,7 @@ def split_pdf(input_path: Path) -> list[tuple[str, bytes]]:
     reader = _open_reader(input_path)
     total = len(reader.pages)
     if total == 0:
-        raise PageSelectionError("The PDF has no pages to split.")
+        raise UnreadablePdfError("The PDF has no pages to split.")
     # Same defensive ceiling extract uses on a selection: a crafted PDF
     # claiming an enormous page count would otherwise have us build (and
     # hold in memory) that many single-page writers before the route's
@@ -248,6 +271,8 @@ class PdfPageExtractConverter(BaseConverter):
             # No selection → keep every page. Re-write through pypdf so the
             # output is a freshly-serialised PDF (consistent with the
             # extract path) rather than a byte-copy of the input.
-            reader = _open_reader(input_path)
-            spec = f"1-{len(reader.pages)}"
+            page_count = len(_open_reader(input_path).pages)
+            if page_count > _MAX_SELECTION_PAGES:
+                raise InvalidInputError(_TOO_MANY_PAGES_TO_CONVERT)
+            spec = f"1-{page_count}"
         return extract_pages(input_path, output_path, str(spec))

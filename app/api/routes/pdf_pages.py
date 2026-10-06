@@ -44,6 +44,7 @@ from starlette.background import BackgroundTask
 from app.api.deps import caller_tier, require_api_key
 from app.api.routes.auth import get_optional_user
 from app.compressors.pdf import compress_pdf_to_target
+from app.converters.base import EncryptedPdfError
 from app.converters.pdf_pages import (
     PageSelectionError,
     UnreadablePdfError,
@@ -144,15 +145,19 @@ async def _do_extract(
             await asyncio.to_thread(extract_pages, input_path, output_path, pages)
         except HTTPException:
             raise
-        except PageSelectionError as exc:
+        except (EncryptedPdfError, PageSelectionError) as exc:
             # Caller-safe message already (no pypdf internals). 400 — the
             # client's page selection or PDF was the problem, not the server.
             # The code tells the UI which one, so it doesn't blame the
-            # selection for a file pypdf can't read.
+            # selection for a file without pages or one pypdf can't read,
+            # and can say so when a password is the reason.
             logger.info("pdf extract rejected: %s", exc)
-            code = (
-                "invalid_pdf" if isinstance(exc, UnreadablePdfError) else "invalid_page_selection"
-            )
+            if isinstance(exc, EncryptedPdfError):
+                code = "pdf_encrypted"
+            elif isinstance(exc, UnreadablePdfError):
+                code = "invalid_pdf"
+            else:
+                code = "invalid_page_selection"
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(exc),
@@ -249,12 +254,13 @@ async def _do_split(
             outputs = await asyncio.to_thread(split_pdf, input_path)
         except HTTPException:
             raise
-        except PageSelectionError as exc:
+        except (EncryptedPdfError, PageSelectionError) as exc:
             logger.info("pdf split rejected: %s", exc)
+            code = "pdf_encrypted" if isinstance(exc, EncryptedPdfError) else "invalid_pdf"
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(exc),
-                headers={"X-FileMorph-Error-Code": "invalid_pdf"},
+                headers={"X-FileMorph-Error-Code": code},
             )
         except Exception:
             logger.exception("PDF split error")
@@ -424,6 +430,13 @@ async def _do_compress(
             )
         except HTTPException:
             raise
+        except EncryptedPdfError as exc:
+            logger.info("pdf compress rejected: %s", exc)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(exc),
+                headers={"X-FileMorph-Error-Code": "pdf_encrypted"},
+            )
         except Exception:
             # security.md: no pikepdf/Pillow internals to the client — a
             # malformed PDF or undecodable image surfaces as a generic 400.
