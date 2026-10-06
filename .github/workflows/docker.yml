@@ -6,8 +6,21 @@ on:
     tags: ["v*"]
   # Manual rebuild: dispatched on main, runs the whole chain (build, push,
   # sign, attest the SBOM, `notify-ops`, deploy) without a code change, e.g.
-  # to redeploy during an incident.
+  # to redeploy during an incident. The deploy at the end is started only if
+  # the CI run of that commit has succeeded too and the commit is still main's
+  # newest.
   workflow_dispatch:
+
+# Builds of one ref run one at a time, so the image tags move in merge order.
+# Before, two merges less than a minute apart built side by side, and the older
+# build could finish last and take `:latest` and `:office` over (2026-09-26 and
+# 2026-09-28, among other days). GitHub keeps one pending run per group and
+# cancels the pending one when a newer run queues: of several merges in a row
+# the build in progress finishes, the newest commit builds next, and the
+# commits in between are not built. A running build is never cancelled.
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: false
 
 env:
   REGISTRY: ghcr.io

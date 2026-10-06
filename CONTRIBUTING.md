@@ -91,6 +91,15 @@ repository. More checks run on pull requests without blocking the merge:
 `smoke-test (office)` ([`docker-pr.yml`](.github/workflows/docker-pr.yml)),
 which build both Docker images without pushing them and smoke-test each one.
 
+After the merge, `ci.yml` and [`docker.yml`](.github/workflows/docker.yml) run
+on `main` (`docker.yml` does not run on pull requests; `docker-pr.yml` does).
+The deploy of filemorph.io is started only for main's newest commit, once both
+workflows passed for it. That counts all of `ci.yml`, not only the required
+checks: `lockfile-drift`, which does not block the merge, holds the deploy
+back while it is red on `main`, and so does a newly published `pip-audit`
+advisory, which can turn `lint-and-test` red on `main` after a green pull
+request.
+
 ---
 
 ## What we're looking for
