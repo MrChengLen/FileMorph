@@ -5,9 +5,10 @@ name: Docker PR build
 # /api/v1/health, the first start generates an API key, the programs and
 # libraries the converters call are there, and the image holds what the app
 # needs and none of the build folder's secrets. docker.yml builds only after
-# merge, and notify-ops.yml deploys every successful main build, so a broken
-# Dockerfile, .dockerignore, entrypoint.sh or requirements.lock used to show
-# up first on its way to production.
+# merge, and notify-ops.yml starts the deploy of a successful main build once
+# CI has passed on it too, so a broken Dockerfile, .dockerignore,
+# entrypoint.sh or requirements.lock used to show up first on its way to
+# production.
 #
 # A workflow of its own rather than a pull_request trigger in docker.yml,
 # whose job holds the token that pushes to GHCR and the identity that signs.
