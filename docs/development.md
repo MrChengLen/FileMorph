@@ -369,10 +369,16 @@ GPG-signed — `.github/workflows/release.yml` rejects unsigned tags (fail-close
 and only keys listed in [`release-signing.md`](release-signing.md) verify.
 
 1. On a branch, bump the version in `pyproject.toml` and `app/core/config.py`
-   (e.g. `1.1.0.dev0` → `1.1.0`), and roll `## [Unreleased]` in `CHANGELOG.md`
-   into `## [X.Y.Z] — <date>` with a fresh empty `[Unreleased]` above it.
+   (e.g. `1.1.0.dev0` → `1.1.0`), and run
+   `python scripts/changelog.py --release X.Y.Z`. It folds every entry from
+   `changelog.d/` into `CHANGELOG.md` and puts them, together with everything
+   already in `[Unreleased]`, under a new `## [X.Y.Z] — <date>`.
 2. Open a PR, let CI go green, and merge it to `main`.
-3. Cut the **signed** tag on the merged commit. On Windows do this in **Git Bash**
+3. Check that `changelog.d/` on `main` holds only `README.md`. If a PR merged
+   in between, its entry belongs to this release too: run
+   `python scripts/changelog.py --release X.Y.Z` again in a follow-up PR (the
+   late entry joins the heading already cut), merge it, and tag that commit.
+4. Cut the **signed** tag on the merged commit. On Windows do this in **Git Bash**
    (the GPG agent isn't reachable from PowerShell):
    ```bash
    git checkout main && git pull origin main

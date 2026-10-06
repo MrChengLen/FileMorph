@@ -151,6 +151,9 @@ def test_allow_re_includes_required_path(hooks, path):
         "docs/threat-model.md",
         # Anything outside the allowlist's literal entries.
         "scripts/i18n.py",
+        # Changelog fragments: unlike CHANGELOG.md, every entry is scanned.
+        "changelog.d/README.md",
+        "changelog.d/2026-10-01-example.md",
     ],
 )
 def test_allow_re_excludes_normal_files(hooks, path):

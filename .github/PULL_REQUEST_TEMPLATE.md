@@ -35,7 +35,7 @@
 - [ ] New `.py` files carry the `# SPDX-License-Identifier: AGPL-3.0-or-later` header — under `app/ee/`, `LicenseRef-FileMorph-Commercial` instead
 - [ ] New behaviour has tests (at minimum one test per new converter / route)
 - [ ] Docs updated **in the same PR** (`README.md`, `docs/*`) where user-visible behaviour changed
-- [ ] `CHANGELOG.md` `[Unreleased]` updated for any user-visible change
+- [ ] User-visible change: entry added as `changelog.d/<YYYY-MM-DD>-<topic>.md` (not in `CHANGELOG.md`)
 
 **Scope & privacy (the repo is public):**
 - [ ] No operations/secrets in the diff — no server paths, deploy hosts, secret *values*, or private personal data
