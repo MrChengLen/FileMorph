@@ -1,11 +1,12 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """NEU-C.1.c: PDF/A-2b CI fixture generator.
 
-Driver for ``.github/workflows/verapdf.yml``. Builds a small reportlab
-PDF that mirrors the worst-case input shape we promise to handle —
-unembedded standard-14 Helvetica reference, plain text content, no
-images — runs it through :class:`PdfToPdfaConverter`, and writes the
-output to ``build/verapdf-fixture.pdf``.
+Driver for the veraPDF gate in ``.github/workflows/ci.yml`` (a step of its
+``lint-and-test`` job). Builds a small reportlab PDF that mirrors the
+worst-case input shape we promise to handle — unembedded standard-14
+Helvetica reference, plain text content, no images — runs it through
+:class:`PdfToPdfaConverter`, and writes the output to
+``build/verapdf-fixture.pdf``.
 
 A subsequent CI step runs the official veraPDF Docker image against
 that file and fails the workflow on any conformance violation. Both
