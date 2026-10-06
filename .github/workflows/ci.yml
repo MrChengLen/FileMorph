@@ -202,8 +202,24 @@ jobs:
       #   and would break `_deny_url_fetcher` (see the cap in requirements.txt).
       #   Re-evaluate when the fetcher is ported; drop this ignore then.
       #   Added 2026-09-09.
+      # - CVE-2026-85394 (= GHSA-3qf3-8w2g-rqmx), CRITICAL / CVSS 9.1:
+      #   algorithm confusion in python-jose <= 3.5.0, an incomplete fix for
+      #   CVE-2024-33663. The HMAC key check rejects PEM- and SSH-formatted
+      #   public keys but not DER ones, so a service that verifies with a
+      #   public key and also accepts HS256 accepts a token signed with that
+      #   public key as the HMAC secret. No fixed release exists (3.5.0, May
+      #   2025, is the latest). Not reachable in FileMorph: there is no
+      #   asymmetric key at all. Every token is verified in one place
+      #   (`_decode` in app/core/tokens.py) with the symmetric JWT_SECRET and
+      #   algorithms=["HS256"]; python-jose takes the key only from that
+      #   argument, never from a kid/jwk/jku header, and there is no JWKS,
+      #   OIDC or SSO code -- so the advisory's precondition, a public key
+      #   used as the verification key, cannot occur. Built-in SSO/OIDC would
+      #   create it: migrate off python-jose before any such work.
+      #   Added 2026-10-06; review 2026-11-05 and at each release; drop on
+      #   that migration (which also ends PYSEC-2026-1325) or an upstream fix.
       - name: Dependency vulnerability scan (pip-audit)
-        run: pip-audit -r requirements.lock --ignore-vuln PYSEC-2026-1325 --ignore-vuln CVE-2026-55073
+        run: pip-audit -r requirements.lock --ignore-vuln PYSEC-2026-1325 --ignore-vuln CVE-2026-55073 --ignore-vuln CVE-2026-85394
 
       - name: Run tests
         env:
