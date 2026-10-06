@@ -535,9 +535,10 @@ The threat model lists the known classes:
   to a fixed temp directory and reject `..` components.
 - **PDF metadata injection** — PDF/A-2b conversion strips uncontrolled
   metadata. veraPDF validates the converter's output in CI, on every
-  pull request and push to `main`, against a worst-case fixture
-  (`.github/workflows/verapdf.yml`); no validator runs on individual
-  requests.
+  pull request and push to `main`, against a worst-case fixture (a step
+  of the required `lint-and-test` check in `.github/workflows/ci.yml`, so
+  a conformance failure blocks the merge); no validator runs on
+  individual requests.
 - **EXIF / GPS leakage** — image conversions and compressions strip
   EXIF / XMP / IPTC metadata by default; ICC colour profile preserved
   so wide-gamut workflows are not visibly desaturated.

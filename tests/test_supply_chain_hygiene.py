@@ -18,17 +18,19 @@ silently undo it:
     pin manually (``pip`` / ``github-actions`` / ``docker``) so the pins
     above don't rot;
   * what CI tests, validates and publishes is the lockfile's dependency set —
-    the test job installs with the lockfile as constraints, and the SBOM and
-    veraPDF workflows install it the way the image does; the jobs that
-    recompile the lockfiles run the uv that requirements-dev.txt pins,
-    hash-checked from requirements-uv.lock, and deps-lock.yml recompiles with
-    read access only and pushes from a job that installs nothing;
+    the test job installs with the lockfile as constraints (the veraPDF gate is
+    a step of it, so it validates those versions), and the SBOM workflows
+    install it the way the image does; the jobs that recompile the lockfiles
+    run the uv that requirements-dev.txt pins, hash-checked from
+    requirements-uv.lock, and deps-lock.yml recompiles with read access only
+    and pushes from a job that installs nothing;
   * the SBOM generator installs from its own hash-pinned lockfile, as wheels
     only, and in release.yml it runs in a job without write access — the job
     that holds ``contents: write`` installs nothing, restores no cache and
     keeps no credentials; no job holding a write token or a secret splices
-    ``${{ }}`` into a script; and the veraPDF validator image is pinned by
-    digest;
+    ``${{ }}`` into a script; the veraPDF validator image is pinned by
+    digest; and the veraPDF gate is a step of the required ``lint-and-test``
+    job, not a workflow of its own;
   * no job holding a write token or a secret restores or saves an Actions
     cache, docker.yml builds the image with ``no-cache: true``, and no buildx
     step anywhere uses a cache (no ``cache-from``/``cache-to``,
@@ -455,7 +457,8 @@ def test_ci_tests_run_against_the_locked_versions() -> None:
     requirements-dev.txt pulls in requirements.txt, whose ``>=`` ranges
     resolve to the newest releases — that is how CI came to test SQLAlchemy
     2.1.0 while the image shipped 2.0.52. The unpinned install is the early
-    warning in ``deps-latest.yml``, not the gate.
+    warning in ``deps-latest.yml``, not the gate. The veraPDF fixture is built
+    in this job, so it gets the shipped pikepdf too.
     """
     text = _workflow_code("ci.yml")
     installs = [
@@ -488,9 +491,9 @@ def test_deps_latest_mirrors_lint_and_test() -> None:
         )
 
 
-@pytest.mark.parametrize("workflow", ["sbom.yml", "release.yml", "docker.yml", "verapdf.yml"])
+@pytest.mark.parametrize("workflow", ["sbom.yml", "release.yml", "docker.yml"])
 def test_workflow_installs_what_the_image_ships(workflow: str) -> None:
-    """The SBOM lists, and veraPDF validates, the image's dependency set.
+    """The SBOM lists the image's dependency set.
 
     Installing requirements.txt resolves its ``>=`` ranges to the newest
     releases: the SBOM published from main listed 19 of the 77 shipped
@@ -995,9 +998,9 @@ def test_sbom_steps_match_sbom_workflow(workflow: str) -> None:
 
     Neither can be tried before it counts: release.yml runs on a signed tag,
     and docker.yml pushes the images it builds, so a mistake would first show
-    in a release or on main. sbom.yml runs the same steps on every push to
-    main and can be dispatched on a branch; keeping them identical makes that
-    run the test of both paths.
+    in a release or on main. sbom.yml runs the same steps when it is
+    dispatched on a branch; keeping them identical makes that run the test of
+    both paths.
     """
 
     def named_steps(name: str) -> dict[str, dict]:
@@ -1274,17 +1277,58 @@ def test_verapdf_image_is_digest_pinned() -> None:
     could pass the gate one day and fail it the next. The tag stays in a
     comment so the next bump knows which release the digest is.
     """
-    code = _workflow_code("verapdf.yml")
+    code = _workflow_code("ci.yml")
     refs = re.findall(r"verapdf/cli[^\s\"']*", code)
-    assert refs, "verapdf.yml no longer runs verapdf/cli — update this guard"
+    assert refs, "ci.yml no longer runs verapdf/cli — update this guard"
     for ref in refs:
         assert re.fullmatch(r"verapdf/cli(:[\w.-]+)?@sha256:[0-9a-f]{64}", ref), (
-            f"verapdf.yml runs `{ref}` — pin it by @sha256: digest"
+            f"ci.yml runs `{ref}` — pin it by @sha256: digest"
         )
-    text = (_WORKFLOW_DIR / "verapdf.yml").read_text(encoding="utf-8")
+    text = (_WORKFLOW_DIR / "ci.yml").read_text(encoding="utf-8")
     assert re.search(r"#\s*verapdf/cli:v?\d", text), (
-        "verapdf.yml: keep the pinned image's tag in a comment (`# verapdf/cli:vX.Y.Z`)"
+        "ci.yml: keep the pinned image's tag in a comment (`# verapdf/cli:vX.Y.Z`)"
     )
+
+
+def test_verapdf_gate_is_part_of_the_required_lint_and_test_job() -> None:
+    """The PDF/A-2b conformance gate is a step of ``lint-and-test``.
+
+    ``lint-and-test`` is one of the status checks that merging into ``main``
+    requires. The gate used to be a workflow of its own, ``verapdf.yml``: it
+    ran on every pull request and nothing required it, while the README and
+    the pricing page advertise a veraPDF CI gate. Its two steps, building the
+    fixture and validating it, therefore stay in that job, and neither may be
+    skipped (``if:``) or allowed to fail (``continue-on-error``).
+    """
+    jobs = _workflow(_WORKFLOW_DIR / "ci.yml")["jobs"]
+    gate = [
+        (name, step)
+        for name, job in jobs.items()
+        for step in _steps(job)
+        if "verapdf_check.py" in (step.get("run") or "")
+        or "VERAPDF_IMAGE" in (step.get("env") or {})
+    ]
+    assert len(gate) == 2 and {name for name, _ in gate} == {"lint-and-test"}, (
+        f"ci.yml: the veraPDF fixture and validation steps must both be in `lint-and-test`, "
+        f"the required check; found them in {[name for name, _ in gate]}"
+    )
+    assert not jobs["lint-and-test"].get("continue-on-error"), (
+        "ci.yml: `lint-and-test` is marked continue-on-error, which lets the veraPDF gate fail"
+    )
+    assert "if" not in jobs["lint-and-test"], (
+        "ci.yml: `lint-and-test` has a job-level `if:`; a skipped required job counts as passed"
+    )
+    for name, step in gate:
+        assert "if" not in step and not step.get("continue-on-error"), (
+            f"ci.yml job `{name}`, step {step.get('name')!r}: an `if:` or `continue-on-error` "
+            f"lets a merge through without the veraPDF verdict"
+        )
+        if "VERAPDF_IMAGE" in (step.get("env") or {}):
+            run = step.get("run") or ""
+            assert "--flavour 2b" in run and "|| true" not in run, (
+                f"ci.yml step {step.get('name')!r}: the validator must check PDF/A-2b "
+                "and its exit code must fail the step"
+            )
 
 
 def test_dependabot_config_covers_all_pinned_ecosystems() -> None:
