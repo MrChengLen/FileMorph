@@ -21,6 +21,7 @@ pypdf>=6.19.0
 # pikepdf provides the qpdf-backed PDF manipulation FileMorph uses
 # for PDF/A-2b output (NEU-C.1.a). Wheels bundle qpdf; no system
 # package required.
+# Lifting the cap also removes its ignore entry in .github/dependabot.yml.
 pikepdf>=10.16.0,<11
 reportlab>=5.0.1
 # Capped below 70: WeasyPrint 70 changed the ``url_fetcher`` contract from a
@@ -42,6 +43,7 @@ reportlab>=5.0.1
 # _deny_url_fetcher and app/core/image_hardening.py keep out of reach. It
 # does mean the port to the 70 API carries a security benefit and should not
 # sit here indefinitely. ci.yml documents the matching pip-audit ignores.
+# Lifting the cap also removes its ignore entry in .github/dependabot.yml.
 weasyprint>=69.0,<70
 markdown>=3.11
 openpyxl>=3.1.5
@@ -66,6 +68,7 @@ aiosmtplib>=5.1.3
 # the cap: its replacement, allowed_payment_method_types, exists only from API
 # version 2026-09-30.endive (dropping the parameter instead hands the method
 # list to the Stripe Dashboard).
+# Lifting the cap also removes its ignore entry in .github/dependabot.yml.
 stripe>=15.6.1,<16
 
 # ── Observability ────────────────────────────────────────────────

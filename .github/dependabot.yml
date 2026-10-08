@@ -4,7 +4,7 @@
 # Three ecosystems:
 #  - pip:            requirements.txt, requirements-dev.txt and
 #                    requirements-sbom.txt (the SBOM generator's) — every
-#                    update in one PR per week, WeasyPrint apart
+#                    update in one PR per week; capped majors are ignored
 #  - github-actions: every `uses:` in .github/workflows/* — keeps the
 #                    SHA-pinned actions current (Dependabot tracks the
 #                    `# vX.Y` comment to know which version a SHA maps to)
@@ -59,24 +59,25 @@ updates:
       python-all:
         patterns:
           - "*"
-        # Held back until code is ported (requirements.txt says why for each):
-        # WeasyPrint below 70 (the SSRF url_fetcher guard) and Stripe below 16
-        # (the Checkout parameters). Each keeps arriving as a PR of its own, a
-        # reminder that cannot block the weekly batch.
-        exclude-patterns:
-          - "weasyprint"
-          - "stripe"
     # Caps that need a deliberate change, not the weekly batch. They go by
     # version range: the requirements carry no update type that an
-    # `update-types` rule could match.
+    # `update-types` rule could match. A held-back major is not proposed at
+    # all: as its own PR it could only sit red until the port, and the port
+    # is what lifts both the cap in requirements.txt and the entry here.
     # - cyclonedx-bom stays on 5.x: 7.x drops the --PEP-639 flag the SBOM
     #   workflows pass, and nothing on a PR runs the generator.
     # - pikepdf stays below 11 (requirements.txt).
+    # - WeasyPrint stays below 70 until the SSRF url_fetcher guard is ported.
+    # - Stripe stays below 16 until the Checkout call is ported.
     ignore:
       - dependency-name: "cyclonedx-bom"
         versions: [">=6"]
       - dependency-name: "pikepdf"
         versions: [">=11"]
+      - dependency-name: "weasyprint"
+        versions: [">=70"]
+      - dependency-name: "stripe"
+        versions: [">=16"]
     # A release has to be a few days old before it is proposed, so one that is
     # pulled or found malicious right after publication never reaches the batch.
     cooldown:
