@@ -42,7 +42,7 @@ reportlab>=5.0.1
 # _deny_url_fetcher and app/core/image_hardening.py keep out of reach. It
 # does mean the port to the 70 API carries a security benefit and should not
 # sit here indefinitely. ci.yml documents the matching pip-audit ignores.
-weasyprint>=69.0,<70
+weasyprint>=70.0,<71
 markdown>=3.11
 openpyxl>=3.1.5
 ffmpeg-python>=0.2.0
