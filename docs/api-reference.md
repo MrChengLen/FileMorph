@@ -536,7 +536,7 @@ can branch on (the `detail` text may change):
 | `output_cap_exceeded` | `413` | The result is larger than your tier's output cap |
 | `target_size_exceeds_cap` | `413` | `target_size_kb` (`/compress`, `/compress/batch`) or `target_kb` (`/pdf/compress`) is above your tier's output cap — rejected before any work |
 | `decompression_bomb` | `400` | The image's dimensions exceed the decoder's safety limit (`/convert`, `/compress`) |
-| `invalid_input` | `400` | A problem you can fix, named in `detail` — e.g. a Markdown, CSV or JSON file that isn't UTF-8, a PDF that can't be read, or a PDF → PDF conversion of a document over 10 000 pages (`/convert`) |
+| `invalid_input` | `400` | A problem you can fix, named in `detail` — e.g. a Markdown, CSV or JSON file that isn't UTF-8, a PDF that can't be read, or a PDF → PDF conversion of a document over 10 000 pages (`/convert`); an image that isn't in a supported format or is too damaged to be recognised (`/convert`, `/compress`) |
 | `invalid_page_selection` | `400` | `/pdf/extract`: the `pages` selection is invalid |
 | `invalid_pdf` | `400` | `/pdf/extract`, `/pdf/split`, `/pdf/compress`: the PDF can't be read; `/pdf/extract` and `/pdf/split` also for a PDF with no pages, `/pdf/split` for one over 10 000 pages |
 | `pdf_encrypted` | `400` | The PDF needs a password to open (`/pdf/extract`, `/pdf/split`, `/pdf/compress`, `/convert`); remove the password and upload it again |
@@ -601,7 +601,7 @@ every file failed returns `422` with `{"summary": …, "files": […]}`.
 
 | HTTP Status | Meaning |
 |---|---|
-| `400 Bad Request` | Missing or malformed request data (e.g. filename without extension), or file content that has to be fixed first — e.g. a Markdown, CSV or JSON file that isn't UTF-8 (`X-FileMorph-Error-Code: invalid_input`; `detail` names the fix) or a password-protected PDF (`pdf_encrypted`) |
+| `400 Bad Request` | Missing or malformed request data (e.g. filename without extension), or file content that has to be fixed first — e.g. a Markdown, CSV or JSON file that isn't UTF-8 or an image that can't be recognised (`X-FileMorph-Error-Code: invalid_input`; `detail` names the fix) or a password-protected PDF (`pdf_encrypted`) |
 | `401 Unauthorized` | An `X-API-Key` was sent but is not valid, or an endpoint that needs an account (`/auth/me`, `/keys`, `/billing/*`, …) got no valid `Authorization: Bearer` token. The file endpoints need no credentials: without them — or with an expired Bearer token — they run on the anonymous tier (see [Authentication](#authentication)) |
 | `403 Forbidden` | Authenticated but role/tier doesn't permit the action (e.g. non-admin hitting `/cockpit/*`) |
 | `413 Content Too Large` | Request exceeds `MAX_UPLOAD_SIZE_MB` (default: 100 MB), a file exceeds your tier's size cap, or the output exceeds your tier's output cap |

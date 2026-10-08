@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Pillow hardening — startup-time configuration (decompression bombs, Ghostscript).
+"""Pillow hardening — settings and helpers for decoding uploaded images.
 
 Pillow ships two thresholds on ``Image.MAX_IMAGE_PIXELS``:
 
@@ -35,6 +35,12 @@ the warn-but-continue default). The companion guard for output-size is
 in ``app/core/quotas.py`` (per-tier output cap) — that one rejects *after*
 encoding; this one rejects *before* decoding.
 
+Code that opens an uploaded image uses ``open_image`` rather than
+``Image.open``: Pillow then tries only the readers for the formats FileMorph
+supports (``IMAGE_INPUT_FORMATS``). A file none of them recognises becomes an
+``InvalidInputError`` with a fixed message, which the routes answer with
+HTTP 400 and ``X-FileMorph-Error-Code: invalid_input``.
+
 Pillow reads EPS by running Ghostscript, an external PostScript
 interpreter. FileMorph converts no EPS, so Pillow never needs it:
 ``apply_hardening`` makes ``EpsImagePlugin`` treat Ghostscript as missing,
@@ -53,14 +59,31 @@ from __future__ import annotations
 
 import os
 import warnings
+from typing import IO
 
-from PIL import EpsImagePlugin, Image
+from PIL import EpsImagePlugin, Image, ImageFile, UnidentifiedImageError
+
+from app.converters.base import InvalidInputError
 
 # Default matches Pillow's stock threshold so existing legitimate uploads
 # keep working unchanged. The 2× ceiling lives below at
 # ``DecompressionBombError``-raising time (Pillow internal); we tighten
 # the *warning* threshold to also raise.
 _DEFAULT_MAX_MEGAPIXELS = 89
+
+# The image formats FileMorph reads, as Pillow reader IDs: the inputs of
+# app/converters/image.py (avif bmp gif heic heif ico jpeg jpg png tif tiff
+# webp). A multi-picture JPEG (as phone cameras write them) opens through the
+# "JPEG" reader and then reports format "MPO"; an animated PNG opens through
+# "PNG". "MPO" is no reader ID, so it isn't listed. ``open_image`` passes only
+# registered IDs (``Image.open`` raises KeyError on others), which drops
+# "HEIF" when pillow-heif isn't installed.
+IMAGE_INPUT_FORMATS = ("AVIF", "BMP", "GIF", "HEIF", "ICO", "JPEG", "PNG", "TIFF", "WEBP")
+
+_UNREADABLE_IMAGE = (
+    "Could not read the image: it is damaged or not in a supported image format. "
+    "Save it as PNG or JPEG (e.g. in an image editor) and try again."
+)
 
 
 def _resolve_max_pixels() -> int:
@@ -101,6 +124,24 @@ def apply_hardening() -> None:
     # process starts. See the module docstring. Not tied to WeasyPrint:
     # keep it after the WeasyPrint 70 upgrade.
     EpsImagePlugin.gs_binary = False
+
+
+def open_image(fp: str | os.PathLike[str] | IO[bytes]) -> ImageFile.ImageFile:
+    """``Image.open`` for uploaded data, limited to ``IMAGE_INPUT_FORMATS``.
+
+    Raises ``InvalidInputError`` with a fixed message when none of these
+    readers recognises the file: not an image, too damaged to be recognised,
+    or another format.
+    """
+    # Pillow imports its plugins lazily; load them all so the filter below
+    # sees every reader. A no-op after the first call.
+    Image.init()
+    # Image.ID lists the registered readers in Pillow's own detection order.
+    formats = [fmt for fmt in Image.ID if fmt in IMAGE_INPUT_FORMATS]
+    try:
+        return Image.open(fp, formats=formats)
+    except UnidentifiedImageError as exc:
+        raise InvalidInputError(_UNREADABLE_IMAGE) from exc
 
 
 # Fire once at import so a single ``import app.core.image_hardening``

@@ -195,7 +195,7 @@ Authelia or oauth2-proxy.
 Every upload passes through these checks before it reaches a
 converter:
 
-1. **Magic-byte allow-list.** The first bytes of the upload are
+1. **Magic-byte deny-list.** The first bytes of the upload are
    compared against `BLOCKED_MAGIC` (`[b"MZ", b"\x7fELF", b"#!/",
    b"<?ph"]`). PE/ELF binaries, shell scripts, and PHP source
    files are rejected before any decoder touches them.
@@ -246,6 +246,20 @@ generic 500 the catch-all handler would otherwise emit. The per-tier
 output cap (see "Output Bandwidth Guards") remains in place as a
 defence-in-depth second layer for any pathological input that passes
 the pixel check but produces an oversized output.
+
+### Image formats
+
+Image uploads to `/convert` and `/compress` (and their batch routes)
+are opened with Pillow limited to the formats FileMorph accepts: JPEG
+(multi-picture JPEGs included), PNG, WebP, GIF, BMP, TIFF, ICO,
+HEIC/HEIF and AVIF. Pillow ships readers for many other formats; they
+are not used on these uploads, which keeps the code that parses an
+uploaded image to what the service needs. The list is one constant,
+`IMAGE_INPUT_FORMATS`, and the image converters and compressors open
+every upload through `open_image()` (both in
+`app/core/image_hardening.py`). A file none of the listed readers
+recognises is answered with HTTP 400 and
+`X-FileMorph-Error-Code: invalid_input`.
 
 ### Historical findings addressed in this area
 
@@ -752,7 +766,8 @@ For readers who want to jump directly to the code:
 | API-key hashing and verification | `app/core/security.py` |
 | Password hashing and JWT issuance | `app/core/auth.py` |
 | Rate limiter | `app/core/rate_limit.py` |
-| Magic-byte allow-list | `app/core/processing.py` (`BLOCKED_MAGIC`); enforced in `app/api/routes/convert.py` + `compress.py` |
+| Magic-byte deny-list | `app/core/processing.py` (`BLOCKED_MAGIC`); enforced in `app/api/routes/convert.py` + `compress.py` |
+| Image-format allow-list | `app/core/image_hardening.py` (`IMAGE_INPUT_FORMATS`, `open_image`) |
 | WeasyPrint SSRF hardening | `app/converters/document.py` (search `_deny_url_fetcher`) |
 | Security-headers middleware (HSTS, Permissions-Policy, CSP, etc.) | `app/main.py::security_headers` |
 | CSP and CORS middleware | `app/main.py::_build_csp_header` |
