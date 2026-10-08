@@ -2,7 +2,7 @@
   Thanks for contributing to FileMorph! This checklist mirrors the project's
   standards. It is a reminder, not a hard gate — but the three required checks
   (lint-and-test, secret-scan, scope-check) WILL block the merge until they
-  are green. lockfile-drift, the veraPDF run and the Docker image smoke tests
+  are green. lockfile-drift and the Docker image smoke tests
   are reported but not required.
   See CONTRIBUTING.md § "CI gates" for what each check runs.
 -->

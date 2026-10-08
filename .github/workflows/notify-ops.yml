@@ -1,42 +1,147 @@
 name: Notify Ops Repo
 
+# The deploy is started only for main's newest commit, once Docker (the images
+# built, pushed and signed) and CI (lint, tests, PDF/A validation, dependency
+# audit, lockfile and secret scans) both passed for it. Either workflow
+# finishing starts this one, and the first step of the job lets only the
+# second to finish go on, and only while its commit is still the tip of main:
+# so a build is deployed once, never while the other workflow is still running
+# or has failed, and never for a commit that main has already moved past,
+# which its own newer runs deploy instead. The deploy pulls a moving image
+# tag; pinning it to the commit is a follow-up on the deploy side. Docker
+# alone used to decide: a merge that broke the tests reached production as
+# soon as its image was built.
 on:
   workflow_run:
-    workflows: ["Docker"]
+    workflows: ["Docker", "CI"]
     types: [completed]
     branches: [main]
 
-# This job only fires a cross-repo dispatch with a separate PAT secret; it
-# never touches the built-in GITHUB_TOKEN, so it needs no permissions at all.
+# The dispatch below uses a separate PAT secret and never the built-in
+# GITHUB_TOKEN. The job asks for that token to read this repository's workflow
+# runs, and for nothing else.
 permissions: {}
 
 jobs:
   notify:
-    # Deploys only after a successful Docker run that a push or a manual
-    # dispatch started in this repository, never after a run for a pull
-    # request. tests/test_workflow_triggers.py pins this condition.
+    # Deploys only after a successful run that a push or a manual dispatch
+    # started in this repository, never after a run for a pull request.
+    # tests/test_workflow_triggers.py pins this condition.
     if: >-
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.head_repository.full_name == github.repository &&
       (github.event.workflow_run.event == 'push' ||
       github.event.workflow_run.event == 'workflow_dispatch')
     runs-on: ubuntu-latest
+    # The gate sleeps 10 s at most between its few network calls; a hung call
+    # should not hold a runner for the default six hours.
+    timeout-minutes: 10
+    permissions:
+      actions: read
     steps:
+      # The run that started this one has succeeded; the other workflow has to
+      # have too, for the same commit. The step reads the other workflow's
+      # newest run from the API and compares when the two finished (a run's
+      # updated_at): the later one goes on, a tie goes to Docker, and both
+      # notify runs of a commit compare the same two timestamps, so exactly
+      # one goes on. The one that finishes first finds the other still running
+      # and stops. The one that goes on reads the tip of main from git, live,
+      # and dispatches only if its commit is that tip: the deploy pulls a
+      # moving image tag, so a commit that main has moved past would roll out
+      # a newer, untested image. Not github.sha, which is stale for a re-run;
+      # and a tip that cannot be read fails the step. A manual rebuild, or a
+      # re-run of either workflow, finishes last in its turn and deploys again,
+      # for the newest commit on main. Nothing here holds the PAT.
+      #
+      # The query names the commit and nothing else, and the program keeps the
+      # runs that a push or a manual dispatch on main started in this
+      # repository: runs for pull requests test a merge result, not this
+      # commit, and the API's listing by branch and event left out the newest
+      # runs when tried on 2026-10-06. Even the commit filter answered with an
+      # empty list, for a run that exists, twice in about 500 queries that day.
+      # So the other run is asked for up to three times, until it shows as
+      # finished (one that ended a moment ago may not yet), and one that stays
+      # missing fails the step: a deploy skipped unseen would leave no trace in
+      # a green run.
+      - name: Check that Docker and CI both passed for this commit
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+          WORKFLOW: ${{ github.event.workflow_run.name }}
+          UPDATED: ${{ github.event.workflow_run.updated_at }}
+        run: |
+          set -euo pipefail
+
+          case "$WORKFLOW" in
+            Docker) other=CI; file=ci.yml ;;
+            CI) other=Docker; file=docker.yml ;;
+            *) echo "::error::Started by $WORKFLOW, which this check does not know."; exit 1 ;;
+          esac
+
+          # "<status>/<conclusion> <updated_at>" of the other workflow's newest run,
+          # asked for until it shows as finished.
+          run=missing
+          for attempt in 1 2 3; do
+            run=$(gh api "repos/$REPO/actions/workflows/$file/runs?head_sha=$SHA&per_page=100" --jq '
+              [.workflow_runs[]
+               | select(.head_branch == "main"
+                        and .head_repository.full_name == $ENV.REPO
+                        and (.event == "push" or .event == "workflow_dispatch"))]
+              | max_by(.run_number)
+              | if . == null then "missing"
+                else "\(.status)/\(.conclusion) \(.updated_at)" end') || run=missing
+            case "$run" in completed/*) break ;; esac
+            [ "$attempt" = 3 ] || sleep 5
+          done
+          echo "$WORKFLOW for $SHA: finished $UPDATED"
+          echo "$other for $SHA: $run"
+          if [ "$run" = missing ]; then
+            echo "::error::No $other run on main found for $SHA, so this check cannot tell whether to deploy."
+            exit 1
+          fi
+
+          dispatch=false
+          state=${run%% *}
+          if [ "$state" != completed/success ]; then
+            echo "::warning::No deploy: $other ${state%/null} for $SHA"
+            echo "If it is still running, or is re-run, its own run starts this check again."
+          elif [ "$UPDATED" \> "${run#* }" ] || { [ "$UPDATED" = "${run#* }" ] && [ "$WORKFLOW" \> "$other" ]; }; then
+            tip=$(git ls-remote "https://github.com/$REPO" refs/heads/main | cut -f1) || tip=
+            if [[ ! "$tip" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "::error::Could not read the tip of main, so this check cannot tell whether $SHA is the newest commit."
+              exit 1
+            fi
+            if [ "$tip" = "$SHA" ]; then
+              echo "$WORKFLOW finished after $other, and $SHA is the tip of main: dispatching the deploy."
+              dispatch=true
+            else
+              echo "main has moved on to $tip; that commit's own runs deploy it."
+            fi
+          else
+            echo "$other finished after $WORKFLOW: the check that $other started dispatches the deploy."
+          fi
+          echo "dispatch=$dispatch" >> "$GITHUB_OUTPUT"
+
       - name: Trigger ops-repo deploy
+        if: steps.gate.outputs.dispatch == 'true'
         env:
           PAT: ${{ secrets.OPS_REPO_DISPATCH_PAT }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           if [ -z "$PAT" ]; then
             echo "::error::OPS_REPO_DISPATCH_PAT secret is empty or unset"
             exit 1
           fi
+          body=$(jq -n --arg sha "$SHA" '{event_type:"filemorph-published",client_payload:{sha:$sha}}')
           status=$(curl -sS -o /tmp/resp.json -w "%{http_code}" \
             -X POST \
             -H "Authorization: Bearer $PAT" \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             https://api.github.com/repos/MrChengLen/filemorph-ops/dispatches \
-            -d '{"event_type":"filemorph-published"}')
+            -d "$body")
           echo "HTTP $status"
           cat /tmp/resp.json
           if [ "$status" != "204" ]; then

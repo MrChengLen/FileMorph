@@ -1,7 +1,9 @@
 name: SBOM
 
-# Generates a CycloneDX-JSON Software Bill of Materials for every push to
-# `main`, uploaded as a 90-day workflow artifact for continuous SBOM tracking.
+# Generates a CycloneDX-JSON Software Bill of Materials on demand, uploaded as
+# a 90-day workflow artifact. It runs only when dispatched: docker.yml's `sbom`
+# job already builds the same SBOM on every push to `main` and attests it to
+# the images, so a push-built copy here had no consumer.
 # The artifact is named `filemorph-{version}.cdx.json` to line up with the
 # references in docs/patch-policy.md and the EVB-IT-March-2026 SBOM mandate.
 #
@@ -10,8 +12,8 @@ name: SBOM
 # (GitHub suppresses it to avoid recursive runs), so a `release`-triggered
 # attach step here would silently never run. `release.yml` therefore generates
 # and attaches the SBOM in the same job that publishes the release.
-# `workflow_dispatch` stays so a maintainer can regenerate the artifact on
-# demand (e.g. to back-fill a release cut before this split landed).
+# `workflow_dispatch` is the only trigger, so a maintainer can regenerate the
+# artifact on demand (e.g. to back-fill a release cut before this split landed).
 #
 # What it describes: a fresh venv installed exactly as the Dockerfile installs
 # the image (`pip install --require-hashes -r requirements.lock`), with the
@@ -33,8 +35,6 @@ name: SBOM
 # lockfile, hashes and all, but emits neither.
 
 on:
-  push:
-    branches: ["main"]
   workflow_dispatch:
 
 jobs:
@@ -80,8 +80,8 @@ jobs:
 
       - name: Determine version label
         id: version
-        # main-push + workflow_dispatch only (release attach moved to
-        # release.yml), so the label is always the commit short-SHA.
+        # workflow_dispatch only (release attach moved to release.yml), so
+        # the label is always the commit short-SHA.
         run: echo "version=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
 
       # --PEP-639 reads the `License-Expression` metadata field. Without it

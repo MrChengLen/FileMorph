@@ -30,10 +30,17 @@ A complete reference of all supported input and output formats, with notes on qu
 
 > **Note**: HEIC/HEIF input needs only the `pillow-heif` Python package, which
 > `requirements.txt` installs; its binary wheels bundle libheif, so no ffmpeg and
-> no system package is needed. Only if pip has to build `pillow-heif` from source
-> (no wheel for your platform) does it need libheif from the system — on
-> Debian/Ubuntu `libheif-dev` to build it and `libheif1` to run it. Without
-> `pillow-heif`, HEIC/HEIF are not offered as input formats.
+> no system package is needed. There are wheels for 64-bit x86 and ARM on Linux,
+> macOS and Windows. Only if pip has to build `pillow-heif` from source (no wheel
+> for your platform) does it need libheif from the system, and `pillow-heif`
+> 1.8.0, the version FileMorph pins, requires libheif 1.23.4 or newer — against
+> an older one the build stops with an error. Many distributions package an
+> older libheif (check with `apt-cache policy libheif-dev` on Debian/Ubuntu):
+> Debian 13 shipped 1.19.8, and 1.23.4 came as a security update (DSA-6523-1,
+> 2026-09-28) that a default apt setup installs. Where yours is older, build
+> libheif from source first, and keep that build patched yourself: it parses
+> every uploaded HEIC file. Without `pillow-heif`, HEIC/HEIF are not offered as
+> input formats.
 
 ### Compression
 

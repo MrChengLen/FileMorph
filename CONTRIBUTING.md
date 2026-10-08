@@ -74,15 +74,31 @@ your change touches before you push:
 - **Tests** — `pytest tests/`. CI runs them on Python 3.14 with
   `requirements-dev.txt` constrained to the versions pinned in
   `requirements.lock`, so they test what the Docker image ships.
+- **PDF/A-2b conformance** — the last steps of the job.
+  `python scripts/verapdf_check.py` converts a worst-case PDF (an unembedded
+  standard font) with the PDF/A converter, and the veraPDF Docker image,
+  pinned by digest, validates the result against PDF/A-2b. Any conformance
+  error fails `lint-and-test`, so it blocks the merge. Run it when you touch
+  `app/converters/pdfa.py` or `app/converters/_ghostscript.py`; building the
+  fixture needs Ghostscript, validating it needs Docker (the `docker run`
+  command is in `ci.yml`).
 
 `secret-scan` runs the gitleaks secret scanner; `scope-check` rejects
 operations files and internal documents, which do not belong in this public
 repository. More checks run on pull requests without blocking the merge:
 `lockfile-drift` (`requirements.lock` must match `requirements.txt` — see
-[docs/development.md](docs/development.md)), the veraPDF validation of the
-PDF/A-2b output, and `smoke-test (base)` and `smoke-test (office)`
-([`docker-pr.yml`](.github/workflows/docker-pr.yml)), which build both Docker
-images without pushing them and smoke-test each one.
+[docs/development.md](docs/development.md)), and `smoke-test (base)` and
+`smoke-test (office)` ([`docker-pr.yml`](.github/workflows/docker-pr.yml)),
+which build both Docker images without pushing them and smoke-test each one.
+
+After the merge, `ci.yml` and [`docker.yml`](.github/workflows/docker.yml) run
+on `main` (`docker.yml` does not run on pull requests; `docker-pr.yml` does).
+The deploy of filemorph.io is started only for main's newest commit, once both
+workflows passed for it. That counts all of `ci.yml`, not only the required
+checks: `lockfile-drift`, which does not block the merge, holds the deploy
+back while it is red on `main`, and so does a newly published `pip-audit`
+advisory, which can turn `lint-and-test` red on `main` after a green pull
+request.
 
 ---
 

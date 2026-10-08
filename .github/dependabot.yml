@@ -2,8 +2,9 @@
 # Dependabot — automated dependency-update PRs (PR-S, supply-chain hygiene).
 #
 # Three ecosystems:
-#  - pip:            requirements.txt (and requirements-sbom.txt, the SBOM
-#                    generator's) — security + minor/patch bumps
+#  - pip:            requirements.txt, requirements-dev.txt and
+#                    requirements-sbom.txt (the SBOM generator's) — every
+#                    update in one PR per week, WeasyPrint apart
 #  - github-actions: every `uses:` in .github/workflows/* — keeps the
 #                    SHA-pinned actions current (Dependabot tracks the
 #                    `# vX.Y` comment to know which version a SHA maps to)
@@ -48,18 +49,36 @@ updates:
       - "dependencies"
     commit-message:
       prefix: "deps"
-    # Group all non-major Python bumps into one PR per week to cut noise.
+    # Every Python update goes into ONE PR per week. The group used to select
+    # by update type (minor and patch), but Dependabot gives a requirements.txt
+    # floor raise (`>=a` -> `>=b`) no update type, so each still arrived as a
+    # PR of its own: #191-#195 in one week. Four of those turned lint-and-test
+    # and lockfile-drift red until requirements.lock was recompiled (see
+    # above), so they belong together: one PR, one lockfile pass.
     groups:
-      python-minor-patch:
-        update-types:
-          - "minor"
-          - "patch"
-    # The SBOM generator stays on 5.x until someone moves it on purpose: 7.x
-    # drops the --PEP-639 flag the SBOM workflows pass, and nothing on a PR
-    # runs the generator (see requirements-sbom.txt).
+      python-all:
+        patterns:
+          - "*"
+        # Held below 70 until the SSRF url_fetcher guard is ported
+        # (requirements.txt says why). It keeps arriving as a PR of its own, a
+        # reminder that cannot block the weekly batch.
+        exclude-patterns:
+          - "weasyprint"
+    # Caps that need a deliberate change, not the weekly batch. They go by
+    # version range: the requirements carry no update type that an
+    # `update-types` rule could match.
+    # - cyclonedx-bom stays on 5.x: 7.x drops the --PEP-639 flag the SBOM
+    #   workflows pass, and nothing on a PR runs the generator.
+    # - pikepdf stays below 11 (requirements.txt).
     ignore:
       - dependency-name: "cyclonedx-bom"
-        update-types: ["version-update:semver-major"]
+        versions: [">=6"]
+      - dependency-name: "pikepdf"
+        versions: [">=11"]
+    # A release has to be a few days old before it is proposed, so one that is
+    # pulled or found malicious right after publication never reaches the batch.
+    cooldown:
+      default-days: 3
 
   - package-ecosystem: "github-actions"
     directory: "/"

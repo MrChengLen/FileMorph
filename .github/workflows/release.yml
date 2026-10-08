@@ -41,14 +41,13 @@ jobs:
   # release-triggered SBOM workflow would silently never run — which is
   # exactly what happened for v1.1.0. Bundling it here guarantees every
   # release tag ships its CycloneDX SBOM (docs/patch-policy.md promise +
-  # EVB-IT-March-2026 SBOM mandate). The method is the SBOM workflow's
-  # main-push one — the image's install (Dockerfile: `pip install
+  # EVB-IT-March-2026 SBOM mandate). The method is the one sbom.yml and
+  # docker.yml use — the image's install (Dockerfile: `pip install
   # --require-hashes -r requirements.lock`) into a venv of its own, the
   # generator outside it; sbom.yml's header explains why. This path only
-  # runs on a release and cannot be tried on a PR; sbom.yml runs on every
-  # push to main and can be dispatched on a branch. So the three SBOM steps
-  # below are sbom.yml's, verbatim — tests/test_supply_chain_hygiene.py fails
-  # if they differ.
+  # runs on a release and cannot be tried on a PR; sbom.yml can be
+  # dispatched on a branch. So the three SBOM steps below are sbom.yml's,
+  # verbatim — tests/test_supply_chain_hygiene.py fails if they differ.
   sbom:
     runs-on: ubuntu-latest
     permissions:
@@ -65,8 +64,8 @@ jobs:
           # tested on the version it ships on. scripts/check_python_version.py
           # gates this; see its docstring for the drift it exists to prevent.
           python-version: "3.14"
-          # No `cache: "pip"`: it is shared with ci.yml and verapdf.yml, so
-          # code merged to main can write the entry a release restores, and
+          # No `cache: "pip"`: it is shared with ci.yml, so code merged to
+          # main can write the entry a release restores, and
           # --require-hashes does not cover every cached file (see sbom.yml).
           # A release is rare enough to install cold.
 

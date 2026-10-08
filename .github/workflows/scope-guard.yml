@@ -7,15 +7,15 @@ name: Scope Guard
 
 on:
   push:
-    branches: ["main", "develop"]
+    branches: ["main"]
   pull_request:
-    branches: ["main", "develop"]
+    branches: ["main"]
 
 # Cancel superseded runs on the same PR / feature branch; let
-# main / develop runs finish (they are the gate for branch protection).
+# main runs finish (they are the gate for branch protection).
 concurrency:
   group: scope-guard-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/develop' }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 # Least-privilege default for GITHUB_TOKEN (OpenSSF Scorecard Token-Permissions).
 # The job only diffs the checkout; it never writes a comment or status itself.

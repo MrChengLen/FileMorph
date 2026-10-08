@@ -2,17 +2,16 @@ name: CI
 
 on:
   push:
-    branches: ["main", "develop"]
+    branches: ["main"]
   pull_request:
     branches: ["main"]
 
 # A newer push on the same ref cancels older queued / running runs.
 # Saves Actions quota and reduces queue pressure when iterating on a PR.
-# main / develop are excluded by ref-pattern so post-merge gates always
-# get to complete.
+# main is excluded by ref-pattern so post-merge gates always get to complete.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/develop' }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
@@ -218,13 +217,77 @@ jobs:
       #   create it: migrate off python-jose before any such work.
       #   Added 2026-10-06; review 2026-11-05 and at each release; drop on
       #   that migration (which also ends PYSEC-2026-1325) or an upstream fix.
+      # - CVE-2026-106443 (= GHSA-r543-q48m-4c9j), HIGH / CVSS 8.8: WeasyPrint
+      #   < 70.0 hands the bytes of a fetched image to Pillow without
+      #   restricting the format, so an image reference (an <img> URL, a CSS
+      #   or SVG image, a data URI) can make Pillow's EPS reader run
+      #   Ghostscript on PostScript. Not reachable in FileMorph, twice over:
+      #   every weasyprint.HTML() gets _deny_url_fetcher, which refuses every
+      #   URL it is asked to fetch -- WeasyPrint 69 routes every fetch through
+      #   it, data: URIs included -- so no image bytes reach Pillow; and
+      #   apply_hardening() in app/core/image_hardening.py marks Ghostscript
+      #   as missing for Pillow at startup (EpsImagePlugin.gs_binary = False,
+      #   pinned by tests/test_image_hardening.py), so Pillow cannot start it
+      #   whatever the fetcher contract. FileMorph converts no EPS. The fix
+      #   is 70.0, held back by the same url_fetcher port as CVE-2026-55073
+      #   above.
+      #   Added 2026-10-08; review 2026-11-07 and at each release; drop when
+      #   WeasyPrint 70 lands.
       - name: Dependency vulnerability scan (pip-audit)
-        run: pip-audit -r requirements.lock --ignore-vuln PYSEC-2026-1325 --ignore-vuln CVE-2026-55073 --ignore-vuln CVE-2026-85394
+        run: pip-audit -r requirements.lock --ignore-vuln PYSEC-2026-1325 --ignore-vuln CVE-2026-55073 --ignore-vuln CVE-2026-85394 --ignore-vuln CVE-2026-106443
 
       - name: Run tests
         env:
           FILEMORPH_TEST_POSTGRES_URL: postgresql+asyncpg://postgres@localhost:5432/filemorph_test
         run: pytest tests/ -v --tb=short
+
+      # PDF/A-2b conformance gate (NEU-C.1.c), in three steps. This one has
+      # PdfToPdfaConverter convert a worst-case source (unembedded standard-14
+      # Helvetica) into build/verapdf-fixture.pdf; the next validates it with
+      # the veraPDF CLI in its own container; the last keeps the fixture.
+      #
+      # They are steps of lint-and-test, the required check, so a conformance
+      # regression blocks the merge. verapdf.yml, where they used to run, was
+      # reported on every PR and required by nothing, and installed the
+      # environment this job already has: the fixture is built with the
+      # lockfile's versions installed above (pikepdf above all, as in the
+      # image) and the Ghostscript from the apt step. Without Ghostscript the
+      # fixture would come out markup-only and veraPDF would correctly reject
+      # it for "fonts not embedded", i.e. this gate would mask a broken gs path.
+      - name: Generate PDF/A fixture via PdfToPdfaConverter
+        run: python scripts/verapdf_check.py
+
+      # The veraPDF maintainers publish a thin Docker image that wraps
+      # the official CLI. --flavour 2b validates against PDF/A-2b;
+      # --format mrr emits a machine-readable XML report to stdout for
+      # CI log grep. The CLI exits non-zero on any conformance error,
+      # which fails the step and the job.
+      #
+      # Pinned by digest: `latest` moves with every veraPDF release, so the
+      # validator could change between two runs of the same commit. Dependabot
+      # does not track images in workflow scripts — to move the pin, take the
+      # new digest from `docker buildx imagetools inspect verapdf/cli:<tag>`.
+      - name: Validate PDF/A-2b conformance with veraPDF
+        env:
+          # verapdf/cli:v1.30.2 (what `latest` pointed at on 2026-09-26)
+          VERAPDF_IMAGE: verapdf/cli@sha256:d5ee329657cf9bc4b2400392dd54c7d0a0ce9980ff6fa2da5590eebeec007cdb
+        run: |
+          docker run --rm --network none -v "$PWD/build:/data:ro" "$VERAPDF_IMAGE" \
+            --flavour 2b --format mrr /data/verapdf-fixture.pdf
+
+      # Keep the fixture as a workflow artifact, so a maintainer debugging a red
+      # run can download it and validate it locally; the validator's report is
+      # in the log of the step above. Runs after a failure too, and says
+      # nothing when there is no fixture: if an earlier step failed it was
+      # never built, and that failure is what the run reports.
+      - name: Upload fixture as artifact
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: verapdf-fixture
+          path: build/verapdf-fixture.pdf
+          if-no-files-found: ignore
+          retention-days: 7
 
   # requirements.lock is what the image installs, so it has to keep
   # corresponding to requirements.txt. Before this gate existed it did not:
