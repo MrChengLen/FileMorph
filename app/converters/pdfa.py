@@ -62,7 +62,7 @@ import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from app.converters.base import BaseConverter, EncryptedPdfError
+from app.converters.base import BaseConverter, EncryptedPdfError, InvalidInputError
 from app.converters.registry import register
 
 if TYPE_CHECKING:
@@ -72,6 +72,29 @@ logger = logging.getLogger(__name__)
 
 
 _PDFA_NAMESPACE = "http://www.aiim.org/pdfa/ns/id/"
+
+
+def _has_pdf_header(path: Path) -> bool:
+    """True if the file presents as a PDF within its first 1024 bytes.
+
+    The PDF spec puts the ``%PDF-`` header at the very start of the file;
+    Acrobat accepts it anywhere in the first 1024 bytes, and some generators
+    emit a few leading bytes (a BOM, whitespace) before it, so we scan that
+    window rather than only byte 0. A damaged-but-repairable PDF still carries
+    this header — it is what any reader (Ghostscript included) needs to treat
+    the bytes as a PDF at all.
+
+    Ghostscript in the stage below chooses how to read a file from its leading
+    bytes, so it must only be handed files that present as PDFs: a file that
+    begins (after an optional BOM / whitespace) with the ``%!`` marker presents
+    as PostScript and is refused even if a ``%PDF-`` substring appears further
+    down the window; a file without the header at all is not a PDF this
+    converter can process."""
+    with path.open("rb") as fh:
+        head = fh.read(1024)
+    if head.lstrip(b"\xef\xbb\xbf \t\r\n\f\v")[:2] == b"%!":
+        return False
+    return b"%PDF-" in head
 
 
 def _srgb_icc_bytes() -> bytes:
@@ -205,6 +228,19 @@ class PdfToPdfaConverter(BaseConverter):
             raise EncryptedPdfError() from exc
         except pikepdf.PdfError:
             pass
+
+        # Only a file that declares itself a PDF may reach stage 1: Ghostscript
+        # reads a file by its content, not by the upload's name, so it must
+        # only be handed real PDFs, and the pikepdf markup pass cannot open a
+        # non-PDF either. A damaged PDF that still carries the header passes
+        # this gate so ghostscript keeps its chance to repair it. Refuse with a
+        # caller-safe message instead of letting the markup pass fail into a
+        # generic 500.
+        if not _has_pdf_header(input_path):
+            raise InvalidInputError(
+                "This file is not a PDF. Convert it to PDF first, then upload "
+                "the PDF to create a PDF/A."
+            )
 
         # Stage 1: optional ghostscript re-render. The gs binary is
         # opportunistic — if it's not on PATH (Windows local-dev,
