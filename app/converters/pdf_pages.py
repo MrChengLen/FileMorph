@@ -31,7 +31,8 @@ the (synchronous, C-accelerated) parse never blocks the event loop —
 identical to every other converter. A PDF pypdf cannot read, or one without
 pages, raises :class:`UnreadablePdfError`, a ``PageSelectionError`` that
 blames the file rather than the selection. One that needs a password raises
-:class:`~app.converters.base.EncryptedPdfError`.
+:class:`~app.converters.base.EncryptedPdfError`. A selection, or a PDF to
+split, over the page cap raises :class:`TooManyPagesError`.
 """
 
 from __future__ import annotations
@@ -70,6 +71,16 @@ class UnreadablePdfError(PageSelectionError):
     """
 
 
+class TooManyPagesError(PageSelectionError):
+    """More than ``_MAX_SELECTION_PAGES`` pages: a selection, or a PDF to split.
+
+    Neither the file nor the selection's syntax is wrong, so the page routes
+    answer it with ``pdf_too_many_pages`` instead of ``invalid_pdf`` /
+    ``invalid_page_selection``; the message names the cap and how to stay
+    under it.
+    """
+
+
 _UNREADABLE_PDF = "Could not read the PDF. Verify the file is valid."
 
 # PDF → PDF without a selection keeps every page, so it is held to the
@@ -79,6 +90,15 @@ _TOO_MANY_PAGES_TO_CONVERT = (
     f"This PDF has more than {_MAX_SELECTION_PAGES:,} pages, the most a PDF-to-PDF "
     f"conversion handles in one request. Process it in parts of up to "
     f"{_MAX_SELECTION_PAGES:,} pages with /api/v1/pdf/extract."
+)
+_TOO_MANY_PAGES_TO_SPLIT = (
+    f"This PDF has more than {_MAX_SELECTION_PAGES:,} pages, the most a split "
+    f"handles. Extract up to {_MAX_SELECTION_PAGES:,} pages at a time with "
+    f"/api/v1/pdf/extract, then split each part."
+)
+_TOO_MANY_PAGES_SELECTED = (
+    f"You can extract at most {_MAX_SELECTION_PAGES:,} pages at once. Select "
+    f"fewer pages, or extract them in several parts."
 )
 
 
@@ -93,9 +113,10 @@ def parse_page_ranges(spec: str, page_count: int) -> list[int]:
     Raises :class:`PageSelectionError` (never a bare ValueError / pypdf
     error) on: empty spec, non-numeric token, zero/negative page number,
     reversed range (``b < a``), any page beyond ``page_count``, or a
-    selection that would expand past ``_MAX_SELECTION_PAGES``. The message
-    is generic and safe to return to the client. A ``page_count`` of 0
-    raises the :class:`UnreadablePdfError` subclass: the file is at fault.
+    selection that would expand past ``_MAX_SELECTION_PAGES`` (the
+    :class:`TooManyPagesError` subclass). The message is generic and safe
+    to return to the client. A ``page_count`` of 0 raises the
+    :class:`UnreadablePdfError` subclass: the file is at fault.
     """
     if page_count <= 0:
         raise UnreadablePdfError("The PDF has no pages to extract.")
@@ -126,7 +147,7 @@ def parse_page_ranges(spec: str, page_count: int) -> list[int]:
                     f"{'s' if page_count != 1 else ''})."
                 )
             if len(pages) + (end - start + 1) > _MAX_SELECTION_PAGES:
-                raise PageSelectionError("Too many pages selected.")
+                raise TooManyPagesError(_TOO_MANY_PAGES_SELECTED)
             pages.update(range(start - 1, end))  # 1-based inclusive → 0-based
         else:
             value = _parse_int(token, token)
@@ -138,7 +159,7 @@ def parse_page_ranges(spec: str, page_count: int) -> list[int]:
                     f"{'s' if page_count != 1 else ''})."
                 )
             if len(pages) + 1 > _MAX_SELECTION_PAGES:
-                raise PageSelectionError("Too many pages selected.")
+                raise TooManyPagesError(_TOO_MANY_PAGES_SELECTED)
             pages.add(value - 1)
 
     if not pages:
@@ -240,7 +261,7 @@ def split_pdf(input_path: Path) -> list[tuple[str, bytes]]:
     # hold in memory) that many single-page writers before the route's
     # output-cap check ever runs. Bail with a clean, caller-safe 400 first.
     if total > _MAX_SELECTION_PAGES:
-        raise PageSelectionError("Too many pages to split.")
+        raise TooManyPagesError(_TOO_MANY_PAGES_TO_SPLIT)
 
     width = len(str(total))
     outputs: list[tuple[str, bytes]] = []

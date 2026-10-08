@@ -295,7 +295,8 @@ not a format conversion. Text, fonts and vector content are copied intact.
 **Response**: `200 OK` (`application/pdf`) — the extracted pages as a download
 (`_pages.pdf` suffix). An empty / reversed (`5-3`) / out-of-range / non-numeric
 selection is a `400`; a non-PDF input is a `422`. A selection may resolve to at
-most 10 000 pages.
+most 10 000 pages; a larger one is a `400` with `pdf_too_many_pages` (see
+[Error codes](#error-codes)).
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/pdf/extract \
@@ -322,8 +323,9 @@ Split a PDF into one single-page PDF per page, bundled as a ZIP.
 **Response**: `200 OK` (`application/zip`) — one entry per page
 (`page_001.pdf`, `page_002.pdf`, … zero-padded to the page count's width, so
 entries sort correctly), `_pages.zip` suffix. A non-PDF input is a `422`; a
-document over **10 000 pages** is a `400` (rejected before any work). The
-assembled ZIP must also fit the tier output cap (`413` otherwise).
+document over **10 000 pages** is a `400` with `pdf_too_many_pages` (rejected
+before any work). The assembled ZIP must also fit the tier output cap (`413`
+otherwise).
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/pdf/split \
@@ -537,9 +539,10 @@ can branch on (the `detail` text may change):
 | `target_size_exceeds_cap` | `413` | `target_size_kb` (`/compress`, `/compress/batch`) or `target_kb` (`/pdf/compress`) is above your tier's output cap — rejected before any work |
 | `decompression_bomb` | `400` | The image's dimensions exceed the decoder's safety limit (`/convert`, `/compress`) |
 | `invalid_input` | `400` | A problem you can fix, named in `detail` — e.g. a Markdown, CSV or JSON file that isn't UTF-8, a PDF that can't be read, or a PDF → PDF conversion of a document over 10 000 pages (`/convert`) |
-| `invalid_page_selection` | `400` | `/pdf/extract`: the `pages` selection is invalid |
-| `invalid_pdf` | `400` | `/pdf/extract`, `/pdf/split`, `/pdf/compress`: the PDF can't be read; `/pdf/extract` and `/pdf/split` also for a PDF with no pages, `/pdf/split` for one over 10 000 pages |
+| `invalid_page_selection` | `400` | `/pdf/extract`: the `pages` selection is malformed or out of range |
+| `invalid_pdf` | `400` | `/pdf/extract`, `/pdf/split`, `/pdf/compress`: the PDF can't be read; `/pdf/extract` and `/pdf/split` also for a PDF with no pages |
 | `pdf_encrypted` | `400` | The PDF needs a password to open (`/pdf/extract`, `/pdf/split`, `/pdf/compress`, `/convert`); remove the password and upload it again |
+| `pdf_too_many_pages` | `400` | Over the 10 000-page cap: `/pdf/split` for a PDF with more pages, `/pdf/extract` for a selection that covers more. Extract in parts of up to 10 000 pages; for `/pdf/split`, then split each part |
 
 The redaction endpoints add codes of their own, listed under
 [AI operations](#ai-operations--pii-redaction-enterprise-edition-add-on).

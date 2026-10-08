@@ -261,6 +261,7 @@ _TOOL_SCOPED_IDS = {
     "pdf-pages": {"extract"},
     "pdf-pages-warn": {"extract"},
     "pdf-target-size": {"compress"},
+    "pdf-error-extract": {"split"},
 }
 
 

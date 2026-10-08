@@ -406,6 +406,19 @@ def _js_i18n_strings(_: gettext.GNUTranslations.gettext) -> dict[str, str]:
         "pdfInvalidSelection": _(
             "Invalid page selection. Use 1-based page numbers and ranges, e.g. '1-3,5'."
         ),
+        # X-FileMorph-Error-Code: pdf_too_many_pages — one code from split and
+        # extract, so pdf-tools.js picks the text by tool (the next step differs).
+        # The number is _MAX_SELECTION_PAGES (app/converters/pdf_pages.py); a
+        # test pins it.
+        "pdfTooManyPagesSplit": _(
+            "This PDF has more than 10,000 pages — too many to split at once. "
+            "Extract up to 10,000 pages at a time with “Extract PDF pages”, "
+            "then split each part."
+        ),
+        "pdfTooManyPagesExtract": _(
+            "You can extract at most 10,000 pages at once. "
+            "Select fewer pages, or extract them in several parts."
+        ),
         "pdfRateLimited": _("Too many requests. Please wait a moment and try again."),
         "pdfCompressAchieved": _("Compressed to {size} MB"),
         "pdfCompressNotConverged": _(
