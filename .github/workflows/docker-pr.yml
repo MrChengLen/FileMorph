@@ -176,3 +176,43 @@ jobs:
               --convert-to pdf:writer_pdf_Export --outdir /tmp /tmp/smoke.txt &&
             test -s /tmp/smoke.pdf
           '
+
+      # The office image is the only one that ships both Ghostscript (base
+      # stage, for PDF/A) and LibreOffice. The DOCX converter runs soffice with
+      # a reduced environment (app/converters/document.py::_soffice_child_env):
+      # a gs stub ahead of the real Ghostscript on PATH, app secrets dropped.
+      # Verify in the real image that (a) the child env resolves gs to the stub,
+      # not /usr/bin, and (b) forcing the LibreOffice engine on a DOCX with an
+      # embedded image still produces a PDF — i.e. the hardened env does not
+      # break soffice or its graphics path. The app process keeps the real gs
+      # for PDF/A; the smoke step above already ran it.
+      - name: Check DOCX→PDF runs with a hardened soffice environment
+        if: matrix.target == 'office'
+        run: |
+          docker exec -i -e FILEMORPH_OFFICE_ENGINE=libreoffice filemorph python - <<'PY'
+          import io, os, shutil, tempfile
+          from pathlib import Path
+          from docx import Document
+          from app.converters.document import (
+              DocxToPdfConverter, _write_ghostscript_denial_shims, _soffice_child_env,
+          )
+          assert shutil.which("gs"), "the office image should ship Ghostscript"
+          shim = Path(tempfile.mkdtemp()) / ".nogs"
+          _write_ghostscript_denial_shims(shim)
+          resolved = shutil.which("gs", path=_soffice_child_env(shim)["PATH"])
+          assert resolved and Path(resolved).parent == shim, resolved
+          # A one-pixel PNG exercises LibreOffice's graphics path with the
+          # hardened env; bytes are a fixed, dependency-free image.
+          png = bytes.fromhex(
+              "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000"
+              "000d49444154789c6360606060000000050001a5f645400000000049454e44ae426082"
+          )
+          work = Path(tempfile.mkdtemp())
+          src, out = work / "in.docx", work / "out.pdf"
+          doc = Document(); doc.add_paragraph("office hardening probe"); doc.add_picture(io.BytesIO(png))
+          doc.save(src)
+          conv = DocxToPdfConverter(); conv.convert(src, out)
+          assert conv.engine_used == "libreoffice", conv.engine_used
+          assert out.read_bytes()[:4] == b"%PDF", "no PDF produced"
+          print("ok: gs stub shadows the real gs for soffice; engine=%s" % conv.engine_used)
+          PY

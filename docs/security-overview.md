@@ -226,6 +226,24 @@ call-site there. The fetcher rejects every URL unconditionally —
 WeasyPrint never opens a network connection. Self-hosters should
 not disable this.
 
+### Office image: LibreOffice subprocess hardening
+
+On the `filemorph:office` image, DOCX→PDF conversion can delegate to a
+LibreOffice (`soffice`) subprocess that parses the uploaded document. As
+defense-in-depth, that subprocess is run with a reduced environment
+(`_soffice_child_env` in `app/converters/document.py`): the application's
+secrets (signing key, database URL, Stripe and SMTP credentials) are dropped
+from the child environment, and a Ghostscript stub is placed ahead of any real
+`gs` on its `PATH`, so the subprocess cannot start Ghostscript. Every other
+system binary stays available, so the conversion itself is unaffected.
+FileMorph's own PDF/A re-render resolves Ghostscript in the app process and
+keeps working, as does the pure-Python (mammoth) path. This is in the same
+spirit as the Pillow setting that keeps WeasyPrint from reaching Ghostscript
+(see "Accepted advisories", CVE-2026-106443).
+`tests/test_office_gs_isolation.py` pins the subprocess environment, and
+`.github/workflows/docker-pr.yml` exercises a DOCX→PDF conversion on the office
+image.
+
 ### Decompression bombs
 
 `Image.MAX_IMAGE_PIXELS` is enforced as a *hard* limit (around 89
@@ -754,6 +772,7 @@ For readers who want to jump directly to the code:
 | Rate limiter | `app/core/rate_limit.py` |
 | Magic-byte allow-list | `app/core/processing.py` (`BLOCKED_MAGIC`); enforced in `app/api/routes/convert.py` + `compress.py` |
 | WeasyPrint SSRF hardening | `app/converters/document.py` (search `_deny_url_fetcher`) |
+| Office image: hardened LibreOffice subprocess env | `app/converters/document.py` (search `_soffice_child_env`) |
 | Security-headers middleware (HSTS, Permissions-Policy, CSP, etc.) | `app/main.py::security_headers` |
 | CSP and CORS middleware | `app/main.py::_build_csp_header` |
 | Per-tier quotas and output cap | `app/core/quotas.py` |
@@ -775,4 +794,5 @@ the audit-log paragraph acknowledges the persisted output-hash
 attestation, and the accepted-advisories table lists the
 CVEs currently allow-listed in CI; the 2026-10-06 revision adds
 CVE-2026-85394 (`python-jose`), the 2026-10-08 revision
-CVE-2026-106443 (`weasyprint`).*
+CVE-2026-106443 (`weasyprint`) and the office-image LibreOffice
+subprocess hardening.*
