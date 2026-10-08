@@ -19,9 +19,25 @@ from app.converters.registry import register
 logger = logging.getLogger(__name__)
 
 
-def _deny_url_fetcher(url: str, **kwargs) -> None:
-    """Blocks all external resource loading in WeasyPrint (SSRF prevention)."""
-    raise OSError(f"Network access disabled: {url}")
+def _deny_url_fetcher():
+    """Return a WeasyPrint URL fetcher that refuses every URL (SSRF prevention).
+
+    Every resource WeasyPrint loads (stylesheet, ``@import``, font, image, SVG
+    image, attachment; over http(s), ``file:`` or ``data:``) goes through the
+    fetcher's ``fetch``, which refuses it: WeasyPrint logs an error and renders
+    without the resource (an ``@color-profile`` source aborts the render
+    instead). WeasyPrint 70 accepts only such an object (it reads the fetcher's
+    ``_fail_on_errors``, so a plain function breaks the render at the first
+    resource). Use a fresh one per render, ``url_fetcher=_deny_url_fetcher()``:
+    the fetcher keeps per-request state.
+    """
+    from weasyprint.urls import URLFetcher  # local import: WeasyPrint loads Pango
+
+    class _DenyURLFetcher(URLFetcher):
+        def fetch(self, url, headers=None):
+            raise OSError("Network access disabled")
+
+    return _DenyURLFetcher()
 
 
 # ---------------------------------------------------------------------------
@@ -230,7 +246,7 @@ def _convert_via_mammoth(input_path: Path, output_path: Path) -> bool:
         "td,th{border:1px solid #999;padding:4pt}</style>"
         f"</head><body>{html_body}</body></html>"
     )
-    weasyprint.HTML(string=full_html, url_fetcher=_deny_url_fetcher).write_pdf(str(output_path))
+    weasyprint.HTML(string=full_html, url_fetcher=_deny_url_fetcher()).write_pdf(str(output_path))
     return had_warnings
 
 
@@ -408,7 +424,9 @@ class MarkdownToPdfConverter(BaseConverter):
             "<style>body{font-family:sans-serif;margin:2cm;line-height:1.6}</style>"
             f"</head><body>{html}</body></html>"
         )
-        weasyprint.HTML(string=full_html, url_fetcher=_deny_url_fetcher).write_pdf(str(output_path))
+        weasyprint.HTML(string=full_html, url_fetcher=_deny_url_fetcher()).write_pdf(
+            str(output_path)
+        )
         return output_path
 
 
@@ -430,7 +448,7 @@ def _html_source(raw: bytes) -> str | bytes:
         return raw
 
 
-# url_fetcher=_deny_url_fetcher is MANDATORY (CLAUDE.md / security.md): a
+# url_fetcher=_deny_url_fetcher() is MANDATORY (CLAUDE.md / security.md): a
 # crafted HTML could otherwise pull internal URLs or file:// (SSRF / local
 # file read). WeasyPrint logs and skips each denied resource, so the render
 # still succeeds — it just never fetches anything external. ``.htm`` is the
@@ -442,7 +460,7 @@ class HtmlToPdfConverter(BaseConverter):
         import weasyprint
 
         html = _html_source(input_path.read_bytes())
-        weasyprint.HTML(string=html, url_fetcher=_deny_url_fetcher).write_pdf(str(output_path))
+        weasyprint.HTML(string=html, url_fetcher=_deny_url_fetcher()).write_pdf(str(output_path))
         return output_path
 
 
@@ -507,5 +525,7 @@ class EmlToPdfConverter(BaseConverter):
         import weasyprint
 
         full_html = _eml_to_html(input_path.read_bytes())
-        weasyprint.HTML(string=full_html, url_fetcher=_deny_url_fetcher).write_pdf(str(output_path))
+        weasyprint.HTML(string=full_html, url_fetcher=_deny_url_fetcher()).write_pdf(
+            str(output_path)
+        )
         return output_path

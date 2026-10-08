@@ -67,7 +67,7 @@ updates:
     # - cyclonedx-bom stays on 5.x: 7.x drops the --PEP-639 flag the SBOM
     #   workflows pass, and nothing on a PR runs the generator.
     # - pikepdf stays below 11 (requirements.txt).
-    # - WeasyPrint stays below 70 until the SSRF url_fetcher guard is ported.
+    # - WeasyPrint stays below 71: the SSRF guard subclasses its URLFetcher.
     # - Stripe stays below 16 until the Checkout call is ported.
     ignore:
       - dependency-name: "cyclonedx-bom"
@@ -75,7 +75,7 @@ updates:
       - dependency-name: "pikepdf"
         versions: [">=11"]
       - dependency-name: "weasyprint"
-        versions: [">=70"]
+        versions: [">=71"]
       - dependency-name: "stripe"
         versions: [">=16"]
     # A release has to be a few days old before it is proposed, so one that is

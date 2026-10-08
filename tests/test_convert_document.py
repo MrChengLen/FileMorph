@@ -129,8 +129,12 @@ def test_docx_to_pdf_ssrf_blocked(client, auth_headers, sample_docx, monkeypatch
     """
     import socket
 
+    connects = []
+
     def _block(self, addr, *args, **kwargs):
-        raise AssertionError(f"unexpected outbound network call to {addr!r}")
+        # Recorded, not only raised: WeasyPrint catches what a fetch raises.
+        connects.append(addr)
+        raise OSError(f"unexpected outbound network call to {addr!r}")
 
     monkeypatch.setattr(socket.socket, "connect", _block)
 
@@ -143,6 +147,7 @@ def test_docx_to_pdf_ssrf_blocked(client, auth_headers, sample_docx, monkeypatch
         )
     assert res.status_code == 200, res.text
     assert res.content[:5] == b"%PDF-"
+    assert not connects, connects
 
 
 def test_docx_to_txt_unchanged(client, auth_headers, sample_docx):

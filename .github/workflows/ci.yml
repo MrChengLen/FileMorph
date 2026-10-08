@@ -188,19 +188,6 @@ jobs:
       # image installs (Dockerfile: pip install --require-hashes), so it is the
       # only file whose contents actually reach production. The lockfile-drift
       # job below guarantees it still corresponds to requirements.txt.
-      # - CVE-2026-55073 (= GHSA-jf6q-chmf-3h3v), MODERATE / CVSS 6.2 (AV:L):
-      #   SSRF-protection bypass in WeasyPrint < 70.0. Two write_pdf() channels
-      #   build a fresh default URLFetcher instead of the document's one, so a
-      #   restrictive `url_fetcher` is silently ignored for `xmp_metadata=[url]`
-      #   and `stylesheets=[url]`. Not reachable in FileMorph: all four
-      #   write_pdf() call sites pass the output path only and never those
-      #   parameters (app/converters/document.py:228, 392, 426, 491), so the
-      #   advisory's third precondition -- forwarding an attacker-influenced
-      #   URL into either -- cannot occur. The fix is 70.0, which we cannot take
-      #   yet: it reworks the url_fetcher contract from a callable to an object
-      #   and would break `_deny_url_fetcher` (see the cap in requirements.txt).
-      #   Re-evaluate when the fetcher is ported; drop this ignore then.
-      #   Added 2026-09-09.
       # - CVE-2026-85394 (= GHSA-3qf3-8w2g-rqmx), CRITICAL / CVSS 9.1:
       #   algorithm confusion in python-jose <= 3.5.0, an incomplete fix for
       #   CVE-2024-33663. The HMAC key check rejects PEM- and SSH-formatted
@@ -217,24 +204,15 @@ jobs:
       #   create it: migrate off python-jose before any such work.
       #   Added 2026-10-06; review 2026-11-05 and at each release; drop on
       #   that migration (which also ends PYSEC-2026-1325) or an upstream fix.
-      # - CVE-2026-106443 (= GHSA-r543-q48m-4c9j), HIGH / CVSS 8.8: WeasyPrint
-      #   < 70.0 hands the bytes of a fetched image to Pillow without
-      #   restricting the format, so an image reference (an <img> URL, a CSS
-      #   or SVG image, a data URI) can make Pillow's EPS reader run
-      #   Ghostscript on PostScript. Not reachable in FileMorph, twice over:
-      #   every weasyprint.HTML() gets _deny_url_fetcher, which refuses every
-      #   URL it is asked to fetch -- WeasyPrint 69 routes every fetch through
-      #   it, data: URIs included -- so no image bytes reach Pillow; and
-      #   apply_hardening() in app/core/image_hardening.py marks Ghostscript
-      #   as missing for Pillow at startup (EpsImagePlugin.gs_binary = False,
-      #   pinned by tests/test_image_hardening.py), so Pillow cannot start it
-      #   whatever the fetcher contract. FileMorph converts no EPS. The fix
-      #   is 70.0, held back by the same url_fetcher port as CVE-2026-55073
-      #   above.
-      #   Added 2026-10-08; review 2026-11-07 and at each release; drop when
-      #   WeasyPrint 70 lands.
       - name: Dependency vulnerability scan (pip-audit)
-        run: pip-audit -r requirements.lock --ignore-vuln PYSEC-2026-1325 --ignore-vuln CVE-2026-55073 --ignore-vuln CVE-2026-85394 --ignore-vuln CVE-2026-106443
+        run: pip-audit -r requirements.lock --ignore-vuln PYSEC-2026-1325 --ignore-vuln CVE-2026-85394
+
+      # The WeasyPrint tests, the SSRF guard's included, skip where WeasyPrint
+      # cannot render (no Pango, e.g. on Windows), and pytest still passes.
+      # This runner installs Pango above, so they have to run here: fail now
+      # if WeasyPrint cannot render, instead of letting them skip unnoticed.
+      - name: WeasyPrint renders (its tests must not skip)
+        run: python -c "import weasyprint; assert weasyprint.HTML(string='<p>probe</p>').write_pdf().startswith(b'%PDF')"
 
       - name: Run tests
         env:

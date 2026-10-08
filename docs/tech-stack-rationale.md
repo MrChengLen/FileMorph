@@ -114,7 +114,7 @@ an `@register(("src", "tgt"))` decorator, plus one import line in
 | **pypdf** | PDF page extraction, split and text extraction (PDF → TXT) | Pure-Python, BSD-licensed, AGPLv3-compatible. Active fork of the PyPDF2 lineage. | PyPDF2 (deprecated upstream), pdfplumber (read-only, extraction-focused), PyMuPDF (faster but ~50 MB native binary) |
 | **pikepdf** | PDF/A-2b output and PDF compression (recompressing embedded images) | Python binding to qpdf; the wheels bundle qpdf, so no system package is needed. Loaded lazily, only when a PDF/A or PDF-compress request needs it. | Ghostscript alone (an external program; the PDF/A path runs it first where installed, then pikepdf writes the PDF/A markup) |
 | **reportlab** | PDF generation (TXT→PDF) | BSD-licensed Open Source Edition; the right tool when generating a PDF from scratch rather than transforming HTML. | WeasyPrint (HTML→PDF — different use-case, kept in parallel), fpdf2 (lighter, fewer features) |
-| **WeasyPrint** | HTML/CSS → PDF | Used for any HTML-source PDF output (e.g. Markdown → HTML → PDF). SSRF-hardened in `app/converters/document.py` via `url_fetcher=_deny_url_fetcher`. | wkhtmltopdf (deprecated; QtWebKit-based), Puppeteer/Playwright (Node.js + headless Chrome — much heavier) |
+| **WeasyPrint** | HTML/CSS → PDF | Used for any HTML-source PDF output (e.g. Markdown → HTML → PDF). SSRF-hardened in `app/converters/document.py` via `url_fetcher=_deny_url_fetcher()`. | wkhtmltopdf (deprecated; QtWebKit-based), Puppeteer/Playwright (Node.js + headless Chrome — much heavier) |
 | **markdown** | Markdown → HTML pre-processing for the WeasyPrint pipeline | Stable, predictable output; the dialect FileMorph ships matches what most users expect from a Markdown converter. | mistune (faster but a different feature set), markdown-it-py (CommonMark-strict) |
 | **openpyxl** | XLSX read/write | Pure Python, no Excel install required, predictable on Linux containers. | pandas (heavy dataframe overhead for simple reads), xlsxwriter (write-only) |
 | **ffmpeg-python** | Wrapper around the FFmpeg CLI for audio **and** video conversion | The FFmpeg binary itself is the workhorse; this library just gives it a typed Python surface. The binary must be available in the deployment image (Dockerfile installs it). Audio previously went through pydub, which decoded the whole file to PCM in RAM and passed extensions as muxer names — direct invocation streams with constant memory (see `app/converters/_ffmpeg.py`). | moviepy (heavier abstraction, slower), pydub (unmaintained since 2021; RAM-bound), direct `subprocess.run` (no type hints, more boilerplate) |
@@ -311,7 +311,7 @@ workflow:
 1. **Add it to `requirements.txt`** with a `>=` constraint. Upper
    caps (`<N`) are reserved for libraries with a known breaking
    change, with a comment in `requirements.txt` saying why (e.g.
-   `weasyprint<70`). Then recompile `requirements.lock`
+   `stripe<16`). Then recompile `requirements.lock`
    (command under "Reproducible builds" in
    [`self-hosting.md`](self-hosting.md)): the image installs only
    from the lockfile, and CI's `lockfile-drift` job fails until it

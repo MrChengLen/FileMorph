@@ -71,6 +71,10 @@ jobs:
       - name: Install Python dependencies (unpinned)
         run: pip install -r requirements-dev.txt
 
+      # Same check as in ci.yml's lint-and-test: the WeasyPrint tests must not skip.
+      - name: WeasyPrint renders (its tests must not skip)
+        run: python -c "import weasyprint; assert weasyprint.HTML(string='<p>probe</p>').write_pdf().startswith(b'%PDF')"
+
       - name: Run tests
         env:
           FILEMORPH_TEST_POSTGRES_URL: postgresql+asyncpg://postgres@localhost:5432/filemorph_test
