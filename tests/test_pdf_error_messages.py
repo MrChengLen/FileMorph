@@ -203,6 +203,47 @@ def test_owner_only_pdf_is_still_processed(client, auth_headers, path, data, alg
     assert r.status_code == 200, r.text
 
 
+# ── PDF/A: the password check runs before ghostscript ────────────────────────
+#
+# Ghostscript doesn't fail on a locked PDF: it renders it without the password
+# and exits 0 (seen in CI with 10.02.1), so a check after it never fires.
+# Ghostscript is faked here, so these hold whether or not it is installed.
+
+
+@_PIKEPDF
+def test_pdfa_refuses_a_locked_pdf_before_ghostscript(tmp_path, monkeypatch):
+    from app.converters import _ghostscript as gs
+    from app.converters.pdfa import PdfToPdfaConverter
+
+    def _must_not_run(*_args, **_kwargs):
+        raise AssertionError("ghostscript ran on a password-protected PDF")
+
+    monkeypatch.setattr(gs, "is_available", lambda: True)
+    monkeypatch.setattr(gs, "rerender_to_pdfa", _must_not_run)
+    src = tmp_path / "in.pdf"
+    src.write_bytes(_locked("AES-256"))
+    with pytest.raises(EncryptedPdfError):
+        PdfToPdfaConverter().convert(src, tmp_path / "out.pdf")
+
+
+@_PIKEPDF
+def test_pdfa_still_lets_ghostscript_repair_a_pdf_pikepdf_cannot_open(tmp_path, monkeypatch):
+    """The password check passes every other open error on to ghostscript."""
+    from app.converters import _ghostscript as gs
+    from app.converters.pdfa import PdfToPdfaConverter
+
+    def _repair(_src, dst, **_kwargs):
+        dst.write_bytes(_pdf(1))
+        return dst
+
+    monkeypatch.setattr(gs, "is_available", lambda: True)
+    monkeypatch.setattr(gs, "rerender_to_pdfa", _repair)
+    src = tmp_path / "in.pdf"
+    src.write_bytes(b"%PDF-1.4 damaged beyond what pikepdf can recover")
+    out = PdfToPdfaConverter().convert(src, tmp_path / "out.pdf")
+    assert len(PdfReader(out).pages) == 1
+
+
 # ── a PDF without pages ──────────────────────────────────────────────────────
 
 

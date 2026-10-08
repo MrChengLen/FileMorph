@@ -1,17 +1,23 @@
 ### Fixed — a password-protected PDF says so, and two PDF errors stop blaming a page selection
 
-A PDF that needs a password to open got the answer for a broken file on every
-PDF path: "Could not read the PDF. Verify the file is valid." on
-`/pdf/extract`, `/pdf/split` and `/convert` (PDF → TXT, PDF → PDF), "PDF
-compression failed. Verify your file is a valid PDF." on `/pdf/compress`, and
-a 500 on PDF → PDF/A; the last two also logged a traceback. Checking the file
-can't help; the password is in the way. pypdf raises `FileNotDecryptedError`
-on such a file and pikepdf `PasswordError`; all these paths now answer `400`
-with `X-FileMorph-Error-Code: pdf_encrypted` and "This PDF is
-password-protected. Remove the password (e.g. open the file and print it to a
-new PDF) and try again." The PDF tool pages and the converter show that text
-in German or English; `/convert/batch` reports it for the file. A PDF that
-opens without a password is processed as before.
+A PDF that needs a password to open got the answer for a broken file:
+"Could not read the PDF. Verify the file is valid." on `/pdf/extract`,
+`/pdf/split` and `/convert` (PDF → TXT, PDF → PDF), and "PDF compression
+failed. Verify your file is a valid PDF." plus a logged traceback on
+`/pdf/compress`. Checking the file can't help; the password is in the way.
+PDF → PDF/A was worse. Ghostscript, which runs first where it is installed (the
+Docker image ships it), doesn't fail on such a file: it renders it without the
+password and exits normally, so the conversion answered 200 with a PDF/A that
+cannot hold the protected content. Without Ghostscript it was a 500.
+
+pypdf raises `FileNotDecryptedError` on such a file and pikepdf
+`PasswordError`; all these paths now answer `400` with
+`X-FileMorph-Error-Code: pdf_encrypted` and "This PDF is password-protected.
+Remove the password (e.g. open the file and print it to a new PDF) and try
+again." PDF → PDF/A checks for the password before Ghostscript runs. The PDF
+tool pages and the converter show the text in German or English;
+`/convert/batch` reports it for the file. A PDF that opens without a password
+is processed as before.
 
 `/pdf/extract` answered a PDF without pages with `invalid_page_selection`, so
 its web page asked the user to fix a page selection that was fine. It now
