@@ -17,6 +17,24 @@ class InvalidInputError(Exception):
     """
 
 
+class EncryptedPdfError(InvalidInputError):
+    """The PDF opens only with a password, and FileMorph never asks for one.
+
+    pypdf raises ``FileNotDecryptedError`` on such a file, pikepdf
+    ``PasswordError``. A PDF with only an owner password opens without one
+    and never gets here. The routes send
+    ``X-FileMorph-Error-Code: pdf_encrypted`` with it.
+    """
+
+    # ``*_args``: copy and pickle re-create an exception from its args; the
+    # message stays fixed either way.
+    def __init__(self, *_args: object) -> None:
+        super().__init__(
+            "This PDF is password-protected. Remove the password "
+            "(e.g. open the file and print it to a new PDF) and try again."
+        )
+
+
 def read_utf8_text(path: Path) -> str:
     """Decode an uploaded text file as UTF-8, or tell the user how to fix it.
 

@@ -53,6 +53,8 @@ from typing import TYPE_CHECKING
 
 from PIL import Image
 
+from app.converters.base import EncryptedPdfError
+
 if TYPE_CHECKING:
     import pikepdf as pikepdf_mod
 
@@ -301,7 +303,8 @@ def compress_pdf_to_target(
     Honest limits (see module docstring): a PDF with no recompressible
     images is re-saved unchanged-in-content and reported
     ``converged=False`` / ``recompressible_images=0`` — never an error and
-    never a false claim of compression.
+    never a false claim of compression. A PDF that opens only with a
+    password raises :class:`~app.converters.base.EncryptedPdfError`.
 
     Lazy ``import pikepdf`` — see module docstring for the Windows DLL
     ordering reason.
@@ -311,7 +314,11 @@ def compress_pdf_to_target(
     if target_bytes <= 0:
         raise ValueError("target_bytes must be positive")
 
-    with pikepdf.open(str(input_path)) as pdf:
+    try:
+        pdf = pikepdf.open(str(input_path))
+    except pikepdf.PasswordError as exc:
+        raise EncryptedPdfError() from exc
+    with pdf:
         # --- DoS guard: bail before decoding an oversized working set. ----
         # A crafted image-rich PDF whose recompressible images sum past the
         # decode ceiling would OOM the worker in _collect_decoded (which holds

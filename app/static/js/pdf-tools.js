@@ -69,15 +69,18 @@
 
   // Header code first, then HTTP status — mirrors the server's error
   // contract (app/api/routes/pdf_pages.py): 422 = not a PDF (no header);
-  // 400 carries X-FileMorph-Error-Code (invalid_page_selection / invalid_pdf);
-  // 429 = rate limit / monthly quota. Anything else falls back to the
-  // server's own (already caller-safe) detail message.
+  // 400 carries X-FileMorph-Error-Code (invalid_page_selection / invalid_pdf /
+  // pdf_encrypted); 429 = rate limit / monthly quota. Anything else falls
+  // back to the server's own (already caller-safe) detail message.
   function errorFromResponse(res, data) {
     const code = res.headers.get('X-FileMorph-Error-Code');
     if (code === 'invalid_page_selection') {
       return t('pdfInvalidSelection', "Invalid page selection. Use 1-based page numbers and ranges, e.g. '1-3,5'.");
     }
     if (code === 'invalid_pdf') return t('pdfInvalidFile', 'Could not read the PDF. Verify the file is valid.');
+    if (code === 'pdf_encrypted') {
+      return t('pdfEncrypted', 'This PDF is password-protected. Remove the password (e.g. open the file and print it to a new PDF) and try again.');
+    }
     if (code === 'input_too_large') return t('errorInputTooLarge', 'File too large for your plan.');
     if (code === 'output_cap_exceeded') return t('errorOutputCapExceeded', 'Output would exceed your plan cap.');
     if (code === 'target_size_exceeds_cap') return t('errorTargetSizeExceedsCap', 'Target size exceeds your plan cap.');

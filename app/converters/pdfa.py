@@ -62,7 +62,7 @@ import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from app.converters.base import BaseConverter
+from app.converters.base import BaseConverter, EncryptedPdfError
 from app.converters.registry import register
 
 if TYPE_CHECKING:
@@ -193,6 +193,18 @@ class PdfToPdfaConverter(BaseConverter):
         from app.converters import _ghostscript as gs
 
         icc_bytes = _srgb_icc_bytes()
+
+        # A user password we don't have: refuse before stage 1. Ghostscript
+        # doesn't fail on such a file; it renders it without the password
+        # and exits 0, and the markup pass would ship that as a PDF/A. Any
+        # other open error is left to the stages below: ghostscript repairs
+        # some damaged files that pikepdf can't open.
+        try:
+            pikepdf.open(str(input_path)).close()
+        except pikepdf.PasswordError as exc:
+            raise EncryptedPdfError() from exc
+        except pikepdf.PdfError:
+            pass
 
         # Stage 1: optional ghostscript re-render. The gs binary is
         # opportunistic — if it's not on PATH (Windows local-dev,

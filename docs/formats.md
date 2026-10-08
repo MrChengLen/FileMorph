@@ -187,7 +187,8 @@ Convert/Compress tool.
 Note: the registry's internal `pdf → pdf` identity pair (the page-extract
 engine) is deliberately omitted from the `/api/v1/formats` listing and the
 formats page — it is plumbing, not a conversion a user picks.
-`POST /api/v1/convert` still accepts it (whole-document pass-through).
+`POST /api/v1/convert` still accepts it (whole-document pass-through, up to
+10 000 pages).
 
 **Honest limits**
 
@@ -206,6 +207,10 @@ formats page — it is plumbing, not a conversion a user picks.
   output files.
 - **Extract** rejects an empty / reversed / out-of-range / non-numeric page
   selection with a `400`; a selection can resolve to at most 10 000 pages.
+- **No password-protected PDFs.** FileMorph never asks for a password, so a
+  PDF that needs one to open is rejected with a `400` and
+  `X-FileMorph-Error-Code: pdf_encrypted` here and on PDF → TXT / PDF/A;
+  remove the password first.
 
 ---
 

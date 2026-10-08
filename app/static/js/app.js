@@ -808,8 +808,11 @@ async function submitForm() {
           || 'All files failed.';
         showError(`Batch failed: ${data.summary.failed}/${data.summary.total} files. First error: ${first}`);
       } else if (res.status === 400 && data.detail) {
-        // Batch-size over tier limit lands here with a clear server message
-        showError(data.detail);
+        // Batch-size over tier limit lands here with a clear server message;
+        // so does a password-protected PDF (localized, falls back to detail)
+        const errCode = res.headers.get('X-FileMorph-Error-Code');
+        const i18n = window.FM_I18N || {};
+        showError(errCode === 'pdf_encrypted' ? (i18n.pdfEncrypted || data.detail) : data.detail);
       } else if (res.status === 401) {
         showError('Invalid API key. Check your key and try again.');
       } else if (res.status === 413) {

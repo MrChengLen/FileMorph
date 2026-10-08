@@ -503,10 +503,13 @@ Common per-file `error_message` values:
   on Windows). Single-file `/convert` returns the same message as a
   `400` with `X-FileMorph-Error-Code: invalid_input`.
 - `"Could not read the PDF. Verify the file is valid."` — a PDF
-  converted to `txt` or `pdf` that is damaged, password-protected or
-  over one of the PDF reader's safety limits. Single-file `/convert`
-  returns the same message as a `400` with
-  `X-FileMorph-Error-Code: invalid_input`.
+  converted to `txt` or `pdf` that is damaged or over one of the PDF
+  reader's safety limits. Single-file `/convert` returns the same
+  message as a `400` with `X-FileMorph-Error-Code: invalid_input`.
+- `"This PDF is password-protected. Remove the password …"` — a PDF
+  that opens only with a password, converted to `txt`, `pdf` or `pdfa`.
+  Single-file `/convert` returns the same message as a `400` with
+  `X-FileMorph-Error-Code: pdf_encrypted`.
 - `"Conversion failed. Verify the file is valid."` (compress:
   `"Compression failed. …"`) — any other error while processing that
   file, e.g. corrupt content. The details stay in the server log.

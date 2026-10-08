@@ -397,6 +397,12 @@ def _js_i18n_strings(_: gettext.GNUTranslations.gettext) -> dict[str, str]:
         "pdfSelectFile": _("Select a PDF file first."),
         "pdfNotAPdf": _("Please select a PDF file."),
         "pdfInvalidFile": _("Could not read the PDF. Verify the file is valid."),
+        # X-FileMorph-Error-Code: pdf_encrypted — also read by app.js, since
+        # /convert sends the same code (PDF → TXT, PDF → PDF/A).
+        "pdfEncrypted": _(
+            "This PDF is password-protected. Remove the password "
+            "(e.g. open the file and print it to a new PDF) and try again."
+        ),
         "pdfInvalidSelection": _(
             "Invalid page selection. Use 1-based page numbers and ranges, e.g. '1-3,5'."
         ),
