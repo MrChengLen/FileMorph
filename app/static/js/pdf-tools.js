@@ -60,18 +60,28 @@
     link.classList.toggle('hidden', !visible);
   }
 
+  // Next-step link to /pdf/extract, next to pdf_too_many_pages on the split
+  // page. #pdf-error-extract exists only there, hence the null-guard.
+  function setExtractLinkVisible(visible) {
+    const link = $('pdf-error-extract');
+    if (!link) return;
+    link.classList.toggle('hidden', !visible);
+  }
+
   function showError(msg, code) {
     hide($('pdf-progress'));
     $('pdf-error-text').textContent = msg;
     setUpsellVisible(UPSELL_ERROR_CODES.includes(code));
+    setExtractLinkVisible(code === 'pdf_too_many_pages');
     show($('pdf-error'));
   }
 
   // Header code first, then HTTP status — mirrors the server's error
   // contract (app/api/routes/pdf_pages.py): 422 = not a PDF (no header);
   // 400 carries X-FileMorph-Error-Code (invalid_page_selection / invalid_pdf /
-  // pdf_encrypted); 429 = rate limit / monthly quota. Anything else falls
-  // back to the server's own (already caller-safe) detail message.
+  // pdf_encrypted / pdf_too_many_pages); 429 = rate limit / monthly quota.
+  // Anything else falls back to the server's own (already caller-safe) detail
+  // message.
   function errorFromResponse(res, data) {
     const code = res.headers.get('X-FileMorph-Error-Code');
     if (code === 'invalid_page_selection') {
@@ -80,6 +90,14 @@
     if (code === 'invalid_pdf') return t('pdfInvalidFile', 'Could not read the PDF. Verify the file is valid.');
     if (code === 'pdf_encrypted') {
       return t('pdfEncrypted', 'This PDF is password-protected. Remove the password (e.g. open the file and print it to a new PDF) and try again.');
+    }
+    // One code from both routes, but the next step differs: split points to
+    // /pdf/extract (see #pdf-error-extract), extract to a smaller selection.
+    if (code === 'pdf_too_many_pages') {
+      if (TOOL === 'split') {
+        return t('pdfTooManyPagesSplit', 'This PDF has more than 10,000 pages — too many to split at once. Extract up to 10,000 pages at a time with “Extract PDF pages”, then split each part.');
+      }
+      return t('pdfTooManyPagesExtract', 'You can extract at most 10,000 pages at once. Select fewer pages, or extract them in several parts.');
     }
     if (code === 'input_too_large') return t('errorInputTooLarge', 'File too large for your plan.');
     if (code === 'output_cap_exceeded') return t('errorOutputCapExceeded', 'Output would exceed your plan cap.');
@@ -260,6 +278,7 @@
 
     hide($('pdf-error'));
     setUpsellVisible(false);
+    setExtractLinkVisible(false);
     hide($('pdf-result'));
     show($('pdf-progress'));
 
@@ -313,6 +332,7 @@
     hide($('pdf-result'));
     hide($('pdf-error'));
     setUpsellVisible(false);
+    setExtractLinkVisible(false);
     hide($('pdf-pages-warn'));
   }
 

@@ -11,12 +11,15 @@ puts that message in the per-file ``error_message``. A PDF with only an *owner*
 password (restrictions, no user password) opens without one and must keep
 working; those tests catch a future "reject every encrypted PDF" shortcut.
 
-Three neighbouring fixes are pinned here too:
+Four neighbouring fixes are pinned here too:
 
 * a PDF without pages sent ``invalid_page_selection`` from /pdf/extract, so the
   web page blamed the user's selection; it is ``invalid_pdf`` now;
 * PDF -> PDF keeps every page when nothing is selected and is held to the
   selection cap, so over it the message may not talk about a selection;
+* a PDF to split, or a selection to extract, over that cap was called unreadable
+  (``invalid_pdf``) or badly written (``invalid_page_selection``); both are
+  ``pdf_too_many_pages`` now, and the split page links on to the extract tool;
 * the server code is useless unless both UIs map it to the localized text: the
   catalog needs the German string (a *fuzzy* entry silently serves English while
   the CI drift check stays green) and both scripts must handle the code.
@@ -35,6 +38,7 @@ import logging
 import pickle
 import re
 import sys
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -409,12 +413,72 @@ def test_pdf_to_pdf_exactly_at_the_page_cap_keeps_every_page(client, auth_header
     assert len(PdfReader(io.BytesIO(r.content)).pages) == 2
 
 
-def test_extract_over_the_page_cap_still_blames_the_selection(client, auth_headers, two_page_cap):
-    """Regression guard: here the user did select the pages."""
-    r = _post(client, auth_headers, "/api/v1/pdf/extract", {"pages": "1-3"}, _pdf(3))
+# ── split and extract over the page cap ──────────────────────────────────────
+
+
+def test_split_pdf_over_the_page_cap_raises_too_many_pages(tmp_path, two_page_cap):
+    src = tmp_path / "in.pdf"
+    src.write_bytes(_pdf(3))
+    with pytest.raises(pdf_pages.TooManyPagesError) as caught:
+        pdf_pages.split_pdf(src)
+    assert str(caught.value) == pdf_pages._TOO_MANY_PAGES_TO_SPLIT
+    # Both bases keep /convert and /convert/batch answering a 400.
+    assert isinstance(caught.value, pdf_pages.PageSelectionError)
+    assert isinstance(caught.value, InvalidInputError)
+
+
+@pytest.mark.parametrize("spec", ["1-3", "1,2,3"])
+def test_parse_page_ranges_over_the_page_cap_raises_too_many_pages(two_page_cap, spec):
+    """A range and a list of single pages are counted in separate branches."""
+    with pytest.raises(pdf_pages.TooManyPagesError) as caught:
+        pdf_pages.parse_page_ranges(spec, 3)
+    assert str(caught.value) == pdf_pages._TOO_MANY_PAGES_SELECTED
+
+
+@pytest.mark.parametrize(
+    ("path", "data", "message"),
+    [
+        pytest.param("/api/v1/pdf/split", {}, pdf_pages._TOO_MANY_PAGES_TO_SPLIT, id="split"),
+        pytest.param(
+            "/api/v1/pdf/extract",
+            {"pages": "1-3"},
+            pdf_pages._TOO_MANY_PAGES_SELECTED,
+            id="extract-range",
+        ),
+        pytest.param(
+            "/api/v1/pdf/extract",
+            {"pages": "1,2,3"},
+            pdf_pages._TOO_MANY_PAGES_SELECTED,
+            id="extract-list",
+        ),
+    ],
+)
+def test_route_answers_pdf_too_many_pages_without_a_logged_traceback(
+    client, auth_headers, caplog, two_page_cap, path, data, message
+):
+    """The PDF is readable and the selection well-formed: neither may be blamed."""
+    with caplog.at_level(logging.INFO):
+        r = _post(client, auth_headers, path, data, _pdf(3))
     assert r.status_code == 400, r.text
-    assert r.headers.get("X-FileMorph-Error-Code") == "invalid_page_selection"
-    assert r.json()["detail"] == "Too many pages selected."
+    assert r.headers.get("X-FileMorph-Error-Code") == "pdf_too_many_pages"
+    detail = r.json()["detail"]
+    assert detail == message
+    assert f"{_PAGE_CAP:,}" in detail  # names the real limit (the constants are built at import)
+    assert "Could not read" not in detail
+    assert [rec.getMessage() for rec in caplog.records if rec.exc_info] == []
+
+
+def test_split_exactly_at_the_page_cap_still_splits(client, auth_headers, two_page_cap):
+    r = _post(client, auth_headers, "/api/v1/pdf/split", {}, _pdf(2))
+    assert r.status_code == 200, r.text
+    assert len(zipfile.ZipFile(io.BytesIO(r.content)).namelist()) == 2
+
+
+@pytest.mark.parametrize("pages", ["1-2", "1,2"])
+def test_extract_exactly_at_the_page_cap_still_extracts(client, auth_headers, two_page_cap, pages):
+    r = _post(client, auth_headers, "/api/v1/pdf/extract", {"pages": pages}, _pdf(3))
+    assert r.status_code == 200, r.text
+    assert len(PdfReader(io.BytesIO(r.content)).pages) == 2
 
 
 # ── the UIs ──────────────────────────────────────────────────────────────────
@@ -441,3 +505,82 @@ def test_ui_script_maps_the_encrypted_code_to_the_localized_text(script):
     js = (_STATIC_JS / script).read_text(encoding="utf-8")
     assert "'pdf_encrypted'" in js, f"{script} ignores the pdf_encrypted error code"
     assert "pdfEncrypted" in js, f"{script} never shows the localized pdfEncrypted text"
+
+
+# The catalog texts spell the cap out: raising _MAX_SELECTION_PAGES fails the
+# test below until the catalog follows.
+_CAP_EN = f"{_PAGE_CAP:,}"
+_CAP_DE = _CAP_EN.replace(",", ".")
+
+
+@pytest.mark.parametrize(
+    ("lang", "key", "expected"),
+    [
+        pytest.param(
+            "en",
+            "pdfTooManyPagesSplit",
+            f"This PDF has more than {_CAP_EN} pages — too many to split at once. "
+            f"Extract up to {_CAP_EN} pages at a time with “Extract PDF pages”, "
+            "then split each part.",
+            id="en-split",
+        ),
+        pytest.param(
+            "en",
+            "pdfTooManyPagesExtract",
+            f"You can extract at most {_CAP_EN} pages at once. "
+            "Select fewer pages, or extract them in several parts.",
+            id="en-extract",
+        ),
+        pytest.param(
+            "de",
+            "pdfTooManyPagesSplit",
+            f"Dieses PDF hat mehr als {_CAP_DE} Seiten — zu viele, "
+            "um es auf einmal aufzuteilen. "
+            f"Extrahiere jeweils bis zu {_CAP_DE} Seiten mit „PDF-Seiten extrahieren“ "
+            "und teile dann jeden Teil auf.",
+            id="de-split",
+        ),
+        pytest.param(
+            "de",
+            "pdfTooManyPagesExtract",
+            f"Du kannst höchstens {_CAP_DE} Seiten auf einmal extrahieren. "
+            "Wähle weniger Seiten aus oder extrahiere sie in mehreren Teilen.",
+            id="de-extract",
+        ),
+    ],
+)
+def test_js_strings_carry_the_page_cap_messages_in_each_language(client, lang, key, expected):
+    page = client.get(f"/{lang}/")
+    assert page.status_code == 200, page.text
+    blob = _I18N_BLOB.search(page.text)
+    assert blob, f"/{lang}/ has no FM_I18N script tag"
+    assert json.loads(blob.group(1)).get(key) == expected
+
+
+def test_pdf_tools_script_maps_the_page_cap_code_to_the_localized_texts():
+    js = (_STATIC_JS / "pdf-tools.js").read_text(encoding="utf-8")
+    assert "'pdf_too_many_pages'" in js, "pdf-tools.js ignores the pdf_too_many_pages error code"
+    for key in ("pdfTooManyPagesSplit", "pdfTooManyPagesExtract"):
+        assert key in js, f"pdf-tools.js never shows the localized {key} text"
+    assert "'pdf-error-extract'" in js, "pdf-tools.js never looks up the link to the extract tool"
+    assert "setExtractLinkVisible(code === 'pdf_too_many_pages')" in js, (
+        "showError never reveals the link to the extract tool"
+    )
+
+
+@pytest.mark.parametrize("prefix", ["", "/en", "/de"])
+def test_split_page_offers_the_extract_tool_as_the_next_step(client, prefix):
+    page = client.get(f"{prefix}/pdf/split")
+    assert page.status_code == 200, page.text
+    link = re.search(r'<a\b[^>]*\sid="pdf-error-extract"[^>]*>', page.text)
+    assert link, f"{prefix}/pdf/split has no #pdf-error-extract link"
+    attrs = dict(re.findall(r'([\w-]+)="([^"]*)"', link.group(0)))
+    assert attrs["href"] == f"{prefix}/pdf/extract"
+    assert "hidden" in attrs["class"].split()  # pdf-tools.js reveals it for this error only
+
+
+@pytest.mark.parametrize("tool", ["extract", "compress"])
+def test_only_the_split_page_has_the_extract_link(client, tool):
+    page = client.get(f"/en/pdf/{tool}")
+    assert page.status_code == 200, page.text
+    assert "pdf-error-extract" not in page.text
