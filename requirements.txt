@@ -37,9 +37,11 @@ reportlab>=4.1.0
 # exactly this area: two write_pdf() channels ignore the document's
 # url_fetcher. FileMorph is not reachable through it -- none of our
 # write_pdf() calls pass `xmp_metadata` or `stylesheets`, the only two
-# affected parameters -- so the cap costs us nothing today. It does mean the
-# port to the 70 API carries a security benefit and should not sit here
-# indefinitely. ci.yml documents the matching pip-audit ignore.
+# affected parameters -- so the cap costs us nothing today. The same goes
+# for CVE-2026-106443 (image bytes handed to Pillow unrestricted), which
+# _deny_url_fetcher and app/core/image_hardening.py keep out of reach. It
+# does mean the port to the 70 API carries a security benefit and should not
+# sit here indefinitely. ci.yml documents the matching pip-audit ignores.
 weasyprint>=69.0,<70
 markdown>=3.10.3
 openpyxl>=3.1.5

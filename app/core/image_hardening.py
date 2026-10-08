@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Pillow decompression-bomb hardening — startup-time configuration.
+"""Pillow hardening — startup-time configuration (decompression bombs, Ghostscript).
 
 Pillow ships two thresholds on ``Image.MAX_IMAGE_PIXELS``:
 
@@ -35,6 +35,13 @@ the warn-but-continue default). The companion guard for output-size is
 in ``app/core/quotas.py`` (per-tier output cap) — that one rejects *after*
 encoding; this one rejects *before* decoding.
 
+Pillow reads EPS by running Ghostscript, an external PostScript
+interpreter. FileMorph converts no EPS, so Pillow never needs it:
+``apply_hardening`` makes ``EpsImagePlugin`` treat Ghostscript as missing,
+whatever is installed, and an EPS image then fails to load. The PDF/A
+converter runs Ghostscript itself (``app/converters/_ghostscript.py``) and
+is not affected.
+
 Import order matters: ``import app.core.image_hardening`` must run *before*
 the first ``Image.open(...)`` call in the application path. The current
 chain is ``app/main.py → from app.api.routes import …`` which imports the
@@ -47,7 +54,7 @@ from __future__ import annotations
 import os
 import warnings
 
-from PIL import Image
+from PIL import EpsImagePlugin, Image
 
 # Default matches Pillow's stock threshold so existing legitimate uploads
 # keep working unchanged. The 2× ceiling lives below at
@@ -77,7 +84,8 @@ def _resolve_max_pixels() -> int:
 
 
 def apply_hardening() -> None:
-    """Set MAX_IMAGE_PIXELS + filter DecompressionBombWarning to an error.
+    """Set MAX_IMAGE_PIXELS + filter DecompressionBombWarning to an error,
+    and keep Pillow from starting Ghostscript.
 
     Idempotent — safe to call multiple times. Re-reads the env var so a
     test can monkeypatch the env between calls and reapply.
@@ -88,6 +96,11 @@ def apply_hardening() -> None:
     # filter closes the warn-but-continue gap below it so EVERY oversize
     # image fails fast and identically.
     warnings.simplefilter("error", Image.DecompressionBombWarning)
+    # ``False`` (not ``None``, which means "look it up") is how Pillow
+    # records a missing Ghostscript: EPS loading then raises OSError and no
+    # process starts. See the module docstring. Not tied to WeasyPrint:
+    # keep it after the WeasyPrint 70 upgrade.
+    EpsImagePlugin.gs_binary = False
 
 
 # Fire once at import so a single ``import app.core.image_hardening``
