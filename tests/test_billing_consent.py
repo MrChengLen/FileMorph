@@ -211,6 +211,15 @@ def test_checkout_pro_with_acknowledgement_records_audit_event(client):
     assert "localhost:8000" in create_kwargs["cancel_url"]
     assert "filemorph.io" not in create_kwargs["cancel_url"]
 
+    # Every parameter sent must exist in the installed SDK's Checkout
+    # contract, which is generated from the Stripe API version it pins. The
+    # call is mocked above, so without this a parameter that a new SDK major
+    # drops (stripe 16 drops payment_method_types) would only fail live.
+    from stripe.params.checkout import SessionCreateParams
+
+    known = SessionCreateParams.__required_keys__ | SessionCreateParams.__optional_keys__
+    assert not set(create_kwargs) - known, set(create_kwargs) - known
+
     rows = _events_by_type("billing.checkout.withdrawal_waiver_recorded")
     assert len(rows) == 1
     assert str(rows[0].actor_user_id) == str(user.id)

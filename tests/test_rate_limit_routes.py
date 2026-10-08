@@ -607,7 +607,7 @@ def test_failed_key_budget_is_noop_while_limiter_disabled(client, sample_jpg):
 # than a red CI run over a rename.
 _METRICS_PATH = "/api/v1/metrics"  # added via add_api_route; bypasses both decorators
 
-# This FastAPI version (0.141.1) resolves `include_router(prefix=...)`
+# This FastAPI version (0.142) resolves `include_router(prefix=...)`
 # lazily: `app.routes` holds one private `_IncludedRouter` wrapper per
 # `include_router()` call rather than flattened `APIRoute`s, so a plain
 # `isinstance(route, APIRoute)` walk over `app.routes` silently finds only
