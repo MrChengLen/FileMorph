@@ -20,6 +20,7 @@ These tests pin every layer of the chain:
 3. The env-var override (``FILEMORPH_IMAGE_MAX_MEGAPIXELS``) tightens
    or loosens the threshold for self-hosters with explicit
    large-image use cases.
+4. Pillow never starts Ghostscript (FileMorph converts no EPS).
 
 Strategy: most tests monkeypatch ``Image.MAX_IMAGE_PIXELS`` to a tiny
 value (e.g. 100) and feed a normal small image. This avoids
@@ -157,3 +158,34 @@ def test_convert_below_threshold_still_succeeds(client, auth_headers, sample_jpg
     # output-cap) can yield other codes; what we care about is that we
     # don't get the decompression-bomb 400.
     assert r.headers.get("X-FileMorph-Error-Code") != "decompression_bomb"
+
+
+# ── Ghostscript: Pillow never starts it ──────────────────────────────────────
+
+# About the smallest EPS Pillow parses: the header line and a bounding box.
+_EPS = b"%!PS-Adobe-3.0 EPSF-3.0\n%%BoundingBox: 0 0 8 8\nshowpage\n%%EOF\n"
+
+
+def test_hardening_marks_ghostscript_as_missing_for_pillow():
+    from PIL import EpsImagePlugin
+
+    from app.core import image_hardening
+
+    image_hardening.apply_hardening()
+    assert EpsImagePlugin.gs_binary is False
+    assert not EpsImagePlugin.has_ghostscript()
+
+
+def test_eps_load_fails_without_starting_a_process(monkeypatch):
+    """Pillow probes for and runs Ghostscript through ``subprocess.check_call``;
+    with the hardening it does neither."""
+    import subprocess
+
+    def _no_process(*_args, **_kwargs):
+        raise AssertionError("Pillow started a process")
+
+    monkeypatch.setattr(subprocess, "check_call", _no_process)
+    with Image.open(io.BytesIO(_EPS)) as im:
+        assert im.format == "EPS"
+        with pytest.raises(OSError, match="Ghostscript"):
+            im.load()

@@ -227,10 +227,15 @@ sudo apt install -y \
   python3 python3-venv python3-pip \
   ffmpeg \
   ghostscript \
-  libheif-dev \
   libcairo2 libpangocairo-1.0-0 libgdk-pixbuf2.0-0
 python3 --version   # must be 3.11 or newer
 ```
+
+HEIC input needs no system package: the `pillow-heif` wheel that pip installs
+in Step 2 bundles its own libheif. Only on a platform without such a wheel does
+pip compile it, and then it needs libheif 1.23.4 or newer (the minimum of the
+pillow-heif version FileMorph pins; later releases can raise it) — see the
+HEIC note in [formats.md](formats.md).
 
 `python3.11` as a specific apt package name is a moving target — current
 Ubuntu (24.04+) and Debian (13+) ship a newer default `python3` (3.12 /
@@ -343,7 +348,11 @@ other three installation methods, which all hardcode `8000`:
 pip install pillow-heif
 ```
 
-On Linux, also install: `sudo apt install libheif-dev`
+On 64-bit x86 and ARM (Linux, macOS, Windows) that is all: the wheel bundles
+libheif. If pip has to compile `pillow-heif` instead (no wheel for your
+platform), it needs libheif 1.23.4 or newer (for the pillow-heif version
+FileMorph pins; later releases can raise it) — see the HEIC note in
+[formats.md](formats.md).
 
 ### Permission denied on `data/api_keys.json` (Linux)
 
