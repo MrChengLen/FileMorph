@@ -34,7 +34,7 @@ ruff==0.16.10
 # lockfile generated on Windows still carries the Linux-only packages (uvloop
 # via uvicorn[standard]). Both must match the CI command exactly, since uv
 # records the invocation in the lockfile header and the drift gate diffs it.
-uv==0.12.22
+uv==0.12.23
 pip-audit>=2.10.1
 beautifulsoup4>=4.15.0
 # Parses the workflows in tests/test_workflow_triggers.py and
