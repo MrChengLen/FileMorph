@@ -59,11 +59,13 @@ updates:
       python-all:
         patterns:
           - "*"
-        # Held below 70 until the SSRF url_fetcher guard is ported
-        # (requirements.txt says why). It keeps arriving as a PR of its own, a
+        # Held back until code is ported (requirements.txt says why for each):
+        # WeasyPrint below 70 (the SSRF url_fetcher guard) and Stripe below 16
+        # (the Checkout parameters). Each keeps arriving as a PR of its own, a
         # reminder that cannot block the weekly batch.
         exclude-patterns:
           - "weasyprint"
+          - "stripe"
     # Caps that need a deliberate change, not the weekly batch. They go by
     # version range: the requirements carry no update type that an
     # `update-types` rule could match.
