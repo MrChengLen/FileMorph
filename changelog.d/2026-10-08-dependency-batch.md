@@ -27,6 +27,5 @@ Stripe stays on 15.6.1, now capped below 16. Stripe 16 pins Stripe API version
 Checkout session is created, so Stripe would reject every checkout once keys
 are set; the tests mock that call and could not notice. A new check in
 `tests/test_billing_consent.py` now compares the parameters sent with the
-installed SDK's Checkout contract, so such a break turns CI red. The upgrade
-comes as a pull request of its own, and Dependabot keeps it out of the weekly
-batch until then.
+installed SDK's Checkout contract, so such a break turns CI red. Dependabot
+does not propose the upgrade until that call is ported.

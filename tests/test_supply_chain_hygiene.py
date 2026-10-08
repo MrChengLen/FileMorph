@@ -1370,3 +1370,31 @@ def test_cve_2026_85394_ignore_still_holds() -> None:
         f"JWT verification outside app/core/tokens.py: {verify_sites}. The CVE-2026-85394 "
         "ignore in ci.yml assumes one HS256-only verify path; move off python-jose first."
     )
+
+
+def test_dependabot_ignores_sit_on_live_caps() -> None:
+    """Every pip ``ignore`` range in dependabot.yml matches a cap in requirements*.txt.
+
+    A held-back major (``versions: [">=70"]``) is only right while the matching
+    cap (``<70``) is in place. Left behind after the port lifts the cap, the
+    ignore would freeze the package silently: no pull request, no red CI.
+    """
+    pip = next(
+        update
+        for update in yaml.safe_load(_DEPENDABOT.read_text(encoding="utf-8"))["updates"]
+        if update["package-ecosystem"] == "pip"
+    )
+    caps: dict[str, set[str]] = {}
+    for path in _REPO_ROOT.glob("requirements*.txt"):
+        for line in path.read_text(encoding="utf-8").splitlines():
+            line = line.split("#", 1)[0].strip()
+            if line and not line.startswith("-"):
+                req = Requirement(line)
+                caps[canonicalize_name(req.name)] = {str(spec) for spec in req.specifier}
+    for entry in pip.get("ignore", []):
+        for version_range in entry["versions"]:
+            cap = "<" + version_range.removeprefix(">=")
+            assert cap in caps.get(canonicalize_name(entry["dependency-name"]), set()), (
+                f"dependabot.yml ignores {entry['dependency-name']} {version_range}, but no "
+                f"requirements*.txt caps it {cap}: drop the ignore together with the cap"
+            )

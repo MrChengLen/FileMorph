@@ -23,5 +23,5 @@ only minor and patch ones. Dependabot gives a `requirements.txt` floor raise no
 update type, so each still arrived as a PR of its own, #191 to #195 in one week,
 and four of them turned `lint-and-test` red until `requirements.lock` was
 recompiled. They now come as one weekly PR and one lockfile pass, after a
-three-day cooldown. WeasyPrint stays out of the batch while it is held below 70,
-and the pikepdf and SBOM-generator caps are held back by version range.
+three-day cooldown. The caps on WeasyPrint (below 70), pikepdf and the SBOM
+generator are held back by version range.
