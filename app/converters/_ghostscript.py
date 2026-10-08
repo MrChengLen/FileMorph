@@ -140,6 +140,12 @@ def rerender_to_pdfa(
         # of producing a "looks PDF/A but isn't" file.
         cmd = [
             _GS_BINARY,
+            # ``-dSAFER`` confines the job to the files it is handed: the
+            # input, the output, and the generated PDFA_def.ps / ICC prefix
+            # in the temp dir. It is the default since gs 9.50, but we set it
+            # explicitly so the sandbox does not depend on the installed gs
+            # version or on a distro that shipped a different default.
+            "-dSAFER",
             "-dBATCH",
             "-dNOPAUSE",
             "-dNOOUTERSAVE",

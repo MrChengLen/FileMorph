@@ -43,7 +43,7 @@ from pypdf.constants import UserAccessPermissions as Perm
 from pypdf.errors import FileNotDecryptedError
 
 from app.converters import pdf_pages
-from app.converters.base import EncryptedPdfError
+from app.converters.base import EncryptedPdfError, InvalidInputError
 from app.converters.document import PdfToTxtConverter
 
 _ENCRYPTED = (
@@ -242,6 +242,124 @@ def test_pdfa_still_lets_ghostscript_repair_a_pdf_pikepdf_cannot_open(tmp_path, 
     src.write_bytes(b"%PDF-1.4 damaged beyond what pikepdf can recover")
     out = PdfToPdfaConverter().convert(src, tmp_path / "out.pdf")
     assert len(PdfReader(out).pages) == 1
+
+
+# ── PDF/A: ghostscript only runs on a PDF, and with -dSAFER ───────────────────
+#
+# The converter gates stage 1 on a ``%PDF-`` header (the spec's, within the
+# first 1024 bytes) and refuses anything that does not present as a PDF with a
+# caller-safe message rather than a 500. A damaged PDF that still carries the
+# header passes the gate so ghostscript can repair it. Ghostscript is faked
+# here, so these hold whether or not it is installed.
+
+
+@_PIKEPDF
+def test_pdfa_does_not_run_ghostscript_on_a_non_pdf(tmp_path, monkeypatch):
+    from app.converters import _ghostscript as gs
+    from app.converters.pdfa import PdfToPdfaConverter
+
+    def _must_not_run(*_args, **_kwargs):
+        raise AssertionError("ghostscript ran on a non-PDF upload")
+
+    monkeypatch.setattr(gs, "is_available", lambda: True)
+    monkeypatch.setattr(gs, "rerender_to_pdfa", _must_not_run)
+    src = tmp_path / "in.pdf"
+    src.write_bytes(b"this upload is not a PDF, just some bytes under a .pdf name")
+    with pytest.raises(InvalidInputError):
+        PdfToPdfaConverter().convert(src, tmp_path / "out.pdf")
+
+
+@_PIKEPDF
+def test_pdfa_refuses_a_file_that_presents_as_postscript(tmp_path, monkeypatch):
+    """A ``%!``-leading file is refused even when a ``%PDF-`` substring appears
+    later in the header window, so the gate does not depend on how ghostscript
+    would read such a hybrid."""
+    from app.converters import _ghostscript as gs
+    from app.converters.pdfa import PdfToPdfaConverter
+
+    def _must_not_run(*_args, **_kwargs):
+        raise AssertionError("ghostscript ran on a file that presents as PostScript")
+
+    monkeypatch.setattr(gs, "is_available", lambda: True)
+    monkeypatch.setattr(gs, "rerender_to_pdfa", _must_not_run)
+    src = tmp_path / "in.pdf"
+    src.write_bytes(b"%!PS-Adobe-3.0\n% %PDF-1.4 only in a comment\nshowpage\n")
+    with pytest.raises(InvalidInputError):
+        PdfToPdfaConverter().convert(src, tmp_path / "out.pdf")
+
+
+@_PIKEPDF
+def test_pdfa_still_runs_ghostscript_on_a_damaged_pdf_with_a_header(tmp_path, monkeypatch):
+    """The header gate lets a damaged-but-headered PDF keep its gs repair pass."""
+    from app.converters import _ghostscript as gs
+    from app.converters.pdfa import PdfToPdfaConverter
+
+    calls: list[Path] = []
+
+    def _repair(src, dst, **_kwargs):
+        calls.append(src)
+        dst.write_bytes(_pdf(1))
+        return dst
+
+    monkeypatch.setattr(gs, "is_available", lambda: True)
+    monkeypatch.setattr(gs, "rerender_to_pdfa", _repair)
+    src = tmp_path / "in.pdf"
+    src.write_bytes(b"%PDF-1.4 damaged beyond what pikepdf can recover")
+    PdfToPdfaConverter().convert(src, tmp_path / "out.pdf")
+    assert calls, "ghostscript should still run on a damaged PDF that has a header"
+
+
+@_PIKEPDF
+def test_route_rejects_a_non_pdf_to_pdfa_without_a_dead_end(client, auth_headers, caplog):
+    """A non-PDF to PDF/A is a caller-safe 400, not a generic 500."""
+    with caplog.at_level(logging.INFO):
+        r = _post(
+            client,
+            auth_headers,
+            "/api/v1/convert",
+            {"target_format": "pdfa"},
+            b"this upload is not a PDF, just some bytes under a .pdf name",
+        )
+    assert r.status_code == 400, r.text
+    assert r.headers.get("X-FileMorph-Error-Code") == "invalid_input"
+    assert "not a PDF" in r.json()["detail"]
+    assert [rec.getMessage() for rec in caplog.records if rec.exc_info] == []
+
+
+@_PIKEPDF
+def test_convert_batch_names_a_non_pdf_to_pdfa(client, auth_headers):
+    """The batch route surfaces the same caller-safe text per file, not a
+    generic 'Conversion failed.'"""
+    r = client.post(
+        "/api/v1/convert/batch",
+        headers=auth_headers,
+        data={"target_formats": ["pdfa"]},
+        files=[("files", ("doc.pdf", b"this upload is not a PDF, just some bytes", _PDF_MIME))],
+    )
+    assert r.status_code == 422, r.text
+    assert "not a PDF" in r.json()["files"][0]["error_message"]
+
+
+def test_rerender_command_passes_dsafer_explicitly(tmp_path, monkeypatch):
+    """The ghostscript command sets -dSAFER regardless of the installed gs's
+    default. No real gs or pikepdf needed — subprocess is faked."""
+    from app.converters import _ghostscript as gs
+
+    captured: dict[str, list[str]] = {}
+
+    def _fake_run(cmd, **_kwargs):
+        captured["cmd"] = list(cmd)
+
+        class _Result:
+            returncode = 0
+            stderr = b""
+
+        return _Result()
+
+    monkeypatch.setattr(gs, "_GS_BINARY", "gs")
+    monkeypatch.setattr(gs.subprocess, "run", _fake_run)
+    gs.rerender_to_pdfa(tmp_path / "in.pdf", tmp_path / "out.pdf", icc_bytes=b"icc-bytes")
+    assert "-dSAFER" in captured["cmd"]
 
 
 # ── a PDF without pages ──────────────────────────────────────────────────────
