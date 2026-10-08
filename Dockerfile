@@ -2,14 +2,23 @@
 # Stage 1 — builder (compilers + dev headers; never shipped)
 # ----------------------------------------------------------------------------
 # Some Python wheels need to compile C extensions at install time if no
-# prebuilt manylinux wheel matches the target platform — most commonly
-# ``pillow-heif`` on ARM hosts, ``cryptography`` on older glibc builds,
-# and anything that uses ``cffi``. Pinning the compile toolchain to a
+# prebuilt manylinux wheel matches the target platform — e.g.
+# ``cryptography`` on older glibc builds, anything that uses ``cffi``, and
+# ``pillow-heif`` on an architecture it ships no wheel for (it ships x86_64
+# and aarch64 wheels, so neither the amd64 image CI builds nor an arm64
+# build compiles it). Pinning the compile toolchain to a
 # throwaway stage means the final image never ships ``build-essential``,
 # ``libheif-dev``, ``libffi-dev`` or ``libssl-dev`` — saving ~250-300 MB
 # of installed size and removing the corresponding attack surface (no
 # gcc / ld / make on the running container, no header tree for an
 # attacker who lands inside the FS to probe against).
+#
+# ``libheif-dev`` serves only that ``pillow-heif`` source build, which needs
+# libheif 1.23.4 or newer (pillow-heif's C source stops with an ``#error``
+# below it). Debian 13 shipped 1.19.8; the fallback meets that minimum only
+# because ``apt-get`` also installs security updates, and DSA-6523-1
+# (2026-09-28) brought 1.23.4. ``libheif1`` in the runtime stage is the
+# other half of this fallback.
 #
 # The installed Python tree lives in ``/opt/venv`` so the runtime stage
 # can ``COPY --from=builder /opt/venv /opt/venv`` in one shot rather than
@@ -58,19 +67,23 @@ RUN pip install --require-hashes -r requirements.lock
 # ----------------------------------------------------------------------------
 # Stage 2 — base image (filemorph:latest) — runtime libs only
 # ----------------------------------------------------------------------------
-# Pure-Python conversion stack: ffmpeg + libheif for media, Cairo / Pango
-# for WeasyPrint, Ghostscript for the PDF/A-2b re-render path. Self-hosters
-# who only convert images, audio, video, markdown, or txt — and who accept
-# the mammoth+WeasyPrint fidelity ceiling for docx→pdf — pull this tag.
+# Pure-Python conversion stack: ffmpeg for media (libheif1 only for the
+# no-wheel HEIC fallback), Cairo / Pango for WeasyPrint, Ghostscript for the
+# PDF/A-2b re-render path. Self-hosters who only convert images, audio,
+# video, markdown, or txt — and who accept the mammoth+WeasyPrint fidelity
+# ceiling for docx→pdf — pull this tag.
 #
 # Runtime-only apt set (no ``*-dev`` headers, no ``build-essential``):
 #   - ffmpeg: audio/video conversion + compression
 #   - ghostscript: PDF/A-2b re-render path (``app/converters/_ghostscript.py``);
 #     pdfa.py falls back to markup-only when gs is missing, but we ship it
 #     so the upgrade path is on by default.
-#   - libheif1: runtime decoder ``pillow-heif`` dlopens at register-opener
-#     time. Without it, ``register_heif_opener()`` fails gracefully and
-#     HEIC inputs return 422 — degraded but not crashed.
+#   - libheif1: what a ``pillow-heif`` compiled by the builder-stage
+#     fallback links against (see the builder's ``libheif-dev`` note). The
+#     prebuilt wheel, which amd64 and arm64 install, bundles its own
+#     libheif, libde265 and x265 and loads them from ``pillow_heif.libs/``,
+#     so on those architectures nothing loads this package. If pillow-heif
+#     cannot be imported at all, HEIC is not offered as an input format.
 #   - libcairo2 / libpangocairo-1.0-0 / libgdk-pixbuf-xlib-2.0-0 /
 #     pango1.0-tools: WeasyPrint native dependency tree.
 #   - curl: in-container ``HEALTHCHECK`` driver (compose.yml uses

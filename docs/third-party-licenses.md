@@ -30,11 +30,13 @@ notices. The copyleft that exists lives in the **native layer** (the FFmpeg
 and Ghostscript binaries, the HEVC libraries and — in the `office` image —
 LibreOffice) and is reached only across a process boundary (FFmpeg,
 Ghostscript and LibreOffice are invoked as separate programs) or a wrapper
-boundary (`libheif` via `pillow-heif`), neither of which makes FileMorph a
+boundary (`libheif` via `pillow-heif`, whose bundled GPL `x265` is loaded into
+the process but never called — see below), neither of which makes FileMorph a
 derivative work. Four items warrant attention from anyone redistributing the
-artifact — `pillow-heif`'s wheel metadata, the GPL FFmpeg build and the
-AGPL-3.0 Ghostscript in the Docker image, and the MPL-2.0 LibreOffice in the
-`office` image — all detailed below.
+artifact — the GPL `x265` encoder inside the `pillow-heif` binary wheel (the
+package's metadata says BSD-3-Clause, so metadata-based licence scanners do
+not report it), the GPL FFmpeg build and the AGPL-3.0 Ghostscript in the Docker
+image, and the MPL-2.0 LibreOffice in the `office` image — all detailed below.
 
 ## FileMorph's own code
 
@@ -55,26 +57,64 @@ GitHub release; feed that to your scanner. The summary by licence class:
 | **Permissive** — MIT, BSD-2-Clause, BSD-3-Clause, Apache-2.0, ISC, Unlicense/CC0, PSF-2.0, MIT-CMU (Pillow's HPND) | FastAPI/Starlette/Pydantic, Uvicorn, Jinja2, Pillow, pypdf, reportlab, WeasyPrint, Markdown, openpyxl, python-docx, mammoth, ffmpeg-python, SQLAlchemy/Alembic, asyncpg, python-jose, bcrypt, cryptography, stripe, Babel, slowapi, lxml, pillow-avif-plugin, requests (transitive, via `stripe`), … (the large majority) | No copyleft. Bundle, modify, redistribute closed-source freely; keep the copyright/notice text (each wheel ships its `LICENSE` file — those, plus the SBOM, are your notice manifest). |
 | **Weak / file-level copyleft** — MPL-2.0 | `pikepdf` (PDF/A-2b output) — its wheels also bundle **qpdf**, which is Apache-2.0; `certifi` (CA bundle, transitive) | OK in a proprietary product: you must make the source of *the MPL-2.0 files* available (these are shipped unmodified, so pointing at the upstream sdist suffices) and you can't sublicense those files under other terms; the rest of your product is unaffected. |
 | **Tri-licensed, pick-one** — GPLv2+ / LGPLv2+ / MPL-1.1 | `pyphen` (hyphenation, transitive via WeasyPrint) | Choose the LGPLv2+ or MPL-1.1 arm; not a constraint. |
-| **Flagged for automated scanners** — wheel metadata declares GPLv2 | `pillow-heif` (HEIC input) | See the dedicated note below — an automated `pip-licenses`/SBOM scan **will** surface this; the explanation and mitigations matter. |
+| **BSD-3-Clause metadata, GPLv2 binary wheel** — invisible to metadata scanners | `pillow-heif` (HEIC input) | See the dedicated note below — `pip-licenses` and the release SBOM report BSD-3-Clause, so a metadata-based scan will **not** surface the GPLv2 `x265` encoder the wheel bundles; the explanation and mitigations matter. |
 
-### `pillow-heif` — why a scanner sees "GPLv2", and what it actually means
+### `pillow-heif` — BSD-3-Clause metadata, GPLv2 binary wheel
 
-The installed `pillow-heif` distribution declares **`GNU General Public License
-v2 (GPLv2)`** in its PyPI package metadata. The reason is the native stack the
-pre-built wheels bundle: `libheif` (LGPL-3.0), `libde265` (LGPL-3.0, HEVC
-*decode*), and `x265` (GPL-2.0+, HEVC *encode*) — the metadata reflects the
-most-restrictive bundled component. The pillow-heif Python source itself has
-historically been BSD-3-Clause; verify against the version you ship.
+The `pillow-heif` package metadata declares **`BSD-3-Clause`**, the licence of
+pillow-heif's own Python and C source. Up to 1.5.0 the metadata also carried a
+`GPLv2` licence classifier; 1.6.0 removed it (upstream #455).
+
+The pre-built wheels that pip installs, and that the Docker image ships, bundle
+a native stack under other terms: `libheif` (LGPL-3.0), `libde265` (LGPL-3.0,
+HEVC *decode*) and `x265` (GPL-2.0-or-later, HEVC *encode*). Only the wheel's
+`LICENSES_bundled.txt` says so — it gives the licence of the binary wheels as
+GPLv2 "due to base library licenses" — and metadata scanners do not read that
+file: `pip-licenses --from=mixed` and the release SBOM
+(`cyclonedx-py environment --PEP-639`) both report pillow-heif as
+**BSD-3-Clause** and nothing else. The `--gather-license-texts` option of
+`cyclonedx-py environment` would copy the file's text into the SBOM; the
+release workflow does not set it.
 
 FileMorph uses `pillow-heif` for **HEIC input only** (Apple Photos exports →
-other formats). HEIC decode exercises `libde265` (LGPL-3.0). The GPL-2.0+ `x265`
-encoder is present in the wheel but FileMorph never invokes a HEIC-encode path.
+other formats); decoding runs through `libde265`. `x265` is a link-time
+dependency of the bundled `libheif`, so it is loaded into the FileMorph process
+whenever `pillow-heif` is imported, but FileMorph never calls an encoder. To see
+what an instance has loaded, run
+`python -c "import pillow_heif; print(pillow_heif.libheif_info())"` inside the
+container: it names the bundled `libheif` version, the `x265` encoder and the
+`libde265` decoder.
 
-A redistributor that needs a **GPL-free artifact** (some KRITIS / high-assurance
-procurement) can install with `pip install --no-binary pillow-heif` against a
-system `libheif` built without `x265` (decode-only), at the cost of any future
-HEVC-encode capability — or drop HEIC input entirely. Either is a build-time
-choice with no code changes; raise it in the pilot conversation if it applies.
+What that means for an operator:
+
+- **Running FileMorph**, self-hosted or as a service, is not distribution;
+  GPLv2's conditions attach to distributing the software, and GPLv2 has no
+  network-use clause like AGPL §13.
+- **Redistributing** the Docker image, the installed virtualenv or the wheel
+  (to a customer, onto an appliance, into an air-gapped bundle) passes `x265`
+  on under GPLv2 and `libheif` and `libde265` under LGPL-3.0: keep
+  `LICENSES_bundled.txt` with it and provide the corresponding source of all
+  three, or a written offer for it, as those licences require. The file only
+  links upstream release tags; a link is not such an offer, and the tag need
+  not match the bundled build exactly (`libheif_info()` shows what is loaded).
+- **An SBOM-driven licence review** will not see them. Add `libheif`,
+  `libde265` (LGPL-3.0) and `x265` (GPL-2.0-or-later) under `pillow-heif` by
+  hand, or have your scanner read the licence files in each package's
+  `.dist-info/` (for pillow-heif, `.dist-info/licenses/LICENSES_bundled.txt`).
+- **A GPL-free artifact** (some KRITIS / high-assurance procurement) needs
+  `pillow-heif` built from source — `pip install --no-binary pillow-heif` —
+  against a system `libheif` without an `x265` encoder, at the cost of any
+  future HEVC-encode capability, or HEIC input dropped entirely. Each is a
+  build-time choice with no code changes; raise it in the pilot conversation
+  if it applies. The system libheif has to be libheif 1.23.4 or newer, or the
+  build stops with an error (see the HEIC note in [`formats.md`](./formats.md)).
+  Debian packages libheif's `x265` encoder as a separate plugin that is only
+  recommended, so `apt-get install --no-install-recommends libheif-dev` gives
+  an `x265`-free `libheif`; Debian 13 shipped 1.19.8, and 1.23.4 came as a
+  security update (DSA-6523-1, 2026-09-28) that a default apt setup installs.
+  Such a build loads the system libheif, which is then patched through the
+  distribution. The image's FFmpeg contains `x265` as well (see below), so a
+  GPL-free image needs both changes.
 
 ### `pillow-avif-plugin` — the bundled AV1 codec stack
 
@@ -109,7 +149,7 @@ converters need:
 | Component | Licence | How FileMorph reaches it | Implication |
 |---|---|---|---|
 | **FFmpeg** (Debian package) | Debian builds FFmpeg with `--enable-gpl` (x264, x265, …) → effectively **GPL-2.0+** (GPL-3.0+ for `--enable-version3` parts) | Invoked as a **separate program** via `ffmpeg-python` subprocess calls — never linked into the FileMorph process | Calling a separate GPL program does not make the caller a derivative work, so **FileMorph's own licence is unaffected**. The *Docker image*, as a bundle, does contain GPL software — a redistributor of the image carries the GPL source-availability obligation for the FFmpeg component (Debian's source archive satisfies it). A "no GPL anywhere in the deployed artifact" requirement needs a custom image with an LGPL-only FFmpeg build (`--disable-gpl`, reduced codec set) — available on request. |
-| **libheif** (`libheif1`) + HEVC backend | `libheif` LGPLv3; `libde265` (decode) LGPLv3; `x265` (encode) GPLv2; `libaom` (AV1, bundled alongside) BSD-2-Clause plus the Alliance for Open Media patent licence (the wheel's own `LICENSES_bundled.txt` lists it as "BSD 3-Clause" but links libaom's own `LICENSE`, which is the 2-clause text) | Used via the `pillow-heif` wheel's bundled copy for HEIC decode; the runtime image installs `libheif1` (no headers / no dev package — those live in the throwaway builder stage of the multi-stage Dockerfile, see P3-8) | Same as the `pillow-heif` note above — decode path is LGPL; the GPL encoder is present in the bundled native stack but unused. Check `dpkg -l \| grep -E 'libheif\|libde265\|x265'` against a running container. |
+| **libheif**, twice: the copy bundled in the `pillow-heif` wheel, and Debian's `libheif1` | Bundled copy: `libheif` and `libde265` LGPL-3.0, `x265` GPL-2.0-or-later (see the `pillow-heif` note above). Debian's `libheif1`: `libheif` LGPL-3.0, plus the two decoder plugins it depends on — `libheif-plugin-libde265` (`libde265`, LGPL-3.0) and `libheif-plugin-dav1d` (`dav1d`, BSD-2-Clause). Debian's `x265` plugin for libheif is only recommended, and the image does not install it. | On amd64 and arm64, HEIC decode uses the **bundled** copy: the `pillow-heif` wheel loads it from `pillow_heif.libs/` next to the package, not the system library, and nothing else in the image loads `libheif1`. `libheif1` is the runtime half of the Dockerfile's fallback for an architecture without a `pillow-heif` wheel (the builder stage installs `libheif-dev` to compile against it); only such a source-built `pillow-heif` loads it. | For HEIC, the bundled copy's terms apply — see the `pillow-heif` note above. `dpkg -l` lists only Debian's packages; the bundled libraries are the files in `/opt/venv/lib/python3.14/site-packages/pillow_heif.libs/`. |
 | **qpdf** | Apache-2.0 | Bundled inside the `pikepdf` wheel (no system package) | Permissive — no obligation beyond notice. |
 | **cairo / pango** (WeasyPrint rendering) | LGPL-2.1 | Dynamically linked as system shared libraries through WeasyPrint | LGPL via dynamic linking against unmodified system libraries is the standard, unproblematic case for proprietary use (the obligation is to allow relinking, which dynamic linking already does). |
 | **Ghostscript** (`ghostscript` apt package) | AGPL-3.0 (Artifex's default public distribution; a commercial licence is also sold by Artifex) | Invoked as a **separate program** (`gswin64c`/`gs` subprocess) for the PDF/A-2b re-render path — never linked into the FileMorph process. Present in **both** the slim and office images (the office stage builds `FROM base`, which already installs it). | Same separate-program reasoning as FFmpeg above: driving an AGPL binary as a subprocess does not make the caller a derivative work, so FileMorph's own licence is unaffected. The *image*, as a bundle, does contain AGPL software — a redistributor carries the AGPL source-availability obligation for that component (Debian's source archive satisfies it). AGPL §13 (the network-use clause) is triggered by *modifying* the program: the image installs Debian's `ghostscript` package as shipped, and FileMorph runs that unmodified binary as a separate program, so §13 does not reach FileMorph. |
@@ -144,14 +184,16 @@ Two non-Python assets ship in `app/static/`, both permissive:
   a separate program, used unmodified as Debian ships it — which is why AGPL
   §13 (network use) does not reach FileMorph. The fourth is LibreOffice
   (MPL-2.0, weak copyleft, `office` image only), also a separate program.
-  **The project's position:** the default build keeps the GPL components —
-  removing them would mean dropping HEIC input and H.264 encoding, a real
-  product regression, to chase a paperwork concern that the separate-program
-  boundary and the never-invoked status already resolve. The GPL-free builds
-  (LGPL-only FFmpeg; `pillow-heif` rebuilt `--no-binary` against an
-  `x265`-free `libheif`) are offered **per Compliance agreement** for
-  deployments with a hard zero-GPL-in-the-artifact requirement; they are not
-  the default because they degrade the product for everyone else.
+  **The project's position:** the default build keeps the GPL components.
+  Removing them would mean dropping H.264 encoding, a real product
+  regression, and building `pillow-heif` from source instead of using its
+  wheel (or dropping HEIC input) — all to chase a paperwork concern that the
+  separate-program boundary and the never-invoked status already resolve.
+  The GPL-free builds (LGPL-only FFmpeg; `pillow-heif` rebuilt `--no-binary`
+  against an `x265`-free libheif 1.23.4 or newer) are offered **per
+  Compliance agreement** for deployments with a hard zero-GPL-in-the-artifact
+  requirement; they are not the default because they degrade the product for
+  everyone else.
 - No dependency forces FileMorph to drop the dual-license offering, and none
   did at any point in the project's history; the [`License Map`](./tech-stack-rationale.md#license-map)
   is updated in the same PR as any new dependency precisely to keep that true.
@@ -170,13 +212,20 @@ Two non-Python assets ship in `app/static/`, both permissive:
   (run inside the project venv after
   `pip install --require-hashes -r requirements.lock` — that is the exact set
   the image ships, so the scan matches the artifact).
+- **What neither scan shows:** as run above, both read package metadata only
+  (`pip-licenses --with-license-file` would add pillow-heif's BSD
+  `LICENSE.txt`, not its `LICENSES_bundled.txt`). A licence a wheel states only
+  in a bundled file — `pillow-heif`'s GPLv2 `x265` — appears in neither; see
+  the [`pillow-heif` note](#pillow-heif--bsd-3-clause-metadata-gplv2-binary-wheel).
 - **Per-dependency rationale:** [`tech-stack-rationale.md` § License Map](./tech-stack-rationale.md#license-map).
 
-**As of 2026-09-28** a manual scan of the locked dependency set on `main`
-(`requirements.lock`) yields the distribution summarised above: the runtime
-tree is permissive or MPL-2.0 throughout, with `pillow-heif` the single
-GPLv2-declared wheel (HEVC encoder bundled, unused), plus `pillow-avif-plugin`
-(MIT / BSD-2-Clause-style) documented separately above.
+**As of 2026-09-30** a scan of the locked dependency set on `main`
+(`requirements.lock`, with `cyclonedx-py environment --PEP-639` as the release
+workflow runs it) yields the distribution summarised above: by declared
+metadata the runtime tree is permissive or MPL-2.0 throughout except the
+tri-licensed `pyphen`. That includes `pillow-heif`, which the scan reports as
+BSD-3-Clause although its binary wheel bundles GPLv2 `x265` (see above), and
+`pillow-avif-plugin` (MIT / BSD-2-Clause-style), documented separately above.
 
 **The CycloneDX SBOM attached to the `v1.1.0` GitHub Release predates this**
 — it was generated before the lockfile-parity (#146) and SBOM-generation
