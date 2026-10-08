@@ -41,7 +41,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
-from app.converters.base import BaseConverter, EncryptedPdfError, InvalidInputError
+from app.converters.base import BaseConverter, EncryptedPdfError, InvalidInputError, open_pypdf
 from app.converters.registry import register
 
 logger = logging.getLogger(__name__)
@@ -191,11 +191,13 @@ def _reading_pdf() -> Iterator[None]:
 
 
 def _open_reader(input_path: Path):
-    """Open a PDF with pypdf under :func:`_reading_pdf`."""
-    from pypdf import PdfReader
+    """Open a PDF with pypdf under :func:`_reading_pdf`.
 
+    A PDF encrypted other than with a password (e.g. with a certificate)
+    raises :class:`~app.converters.base.UnsupportedPdfEncryptionError`.
+    """
     with _reading_pdf():
-        reader = PdfReader(str(input_path))
+        reader = open_pypdf(input_path)
         # Touch the page tree so a lazily-parsed corrupt xref surfaces here,
         # inside our guarded block, rather than later at iteration time.
         _ = len(reader.pages)
