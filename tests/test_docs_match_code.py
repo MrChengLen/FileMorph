@@ -387,6 +387,13 @@ def test_docs_quote_the_magic_byte_rejection(client, auth_headers):
         assert {int(code) for code in found} == {r.status_code}, doc
 
 
+def test_api_guide_quotes_the_unreadable_image_message(client, auth_headers):
+    r = _upload(client, auth_headers, "/api/v1/convert", b"not an image", target_format="png")
+    assert (r.status_code, r.headers.get("X-FileMorph-Error-Code")) == (400, "invalid_input")
+    first_sentence = r.json()["detail"].split(". ")[0]
+    assert f'"{first_sentence}. …"' in _flat("api-usage-guide.md")
+
+
 def test_api_guide_format_discovery_matches_the_route(client):
     section = _section("api-usage-guide.md", "## Format Discovery — `GET /api/v1/formats`")
     keys = set(client.get("/api/v1/formats").json())

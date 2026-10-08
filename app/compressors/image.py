@@ -5,6 +5,7 @@ from pathlib import Path
 from PIL import Image
 
 from app.converters._metadata import strip_metadata
+from app.core.image_hardening import open_image
 
 # Register pillow-avif-plugin if available. Importing it registers AVIF
 # encode+decode with Pillow; this module imports Pillow independently of the
@@ -53,7 +54,7 @@ def compress_image(input_path: Path, output_path: Path, quality: int = 85) -> Pa
     ext = input_path.suffix.lstrip(".").lower()
     pil_fmt = _PIL_FORMAT.get(ext, "JPEG")
 
-    img = Image.open(input_path)
+    img = open_image(input_path)
     if pil_fmt == "JPEG" and img.mode in ("RGBA", "LA", "P"):
         img = img.convert("RGB")
     img = strip_metadata(img)
@@ -112,7 +113,7 @@ def compress_image_to_target(
         )
     pil_fmt = _PIL_FORMAT[ext]
 
-    img = Image.open(input_path)
+    img = open_image(input_path)
     if pil_fmt == "JPEG" and img.mode in ("RGBA", "LA", "P"):
         img = img.convert("RGB")
     # NEU-C.2: strip PII before any encode pass — applies to every probe

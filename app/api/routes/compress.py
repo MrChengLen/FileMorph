@@ -22,6 +22,7 @@ from app.compressors.image import (
 )
 from app.compressors.video import _SUPPORTED_FORMATS as VIDEO_FMTS
 from app.compressors.video import compress_video
+from app.converters.base import InvalidInputError
 from app.core.audit import record_event as audit_record
 from app.core.batch import (
     BatchFileError,
@@ -186,6 +187,15 @@ async def _do_compress(
                     "use excessive memory. Reduce the image size and retry."
                 ),
                 headers={"X-FileMorph-Error-Code": "decompression_bomb"},
+            )
+        except InvalidInputError as exc:
+            # A problem the user can fix, e.g. an image that can't be read in a
+            # supported format. The message is caller-safe; same 400 as /convert.
+            logger.info("invalid input rejected: compress %s (%s)", ext, exc)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(exc),
+                headers={"X-FileMorph-Error-Code": "invalid_input"},
             )
         except Exception:
             # A-3: Log full exception server-side, return generic message to client
@@ -477,9 +487,10 @@ async def _do_compress_batch(
                 record_conversion("compress_batch", ext, ext, "success")
             finally:
                 shutil.rmtree(tmp_dir, ignore_errors=True)
-        except BatchFileError as e:
-            # Only this route's own messages; a compressor's ValueError (e.g.
-            # from Pillow) is logged and reported generically below.
+        except (BatchFileError, InvalidInputError) as e:
+            # Only this route's own messages and fixable input problems a
+            # compressor named; a compressor's ValueError (e.g. from Pillow) is
+            # logged and reported generically below.
             results.append(
                 BatchFileResult(
                     name=out_name, status="error", size_in=size_in, error_message=str(e)
