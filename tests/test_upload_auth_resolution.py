@@ -28,8 +28,8 @@ import asyncio
 import io
 from datetime import datetime, timedelta, timezone
 
+import jwt
 import pytest
-from jose import jwt
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool

@@ -30,8 +30,8 @@ import hashlib
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+import jwt
 from fastapi import HTTPException, status
-from jose import JWTError, jwt
 
 from app.core.config import settings
 
@@ -40,6 +40,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 15
 REFRESH_TOKEN_EXPIRE_DAYS = 30
 PASSWORD_RESET_TOKEN_EXPIRE_MINUTES = 30
 EMAIL_VERIFY_TOKEN_EXPIRE_DAYS = 7
+MAX_TOKEN_LENGTH = 4096
 
 
 # ── iss/aud helpers ───────────────────────────────────────────────────────────
@@ -47,9 +48,9 @@ EMAIL_VERIFY_TOKEN_EXPIRE_DAYS = 7
 # Every token gets ``iss``/``aud`` from settings, and every decode validates
 # them. Routing all encode/decode through these two helpers means a future
 # token type physically cannot ship without the claims (the helper adds them)
-# and cannot skip the validation (the helper enforces it). ``jose`` raises
-# ``JWTClaimsError`` (a ``JWTError`` subclass) on mismatch, so the existing
-# ``except JWTError`` handlers in every decoder already cover it — no new
+# and cannot skip the validation (the helper enforces it). PyJWT raises an
+# ``InvalidTokenError`` subclass on a mismatch or a missing claim, so the
+# ``except jwt.InvalidTokenError`` handler in every decoder covers it — no new
 # error branches needed, just stricter checks.
 
 
@@ -61,16 +62,28 @@ def _encode_claims(claims: dict[str, Any]) -> dict[str, Any]:
 def _decode(token: str) -> dict[str, Any]:
     """Decode + validate signature, expiry, issuer, and audience.
 
-    Raises ``jose.JWTError`` (or a subclass) on any failure — the caller's
-    ``except JWTError`` block turns that into the appropriate user-facing
-    HTTP error without branching on the exact cause.
+    All three claims are required: PyJWT checks ``exp`` only when a token
+    carries it, so a signed token that leaves it out would never expire.
+
+    A token FileMorph mints is a few hundred ASCII characters. Anything
+    longer than ``MAX_TOKEN_LENGTH`` or not ASCII is refused before PyJWT
+    parses it: parsing costs time in proportion to the length, and a lone
+    surrogate would raise ``UnicodeEncodeError`` instead of an
+    ``InvalidTokenError``.
+
+    Raises ``jwt.InvalidTokenError`` (or a subclass) on any failure — the
+    caller's ``except jwt.InvalidTokenError`` block turns that into the
+    appropriate user-facing HTTP error without branching on the exact cause.
     """
+    if len(token) > MAX_TOKEN_LENGTH or not token.isascii():
+        raise jwt.DecodeError("Not a token FileMorph minted.")
     return jwt.decode(
         token,
         settings.jwt_secret,
         algorithms=[ALGORITHM],
         audience=settings.jwt_audience,
         issuer=settings.jwt_issuer,
+        options={"require": ["exp", "iss", "aud"]},
     )
 
 
@@ -120,7 +133,7 @@ def decode_session_token(token: str, expected_type: str = "access") -> tuple[str
         if not sub or not phv:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token.")
         return sub, phv
-    except JWTError:
+    except jwt.InvalidTokenError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token."
         )
@@ -175,7 +188,7 @@ def decode_password_reset_token(token: str) -> tuple[str, str]:
     expired" message without branching on the exact cause."""
     try:
         payload = _decode(token)
-    except JWTError:
+    except jwt.InvalidTokenError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Reset link is invalid or has expired.",
@@ -239,7 +252,7 @@ def decode_email_verify_token(token: str) -> tuple[str, str]:
     leaking which token type a malformed JWT actually was)."""
     try:
         payload = _decode(token)
-    except JWTError:
+    except jwt.InvalidTokenError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Verification link is invalid or has expired.",
