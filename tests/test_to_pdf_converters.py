@@ -91,30 +91,52 @@ def test_html_to_pdf(client, auth_headers, tmp_path):
     assert len(res.content) > 512
 
 
-@_skip_no_weasyprint
-@pytest.mark.parametrize("encoding", ["utf-8", "cp1252"], ids=["str-path", "bytes-path"])
-def test_html_to_pdf_ssrf_blocked(client, auth_headers, tmp_path, monkeypatch, encoding):
-    """HTML referencing remote/file resources must NOT trigger an outbound
-    fetch — url_fetcher=_deny_url_fetcher is mandatory. Runs for both input
-    paths: UTF-8 is decoded to str, anything else reaches WeasyPrint as bytes
-    (see _html_source); every resource URL must go through the guard."""
-    import socket
-
+def _spy_on_deny_fetcher(monkeypatch) -> list[str]:
+    """Record every URL a converter's fetcher is asked for; it still refuses it."""
     import app.converters.document as document
-
-    def _block(self, addr, *args, **kwargs):
-        raise AssertionError(f"unexpected outbound network call to {addr!r}")
-
-    monkeypatch.setattr(socket.socket, "connect", _block)
 
     guarded: list[str] = []
     deny = document._deny_url_fetcher
 
-    def _spy(url, **kwargs):
-        guarded.append(url)
-        return deny(url, **kwargs)
+    def _spy():
+        fetcher = deny()
+        refuse = fetcher.fetch
+
+        def fetch(url, headers=None):
+            guarded.append(url)
+            return refuse(url, headers)
+
+        fetcher.fetch = fetch
+        return fetcher
 
     monkeypatch.setattr(document, "_deny_url_fetcher", _spy)
+    return guarded
+
+
+def _record_connects(monkeypatch) -> list:
+    """Refuse every outbound connection and record it: WeasyPrint catches what
+    a fetch raises and renders on, so an exception alone fails no test."""
+    import socket
+
+    connects: list = []
+
+    def _connect(self, addr, *args, **kwargs):
+        connects.append(addr)
+        raise OSError(f"outbound connection to {addr!r} blocked by the test")
+
+    monkeypatch.setattr(socket.socket, "connect", _connect)
+    return connects
+
+
+@_skip_no_weasyprint
+@pytest.mark.parametrize("encoding", ["utf-8", "cp1252"], ids=["str-path", "bytes-path"])
+def test_html_to_pdf_ssrf_blocked(client, auth_headers, tmp_path, monkeypatch, encoding):
+    """HTML referencing remote/file resources must NOT trigger an outbound
+    fetch — url_fetcher=_deny_url_fetcher() is mandatory. Runs for both input
+    paths: UTF-8 is decoded to str, anything else reaches WeasyPrint as bytes
+    (see _html_source); every resource URL must go through the guard."""
+    connects = _record_connects(monkeypatch)
+    guarded = _spy_on_deny_fetcher(monkeypatch)
 
     p = tmp_path / "evil.html"
     p.write_bytes(
@@ -133,6 +155,7 @@ def test_html_to_pdf_ssrf_blocked(client, auth_headers, tmp_path, monkeypatch, e
         )
     assert res.status_code == 200, res.text
     assert res.content[:5] == b"%PDF-"
+    assert not connects, connects
     assert any("169.254.169.254" in u for u in guarded), guarded
     assert any(u.startswith("file:") for u in guarded), guarded
 
@@ -192,12 +215,7 @@ def test_eml_to_pdf_renders_subject(client, auth_headers, tmp_path):
 @_skip_no_weasyprint
 def test_eml_to_pdf_ssrf_blocked(client, auth_headers, tmp_path, monkeypatch):
     """An email HTML part with a remote tracking pixel must not be fetched."""
-    import socket
-
-    def _block(self, addr, *args, **kwargs):
-        raise AssertionError(f"unexpected outbound network call to {addr!r}")
-
-    monkeypatch.setattr(socket.socket, "connect", _block)
+    connects = _record_connects(monkeypatch)
 
     msg = EmailMessage()
     msg["From"] = "a@example.com"
@@ -219,18 +237,178 @@ def test_eml_to_pdf_ssrf_blocked(client, auth_headers, tmp_path, monkeypatch):
         )
     assert res.status_code == 200, res.text
     assert res.content[:5] == b"%PDF-"
+    assert not connects, connects
 
 
-# ── SSRF guard unit test (runs everywhere) ───────────────────────────────────
+# ── SSRF guard (WeasyPrint 70 takes a fetcher object) ────────────────────────
 
 
-def test_deny_url_fetcher_raises():
+def test_every_weasyprint_render_passes_the_deny_fetcher():
+    """Every ``weasyprint.HTML(...)`` in app/ passes ``url_fetcher=_deny_url_fetcher()``.
+
+    Runs everywhere, unlike the render tests. Without ``url_fetcher=``,
+    WeasyPrint fetches with its own fetcher (SSRF, local file read); the
+    factory passed uncalled is a function, which breaks the render at the
+    first resource on WeasyPrint 70. ``write_pdf()`` options that take a URL
+    or file name (stylesheets, attachments, XMP metadata) read a plain file
+    name without asking the fetcher, so app/ passes none of them, and it
+    calls ``weasyprint.HTML`` by that name so that this test sees every call.
+    """
+    import ast
+
+    root = Path(__file__).resolve().parents[1]
+    options = {"stylesheets", "attachments", "attachment_relationships", "xmp_metadata"}
+    calls, wrong = [], []
+    for path in sorted((root / "app").rglob("*.py")):
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            site = f"{path.relative_to(root).as_posix()}:{getattr(node, 'lineno', '?')}"
+            if isinstance(node, ast.ImportFrom) and node.module == "weasyprint":
+                wrong.append(f"{site} from weasyprint import")
+            elif isinstance(node, ast.Import) and any(
+                a.name == "weasyprint" and a.asname for a in node.names
+            ):
+                wrong.append(f"{site} import weasyprint as")
+            elif isinstance(node, ast.Call) and ast.unparse(node.func) == "weasyprint.HTML":
+                fetcher = next((kw.value for kw in node.keywords if kw.arg == "url_fetcher"), None)
+                calls.append(site)
+                if fetcher is None or ast.unparse(fetcher) != "_deny_url_fetcher()":
+                    wrong.append(f"{site} without url_fetcher=_deny_url_fetcher()")
+            elif isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+                if node.func.attr == "write_pdf" and options & {kw.arg for kw in node.keywords}:
+                    wrong.append(f"{site} write_pdf() with a URL/file option")
+    assert calls, "no weasyprint.HTML(...) call found in app/: update this test"
+    assert not wrong, wrong
+
+
+@_skip_no_weasyprint
+def test_deny_url_fetcher_refuses_every_url():
+    """WeasyPrint's ``fetch()``, which every resource goes through, gets an
+    error it skips for each URL: no response, no AttributeError."""
+    from weasyprint.urls import URLFetchingError, fetch
+
     from app.converters.document import _deny_url_fetcher
 
-    with pytest.raises(OSError):
-        _deny_url_fetcher("http://169.254.169.254/")
-    with pytest.raises(OSError):
-        _deny_url_fetcher("file:///etc/passwd")
+    for url in ("http://169.254.169.254/", "file:///etc/passwd", "data:text/plain,hi"):
+        with pytest.raises(URLFetchingError), fetch(_deny_url_fetcher(), url):
+            pass
+
+
+# One page that asks for a resource of each kind: stylesheets (<link>,
+# @import), a font, images (<img>, a CSS background, an SVG <image>) and an
+# attachment, over http, file: and data:. WeasyPrint 70 loads every resource
+# through the fetcher (its urls.fetch). Whatever loads leaves a trace: a
+# stylesheet makes the page A6, an image or the attachment ends up in the PDF
+# (the background is no-repeat, so it is drawn as an image, not a pattern),
+# and a remote fetch opens a socket.
+_A6_WIDTH_PT = 105 / 25.4 * 72
+
+
+def _png_data_url(color: str) -> str:
+    import base64
+
+    from PIL import Image
+
+    buf = BytesIO()
+    Image.new("RGB", (4, 4), color).save(buf, "PNG")
+    return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+
+
+def _hostile_fragment(tmp_path: Path) -> tuple[str, list[str]]:
+    """Return the page body and every URL in it."""
+    from PIL import Image
+
+    css = tmp_path / "local.css"
+    css.write_text("@page{size:A6}", encoding="utf-8")
+    png = tmp_path / "local.png"
+    Image.new("RGB", (4, 4), "black").save(png, "PNG")
+    remote = "http://169.254.169.254/latest"
+    link, link_file, link_data = f"{remote}/style.css", css.as_uri(), "data:text/css,@page{size:A6}"
+    imported = "data:text/css,/*import*/@page{size:A6}"
+    font, attachment = f"{remote}/font.woff", "data:text/plain,attached"
+    img, img_file, img_data = f"{remote}/pixel.png", png.as_uri(), _png_data_url("red")
+    background, svg_image = _png_data_url("green"), _png_data_url("blue")
+    fragment = (
+        "<div>"
+        f'<style>@import url("{imported}");'
+        f'@font-face{{font-family:Remote;src:url("{font}")}}</style>'
+        f'<link rel="stylesheet" href="{link}"><link rel="stylesheet" href="{link_file}">'
+        f'<link rel="stylesheet" href="{link_data}"><link rel="attachment" href="{attachment}">'
+        f'<img src="{img}"><img src="{img_file}"><img src="{img_data}">'
+        f"<p style=\"background:url('{background}') no-repeat\">background</p>"
+        f'<svg width="10" height="10"><image href="{svg_image}" width="10" height="10"/></svg>'
+        "</div>"
+    )
+    urls = [imported, font, link, link_file, link_data, attachment]
+    urls += [img, img_file, img_data, background, svg_image]
+    return fragment, urls
+
+
+@_skip_no_weasyprint
+@pytest.mark.parametrize("fmt", ["html", "md", "eml", "docx"])
+def test_no_fetch_slips_past_the_guard(fmt, tmp_path, monkeypatch):
+    """Each WeasyPrint call site asks the guard for every resource on every
+    channel, and nothing loads: no socket, page still A4, no image, no
+    attachment. docx is the mammoth path, with mammoth's HTML replaced."""
+    from types import SimpleNamespace
+
+    import mammoth
+    from pypdf import PdfReader
+
+    from app.converters import document
+
+    connects = _record_connects(monkeypatch)
+    guarded = _spy_on_deny_fetcher(monkeypatch)
+    fragment, urls = _hostile_fragment(tmp_path)
+    page = f"<!DOCTYPE html><html><body>{fragment}</body></html>"
+    src, out = tmp_path / f"in.{fmt}", tmp_path / "out.pdf"
+    if fmt == "html":
+        src.write_text(page, encoding="utf-8")
+        document.HtmlToPdfConverter().convert(src, out)
+    elif fmt == "md":
+        src.write_text(fragment, encoding="utf-8")
+        document.MarkdownToPdfConverter().convert(src, out)
+    elif fmt == "eml":
+        msg = EmailMessage()
+        msg["Subject"] = "resources"
+        msg.set_content("plain")
+        msg.add_alternative(page, subtype="html")
+        src.write_bytes(msg.as_bytes())
+        document.EmlToPdfConverter().convert(src, out)
+    else:
+        src.write_bytes(b"")
+        result = SimpleNamespace(value=fragment, messages=[])
+        monkeypatch.setattr(mammoth, "convert_to_html", lambda f: result)
+        document._convert_via_mammoth(src, out)
+
+    assert not connects, connects
+    assert set(urls) <= set(guarded), set(urls) - set(guarded)
+    reader = PdfReader(out)
+    a6 = [p for p in reader.pages if abs(float(p.mediabox.width) - _A6_WIDTH_PT) < 1]
+    assert not a6, "a stylesheet was loaded"
+    assert not any(p.images for p in reader.pages), "an image was loaded"
+    assert not reader.attachments, "the attachment was loaded"
+
+
+@_skip_no_weasyprint
+def test_hostile_fragment_loads_without_the_guard(tmp_path, monkeypatch):
+    """Self-test: with WeasyPrint's own fetcher the same page loads its
+    stylesheets, images and attachment and tries the network, so each check
+    in the test above can fail."""
+    import weasyprint
+    from pypdf import PdfReader
+    from weasyprint.urls import URLFetcher
+
+    connects = _record_connects(monkeypatch)
+    fragment, _ = _hostile_fragment(tmp_path)
+    out = tmp_path / "out.pdf"
+    page = f"<!DOCTYPE html><html><body>{fragment}</body></html>"
+    weasyprint.HTML(string=page, url_fetcher=URLFetcher()).write_pdf(out)
+
+    reader = PdfReader(out)
+    assert connects
+    assert abs(float(reader.pages[0].mediabox.width) - _A6_WIDTH_PT) < 1
+    assert any(p.images for p in reader.pages)
+    assert reader.attachments
 
 
 def test_image_to_pdf_heic_registration_tracks_pillow_heif():
