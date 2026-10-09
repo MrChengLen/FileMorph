@@ -33,7 +33,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from app.api.routes.auth import get_optional_user
-from app.api.routes.convert import _download_name
+from app.api.routes.convert import _MAX_TARGET_LEN, _download_name
 from app.core.batch import BatchFileResult, build_batch_zip
 from app.core.concurrency import ConcurrencyExhausted
 from app.core.config import Settings
@@ -344,6 +344,15 @@ def test_docs_quote_the_batch_length_mismatch_status(client, auth_headers, sampl
     # So both batch examples send one target per file.
     for section in (layout, reference):
         assert section.count('"files=@') == section.count('"target_formats=')
+
+
+def test_docs_state_the_batch_target_bound():
+    for doc, heading in (
+        ("api-reference.md", "### POST `/api/v1/convert/batch`"),
+        ("api-usage-guide.md", "### Multipart layout"),
+    ):
+        text = " ".join(_section(doc, heading).split())
+        assert f"longer than {_MAX_TARGET_LEN} characters" in text, doc
 
 
 def test_api_guide_manifest_example_matches_the_route(client, auth_headers, sample_jpg):

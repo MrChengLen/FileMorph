@@ -390,7 +390,7 @@ Convert several files in one request. Returns a ZIP archive with all converted o
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `files` | files (≥1) | Yes | One or more files to convert |
-| `target_formats` | string[] | Yes | Target format per file, repeated once per file in the same order (length must match `files`, otherwise `422`) |
+| `target_formats` | string[] | Yes | Target format per file, repeated once per file in the same order (length must match `files`, otherwise `422`; a value longer than 16 characters also refuses the whole batch with `422`) |
 | `quality` | integer | No | Quality 1–100 (default 85). Applied uniformly. |
 
 **Response**: `200 OK` (`application/zip`, named `filemorph-batch.zip`) — archive with one entry per successful conversion. If at least one file fails, a `manifest.json` is added at archive root listing per-file results (success ZIP-only is preferred for all-success runs to keep the output clean). The `X-FileMorph-Batch-*` headers carry the counts and the failed files (see [Batch headers](#batch-headers)); `X-FileMorph-Batch-Failed` above `0` means the ZIP holds a `manifest.json`.
