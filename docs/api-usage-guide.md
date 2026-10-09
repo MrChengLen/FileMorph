@@ -379,7 +379,8 @@ curl -X POST https://api.filemorph.io/api/v1/convert/batch \
 `files` and `target_formats` are repeated multipart fields. They must
 have **the same length and the same order** — `target_formats[i]` is
 the desired output for `files[i]`. Mismatch → `422 Unprocessable
-Entity`; no file is converted.
+Entity`; no file is converted. The same applies to a `target_formats`
+value longer than 16 characters.
 
 ### The three response shapes
 
