@@ -510,6 +510,11 @@ Common per-file `error_message` values:
   that opens only with a password, converted to `txt`, `pdf` or `pdfa`.
   Single-file `/convert` returns the same message as a `400` with
   `X-FileMorph-Error-Code: pdf_encrypted`.
+- `"This PDF is protected with a certificate or an unsupported encryption. …"`
+  — a PDF encrypted with a certificate or a method FileMorph can't open,
+  converted to `txt`, `pdf` or `pdfa`. Single-file `/convert` returns the
+  same message as a `400` with
+  `X-FileMorph-Error-Code: pdf_encryption_unsupported`.
 - `"Conversion failed. Verify the file is valid."` (compress:
   `"Compression failed. …"`) — any other error while processing that
   file, e.g. corrupt content. The details stay in the server log.

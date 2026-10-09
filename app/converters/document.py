@@ -2,16 +2,19 @@
 from __future__ import annotations
 
 import logging
+import os
 import re
 import shutil
 import subprocess
 import zipfile
 from pathlib import Path
 
+from app.converters._ghostscript import _GS_BINARY_NAMES
 from app.converters.base import (
     BaseConverter,
     EncryptedPdfError,
     InvalidInputError,
+    open_pypdf,
     read_utf8_text,
 )
 from app.converters.registry import register
@@ -170,6 +173,64 @@ def _resolve_office_engine(
     return "mammoth", []
 
 
+# Environment-variable names whose values are application secrets that a
+# LibreOffice subprocess parsing an uploaded document has no need for. Matched
+# case-insensitively: the substrings cover the app's secret families
+# (``JWT_SECRET``, ``STRIPE_SECRET_KEY``, ``STRIPE_WEBHOOK_SECRET``,
+# ``SMTP_PASSWORD``, and any ``*_KEY`` such as a future AI-provider key), and
+# the exact set catches secret names without a telltale fragment. A secret
+# introduced under an unusual name must be added here. None of LibreOffice's or
+# fontconfig's own variables (``HOME``, ``LANG``/``LC_*``, ``XDG_*``,
+# ``FONTCONFIG_*``, ``TMPDIR``, ``PATH``, ``USER`` …) contain any of these, so
+# dropping the matches does not disturb the conversion.
+_SECRET_ENV_SUBSTRINGS = ("SECRET", "PASSWORD", "PASSWD", "TOKEN", "KEY")
+_SECRET_ENV_NAMES = ("DATABASE_URL", "SMTP_USERNAME")
+
+
+def _is_secret_env_name(name: str) -> bool:
+    """True if ``name`` is an application secret to keep out of a child process."""
+    upper = name.upper()
+    return upper in _SECRET_ENV_NAMES or any(s in upper for s in _SECRET_ENV_SUBSTRINGS)
+
+
+def _write_ghostscript_denial_shims(shim_dir: Path) -> None:
+    """Create non-functional ``gs`` stubs in ``shim_dir``.
+
+    When this directory is first on a child's ``PATH``, a process that looks up
+    Ghostscript by name finds a stub that does nothing and exits non-zero,
+    instead of the real ``gs``. Prepending a shim directory — rather than
+    removing Ghostscript's own directory from ``PATH`` — keeps every other
+    system binary available to ``soffice`` and its launcher; only Ghostscript
+    is neutralised. The stub is a fixed string, so no caller input reaches it.
+    """
+    shim_dir.mkdir(parents=True, exist_ok=True)
+    for name in _GS_BINARY_NAMES:
+        shim = shim_dir / name
+        shim.write_text("#!/bin/sh\nexit 127\n", encoding="utf-8", newline="\n")
+        try:
+            shim.chmod(0o755)
+        except OSError as exc:  # pragma: no cover - non-POSIX filesystems
+            # A non-executable stub would be skipped by the child's PATH
+            # lookup, silently re-exposing the real gs — surface it.
+            logger.warning("could not mark Ghostscript stub %s executable: %s", shim, exc)
+
+
+def _soffice_child_env(shim_dir: Path) -> dict[str, str]:
+    """Environment for the ``soffice`` child process.
+
+    A fresh dict built from the app environment with application secrets
+    dropped (see :func:`_is_secret_env_name`) and ``shim_dir`` — the
+    Ghostscript stubs — prepended to ``PATH`` so the child cannot start the
+    real Ghostscript. The app process environment is never mutated, so
+    FileMorph's own PDF/A path (``_ghostscript._GS_BINARY``, resolved in this
+    process) still finds the real ``gs``; the pure-Python (mammoth) path runs
+    in-process and is unaffected either way.
+    """
+    env = {k: v for k, v in os.environ.items() if not _is_secret_env_name(k)}
+    env["PATH"] = os.pathsep.join(filter(None, [str(shim_dir), os.environ.get("PATH", "")]))
+    return env
+
+
 def _convert_via_libreoffice(input_path: Path, output_path: Path, timeout_s: int) -> None:
     """Render DOCX → PDF using LibreOffice headless.
 
@@ -186,6 +247,10 @@ def _convert_via_libreoffice(input_path: Path, output_path: Path, timeout_s: int
     work_dir = output_path.parent / f".soffice_{output_path.stem}"
     work_dir.mkdir(exist_ok=True)
     try:
+        # Ghostscript stubs for this call, prepended to the child PATH below so
+        # LibreOffice cannot start the real gs while rendering the document.
+        shim_dir = work_dir / ".nogs"
+        _write_ghostscript_denial_shims(shim_dir)
         # ``--norestore`` disables document recovery, ``--nofirststartwizard``
         # skips the per-profile setup prompt, ``--nolockcheck`` allows
         # parallel instances. The user-profile directory is per-call so two
@@ -208,6 +273,9 @@ def _convert_via_libreoffice(input_path: Path, output_path: Path, timeout_s: int
             capture_output=True,
             timeout=timeout_s,
             check=False,
+            # Reduced child env: app secrets dropped, gs stubs ahead of the
+            # real Ghostscript on PATH. See _soffice_child_env.
+            env=_soffice_child_env(shim_dir),
         )
         if result.returncode != 0:
             stderr = result.stderr.decode("utf-8", errors="replace")[:500]
@@ -372,15 +440,15 @@ class TxtToPdfConverter(BaseConverter):
 @register(("pdf", "txt"))
 class PdfToTxtConverter(BaseConverter):
     def convert(self, input_path: Path, output_path: Path, **kwargs) -> Path:
-        from pypdf import PdfReader
         from pypdf.errors import FileNotDecryptedError, PyPdfError
 
         # PyPdfError covers LimitReachedError (a crafted file tripping one of
         # pypdf's resource limits), which PdfReadError alone would miss. The
         # extraction sits inside the try: pypdf reads fonts and content
-        # streams lazily, so a broken one only fails here.
+        # streams lazily, so a broken one only fails here. open_pypdf raises
+        # UnsupportedPdfEncryptionError, which this except lets through.
         try:
-            reader = PdfReader(str(input_path))
+            reader = open_pypdf(input_path)
             parts = [page.extract_text() or "" for page in reader.pages]
         except (PyPdfError, ValueError) as exc:
             # The class only — pypdf's messages can quote the file.

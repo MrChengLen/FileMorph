@@ -112,6 +112,7 @@ an `@register(("src", "tgt"))` decorator, plus one import line in
 | **python-docx** | DOCX read/write | Microsoft OOXML reference implementation in Python. | python-pptx (PPTX-only, complementary), aspose-words (commercial) |
 | **mammoth** | DOCX → HTML for the pure-Python DOCX → PDF path (then WeasyPrint) | Pure Python, runs in every image; the office image routes complex documents to LibreOffice instead (see [`formats.md`](./formats.md#notes-on-docx--pdf)). | LibreOffice headless alone (Word-grade, but ~280 MB larger image) |
 | **pypdf** | PDF page extraction, split and text extraction (PDF → TXT) | Pure-Python, BSD-licensed, AGPLv3-compatible. Active fork of the PyPDF2 lineage. | PyPDF2 (deprecated upstream), pdfplumber (read-only, extraction-focused), PyMuPDF (faster but ~50 MB native binary) |
+| **cryptography** | AES for pypdf | pypdf opens AES-encrypted PDFs only with it installed (`DependencyError` otherwise), e.g. an owner-password PDF, which FileMorph processes. Listed directly rather than as `pypdf[crypto]` so that Dependabot proposes its updates: the wheels bundle OpenSSL. | PyCryptodome (pypdf's other AES backend; pypdf tries cryptography first, and the image already shipped it) |
 | **pikepdf** | PDF/A-2b output and PDF compression (recompressing embedded images) | Python binding to qpdf; the wheels bundle qpdf, so no system package is needed. Loaded lazily, only when a PDF/A or PDF-compress request needs it. | Ghostscript alone (an external program; the PDF/A path runs it first where installed, then pikepdf writes the PDF/A markup) |
 | **reportlab** | PDF generation (TXT→PDF) | BSD-licensed Open Source Edition; the right tool when generating a PDF from scratch rather than transforming HTML. | WeasyPrint (HTML→PDF — different use-case, kept in parallel), fpdf2 (lighter, fewer features) |
 | **WeasyPrint** | HTML/CSS → PDF | Used for any HTML-source PDF output (e.g. Markdown → HTML → PDF). SSRF-hardened in `app/converters/document.py` via `url_fetcher=_deny_url_fetcher()`. | wkhtmltopdf (deprecated; QtWebKit-based), Puppeteer/Playwright (Node.js + headless Chrome — much heavier) |
@@ -189,7 +190,7 @@ same code-base.
 | **SQLAlchemy[asyncio] 2.x** | ORM with native async API | The 2.x rewrite removed the awkward `sync_session.run_sync(...)` shim. Async all the way down means no thread-pool tax on DB-heavy endpoints. | Tortoise-ORM (Django-style API, smaller community), encode/databases (low-level Query Builder, no ORM) |
 | **Alembic** | Schema migrations | The de-facto migration tool for SQLAlchemy. `alembic.ini::sqlalchemy.url` is intentionally empty — `alembic/env.py` reads `DATABASE_URL` from the environment so the same migrations work in dev / staging / prod. | yoyo-migrations (DB-agnostic, but no ORM binding), Django migrations (Django-only) |
 | **asyncpg** | Async PostgreSQL driver | Cython-compiled, the fastest Python Postgres driver by a wide margin. Connect via `postgresql+asyncpg://...`. | psycopg3-async (sync+async unified — slightly slower on the pure-async path), aiopg (psycopg2-wrapper, deprecated) |
-| **python-jose[cryptography]** | JWT encode/decode | The `[cryptography]` extra pulls in the modern `cryptography` backend rather than the legacy pure-Python one. | PyJWT (lighter; we'd lose a few algorithm options we don't currently use), authlib (full OAuth2 stack — overkill for JWT-only) |
+| **PyJWT** | JWT encode/decode | Maintained, and no dependencies for HS256, the only algorithm FileMorph uses (so no `[crypto]` extra). `app/core/tokens.py` requires `exp`, `iss` and `aud` on every token. | python-jose (no release since 3.5.0, see below), authlib (full OAuth2 stack — overkill for JWT-only) |
 | **bcrypt** | Password hashing | Used in `app/core/auth.py` for user-password verification. Adaptive cost factor; the work-factor is the standard knob to dial as hardware gets faster. NIST-approved. | argon2-cffi (winner of the Password Hashing Competition; bcrypt is "good enough" and ubiquitous), passlib (wrapper library — extra layer of indirection without a strong reason here) |
 | **email-validator** | RFC-5321/5322 validation behind Pydantic's `EmailStr` | Pulls in by default; gives meaningful 422 errors at the boundary instead of silently letting a malformed address into Stripe or Zoho. | stdlib `email.utils` (lax — accepts addresses that bounce), pyIsEmail (slower) |
 | **aiosmtplib** | Async SMTP for transactional email (Zoho) | Lives in `app/core/email.py`. The TLS mode is chosen by port: `465` → implicit SSL from the first byte, anything else (we use `587`) → plain connect + STARTTLS. Hetzner Cloud blocks outbound port 465 by default for new accounts, so `587` is the path of least friction. | stdlib `smtplib` (sync-only — would block the event loop on every send) |
@@ -254,6 +255,7 @@ libheif) caveats, and the machine-readable SBOM — is in
 | mammoth | BSD-2-Clause | Permissive (.docx → HTML for the *fallback* converter — the high-fidelity DOCX → PDF path delegates to LibreOffice in the `filemorph:office` image instead; see [`docs/formats.md`](./formats.md#notes-on-docx--pdf)). |
 | python-docx | MIT | Permissive. |
 | pypdf | BSD-3-Clause | Permissive (clean fork from PyPDF2's BSD heritage). |
+| cryptography | Apache-2.0 OR BSD-3-Clause | Permissive, either licence; the wheels bundle OpenSSL (Apache-2.0). |
 | reportlab | BSD-3-Clause (Open Source Edition) | Commercial Plus edition exists but we use OSE. |
 | pikepdf | MPL-2.0 (wheels bundle `qpdf`, Apache-2.0) | File-level (weak) copyleft — fine for closed-source embedding; shipped unmodified. Used for PDF/A-2b output. |
 | WeasyPrint | BSD-3-Clause | Permissive. |
@@ -264,7 +266,7 @@ libheif) caveats, and the machine-readable SBOM — is in
 | slowapi | MIT | Permissive. |
 | SQLAlchemy, Alembic | MIT | Permissive. |
 | asyncpg | Apache-2.0 | Permissive. |
-| python-jose | MIT | Permissive. |
+| PyJWT | MIT | Permissive. |
 | bcrypt | Apache-2.0 | Permissive. |
 | email-validator | The Unlicense | Public-domain-equivalent. |
 | aiosmtplib | MIT | Permissive. |
@@ -380,10 +382,13 @@ so the same arguments don't have to be relitigated every six months.
   centric design fits poorly with the largely stateless converter
   workload. FastAPI + SQLAlchemy gives the same ORM ergonomics
   without the synchronous tax.
-- **PyJWT** — Lighter than `python-jose`. Considered for the JWT
-  layer; the only differentiator is algorithm support, and there is
-  no ongoing reason to switch. Listed here so a future PR proposing
-  the swap has the prior context.
+- **python-jose** — The JWT library until 2026-10, replaced by
+  PyJWT. It has had no release or commit since 3.5.0 (May 2025), and
+  two advisories without a fix were accepted against it in CI:
+  CVE-2026-85394 (algorithm confusion) and PYSEC-2026-1325 (in its
+  `ecdsa` dependency). With its default options it also let a token
+  without `aud` or `exp` through. Listed here so a future PR proposing
+  it again has the prior context.
 
 ---
 

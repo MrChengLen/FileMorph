@@ -174,10 +174,10 @@ async def _do_convert(
         except InvalidInputError as exc:
             # The converter named a problem the user can fix (e.g. a text file
             # that isn't UTF-8). Its message is caller-safe; a 400 tells the
-            # user what to change, where the generic 500 was a dead end. A
-            # password-protected PDF keeps the code it has on the PDF routes.
+            # user what to change, where the generic 500 was a dead end. An
+            # encrypted PDF keeps the code it has on the PDF routes.
             logger.info("invalid input rejected: %s -> %s (%s)", src_ext, tgt_ext, exc)
-            code = "pdf_encrypted" if isinstance(exc, EncryptedPdfError) else "invalid_input"
+            code = exc.error_code if isinstance(exc, EncryptedPdfError) else "invalid_input"
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(exc),
