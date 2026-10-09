@@ -1344,34 +1344,6 @@ def test_dependabot_config_covers_all_pinned_ecosystems() -> None:
         )
 
 
-def test_cve_2026_85394_ignore_still_holds() -> None:
-    """ci.yml ignores CVE-2026-85394 only while no public key verifies a JWT.
-
-    The python-jose advisory (algorithm confusion: a DER-encoded public key is
-    accepted as an HMAC secret) needs a verifier that checks tokens with a
-    public key. FileMorph has none: every token is HS256 under the shared
-    secret and is verified in one place, ``_decode`` in app/core/tokens.py.
-    This fails when another verify path appears while the ignore is still in
-    ci.yml, e.g. RS256, JWKS or SSO work, which has to replace python-jose first.
-    """
-    ci = (_REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
-    if "CVE-2026-85394" not in ci:
-        pytest.skip("the CVE-2026-85394 ignore is gone from ci.yml")
-    tokens = (_REPO_ROOT / "app" / "core" / "tokens.py").read_text(encoding="utf-8")
-    assert 'ALGORITHM = "HS256"' in tokens, "app/core/tokens.py no longer pins HS256"
-    verify_sites = sorted(
-        path.relative_to(_REPO_ROOT).as_posix()
-        for path in (_REPO_ROOT / "app").rglob("*.py")
-        if re.search(
-            r"\b(jwt\.decode|jws\.verify|jwk\.construct)\(", path.read_text(encoding="utf-8")
-        )
-    )
-    assert verify_sites == ["app/core/tokens.py"], (
-        f"JWT verification outside app/core/tokens.py: {verify_sites}. The CVE-2026-85394 "
-        "ignore in ci.yml assumes one HS256-only verify path; move off python-jose first."
-    )
-
-
 def test_dependabot_ignores_sit_on_live_caps() -> None:
     """Every pip ``ignore`` range in dependabot.yml matches a cap in requirements*.txt.
 

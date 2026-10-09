@@ -202,7 +202,7 @@ def test_reset_password_expired_token_rejected(client):
     phv = password_hash_version(user.password_hash)
     # Negative TTL = already-expired token.
     token = create_password_reset_token(str(user.id), phv, ttl_minutes=-1)
-    # Give python-jose's clock comparison no chance to round the wrong way.
+    # Give PyJWT's clock comparison no chance to round the wrong way.
     time.sleep(0.05)
 
     res = client.post(
