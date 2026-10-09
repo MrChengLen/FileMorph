@@ -220,11 +220,17 @@ filename cannot inject header bytes or break the parser.
 
 WeasyPrint accepts HTML and CSS, both of which can reference
 external URLs. To prevent server-side request forgery, every
-`weasyprint.HTML(...)` call passes `url_fetcher=_deny_url_fetcher`,
-defined in `app/converters/document.py` and applied at the only
-call-site there. The fetcher rejects every URL unconditionally —
-WeasyPrint never opens a network connection. Self-hosters should
-not disable this.
+`weasyprint.HTML(...)` call passes `url_fetcher=_deny_url_fetcher()`,
+defined in `app/converters/document.py` and applied at all four
+call sites there (HTML, Markdown, email and the pure-Python DOCX
+path). The fetcher rejects every URL unconditionally, remote, `file:`
+and `data:` alike, so WeasyPrint never opens a network connection or
+reads a file the document points to. A test in
+`tests/test_to_pdf_converters.py` renders a page that asks for a
+resource of each kind (stylesheet, font, image, SVG image,
+attachment) through all four call sites and fails if any of them
+loads; CI fails if WeasyPrint cannot render on the test runner, so
+that test cannot skip there. Self-hosters should not disable this.
 
 ### Office image: LibreOffice subprocess hardening
 
@@ -239,7 +245,7 @@ system binary stays available, so the conversion itself is unaffected.
 FileMorph's own PDF/A re-render resolves Ghostscript in the app process and
 keeps working, as does the pure-Python (mammoth) path. This is in the same
 spirit as the Pillow setting that keeps WeasyPrint from reaching Ghostscript
-(see "Accepted advisories", CVE-2026-106443).
+(`app/core/image_hardening.py`).
 `tests/test_office_gs_isolation.py` pins the subprocess environment, and
 `.github/workflows/docker-pr.yml` exercises a DOCX→PDF conversion on the office
 image.
@@ -272,8 +278,8 @@ the pixel check but produces an oversized output.
   client-supplied name as a path component.
 - **PT-007 (Medium).** Missing magic-byte validation was closed
   by introducing `BLOCKED_MAGIC` in the upload routes.
-- **PT-008 (Medium).** WeasyPrint SSRF was closed by the
-  `_deny_url_fetcher` callback.
+- **PT-008 (Medium).** WeasyPrint SSRF was closed by
+  `_deny_url_fetcher`, a URL fetcher that refuses every URL.
 - **PT-013 (Medium).** Output filename injection in
   `Content-Disposition` was closed by `safe_download_name()`.
 
@@ -733,17 +739,11 @@ Self-hosters who fork this repository should recompile
 
 ### Accepted advisories
 
-Two advisories are currently allow-listed in CI
-(`--ignore-vuln` in `.github/workflows/ci.yml`) rather than blocking
-the build, each with a documented reason and a re-evaluation trigger:
-
-| Advisory | Package | Why it's accepted |
-|---|---|---|
-| CVE-2026-55073 (GHSA-jf6q-chmf-3h3v), CVSS 6.2 | `weasyprint` &lt; 70.0 | SSRF-protection bypass: two `write_pdf()` parameters (`xmp_metadata`, `stylesheets`, both accepting a URL) build a fresh default fetcher instead of honouring a custom `url_fetcher`. Not reachable here: every `write_pdf()` call site passes only the output path, never those parameters. The fix (70.0) reworks the `url_fetcher` contract in a way that would break `_deny_url_fetcher`; re-evaluate once that port happens. Added 2026-09-09. |
-| CVE-2026-106443 (GHSA-r543-q48m-4c9j), CVSS 8.8 | `weasyprint` &lt; 70.0 | An image reference (`<img>`, CSS or SVG image, data URI) can make WeasyPrint hand PostScript to Pillow, whose EPS reader runs Ghostscript. Not reachable here, twice over: WeasyPrint gets a `url_fetcher` that refuses every URL it is asked to fetch, so no image bytes reach Pillow; and FileMorph, which converts no EPS, marks Ghostscript as missing for Pillow at startup (`app/core/image_hardening.py`), so Pillow cannot start it. The fix (70.0) needs the same `url_fetcher` port as CVE-2026-55073. Added 2026-10-08; review 2026-11-07 and at each release; drop when WeasyPrint 70 lands. |
-
-The full reasoning (with exact code line references) lives in the
-`ci.yml` comments next to the `pip-audit` step.
+No advisory is currently allow-listed in CI. A finding that is
+genuinely unfixable upstream and not reachable here would be
+allow-listed with `--ignore-vuln` in `.github/workflows/ci.yml`, with
+its reasoning next to the `pip-audit` step and a row here naming the
+reason and a re-evaluation trigger.
 
 ### Update cadence
 
@@ -782,7 +782,7 @@ For readers who want to jump directly to the code:
 
 ---
 
-*Last revised 2026-10-08. The findings synthesised here are
+*Last revised 2026-10-09. The findings synthesised here are
 sourced from the static code review dated 2026-04-19 and the
 current state of the repository. The 2026-09-28 revision corrects
 drift against the code: the account-deletion section now reflects
@@ -794,4 +794,6 @@ CVEs currently allow-listed in CI; the 2026-10-06 revision adds
 CVE-2026-85394 (`python-jose`); the 2026-10-08 revisions add
 CVE-2026-106443 (`weasyprint`) and the office-image LibreOffice
 subprocess hardening, and drop CVE-2026-85394 and PYSEC-2026-1325
-with the move from `python-jose` to PyJWT.*
+with the move from `python-jose` to PyJWT; the 2026-10-09 revision
+drops CVE-2026-55073 and CVE-2026-106443 with the upgrade to
+WeasyPrint 70, which leaves no advisory allow-listed.*
