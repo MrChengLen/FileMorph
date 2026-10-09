@@ -210,7 +210,9 @@ formats page — it is plumbing, not a conversion a user picks.
 - **No password-protected PDFs.** FileMorph never asks for a password, so a
   PDF that needs one to open is rejected with a `400` and
   `X-FileMorph-Error-Code: pdf_encrypted` here and on PDF → TXT / PDF/A;
-  remove the password first.
+  remove the password first. A PDF encrypted with a certificate (or with a
+  method the PDF libraries don't implement) is rejected the same way with
+  `pdf_encryption_unsupported`.
 
 ---
 

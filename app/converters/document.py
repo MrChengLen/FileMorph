@@ -14,6 +14,7 @@ from app.converters.base import (
     BaseConverter,
     EncryptedPdfError,
     InvalidInputError,
+    open_pypdf,
     read_utf8_text,
 )
 from app.converters.registry import register
@@ -423,15 +424,15 @@ class TxtToPdfConverter(BaseConverter):
 @register(("pdf", "txt"))
 class PdfToTxtConverter(BaseConverter):
     def convert(self, input_path: Path, output_path: Path, **kwargs) -> Path:
-        from pypdf import PdfReader
         from pypdf.errors import FileNotDecryptedError, PyPdfError
 
         # PyPdfError covers LimitReachedError (a crafted file tripping one of
         # pypdf's resource limits), which PdfReadError alone would miss. The
         # extraction sits inside the try: pypdf reads fonts and content
-        # streams lazily, so a broken one only fails here.
+        # streams lazily, so a broken one only fails here. open_pypdf raises
+        # UnsupportedPdfEncryptionError, which this except lets through.
         try:
-            reader = PdfReader(str(input_path))
+            reader = open_pypdf(input_path)
             parts = [page.extract_text() or "" for page in reader.pages]
         except (PyPdfError, ValueError) as exc:
             # The class only — pypdf's messages can quote the file.
