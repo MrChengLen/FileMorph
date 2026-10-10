@@ -277,7 +277,6 @@ async def _do_convert(
         await audit_record(
             "convert.success",
             actor_user_id=user.id if user is not None else None,
-            actor_ip=request.client.host if request.client else None,
             payload={
                 "src": src_ext,
                 "tgt": tgt_ext,
@@ -310,7 +309,6 @@ async def _do_convert(
         await audit_record(
             "convert.failure",
             actor_user_id=user.id if user is not None else None,
-            actor_ip=request.client.host if request.client else None,
             payload={
                 "src": src_ext,
                 "tgt": tgt_ext,

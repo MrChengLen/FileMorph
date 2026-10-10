@@ -416,10 +416,9 @@ append to the client-supplied header (`$proxy_add_x_forwarded_for` in
 nginx, the default in Caddy). Any visitor can then send
 `X-Forwarded-For: 1.2.3.4` *through* your proxy and be recorded as that
 address — closing port 8000 does not prevent it. `request.client.host`
-is the rate-limit key (`app/core/rate_limit.py`), the anonymous quota
-identity, and the `actor_ip` in the audit log, so `*` makes all three
-forgeable. A named address or CIDR walks the chain from the right and
-discards the forged prefix.
+is the rate-limit key (`app/core/rate_limit.py`) and the anonymous
+quota identity, so `*` makes both forgeable. A named address or CIDR
+walks the chain from the right and discards the forged prefix.
 
 This route also commits you to the application's fixed
 `max-age=31536000; includeSubDomains` — the proxy route lets you pick

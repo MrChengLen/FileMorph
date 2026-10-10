@@ -32,7 +32,7 @@ import json
 from unittest.mock import MagicMock
 
 import pytest
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
@@ -59,6 +59,9 @@ _TestSession = async_sessionmaker(_test_engine, expire_on_commit=False, class_=A
 async def _setup_schema() -> None:
     async with _test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # Every Alembic-managed database still has this column (migration 005)
+        # until a later migration drops it; the model no longer maps it.
+        await conn.execute(text("ALTER TABLE audit_events ADD COLUMN actor_ip VARCHAR(45)"))
 
 
 async def _wipe() -> None:
@@ -134,6 +137,19 @@ def _events_by_type(event_type: str) -> list[AuditEvent]:
                 .order_by(AuditEvent.id.asc())
             )
             return list(res.scalars().all())
+
+    return asyncio.run(_q())
+
+
+def _stored_cells(event_id: int) -> list[str]:
+    """Every column of one stored audit row, as strings — mapped or not."""
+
+    async def _q():
+        async with _TestSession() as s:
+            res = await s.execute(
+                text("SELECT * FROM audit_events WHERE id = :id"), {"id": event_id}
+            )
+            return [str(cell) for cell in res.one()]
 
     return asyncio.run(_q())
 
@@ -223,10 +239,10 @@ def test_checkout_pro_with_acknowledgement_records_audit_event(client):
     rows = _events_by_type("billing.checkout.withdrawal_waiver_recorded")
     assert len(rows) == 1
     assert str(rows[0].actor_user_id) == str(user.id)
-    # M10: pin actor_ip so a regression that drops `request.client.host`
-    # surfaces as a test failure rather than a silent loss of dispute
-    # reproducibility. TestClient's default client host is "testclient".
-    assert rows[0].actor_ip == "testclient"
+    # The audit log stores no IP addresses (decided 2026-09-28): the consent
+    # record is the account, the time and the tier. TestClient's client host
+    # is "testclient" — it must not appear in any stored column.
+    assert not any("testclient" in cell for cell in _stored_cells(rows[0].id))
     payload = json.loads(rows[0].payload_json)
     assert payload == {"tier": "pro"}
 
@@ -245,7 +261,7 @@ def test_checkout_business_with_acknowledgement_records_audit_event(client):
     rows = _events_by_type("billing.checkout.withdrawal_waiver_recorded")
     assert len(rows) == 1
     assert str(rows[0].actor_user_id) == str(user.id)
-    assert rows[0].actor_ip == "testclient"  # M10
+    assert not any("testclient" in cell for cell in _stored_cells(rows[0].id))
     payload = json.loads(rows[0].payload_json)
     assert payload == {"tier": "business"}
 

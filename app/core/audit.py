@@ -112,11 +112,14 @@ async def record_event(
     event_type: str,
     *,
     actor_user_id: uuid.UUID | None = None,
-    actor_ip: str | None = None,
     payload: Mapping[str, Any] | None = None,
     db: AsyncSession | None = None,
 ) -> None:
     """Append one entry to the audit log; chain it to the previous row.
+
+    No client IP address is recorded — there is deliberately no
+    parameter for one (decided 2026-09-28; guarded by
+    ``tests/test_audit_no_ip.py``).
 
     Behaviour:
 
@@ -148,7 +151,7 @@ async def record_event(
 
     if db is not None:
         # Test path: caller owns the session.
-        await _do_record(db, event_type, actor_user_id, actor_ip, canonical)
+        await _do_record(db, event_type, actor_user_id, canonical)
         return
 
     if AsyncSessionLocal is None:
@@ -162,7 +165,7 @@ async def record_event(
 
     try:
         async with AsyncSessionLocal() as session:
-            await _do_record(session, event_type, actor_user_id, actor_ip, canonical)
+            await _do_record(session, event_type, actor_user_id, canonical)
     except AuditWriteError:
         raise
     except Exception:
@@ -175,7 +178,6 @@ async def _do_record(
     db: AsyncSession,
     event_type: str,
     actor_user_id: uuid.UUID | None,
-    actor_ip: str | None,
     canonical: str,
 ) -> None:
     """Read the chain head, compute the new hash, INSERT.
@@ -197,7 +199,6 @@ async def _do_record(
             row = AuditEvent(
                 event_type=event_type,
                 actor_user_id=actor_user_id,
-                actor_ip=actor_ip,
                 payload_json=canonical,
                 prev_hash=prev_hash,
                 record_hash=record_hash,

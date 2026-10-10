@@ -92,11 +92,9 @@ async def create_checkout_session(
         await db.commit()
         customer_id = customer.id
 
-    actor_ip = request.client.host if request.client else None
     await record_event(
         event_type="billing.checkout.withdrawal_waiver_recorded",
         actor_user_id=user.id,
-        actor_ip=actor_ip,
         payload={"tier": tier},
         db=db,
     )
@@ -511,8 +509,6 @@ async def submit_cancellation(
 
     # With AUDIT_FAIL_CLOSED a failed write raises here → 500. Nothing has
     # been done yet, so the consumer is correctly told it didn't go through.
-    # No ``actor_ip`` on the cancellation events: the audit log is to keep no
-    # IP addresses (other events still record one until that change lands).
     await record_event(
         "billing.cancellation.received",
         actor_user_id=actor_user_id,

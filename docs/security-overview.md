@@ -456,12 +456,14 @@ mechanically.
 - Email and bcrypt-hashed password live in Postgres (`users`
   table).
 - API keys live as SHA-256 hashes in `api_keys`.
-- Original filenames and upload metadata are not persisted. The
-  `usage_records` table records only an operation type, byte counts,
-  and a timestamp. The output SHA-256 of a single-file convert/compress
-  result *is* persisted, though — as `output_sha256` in the audit-log
-  payload (see "File data" above); that hash is the verification anchor
-  the audit trail is built on, not a record of the file's contents.
+- Original filenames are not persisted. The `usage_records` table
+  records only an operation type, byte counts, and a timestamp. The
+  audit log keeps the metadata of each single-file convert/compress —
+  format (or format pair), byte counts, tier, data-classification
+  label, and the output SHA-256 as `output_sha256` (see "File data"
+  above); that hash is the verification anchor the audit trail is built
+  on, not a record of the file's contents. The audit log records no IP
+  address.
 - **Self-service account deletion** lives at `DELETE
   /api/v1/auth/account` (Art. 17 GDPR), fully self-service on both
   paths: three-field re-confirmation (`password`, `confirm_email`,
