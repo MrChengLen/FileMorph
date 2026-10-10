@@ -256,10 +256,10 @@ refers to and attaches to the counter-signed contract.
 - **Billing records:** statutory retention under HGB §257 / AO §147
   (typically 10 years from the end of the calendar year of the last
   transaction).
-- **Audit log:** no built-in retention period — rows are append-only
-  and are not pruned automatically; pruning takes a privileged
-  database role that bypasses the append-only trigger. The operator
-  sets the period to match the privacy notice. On a hard delete
+- **Audit log:** no built-in retention period yet (one is planned) —
+  rows are append-only and are not pruned automatically; pruning takes a
+  privileged database role that bypasses the append-only trigger. The
+  operator sets the period to match the privacy notice. On a hard delete
   (accounts without a Stripe customer id) the actor identifier is
   nulled; the event type and payload survive.
 - **Server access logs:** operator-side, per the operator's log-rotation
@@ -583,16 +583,17 @@ detects retroactive edits from a SQL dump alone — compatible with
 ISO 27001 A.12.4.1, BORA §50, and BeurkG §39a expectations.
 
 The chain identifies an actor by account ID (a random UUID), never by
-email address; failed logins, duplicate registrations, password-reset
-requests and contact-form messages also record a SHA-256 hash of the
-email address in the payload. Recorded: registration, login (success
-and failure), email verification, password reset, account deletion,
-subscription and payment events (including the withdrawal waiver at
-checkout and dunning emails), single-file conversions and compressions
-(success and failure), contact-form messages, and PII redactions where
-enabled. Not recorded: API-key creation or revocation, admin changes in
-the cockpit, batch conversions / compressions, and the `/pdf/*` tools.
-There is no email-change function.
+email address, and records no IP address; failed logins, duplicate
+registrations, password-reset requests, contact-form messages and online
+cancellations also record a SHA-256 hash of the email address in the
+payload. Recorded: registration, login (success and failure), email
+verification, password reset, account deletion, subscription and payment
+events (including the withdrawal waiver at checkout and dunning emails),
+online cancellations, single-file conversions and compressions (success
+and failure), contact-form messages, and PII redactions where enabled.
+Not recorded: API-key creation or revocation, admin changes in the
+cockpit, batch conversions / compressions, and the `/pdf/*` tools. There
+is no email-change function.
 
 ### 7.3 What about output integrity?
 
@@ -608,8 +609,9 @@ beA-Anhang-Trail, eDiscovery) can act on.
 
 ### 7.4 What about logs as a data category?
 
-The application sets no audit-log retention period itself: rows are
-append-only and are not pruned automatically. Pruning takes a
+The application sets no audit-log retention period itself yet (a
+built-in retention job is planned): rows are append-only and are not
+pruned automatically. Pruning takes a
 privileged database role that bypasses the append-only trigger, and the
 operator sets the period to match their privacy notice. On a hard
 delete (accounts without a Stripe customer id) the actor identifier is

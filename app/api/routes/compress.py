@@ -272,7 +272,6 @@ async def _do_compress(
         await audit_record(
             "compress.success",
             actor_user_id=user.id if user is not None else None,
-            actor_ip=request.client.host if request.client else None,
             payload={
                 "format": ext,
                 "input_bytes": input_size_bytes,
@@ -302,7 +301,6 @@ async def _do_compress(
         await audit_record(
             "compress.failure",
             actor_user_id=user.id if user is not None else None,
-            actor_ip=request.client.host if request.client else None,
             payload={
                 "format": ext,
                 "status_code": exc.status_code,

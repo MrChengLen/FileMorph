@@ -369,7 +369,6 @@ async def redact_apply(
         await audit_record(
             "ai-redact.success",
             actor_user_id=user.id if user is not None else None,
-            actor_ip=request.client.host if request.client else None,
             payload={
                 "operation": "redact",
                 "format": out_ext,
