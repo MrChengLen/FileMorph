@@ -102,6 +102,13 @@
 
   <div id="pdf-error" class="hidden text-center space-y-2">
     <p id="pdf-error-text" class="text-red-400 text-sm text-center bg-red-950 rounded-lg py-3 px-4"></p>
+    {# Next step for a PDF over the page cap (rule: never a dead end): the
+       split text names the Extract tool, this makes it one click. Split page
+       only; un-hidden by pdf-tools.js for pdf_too_many_pages only. #}
+    {% if tool == 'split' %}
+    <a id="pdf-error-extract" href="{{ localized_url('/pdf/extract', current_prefix) }}"
+      class="hidden inline-block text-xs px-3 py-1.5 rounded-lg border border-gray-700 text-gray-200 hover:border-brand hover:text-white transition-colors">{{ _('Extract PDF pages') }} →</a>
+    {% endif %}
     {# Quota-error upsell (Upsell-Regeln, docs-internal/ia-navigation-konzept.md):
        only next to a real limit, only when pricing_enabled, free alternative
        named first in #pdf-error-text — this link is an addition, not a

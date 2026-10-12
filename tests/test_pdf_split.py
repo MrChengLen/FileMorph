@@ -26,6 +26,7 @@ from pypdf import PdfReader, PdfWriter
 
 from app.converters.pdf_pages import (
     PageSelectionError,
+    TooManyPagesError,
     extract_pages,
     parse_page_ranges,
     split_pdf,
@@ -104,7 +105,7 @@ def test_parse_zero_page_doc():
 
 def test_parse_too_many_pages():
     # A huge range against a doc claiming that many pages must be capped.
-    with pytest.raises(PageSelectionError):
+    with pytest.raises(TooManyPagesError):
         parse_page_ranges("1-20000", 20000)
 
 
@@ -201,8 +202,9 @@ def test_split_too_many_pages_raises(tmp_path, monkeypatch, pdf5):
         pages = _HugePages()
 
     monkeypatch.setattr(pp, "_open_reader", lambda _path: _FakeReader())
-    with pytest.raises(PageSelectionError, match="Too many pages to split"):
+    with pytest.raises(TooManyPagesError) as caught:
         split_pdf(pdf5)
+    assert str(caught.value) == pp._TOO_MANY_PAGES_TO_SPLIT
 
 
 # ── route: /pdf/extract ──────────────────────────────────────────────────────
