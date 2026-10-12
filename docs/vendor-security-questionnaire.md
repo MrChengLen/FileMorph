@@ -531,6 +531,12 @@ The threat model lists the known classes:
   route answers `400` with `X-FileMorph-Error-Code: decompression_bomb`
   (since v1.1.0) — `app/core/image_hardening.py`. The per-tier output
   cap still rejects oversized output even when the input passes.
+- **Image parsers** — image uploads to `/convert` and `/compress` are
+  opened with Pillow limited to the formats FileMorph accepts (JPEG,
+  PNG, WebP, GIF, BMP, TIFF, ICO, HEIC/HEIF, AVIF); Pillow's readers for
+  other formats are not used on them. A file none of these readers
+  recognises gets `400` with `X-FileMorph-Error-Code: invalid_input` —
+  `app/core/image_hardening.py`.
 - **Zip slip / archive escape** — extraction routines normalise paths
   to a fixed temp directory and reject `..` components.
 - **PDF metadata injection** — PDF/A-2b conversion strips uncontrolled
