@@ -21,11 +21,13 @@ Properties verified
 1. Successful registration writes a single ``auth.register.success``
    row, with ``actor_user_id`` set to the new user's id.
 2. A duplicate-email registration writes ``auth.register.duplicate``
-   with the SHA-256 of the email — *not* the email itself — and no
-   ``actor_user_id``.
+   naming the existing account in ``actor_user_id``, with nothing
+   derived from the email in the payload.
 3. Successful login writes ``auth.login.success``.
-4. Wrong-password login writes ``auth.login.failure`` with the
-   email-hash, no ``actor_user_id`` (no enumeration leak).
+4. Wrong-password login writes ``auth.login.failure`` naming the
+   account; an unknown or inactive email leaves ``actor_user_id``
+   empty. Neither records anything derived from the email, and both
+   answer the client identically.
 5. ``/auth/forgot-password`` writes ``auth.password_reset.requested``
    on the match path *and* the no-match path. The match path
    sets ``actor_user_id``; the no-match path leaves it null.
@@ -38,7 +40,6 @@ Properties verified
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import json
 
 import pytest
@@ -127,13 +128,16 @@ def _all_events() -> list[AuditEvent]:
     return asyncio.run(_q())
 
 
-def _email_hash(email: str) -> str:
-    return hashlib.sha256(email.strip().lower().encode("utf-8")).hexdigest()
-
-
-async def _insert_user(*, email: str, password: str = "initial-password") -> User:
+async def _insert_user(
+    *, email: str, password: str = "initial-password", is_active: bool = True
+) -> User:
     async with _TestSession() as s:
-        user = User(email=email, password_hash=hash_password(password), tier=TierEnum.free)
+        user = User(
+            email=email,
+            password_hash=hash_password(password),
+            tier=TierEnum.free,
+            is_active=is_active,
+        )
         s.add(user)
         await s.commit()
         await s.refresh(user)
@@ -160,8 +164,8 @@ def test_register_success_writes_audit_event(client):
 # ── 2. /register duplicate ──────────────────────────────────────────────────
 
 
-def test_register_duplicate_writes_email_hash_not_email(client):
-    asyncio.run(_insert_user(email="taken@example.com"))
+def test_register_duplicate_names_the_existing_account(client):
+    existing = asyncio.run(_insert_user(email="taken@example.com"))
 
     res = client.post(
         "/api/v1/auth/register",
@@ -171,10 +175,8 @@ def test_register_duplicate_writes_email_hash_not_email(client):
 
     rows = _events_by_type("auth.register.duplicate")
     assert len(rows) == 1
-    assert rows[0].actor_user_id is None
-    payload = json.loads(rows[0].payload_json)
-    assert payload["email_hash"] == _email_hash("taken@example.com")
-    assert "taken@example.com" not in rows[0].payload_json
+    assert str(rows[0].actor_user_id) == str(existing.id)
+    assert json.loads(rows[0].payload_json) == {}
 
 
 # ── 3. /login success ──────────────────────────────────────────────────────
@@ -197,8 +199,10 @@ def test_login_success_writes_audit_event(client):
 # ── 4. /login failure ──────────────────────────────────────────────────────
 
 
-def test_login_failure_records_email_hash_only(client):
-    asyncio.run(_insert_user(email="login@example.com", password="pw-correct-1"))
+def test_login_failure_names_the_account_not_the_email(client):
+    """Brute force against an account stays visible per account. The id
+    sits outside the hash, so deleting the account clears it."""
+    user = asyncio.run(_insert_user(email="login@example.com", password="pw-correct-1"))
 
     res = client.post(
         "/api/v1/auth/login",
@@ -208,16 +212,13 @@ def test_login_failure_records_email_hash_only(client):
 
     rows = _events_by_type("auth.login.failure")
     assert len(rows) == 1
-    # No actor_user_id — we don't reveal whether the email is real.
-    assert rows[0].actor_user_id is None
-    payload = json.loads(rows[0].payload_json)
-    assert payload["email_hash"] == _email_hash("login@example.com")
-    assert "login@example.com" not in rows[0].payload_json
+    assert str(rows[0].actor_user_id) == str(user.id)
+    assert json.loads(rows[0].payload_json) == {}
 
 
-def test_login_failure_for_unknown_email_records_email_hash(client):
-    """No user in the DB at all — failure path still records the
-    attempt-shape so brute-force scans are visible."""
+def test_login_failure_for_unknown_email_records_no_identifier(client):
+    """No user in the DB at all: the attempt is recorded, but nothing
+    about an address that belongs to no account."""
     res = client.post(
         "/api/v1/auth/login",
         json={"email": "nobody@example.com", "password": "anything"},
@@ -227,8 +228,39 @@ def test_login_failure_for_unknown_email_records_email_hash(client):
     rows = _events_by_type("auth.login.failure")
     assert len(rows) == 1
     assert rows[0].actor_user_id is None
-    payload = json.loads(rows[0].payload_json)
-    assert payload["email_hash"] == _email_hash("nobody@example.com")
+    assert json.loads(rows[0].payload_json) == {}
+
+
+def test_login_failure_for_inactive_account_records_no_actor(client):
+    """Login only matches active accounts, and the event names only an
+    account the route itself matched: no extra lookup."""
+    asyncio.run(_insert_user(email="off@example.com", password="pw-correct-1", is_active=False))
+
+    res = client.post(
+        "/api/v1/auth/login",
+        json={"email": "off@example.com", "password": "pw-correct-1"},
+    )
+    assert res.status_code == 401
+
+    rows = _events_by_type("auth.login.failure")
+    assert len(rows) == 1
+    assert rows[0].actor_user_id is None
+
+
+def test_wrong_password_and_unknown_email_answer_identically(client):
+    """Naming the account in the audit log must not change what the
+    client sees."""
+    asyncio.run(_insert_user(email="login@example.com", password="pw-correct-1"))
+
+    wrong = client.post(
+        "/api/v1/auth/login",
+        json={"email": "login@example.com", "password": "wrong-password"},
+    )
+    unknown = client.post(
+        "/api/v1/auth/login",
+        json={"email": "nobody@example.com", "password": "wrong-password"},
+    )
+    assert (wrong.status_code, wrong.json()) == (unknown.status_code, unknown.json())
 
 
 # ── 5. /forgot-password — match + no-match both record ─────────────────────
@@ -248,8 +280,7 @@ def test_forgot_password_match_writes_event_with_user_id(client, monkeypatch):
     rows = _events_by_type("auth.password_reset.requested")
     assert len(rows) == 1
     assert str(rows[0].actor_user_id) == str(user.id)
-    payload = json.loads(rows[0].payload_json)
-    assert payload["email_hash"] == _email_hash("real@example.com")
+    assert json.loads(rows[0].payload_json) == {}
 
 
 def test_forgot_password_no_match_writes_event_without_user_id(client, monkeypatch):
@@ -266,8 +297,7 @@ def test_forgot_password_no_match_writes_event_without_user_id(client, monkeypat
     rows = _events_by_type("auth.password_reset.requested")
     assert len(rows) == 1
     assert rows[0].actor_user_id is None
-    payload = json.loads(rows[0].payload_json)
-    assert payload["email_hash"] == _email_hash("nobody@example.com")
+    assert json.loads(rows[0].payload_json) == {}
 
 
 # ── 6. /reset-password — completed event ───────────────────────────────────

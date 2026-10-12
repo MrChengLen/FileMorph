@@ -91,13 +91,21 @@ physical assets of its own.
   — UUID stems only; the original name survives only in the
   `Content-Disposition` response header, filtered through
   `safe_download_name()` — `app/core/utils.py`.
-- The audit log identifies an actor by account ID (a random UUID), never
-  by email address. A failed login, a duplicate registration, a
-  password-reset request and a contact-form message also store a
-  SHA-256 hash of the lower-cased email address — a pseudonym, not an
+- The audit log identifies an account by its ID (a random UUID), never
+  by email address, and records nothing derived from an address: no
+  hash, no domain. A failed login, a duplicate registration or a
+  password-reset request names the account the address belongs to, if
+  there is one; the ID is cleared when that account is hard-deleted
+  (accounts without a Stripe customer ID). Entries written before this
+  change (on filemorph.io: up to and including 12 October 2026; on a
+  self-hosted instance: before it ran a release with this change) may
+  still carry a SHA-256 hash of the
+  lower-cased address (failed logins, duplicate registrations,
+  password-reset requests, contact-form messages, online cancellations)
+  or the email domain (account deletions) — a pseudonym, not an
   anonymisation: a known address can be hashed and matched —
   `app/core/audit.py`, `app/api/routes/auth.py`,
-  `app/api/routes/contact.py`.
+  `app/api/routes/contact.py`, `app/api/routes/billing.py`.
 - API keys are stored only as SHA-256 hashes; raw keys are shown once at
   creation and never logged.
 - Image conversions and compressions strip EXIF / XMP / IPTC metadata

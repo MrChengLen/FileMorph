@@ -7,7 +7,6 @@ session, and we mock it here), so these tests need only the session
 ``send_email`` / ``audit_record`` at their import sites.
 """
 
-import re
 from unittest.mock import AsyncMock
 
 import pytest
@@ -80,11 +79,10 @@ def test_contact_post_happy_path(client, monkeypatch):
 
     audit_mock.assert_awaited_once()
     assert audit_mock.call_args.args[0] == "contact.message.received"
+    # The audit entry keeps the language only: nothing derived from the
+    # sender's address, which would stay in the hash chain for good.
     audit_payload = audit_mock.call_args.kwargs["payload"]
-    assert re.fullmatch(r"[0-9a-f]{64}", audit_payload["email_hash"])
-    assert "locale" in audit_payload
-    # The plaintext email never appears in the audit payload.
-    assert "erika@example.com" not in str(audit_payload)
+    assert set(audit_payload) == {"locale"}
 
 
 def test_contact_post_honeypot_silently_dropped(client, monkeypatch):

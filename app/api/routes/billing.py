@@ -2,7 +2,6 @@
 """Stripe billing routes: checkout, customer portal, webhook, online cancellation."""
 
 import asyncio
-import hashlib
 import html as html_mod
 import logging
 from datetime import datetime, timezone
@@ -509,11 +508,13 @@ async def submit_cancellation(
 
     # With AUDIT_FAIL_CLOSED a failed write raises here → 500. Nothing has
     # been done yet, so the consumer is correctly told it didn't go through.
+    # The account, if one matched, is the actor; nothing derived from the
+    # address goes into the payload, which the hash chain could never erase.
+    # The confirmation and the operator mail carry the address itself.
     await record_event(
         "billing.cancellation.received",
         actor_user_id=actor_user_id,
         payload={
-            "email_hash": hashlib.sha256(normalised.encode("utf-8")).hexdigest(),
             "contract": body.contract,
             "kind": body.kind,
             "end": body.end,

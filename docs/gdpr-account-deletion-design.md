@@ -474,9 +474,13 @@ logger. As shipped, account deletion writes that line and, in
 addition, two events to the hash-chained audit log
 (`app/core/audit.py`, Migration 005), which was added separately:
 `auth.account_deletion.requested` before the account changes (actor:
-the account ID; payload: email domain, `had_subscription`,
-`deletion_mode`) and `auth.account_deletion.completed` after it
-(payload: email domain, `deletion_mode`).
+the account ID; payload: `had_subscription`, `deletion_mode`) and
+`auth.account_deletion.completed` after it (payload: `deletion_mode`).
+Neither payload holds the email domain: it sits in the hash chain and
+could never be erased, and a personal domain names its owner. The
+domain goes only into the structured log line below. Events written
+before this change still carry it (on filemorph.io: up to and including
+12 October 2026).
 
 ### Event format
 

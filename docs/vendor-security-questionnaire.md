@@ -589,10 +589,14 @@ detects retroactive edits from a SQL dump alone — compatible with
 ISO 27001 A.12.4.1, BORA §50, and BeurkG §39a expectations.
 
 The chain identifies an actor by account ID (a random UUID), never by
-email address, and records no IP address; failed logins, duplicate
-registrations, password-reset requests, contact-form messages and online
-cancellations also record a SHA-256 hash of the email address in the
-payload. Recorded: registration, login (success and failure), email
+email address, and records neither an IP address nor anything derived
+from an email address; a failed login, a duplicate registration or a
+password-reset request names the account the entered address belongs
+to, if there is one. Entries written before this change (on filemorph.io: up to and including
+12 October 2026; on a self-hosted instance: before it ran a release with
+this change) may still hold a SHA-256 hash of an email address (failed logins,
+duplicate registrations, password-reset requests, contact-form messages,
+online cancellations) or, for account deletions, its domain. Recorded: registration, login (success and failure), email
 verification, password reset, account deletion, subscription and payment
 events (including the withdrawal waiver at checkout and dunning emails),
 online cancellations, single-file conversions and compressions (success
