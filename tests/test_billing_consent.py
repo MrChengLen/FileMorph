@@ -282,8 +282,8 @@ def test_checkout_unauthenticated_returns_401(client):
 #
 # The hash-chain is what makes the audit log defensible at dispute time:
 # verify_chain() walks the table and returns the first id where the
-# recomputed SHA-256 of (prev_hash || payload) does not match the stored
-# record_hash. These two tests pin both halves of the contract — the
+# recomputed SHA-256 of the row (see app/core/audit.py) does not match the
+# stored record_hash. These two tests pin both halves of the contract — the
 # happy-path return of None for an intact chain, and the tamper-detection
 # return of the mutated row's id when payload_json is altered after the
 # fact. Without this guard, a refactor that switches the canonical-JSON
