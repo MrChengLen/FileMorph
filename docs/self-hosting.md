@@ -165,14 +165,20 @@ slower host. Ignored when `FILEMORPH_OFFICE_ENGINE=mammoth`.
 ### Verifying signatures
 
 Both images are cosign-signed (keyless OIDC, no long-lived signing
-key). After pulling, verify with:
+key). After pulling a release, verify the digest `docker pull` printed
+(`Digest: sha256:…`):
 
 ```bash
-cosign verify ghcr.io/mrchenglen/filemorph:office \
-  --certificate-identity-regexp "^https://github\\.com/MrChengLen/FileMorph/" \
+docker pull ghcr.io/mrchenglen/filemorph:X.Y.Z-office
+cosign verify ghcr.io/mrchenglen/filemorph@sha256:<digest> \
+  --certificate-identity 'https://github.com/MrChengLen/FileMorph/.github/workflows/docker.yml@refs/tags/vX.Y.Z' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
+The identity admits only `docker.yml` running for the release tag
+`vX.Y.Z`, which builds both images (`X.Y.Z` and `X.Y.Z-office`).
+`:latest` and `:office` move with every new build, so pin a release's
+digest.
 See [`docs/release-signing.md`](./release-signing.md) for the full
 trust chain (cosign images + GPG-signed Git tags).
 
