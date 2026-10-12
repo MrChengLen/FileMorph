@@ -390,7 +390,7 @@ Convert several files in one request. Returns a ZIP archive with all converted o
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `files` | files (≥1) | Yes | One or more files to convert |
-| `target_formats` | string[] | Yes | Target format per file, repeated once per file in the same order (length must match `files`, otherwise `422`) |
+| `target_formats` | string[] | Yes | Target format per file, repeated once per file in the same order (length must match `files`, otherwise `422`; a value longer than 16 characters also refuses the whole batch with `422`) |
 | `quality` | integer | No | Quality 1–100 (default 85). Applied uniformly. |
 
 **Response**: `200 OK` (`application/zip`, named `filemorph-batch.zip`) — archive with one entry per successful conversion. If at least one file fails, a `manifest.json` is added at archive root listing per-file results (success ZIP-only is preferred for all-success runs to keep the output clean). The `X-FileMorph-Batch-*` headers carry the counts and the failed files (see [Batch headers](#batch-headers)); `X-FileMorph-Batch-Failed` above `0` means the ZIP holds a `manifest.json`.
@@ -540,6 +540,7 @@ can branch on (the `detail` text may change):
 | `invalid_page_selection` | `400` | `/pdf/extract`: the `pages` selection is invalid |
 | `invalid_pdf` | `400` | `/pdf/extract`, `/pdf/split`, `/pdf/compress`: the PDF can't be read; `/pdf/extract` and `/pdf/split` also for a PDF with no pages, `/pdf/split` for one over 10 000 pages |
 | `pdf_encrypted` | `400` | The PDF needs a password to open (`/pdf/extract`, `/pdf/split`, `/pdf/compress`, `/convert`); remove the password and upload it again |
+| `pdf_encryption_unsupported` | `400` | The PDF is encrypted with a certificate or a method FileMorph can't open, so no password would help (`/pdf/extract`, `/pdf/split`, `/pdf/compress`, `/convert`); remove the protection, e.g. by asking the sender for an unprotected copy |
 
 The redaction endpoints add codes of their own, listed under
 [AI operations](#ai-operations--pii-redaction-enterprise-edition-add-on).
@@ -601,7 +602,7 @@ every file failed returns `422` with `{"summary": …, "files": […]}`.
 
 | HTTP Status | Meaning |
 |---|---|
-| `400 Bad Request` | Missing or malformed request data (e.g. filename without extension), or file content that has to be fixed first — e.g. a Markdown, CSV or JSON file that isn't UTF-8 (`X-FileMorph-Error-Code: invalid_input`; `detail` names the fix) or a password-protected PDF (`pdf_encrypted`) |
+| `400 Bad Request` | Missing or malformed request data (e.g. filename without extension), or file content that has to be fixed first — e.g. a Markdown, CSV or JSON file that isn't UTF-8 (`X-FileMorph-Error-Code: invalid_input`; `detail` names the fix), a password-protected PDF (`pdf_encrypted`) or a certificate-encrypted one (`pdf_encryption_unsupported`) |
 | `401 Unauthorized` | An `X-API-Key` was sent but is not valid, or an endpoint that needs an account (`/auth/me`, `/keys`, `/billing/*`, …) got no valid `Authorization: Bearer` token. The file endpoints need no credentials: without them — or with an expired Bearer token — they run on the anonymous tier (see [Authentication](#authentication)) |
 | `403 Forbidden` | Authenticated but role/tier doesn't permit the action (e.g. non-admin hitting `/cockpit/*`) |
 | `413 Content Too Large` | Request exceeds `MAX_UPLOAD_SIZE_MB` (default: 100 MB), a file exceeds your tier's size cap, or the output exceeds your tier's output cap |

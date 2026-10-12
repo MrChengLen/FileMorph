@@ -18,33 +18,26 @@ pillow-avif-plugin>=1.6.0
 python-docx>=1.2.0
 mammoth>=1.13.0
 pypdf>=6.19.0
+# pypdf opens AES-encrypted PDFs only with cryptography installed
+# (DependencyError without it, which tests/test_pdf_error_messages.py catches),
+# e.g. an owner-password PDF, which FileMorph processes. It came in through
+# python-jose until the move to PyJWT. Listed directly, not as pypdf[crypto],
+# so that Dependabot proposes its updates: the wheels bundle OpenSSL.
+cryptography>=50.0.1
 # pikepdf provides the qpdf-backed PDF manipulation FileMorph uses
 # for PDF/A-2b output (NEU-C.1.a). Wheels bundle qpdf; no system
 # package required.
 # Lifting the cap also removes its ignore entry in .github/dependabot.yml.
 pikepdf>=10.16.0,<11
 reportlab>=5.0.1
-# Capped below 70: WeasyPrint 70 changed the ``url_fetcher`` contract from a
-# plain callable to an object exposing a ``fetch`` method (it now reads
-# ``url_fetcher._fail_on_errors`` before calling it). Our SSRF guard
-# ``app/converters/document.py::_deny_url_fetcher`` is a function, so under 70
-# every HTML/EML/MD -> PDF conversion raises AttributeError and returns 500 --
-# ``test_html_to_pdf_ssrf_blocked`` and ``test_eml_to_pdf_ssrf_blocked`` catch
-# it. The guard is mandatory (CLAUDE.md, docs/security-overview.md), so this
-# is a deliberate cap until the fetcher is ported to the 70 API, not a
-# workaround to drop silently. Nothing here is unpinned by accident.
-#
-# Note that 70.0 also fixes CVE-2026-55073, an SSRF-protection bypass in
-# exactly this area: two write_pdf() channels ignore the document's
-# url_fetcher. FileMorph is not reachable through it -- none of our
-# write_pdf() calls pass `xmp_metadata` or `stylesheets`, the only two
-# affected parameters -- so the cap costs us nothing today. The same goes
-# for CVE-2026-106443 (image bytes handed to Pillow unrestricted), which
-# _deny_url_fetcher and app/core/image_hardening.py keep out of reach. It
-# does mean the port to the 70 API carries a security benefit and should not
-# sit here indefinitely. ci.yml documents the matching pip-audit ignores.
+# Capped below 71: the SSRF guard ``_deny_url_fetcher`` in
+# app/converters/document.py subclasses WeasyPrint's ``URLFetcher`` and
+# overrides ``fetch``. 70 accepts only such an object (the guard used to be a
+# plain function, which 70 rejects), so take the next major deliberately: the
+# SSRF tests in tests/test_to_pdf_converters.py fail when a resource loads
+# despite the guard.
 # Lifting the cap also removes its ignore entry in .github/dependabot.yml.
-weasyprint>=69.0,<70
+weasyprint>=70,<71
 markdown>=3.11
 openpyxl>=3.1.5
 ffmpeg-python>=0.2.0
@@ -56,7 +49,7 @@ Babel>=2.18.0
 sqlalchemy[asyncio]>=2.1.3
 alembic>=1.20.0
 asyncpg>=0.31.0
-python-jose[cryptography]>=3.5.0
+PyJWT>=2.15.1
 bcrypt>=5.0.0
 email-validator>=2.3.0
 aiosmtplib>=5.1.3

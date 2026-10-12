@@ -52,15 +52,25 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 
+# Ghostscript executable names, in lookup order: ``gs`` on Linux/macOS, then
+# the Windows console builds (``gswin64c`` preferred over ``gswin32c`` because
+# the 32-bit one chokes on PDFs above ~2 GiB). Single source of truth —
+# ``app/converters/document.py`` imports this tuple so the office-image
+# subprocess hardening neutralises exactly the names this resolver would find.
+_GS_BINARY_NAMES = ("gs", "gswin64c", "gswin32c")
+
+
 def _resolve_binary() -> str | None:
     """Locate the ghostscript executable on PATH.
 
-    On Linux/macOS the binary is ``gs``; on Windows installs it is
-    ``gswin64c`` (console variant of gswin64) and rarely ``gswin32c``.
-    We prefer the 64-bit Windows binary because the 32-bit one chokes
-    on PDFs above ~2 GiB. Returns None if none is found — callers
-    must check :func:`is_available` before invoking the converter."""
-    return shutil.which("gs") or shutil.which("gswin64c") or shutil.which("gswin32c")
+    Tries each name in :data:`_GS_BINARY_NAMES` in order. Returns None if none
+    is found — callers must check :func:`is_available` before invoking the
+    converter."""
+    for name in _GS_BINARY_NAMES:
+        found = shutil.which(name)
+        if found:
+            return found
+    return None
 
 
 # Resolved at import time so callers can short-circuit without paying

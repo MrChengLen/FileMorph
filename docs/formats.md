@@ -158,8 +158,9 @@ Both images are
 
 The pure-Python pipeline runs `WeasyPrint` with `_deny_url_fetcher`,
 blocking any external resource load that a malformed DOCX might attempt;
-the regression guard is
-`tests/test_convert_document.py::test_docx_to_pdf_ssrf_blocked`.
+the regression guards are
+`tests/test_to_pdf_converters.py::test_no_fetch_slips_past_the_guard` (its
+`docx` case) and `test_every_weasyprint_render_passes_the_deny_fetcher`.
 
 The LibreOffice path runs `soffice --headless` with `--nolockcheck`,
 `--norestore`, a per-conversion `UserInstallation` profile (so two
@@ -210,7 +211,9 @@ formats page — it is plumbing, not a conversion a user picks.
 - **No password-protected PDFs.** FileMorph never asks for a password, so a
   PDF that needs one to open is rejected with a `400` and
   `X-FileMorph-Error-Code: pdf_encrypted` here and on PDF → TXT / PDF/A;
-  remove the password first.
+  remove the password first. A PDF encrypted with a certificate (or with a
+  method the PDF libraries don't implement) is rejected the same way with
+  `pdf_encryption_unsupported`.
 
 ---
 

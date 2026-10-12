@@ -36,7 +36,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 import stripe
 from fastapi.testclient import TestClient
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
@@ -102,6 +102,9 @@ _TestSession = async_sessionmaker(_test_engine, expire_on_commit=False, class_=A
 async def _setup_schema() -> None:
     async with _test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # Every Alembic-managed database still has this column (migration 005)
+        # until a later migration drops it; the model no longer maps it.
+        await conn.execute(text("ALTER TABLE audit_events ADD COLUMN actor_ip VARCHAR(45)"))
 
 
 async def _wipe() -> None:
@@ -236,6 +239,17 @@ def _events(event_type: str | None = None) -> list[AuditEvent]:
             if event_type is not None:
                 stmt = stmt.where(AuditEvent.event_type == event_type)
             return list((await s.execute(stmt)).scalars().all())
+
+    return asyncio.run(_q())
+
+
+def _stored_cells() -> list[str]:
+    """Every column of every stored audit row, as strings — mapped or not."""
+
+    async def _q():
+        async with _TestSession() as s:
+            res = await s.execute(text("SELECT * FROM audit_events"))
+            return [str(cell) for row in res.all() for cell in row]
 
     return asyncio.run(_q())
 
@@ -465,7 +479,7 @@ def test_unknown_address_confirms_and_mails_the_operator(client, send_mock, stri
     assert received[0].actor_user_id is None
     assert json.loads(received[0].payload_json)["matched"] is False
     assert _payload("billing.cancellation.manual_review") == {"reason": "no_account"}
-    assert [row.actor_ip for row in _events()] == [None, None]  # no IPs in the audit log
+    assert not any("testclient" in cell for cell in _stored_cells())  # no IPs in the audit log
 
 
 def test_ordinary_cancellation_drops_the_reason(client, send_mock):
@@ -519,7 +533,7 @@ def test_automatic_cancellation_at_period_end(client, send_mock, stripe_api):
 
     received = _events("billing.cancellation.received")[0]
     assert received.actor_user_id == user.id
-    assert [row.actor_ip for row in _events()] == [None, None]  # no IPs in the audit log
+    assert not any("testclient" in cell for cell in _stored_cells())  # no IPs in the audit log
     assert json.loads(received.payload_json) == {
         "email_hash": hashlib.sha256(CUSTOMER.encode()).hexdigest(),
         "contract": "pro",

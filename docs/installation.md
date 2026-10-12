@@ -186,11 +186,12 @@ and any errors.
 DOCX, Markdown, HTML and EML → PDF render through WeasyPrint, which needs
 the Pango/GTK native libraries; TXT → PDF does not (it uses `reportlab`,
 pure Python, no extra install). On Windows, the pinned WeasyPrint version
-(`weasyprint>=69.0,<70`) looks for those libraries in
-`C:\msys64\mingw64\bin` or `C:\Program Files\GTK3-Runtime Win64\bin` by
+(`weasyprint>=70,<71`) looks for those libraries in
+`C:\msys64\ucrt64\bin`, `C:\msys64\mingw64\bin` or
+`C:\Program Files\GTK3-Runtime Win64\bin` by
 default (override with the `WEASYPRINT_DLL_DIRECTORIES` env var, `;`-separated) —
-install either an MSYS2 `mingw64` environment with Pango, or the standalone
-GTK3 Runtime Win64 installer. Full steps:
+install either an MSYS2 `ucrt64` (or `mingw64`) environment with Pango, or the
+standalone GTK3 Runtime Win64 installer. Full steps:
 [doc.courtbouillon.org/weasyprint/stable/first_steps.html#installation](https://doc.courtbouillon.org/weasyprint/stable/first_steps.html#installation).
 Without it, those four conversions fail at request time; everything else
 (images, audio, video, spreadsheets, TXT → PDF) is unaffected.

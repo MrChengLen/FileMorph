@@ -318,7 +318,10 @@ class AuditEvent(Base):
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
-    actor_ip: Mapped[Optional[str]] = mapped_column(String(45), nullable=True)
+    # No ``actor_ip``: the audit log stores no IP addresses. Every
+    # Alembic-managed database still has the nullable column (migration 005
+    # creates it); it is deliberately unmapped, so INSERTs leave it NULL,
+    # until a migration drops it. Don't map it again.
     payload_json: Mapped[str] = mapped_column(String, nullable=False)
     prev_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     record_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)

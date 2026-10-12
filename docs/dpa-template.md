@@ -95,21 +95,24 @@ Every Compliance-Edition deployment writes a tamper-evident audit log
 entry contains:
 
 - Event type, timestamp, actor identifier (the account ID, where there
-  is one), actor IP, and the event payload as canonical JSON (operation
-  metadata such as format pair, byte counts and output SHA-256; a
-  SHA-256 hash of the email address for events such as a failed login;
-  never file content)
+  is one), and the event payload as canonical JSON (operation metadata
+  such as format pair, byte counts and output SHA-256; a SHA-256 hash of
+  the email address for events such as a failed login; never file
+  content)
 - Hash of the previous event (chain integrity)
+
+No IP address is recorded.
 
 The audit log is a tamper-evident record of processing *operations* on
 the controller's behalf — useful evidence for, but distinct from, the
 controller's Article 30 *Verzeichnis von Verarbeitungstätigkeiten*
 (Records of Processing Activities), for which see
 [`docs/records-of-processing-template.md`](records-of-processing-template.md).
-The application has no built-in retention period for the audit log: rows
-are append-only and are not pruned automatically. Pruning them takes a
-privileged database role that bypasses the append-only trigger; the
-retention period and procedure are `[RETENTION PERIOD + PROCEDURE]`.
+The application has no built-in retention period for the audit log yet
+(one is planned): rows are append-only and are not pruned automatically.
+Pruning them takes a privileged database role that bypasses the
+append-only trigger; the retention period and procedure are
+`[RETENTION PERIOD + PROCEDURE]`.
 
 Each output of the single-file `/convert` and `/compress` endpoints
 carries an `X-Output-SHA256` response header so the controller can

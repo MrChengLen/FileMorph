@@ -220,11 +220,35 @@ filename cannot inject header bytes or break the parser.
 
 WeasyPrint accepts HTML and CSS, both of which can reference
 external URLs. To prevent server-side request forgery, every
-`weasyprint.HTML(...)` call passes `url_fetcher=_deny_url_fetcher`,
-defined in `app/converters/document.py` and applied at the only
-call-site there. The fetcher rejects every URL unconditionally —
-WeasyPrint never opens a network connection. Self-hosters should
-not disable this.
+`weasyprint.HTML(...)` call passes `url_fetcher=_deny_url_fetcher()`,
+defined in `app/converters/document.py` and applied at all four
+call sites there (HTML, Markdown, email and the pure-Python DOCX
+path). The fetcher rejects every URL unconditionally, remote, `file:`
+and `data:` alike, so WeasyPrint never opens a network connection or
+reads a file the document points to. A test in
+`tests/test_to_pdf_converters.py` renders a page that asks for a
+resource of each kind (stylesheet, font, image, SVG image,
+attachment) through all four call sites and fails if any of them
+loads; CI fails if WeasyPrint cannot render on the test runner, so
+that test cannot skip there. Self-hosters should not disable this.
+
+### Office image: LibreOffice subprocess hardening
+
+On the `filemorph:office` image, DOCX→PDF conversion can delegate to a
+LibreOffice (`soffice`) subprocess that parses the uploaded document. As
+defense-in-depth, that subprocess is run with a reduced environment
+(`_soffice_child_env` in `app/converters/document.py`): the application's
+secrets (signing key, database URL, Stripe and SMTP credentials) are dropped
+from the child environment, and a Ghostscript stub is placed ahead of any real
+`gs` on its `PATH`, so the subprocess cannot start Ghostscript. Every other
+system binary stays available, so the conversion itself is unaffected.
+FileMorph's own PDF/A re-render resolves Ghostscript in the app process and
+keeps working, as does the pure-Python (mammoth) path. This is in the same
+spirit as the Pillow setting that keeps WeasyPrint from reaching Ghostscript
+(`app/core/image_hardening.py`).
+`tests/test_office_gs_isolation.py` pins the subprocess environment, and
+`.github/workflows/docker-pr.yml` exercises a DOCX→PDF conversion on the office
+image.
 
 ### Decompression bombs
 
@@ -268,8 +292,8 @@ recognises is answered with HTTP 400 and
   client-supplied name as a path component.
 - **PT-007 (Medium).** Missing magic-byte validation was closed
   by introducing `BLOCKED_MAGIC` in the upload routes.
-- **PT-008 (Medium).** WeasyPrint SSRF was closed by the
-  `_deny_url_fetcher` callback.
+- **PT-008 (Medium).** WeasyPrint SSRF was closed by
+  `_deny_url_fetcher`, a URL fetcher that refuses every URL.
 - **PT-013 (Medium).** Output filename injection in
   `Content-Disposition` was closed by `safe_download_name()`.
 
@@ -446,12 +470,14 @@ mechanically.
 - Email and bcrypt-hashed password live in Postgres (`users`
   table).
 - API keys live as SHA-256 hashes in `api_keys`.
-- Original filenames and upload metadata are not persisted. The
-  `usage_records` table records only an operation type, byte counts,
-  and a timestamp. The output SHA-256 of a single-file convert/compress
-  result *is* persisted, though — as `output_sha256` in the audit-log
-  payload (see "File data" above); that hash is the verification anchor
-  the audit trail is built on, not a record of the file's contents.
+- Original filenames are not persisted. The `usage_records` table
+  records only an operation type, byte counts, and a timestamp. The
+  audit log keeps the metadata of each single-file convert/compress —
+  format (or format pair), byte counts, tier, data-classification
+  label, and the output SHA-256 as `output_sha256` (see "File data"
+  above); that hash is the verification anchor the audit trail is built
+  on, not a record of the file's contents. The audit log records no IP
+  address.
 - **Self-service account deletion** lives at `DELETE
   /api/v1/auth/account` (Art. 17 GDPR), fully self-service on both
   paths: three-field re-confirmation (`password`, `confirm_email`,
@@ -729,19 +755,11 @@ Self-hosters who fork this repository should recompile
 
 ### Accepted advisories
 
-Four advisories are currently allow-listed in CI
-(`--ignore-vuln` in `.github/workflows/ci.yml`) rather than blocking
-the build, each with a documented reason and a re-evaluation trigger:
-
-| Advisory | Package | Why it's accepted |
-|---|---|---|
-| PYSEC-2026-1325 (CVE-2024-23342, GHSA-wj6h-64fc-37mp) | `ecdsa`, transitive via `python-jose` | Minerva timing side-channel in ECDSA sign/keygen/ECDH. No fixed version exists upstream. Not reachable here: FileMorph's JWTs are HS256-only (`app/core/tokens.py`), so no ECDSA code path ever runs. Added 2026-07-15; drop once the project migrates off `python-jose` or upstream ships a fix. |
-| CVE-2026-55073 (GHSA-jf6q-chmf-3h3v), CVSS 6.2 | `weasyprint` &lt; 70.0 | SSRF-protection bypass: two `write_pdf()` parameters (`xmp_metadata`, `stylesheets`, both accepting a URL) build a fresh default fetcher instead of honouring a custom `url_fetcher`. Not reachable here: every `write_pdf()` call site passes only the output path, never those parameters. The fix (70.0) reworks the `url_fetcher` contract in a way that would break `_deny_url_fetcher`; re-evaluate once that port happens. Added 2026-09-09. |
-| CVE-2026-85394 (GHSA-3qf3-8w2g-rqmx), CVSS 9.1 | `python-jose` &le; 3.5.0 | Algorithm confusion: a DER-encoded public key is accepted as an HMAC secret, so a verifier that checks tokens with a public key and also allows HS256 accepts a token signed with that public key. No fixed release exists. Not reachable here: FileMorph has no asymmetric key. Every token is verified in one place (`app/core/tokens.py`) with the symmetric `JWT_SECRET` and `algorithms=["HS256"]`, and there is no JWKS, OIDC or SSO feature. Added 2026-10-06; review 2026-11-05 and at each release; drop once the project migrates off `python-jose` (required before any SSO work) or upstream ships a fix. |
-| CVE-2026-106443 (GHSA-r543-q48m-4c9j), CVSS 8.8 | `weasyprint` &lt; 70.0 | An image reference (`<img>`, CSS or SVG image, data URI) can make WeasyPrint hand PostScript to Pillow, whose EPS reader runs Ghostscript. Not reachable here, twice over: WeasyPrint gets a `url_fetcher` that refuses every URL it is asked to fetch, so no image bytes reach Pillow; and FileMorph, which converts no EPS, marks Ghostscript as missing for Pillow at startup (`app/core/image_hardening.py`), so Pillow cannot start it. The fix (70.0) needs the same `url_fetcher` port as CVE-2026-55073. Added 2026-10-08; review 2026-11-07 and at each release; drop when WeasyPrint 70 lands. |
-
-The full reasoning (with exact code line references) lives in the
-`ci.yml` comments next to the `pip-audit` step.
+No advisory is currently allow-listed in CI. A finding that is
+genuinely unfixable upstream and not reachable here would be
+allow-listed with `--ignore-vuln` in `.github/workflows/ci.yml`, with
+its reasoning next to the `pip-audit` step and a row here naming the
+reason and a re-evaluation trigger.
 
 ### Update cadence
 
@@ -769,6 +787,7 @@ For readers who want to jump directly to the code:
 | Magic-byte deny-list | `app/core/processing.py` (`BLOCKED_MAGIC`); enforced in `app/api/routes/convert.py` + `compress.py` |
 | Image-format allow-list | `app/core/image_hardening.py` (`IMAGE_INPUT_FORMATS`, `open_image`) |
 | WeasyPrint SSRF hardening | `app/converters/document.py` (search `_deny_url_fetcher`) |
+| Office image: hardened LibreOffice subprocess env | `app/converters/document.py` (search `_soffice_child_env`) |
 | Security-headers middleware (HSTS, Permissions-Policy, CSP, etc.) | `app/main.py::security_headers` |
 | CSP and CORS middleware | `app/main.py::_build_csp_header` |
 | Per-tier quotas and output cap | `app/core/quotas.py` |
@@ -780,7 +799,7 @@ For readers who want to jump directly to the code:
 
 ---
 
-*Last revised 2026-10-08. The findings synthesised here are
+*Last revised 2026-10-09. The findings synthesised here are
 sourced from the static code review dated 2026-04-19 and the
 current state of the repository. The 2026-09-28 revision corrects
 drift against the code: the account-deletion section now reflects
@@ -789,5 +808,9 @@ the Stripe webhook coverage table matches what is actually wired,
 the audit-log paragraph acknowledges the persisted output-hash
 attestation, and the accepted-advisories table lists the
 CVEs currently allow-listed in CI; the 2026-10-06 revision adds
-CVE-2026-85394 (`python-jose`), the 2026-10-08 revision
-CVE-2026-106443 (`weasyprint`).*
+CVE-2026-85394 (`python-jose`); the 2026-10-08 revisions add
+CVE-2026-106443 (`weasyprint`) and the office-image LibreOffice
+subprocess hardening, and drop CVE-2026-85394 and PYSEC-2026-1325
+with the move from `python-jose` to PyJWT; the 2026-10-09 revision
+drops CVE-2026-55073 and CVE-2026-106443 with the upgrade to
+WeasyPrint 70, which leaves no advisory allow-listed.*

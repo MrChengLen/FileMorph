@@ -7,7 +7,9 @@ from unittest.mock import MagicMock
 import pytest
 from PIL import Image
 
+from app.api.routes import convert as convert_route
 from app.api.routes.auth import get_optional_user
+from app.converters.registry import get_supported_conversions
 from app.main import app
 
 
@@ -235,3 +237,31 @@ def test_batch_target_formats_length_mismatch(client, auth_headers, override_fre
     )
     assert r.status_code == 422
     assert "One target per file" in r.json()["detail"]
+
+
+def test_batch_rejects_oversized_target_up_front(client, auth_headers, monkeypatch):
+    """A target longer than ``_MAX_TARGET_LEN`` refuses the whole batch with the
+    other request checks, before the quota check or any file, and the value is
+    not repeated in the response."""
+
+    def _must_not_run(*_args):
+        raise AssertionError("the batch got past its request checks")
+
+    monkeypatch.setattr(convert_route, "enforce_monthly_quota", _must_not_run)
+    r = client.post(
+        "/api/v1/convert/batch",
+        headers=auth_headers,
+        data={"target_formats": ["x" * (convert_route._MAX_TARGET_LEN + 1)]},
+        files=[("files", ("a.jpg", _jpg_bytes(), "image/jpeg"))],
+    )
+    assert r.status_code == 422
+    assert r.json()["detail"] == (
+        "Unknown target format. GET /api/v1/formats lists the supported ones."
+    )
+
+
+def test_every_registered_target_fits_the_batch_bound():
+    # A converter plugin with a longer target token would work on /convert but
+    # be refused by /convert/batch.
+    targets = {t for tgts in get_supported_conversions().values() for t in tgts}
+    assert max(map(len, targets)) <= convert_route._MAX_TARGET_LEN

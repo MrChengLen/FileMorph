@@ -403,6 +403,12 @@ def _js_i18n_strings(_: gettext.GNUTranslations.gettext) -> dict[str, str]:
             "This PDF is password-protected. Remove the password "
             "(e.g. open the file and print it to a new PDF) and try again."
         ),
+        # X-FileMorph-Error-Code: pdf_encryption_unsupported (certificate, DRM
+        # or an unsupported method) — read by pdf-tools.js and app.js too.
+        "pdfEncryptionUnsupported": _(
+            "This PDF is protected with a certificate or an unsupported encryption. "
+            "Remove the protection (e.g. ask the sender for an unprotected copy) and try again."
+        ),
         "pdfInvalidSelection": _(
             "Invalid page selection. Use 1-based page numbers and ranges, e.g. '1-3,5'."
         ),

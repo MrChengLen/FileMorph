@@ -379,7 +379,8 @@ curl -X POST https://api.filemorph.io/api/v1/convert/batch \
 `files` and `target_formats` are repeated multipart fields. They must
 have **the same length and the same order** — `target_formats[i]` is
 the desired output for `files[i]`. Mismatch → `422 Unprocessable
-Entity`; no file is converted.
+Entity`; no file is converted. The same applies to a `target_formats`
+value longer than 16 characters.
 
 ### The three response shapes
 
@@ -510,6 +511,11 @@ Common per-file `error_message` values:
   that opens only with a password, converted to `txt`, `pdf` or `pdfa`.
   Single-file `/convert` returns the same message as a `400` with
   `X-FileMorph-Error-Code: pdf_encrypted`.
+- `"This PDF is protected with a certificate or an unsupported encryption. …"`
+  — a PDF encrypted with a certificate or a method FileMorph can't open,
+  converted to `txt`, `pdf` or `pdfa`. Single-file `/convert` returns the
+  same message as a `400` with
+  `X-FileMorph-Error-Code: pdf_encryption_unsupported`.
 - `"Conversion failed. Verify the file is valid."` (compress:
   `"Compression failed. …"`) — any other error while processing that
   file, e.g. corrupt content. The details stay in the server log.
