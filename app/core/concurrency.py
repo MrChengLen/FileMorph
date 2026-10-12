@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""NEU-D.1: capacity guard for ``/convert`` and ``/compress``.
+"""NEU-D.1: capacity guard for ``/convert``, ``/compress``, ``/pdf/*`` and ``/ai/redact/*``.
 
 Why this exists
 ---------------
@@ -97,8 +97,8 @@ class ConcurrencyExhausted(HTTPException):
         else:
             sc = status.HTTP_429_TOO_MANY_REQUESTS
             detail = (
-                "Concurrency limit for this API key reached. "
-                "Lower the parallelism or upgrade the plan."
+                "Concurrency limit reached for this account, or for this IP address "
+                "when no account is used. Lower the parallelism or upgrade the plan."
             )
         super().__init__(
             status_code=sc, detail=detail, headers={"Retry-After": str(retry_after_seconds)}

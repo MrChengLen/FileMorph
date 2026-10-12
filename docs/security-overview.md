@@ -197,11 +197,13 @@ converter:
 
 1. **Magic-byte deny-list.** The first bytes of the upload are
    compared against `BLOCKED_MAGIC` (`[b"MZ", b"\x7fELF", b"#!/",
-   b"<?ph"]`). PE/ELF binaries, shell scripts, and PHP source
-   files are rejected before any decoder touches them.
-2. **MIME type from content, not client.** The
-   `Content-Type` claimed by the client is informational only;
-   the actual format is determined from bytes.
+   b"<?ph"]`). Files that start with a PE, ELF, shell-script or
+   PHP signature are rejected before any decoder touches them.
+2. **Format from the file extension.** The converter is chosen
+   from the file extension, not detected from content; the
+   `Content-Type` the client sends is not used. Image uploads are
+   then opened only by the readers listed under "Image formats"
+   below.
 3. **Path safety.** The original filename is never used as a
    filesystem path. Where a temporary path is needed, it uses a
    UUID stem under a `fm_`-prefixed scratch directory.
@@ -290,8 +292,12 @@ recognises is answered with HTTP 400 and
 - **PT-001 (Critical).** Path traversal via the upload filename
   was closed by switching to UUID stems and never trusting the
   client-supplied name as a path component.
-- **PT-007 (Medium).** Missing magic-byte validation was closed
-  by introducing `BLOCKED_MAGIC` in the upload routes.
+- **PT-007 (Medium), partially addressed.** `BLOCKED_MAGIC` in
+  the upload routes rejects files that start with an executable or
+  script signature. The review's recommendation, checking the
+  content against the file extension, is not implemented: the
+  extension still selects the converter (item 2 of the upload
+  pipeline above).
 - **PT-008 (Medium).** WeasyPrint SSRF was closed by
   `_deny_url_fetcher`, a URL fetcher that refuses every URL.
 - **PT-013 (Medium).** Output filename injection in
@@ -784,7 +790,7 @@ For readers who want to jump directly to the code:
 | API-key hashing and verification | `app/core/security.py` |
 | Password hashing and JWT issuance | `app/core/auth.py` |
 | Rate limiter | `app/core/rate_limit.py` |
-| Magic-byte deny-list | `app/core/processing.py` (`BLOCKED_MAGIC`); enforced in `app/api/routes/convert.py` + `compress.py` |
+| Magic-byte deny-list | `app/core/processing.py` (`BLOCKED_MAGIC`); enforced in `app/api/routes/convert.py`, `compress.py`, `pdf_pages.py` + `ai.py` |
 | Image-format allow-list | `app/core/image_hardening.py` (`IMAGE_INPUT_FORMATS`, `open_image`) |
 | WeasyPrint SSRF hardening | `app/converters/document.py` (search `_deny_url_fetcher`) |
 | Office image: hardened LibreOffice subprocess env | `app/converters/document.py` (search `_soffice_child_env`) |
