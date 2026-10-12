@@ -153,7 +153,7 @@ async def _do_extract(
             # and can say so when a password is the reason.
             logger.info("pdf extract rejected: %s", exc)
             if isinstance(exc, EncryptedPdfError):
-                code = "pdf_encrypted"
+                code = exc.error_code
             elif isinstance(exc, UnreadablePdfError):
                 code = "invalid_pdf"
             else:
@@ -256,7 +256,7 @@ async def _do_split(
             raise
         except (EncryptedPdfError, PageSelectionError) as exc:
             logger.info("pdf split rejected: %s", exc)
-            code = "pdf_encrypted" if isinstance(exc, EncryptedPdfError) else "invalid_pdf"
+            code = exc.error_code if isinstance(exc, EncryptedPdfError) else "invalid_pdf"
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(exc),
@@ -435,7 +435,7 @@ async def _do_compress(
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(exc),
-                headers={"X-FileMorph-Error-Code": "pdf_encrypted"},
+                headers={"X-FileMorph-Error-Code": exc.error_code},
             )
         except Exception:
             # security.md: no pikepdf/Pillow internals to the client — a

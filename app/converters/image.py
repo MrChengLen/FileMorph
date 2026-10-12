@@ -6,6 +6,7 @@ from PIL import Image
 from app.converters._metadata import strip_metadata
 from app.converters.base import BaseConverter
 from app.converters.registry import register
+from app.core.image_hardening import open_image
 
 # Register pillow-heif if available
 try:
@@ -51,7 +52,7 @@ if _heif_available:
 
 
 def _open_image(path: Path) -> Image.Image:
-    img = Image.open(path)
+    img = open_image(path)
     # Ensure we have a usable mode for saving
     if img.mode in ("RGBA", "LA", "P"):
         return img

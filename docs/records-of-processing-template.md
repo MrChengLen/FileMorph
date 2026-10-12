@@ -110,11 +110,11 @@ repository so that:
 | Field | |
 |---|---|
 | Purpose | Maintain a tamper-evident record of account and billing events (registration, login, email verification, password reset, account deletion, subscription and payment changes, online cancellations), of single-file conversion / compression operations, of contact-form messages and of PII redactions, for security and compliance evidence. API-key management, admin changes in the cockpit, batch jobs and the `/pdf/*` tools are not recorded |
-| Data subjects | Registered users; senders of contact-form messages and online cancellations |
-| Personal data | Account ID of the actor, where there is one (no email address stored); a SHA-256 hash of the email address for failed logins, duplicate registrations, password-reset requests, contact-form messages and online cancellations; the email domain for account deletions; actor IP address; event type; event payload (operation metadata such as format pair, byte counts, output hash — no file content); timestamp; hash of the previous event (chain integrity) |
+| Data subjects | Registered users; people whose email address is recorded as a hash (senders of contact-form messages and online cancellations, failed logins, duplicate registrations, password-reset requests) |
+| Personal data | Account ID of the actor, where there is one (no email address stored); a SHA-256 hash of the email address for failed logins, duplicate registrations, password-reset requests, contact-form messages and online cancellations; the email domain for account deletions; event type; event payload (operation metadata such as format pair, byte counts, output hash — no file content); timestamp; hash of the previous event (chain integrity). No IP address is recorded |
 | Recipients | None |
 | Third-country transfers | None |
-| Retention / erasure | `[operator: the audit log has no built-in retention period — rows are append-only and are not pruned automatically. State the period your privacy notice declares and how you prune (a privileged database role that bypasses the append-only trigger). On a hard delete (accounts without a Stripe customer id) the actor identifier is nulled while the event type and payload survive.]` |
+| Retention / erasure | `[operator: the audit log has no built-in retention period yet (one is planned) — rows are append-only and are not pruned automatically. State the period your privacy notice declares and how you prune (a privileged database role that bypasses the append-only trigger). On a hard delete (accounts without a Stripe customer id) the actor identifier is nulled while the event type and payload survive.]` |
 | TOMs | See [`dpa-tom-annex.md`](dpa-tom-annex.md) |
 
 ### A6 — Server / access logging

@@ -172,7 +172,7 @@ def test_convert_audit_payload_includes_classification(client, auth_headers, mon
 
     captured: list[dict] = []
 
-    async def fake_audit(event_type, *, actor_user_id=None, actor_ip=None, payload=None, db=None):
+    async def fake_audit(event_type, *, actor_user_id=None, payload=None, db=None):
         captured.append({"event": event_type, "payload": payload})
 
     monkeypatch.setattr(convert_route, "audit_record", fake_audit)

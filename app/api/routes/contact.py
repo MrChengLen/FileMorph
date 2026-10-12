@@ -63,22 +63,20 @@ class ContactRequest(BaseModel):
 @router.post("/contact", status_code=status.HTTP_200_OK)
 @limiter.limit("5/hour")
 async def submit_contact(request: Request, body: ContactRequest):
-    # TODO(followup, PR-R3): _client_ip / email-hashing are duplicated
-    # from app/api/routes/auth.py — extract to app/core/request_helpers.py
+    # TODO(followup, PR-R3): email-hashing is duplicated from
+    # app/api/routes/auth.py — extract to app/core/request_helpers.py
     # when auth.py is split into a sub-package.
-    actor_ip = request.client.host if request.client else None
-
     if body.website.strip():
         # Honeypot tripped: return the same 200 a successful send returns,
         # but do nothing — no email, no audit event.
-        logger.info("contact: honeypot tripped, dropping submission (ip=%s)", actor_ip)
+        client_ip = request.client.host if request.client else None
+        logger.info("contact: honeypot tripped, dropping submission (ip=%s)", client_ip)
         return {"detail": "Message sent."}
 
     locale = resolve_locale(request)
     email_hash = hashlib.sha256(body.email.strip().lower().encode("utf-8")).hexdigest()
     await audit_record(
         "contact.message.received",
-        actor_ip=actor_ip,
         payload={"email_hash": email_hash, "locale": locale},
     )
 

@@ -23,6 +23,8 @@ seeded generator. Test data only — never encrypt a real document that way.
 Output directory defaults to ``docs-internal/testdata/pdf-error-messages/``
 next to this repo checkout (the folder is gitignored — commit this script,
 never the data) and can be overridden as the first CLI argument.
+``make_testdata_pdf_unsupported_encryption.py`` imports ``PASSWORD``,
+``_locked`` and ``_three_pages`` from here; keep their names.
 
 Run:
     python scripts/make_testdata_pdf_error_messages.py [output_dir]

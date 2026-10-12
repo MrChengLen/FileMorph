@@ -8,6 +8,11 @@ refused the ``ON DELETE SET NULL`` cascade that clears
 Postgres for every free account (each has audit rows from registration and
 login) and deleted nothing. Migration 012 lets exactly that cascade through.
 
+Migration 013 adds ``hash_version``. Rows that exist when it runs keep
+verifying under recipe 1, the trigger guards the new column too, the plain-SQL
+check ``VERIFY_CHAIN_SQL`` finds what ``verify_chain`` finds, and the
+downgrade refuses once recipe-2 rows exist.
+
 These tests run ``alembic upgrade head`` against the database in
 ``FILEMORPH_TEST_POSTGRES_URL`` (an asyncpg URL) and skip without it. Every
 test empties the tables, so the database name must contain ``test``. CI's
@@ -35,7 +40,14 @@ from sqlalchemy.pool import NullPool
 
 from app.core import audit as audit_module
 from app.core import email as email_mod
-from app.core.audit import verify_chain
+from app.core.audit import (
+    GENESIS_PREV_HASH,
+    VERIFY_CHAIN_SQL,
+    _canonical_payload,
+    _compute_hash,
+    verify_chain,
+)
+from app.core.auth import hash_password
 from app.db.base import get_db
 from app.db.models import AuditEvent, User
 from app.main import app
@@ -141,9 +153,10 @@ def test_deleting_a_free_account_nulls_its_audit_actor(client, pg, monkeypatch):
         "UPDATE audit_events SET payload_json = '{}' WHERE id = :id",
         "UPDATE audit_events SET actor_user_id = NULL WHERE id = :id",
         "UPDATE audit_events SET actor_user_id = :other WHERE id = :id",
+        "UPDATE audit_events SET hash_version = 1 WHERE id = :id",
         "DELETE FROM audit_events WHERE id = :id",
     ],
-    ids=["payload", "null-live-actor", "reassign-actor", "delete"],
+    ids=["payload", "null-live-actor", "reassign-actor", "hash-version", "delete"],
 )
 def test_trigger_refuses_every_other_change(pg, statement):
     """Only the cascade of an account deletion may clear an actor. A direct
@@ -214,6 +227,177 @@ def test_cascade_may_change_nothing_but_the_actor(pg):
                 await s.execute(text("DELETE FROM users WHERE id = :id"), {"id": owner.id})
 
     asyncio.run(_run())
+
+
+# ── Migration 013: hash_version ──────────────────────────────────────────────
+
+_BEFORE_013 = "012_audit_actor_erasure"
+
+
+def _alembic(*args: str) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        [sys.executable, "-m", "alembic", *args],
+        cwd=_ROOT,
+        env={**os.environ, "DATABASE_URL": _URL},
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=300,
+    )
+
+
+def _upgrade_to_head() -> None:
+    up = _alembic("upgrade", "head")
+    assert up.returncode == 0, up.stdout + up.stderr
+
+
+async def _first_broken_row_by_sql(session: AsyncSession) -> int | None:
+    # Sent as it stands, the way an auditor would paste it into psql.
+    conn = await session.connection()
+    return (await conn.exec_driver_sql(VERIFY_CHAIN_SQL)).scalar()
+
+
+async def _insert_recipe_1_row(session: AsyncSession, prev_hash: str, actor=None) -> str:
+    """A row as the code before migration 013 wrote it: no hash_version."""
+    canonical = _canonical_payload({"before": 13})
+    record_hash = _compute_hash(prev_hash, canonical)
+    await session.execute(
+        text(
+            "INSERT INTO audit_events (event_type, actor_user_id, payload_json, prev_hash, "
+            "record_hash) VALUES ('auth.login.success', :actor, :payload, :prev, :record)"
+        ),
+        {"actor": actor, "payload": canonical, "prev": prev_hash, "record": record_hash},
+    )
+    return record_hash
+
+
+@needs_postgres
+def test_rows_from_before_013_keep_verifying(pg):
+    """The column default labels existing rows recipe 1; the rows written
+    after the upgrade are recipe 2 and chain onto them."""
+    down = _alembic("downgrade", _BEFORE_013)  # the pg fixture left the table empty
+    assert down.returncode == 0, down.stdout + down.stderr
+    try:
+
+        async def _write_old_rows():
+            async with pg() as s:
+                first = await _insert_recipe_1_row(s, GENESIS_PREV_HASH)
+                await _insert_recipe_1_row(s, first)
+                await s.commit()
+
+        asyncio.run(_write_old_rows())
+    finally:
+        _upgrade_to_head()
+
+    async def _extend_and_check():
+        async with pg() as s:
+            for i in range(2):
+                await audit_module.record_event("test.event", payload={"i": i}, db=s)
+        async with pg() as s:  # read back as asyncpg returns the values
+            # A session zone other than UTC: the SQL check must normalise
+            # occurred_at itself (``AT TIME ZONE 'UTC'``), as Python does.
+            await s.execute(text("SET TIME ZONE INTERVAL '+05:30' HOUR TO MINUTE"))
+            versions = (
+                (await s.execute(select(AuditEvent.hash_version).order_by(AuditEvent.id)))
+                .scalars()
+                .all()
+            )
+            return versions, await verify_chain(s), await _first_broken_row_by_sql(s)
+
+    versions, broken_at, broken_by_sql = asyncio.run(_extend_and_check())
+    assert versions == [1, 1, 2, 2]
+    assert broken_at is None
+    assert broken_by_sql is None
+
+
+@needs_postgres
+def test_verify_chain_sql_finds_the_row_whose_event_type_changed(pg):
+    """The plain-SQL check and verify_chain name the same row. The edit
+    runs with the table's triggers off, as only its owner can."""
+
+    async def _run():
+        async with pg() as s:
+            for i in range(3):
+                await audit_module.record_event("auth.login.failure", payload={"i": i}, db=s)
+            target = await s.scalar(select(AuditEvent.id).order_by(AuditEvent.id).offset(1))
+            await s.execute(text("ALTER TABLE audit_events DISABLE TRIGGER USER"))
+            await s.execute(
+                text("UPDATE audit_events SET event_type = 'auth.login.success' WHERE id = :id"),
+                {"id": target},
+            )
+            await s.execute(text("ALTER TABLE audit_events ENABLE TRIGGER USER"))
+            await s.commit()
+        async with pg() as s:
+            return target, await verify_chain(s), await _first_broken_row_by_sql(s)
+
+    target, broken_at, broken_by_sql = asyncio.run(_run())
+    assert broken_at == target
+    assert broken_by_sql == target
+
+
+@needs_postgres
+def test_deleting_an_account_clears_the_actor_on_rows_from_before_013(client, pg, monkeypatch):
+    """Rows that existed when 013 ran read hash_version from the column
+    default, not from their stored tuple — the state production is in. The
+    deletion cascade must still pass 012's whole-row comparison."""
+    monkeypatch.setattr(email_mod, "send_email", AsyncMock())
+    email = "before-013@example.com"
+
+    async def _create_owner():
+        async with pg() as s:  # at head, so the model matches the users table
+            owner = User(email=email, password_hash=hash_password(_PASSWORD))
+            s.add(owner)
+            await s.commit()
+            return owner.id
+
+    owner_id = asyncio.run(_create_owner())
+    down = _alembic("downgrade", _BEFORE_013)
+    assert down.returncode == 0, down.stdout + down.stderr
+    try:
+
+        async def _write_old_row():
+            async with pg() as s:
+                await _insert_recipe_1_row(s, GENESIS_PREV_HASH, actor=owner_id)
+                await s.commit()
+
+        asyncio.run(_write_old_row())
+    finally:
+        _upgrade_to_head()
+
+    res = client.post("/api/v1/auth/login", json={"email": email, "password": _PASSWORD})
+    assert res.status_code == 200, res.text
+    res = client.request(
+        "DELETE",
+        "/api/v1/auth/account",
+        json={"password": _PASSWORD, "confirm_email": email, "confirm_word": "DELETE"},
+        headers={"Authorization": f"Bearer {res.json()['access_token']}"},
+    )
+    assert res.status_code == 204, res.text
+
+    async def _state():
+        async with pg() as s:
+            first = (await s.execute(select(AuditEvent).order_by(AuditEvent.id))).scalars().first()
+            return first, await verify_chain(s), await _first_broken_row_by_sql(s)
+
+    first, broken_at, broken_by_sql = asyncio.run(_state())
+    assert (first.hash_version, first.actor_user_id) == (1, None)
+    assert broken_at is None
+    assert broken_by_sql is None
+
+
+@needs_postgres
+def test_013_downgrade_refuses_while_recipe_2_rows_exist(pg):
+    async def _write():
+        async with pg() as s:
+            await audit_module.record_event("test.event", payload={"i": 0}, db=s)
+
+    asyncio.run(_write())
+    down = _alembic("downgrade", _BEFORE_013)
+    try:
+        assert down.returncode != 0
+        assert "refusing to drop the column" in down.stdout + down.stderr
+    finally:
+        _upgrade_to_head()
 
 
 _TEST_JOBS = {"ci.yml": "lint-and-test", "deps-latest.yml": "test-latest"}

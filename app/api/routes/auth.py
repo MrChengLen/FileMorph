@@ -285,12 +285,6 @@ def _email_hash(email: str) -> str:
     return hashlib.sha256(email.strip().lower().encode("utf-8")).hexdigest()
 
 
-def _client_ip(request: Request) -> str | None:
-    """Return the caller's IP, or ``None`` if the harness left
-    ``request.client`` unset (TestClient sometimes does)."""
-    return request.client.host if request.client else None
-
-
 def _support_contact() -> str:
     """Best-effort support address for user-facing copy.
 
@@ -326,7 +320,6 @@ async def register(
         # ever attempted.
         await audit_record(
             "auth.register.duplicate",
-            actor_ip=_client_ip(request),
             payload={"email_hash": _email_hash(body.email)},
         )
         raise HTTPException(
@@ -356,7 +349,6 @@ async def register(
     await audit_record(
         "auth.register.success",
         actor_user_id=user.id,
-        actor_ip=_client_ip(request),
     )
     # NEU-B.3 (slice b): kick off the verification email. Fire-and-forget —
     # SMTP failures are logged but do not block registration. The user
@@ -366,7 +358,6 @@ async def register(
     await audit_record(
         "auth.email_verification.requested",
         actor_user_id=user.id,
-        actor_ip=_client_ip(request),
         payload={"trigger": "register"},
     )
     return _token_pair(user)
@@ -394,7 +385,6 @@ async def login(request: Request, body: LoginRequest, db: AsyncSession | None = 
         # the same target without storing the address itself).
         await audit_record(
             "auth.login.failure",
-            actor_ip=_client_ip(request),
             payload={"email_hash": _email_hash(body.email)},
         )
         raise HTTPException(
@@ -406,7 +396,6 @@ async def login(request: Request, body: LoginRequest, db: AsyncSession | None = 
     await audit_record(
         "auth.login.success",
         actor_user_id=user.id,
-        actor_ip=_client_ip(request),
     )
     return _token_pair(user)
 
@@ -560,7 +549,6 @@ async def forgot_password(
     await audit_record(
         "auth.password_reset.requested",
         actor_user_id=user.id if user is not None else None,
-        actor_ip=_client_ip(request),
         payload={"email_hash": _email_hash(body.email)},
     )
     if user is None or not user.is_active:
@@ -635,7 +623,6 @@ async def reset_password(
     await audit_record(
         "auth.password_reset.completed",
         actor_user_id=user.id,
-        actor_ip=_client_ip(request),
     )
     return {"message": "Password updated."}
 
@@ -690,7 +677,6 @@ async def verify_email(
         await audit_record(
             "auth.email_verification.completed",
             actor_user_id=user.id,
-            actor_ip=_client_ip(request),
         )
         logger.info("verify_email: user=%s verified", user.id)
 
@@ -713,7 +699,6 @@ async def resend_verification(request: Request, user: User = Depends(get_current
     await audit_record(
         "auth.email_verification.requested",
         actor_user_id=user.id,
-        actor_ip=_client_ip(request),
         payload={"trigger": "resend"},
     )
     return {"message": "Verification email sent."}
@@ -851,7 +836,6 @@ async def delete_account(
     # The user's saved email language, falling back to the request locale —
     # captured now because the tax-retained path nulls ``preferred_lang``.
     email_locale = user.preferred_lang or await get_locale(request)
-    actor_ip = _client_ip(request)
 
     # 4. Record the intent before the row changes. On the free path the
     #    ``actor_user_id`` FK becomes dangling and is nulled by the
@@ -860,7 +844,6 @@ async def delete_account(
     await audit_record(
         "auth.account_deletion.requested",
         actor_user_id=user_id,
-        actor_ip=actor_ip,
         payload={
             "email_domain": email_domain,
             "had_subscription": had_subscription,
@@ -890,7 +873,6 @@ async def delete_account(
     )
     await audit_record(
         "auth.account_deletion.completed",
-        actor_ip=actor_ip,
         payload={
             "email_domain": email_domain,
             "deletion_mode": mode,

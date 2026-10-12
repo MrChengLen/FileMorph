@@ -53,6 +53,10 @@ _ensure_loaded()
 # download name.
 _DOWNLOAD_SUFFIX: dict[str, str] = {"pdfa": "_pdfa.pdf"}
 
+# Upper bound for a /convert/batch target token. Registered tokens have at most
+# 4 characters; a test in tests/test_convert_batch.py keeps every one within it.
+_MAX_TARGET_LEN = 16
+
 
 def _download_name(original_stem: str, tgt_ext: str) -> str:
     return safe_download_name(original_stem, _DOWNLOAD_SUFFIX.get(tgt_ext, f".{tgt_ext}"))
@@ -174,10 +178,10 @@ async def _do_convert(
         except InvalidInputError as exc:
             # The converter named a problem the user can fix (e.g. a text file
             # that isn't UTF-8). Its message is caller-safe; a 400 tells the
-            # user what to change, where the generic 500 was a dead end. A
-            # password-protected PDF keeps the code it has on the PDF routes.
+            # user what to change, where the generic 500 was a dead end. An
+            # encrypted PDF keeps the code it has on the PDF routes.
             logger.info("invalid input rejected: %s -> %s (%s)", src_ext, tgt_ext, exc)
-            code = "pdf_encrypted" if isinstance(exc, EncryptedPdfError) else "invalid_input"
+            code = exc.error_code if isinstance(exc, EncryptedPdfError) else "invalid_input"
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(exc),
@@ -273,7 +277,6 @@ async def _do_convert(
         await audit_record(
             "convert.success",
             actor_user_id=user.id if user is not None else None,
-            actor_ip=request.client.host if request.client else None,
             payload={
                 "src": src_ext,
                 "tgt": tgt_ext,
@@ -306,7 +309,6 @@ async def _do_convert(
         await audit_record(
             "convert.failure",
             actor_user_id=user.id if user is not None else None,
-            actor_ip=request.client.host if request.client else None,
             payload={
                 "src": src_ext,
                 "tgt": tgt_ext,
@@ -401,6 +403,14 @@ async def _do_convert_batch(
                 f"target_formats has {len(target_formats)} entries but {len(files)} files "
                 "were uploaded. One target per file is required."
             ),
+        )
+
+    # A target longer than _MAX_TARGET_LEN is a client error, like the length
+    # mismatch above, so the whole batch is refused before any file is processed.
+    if any(len(t.strip()) > _MAX_TARGET_LEN for t in target_formats):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Unknown target format. GET /api/v1/formats lists the supported ones.",
         )
 
     # PR-M: monthly quota gate. One batch counts as one API call (matches the

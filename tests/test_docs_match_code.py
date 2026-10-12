@@ -33,7 +33,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from app.api.routes.auth import get_optional_user
-from app.api.routes.convert import _download_name
+from app.api.routes.convert import _MAX_TARGET_LEN, _download_name
 from app.core.batch import BatchFileResult, build_batch_zip
 from app.core.concurrency import ConcurrencyExhausted
 from app.core.config import Settings
@@ -346,6 +346,15 @@ def test_docs_quote_the_batch_length_mismatch_status(client, auth_headers, sampl
         assert section.count('"files=@') == section.count('"target_formats=')
 
 
+def test_docs_state_the_batch_target_bound():
+    for doc, heading in (
+        ("api-reference.md", "### POST `/api/v1/convert/batch`"),
+        ("api-usage-guide.md", "### Multipart layout"),
+    ):
+        text = " ".join(_section(doc, heading).split())
+        assert f"longer than {_MAX_TARGET_LEN} characters" in text, doc
+
+
 def test_api_guide_manifest_example_matches_the_route(client, auth_headers, sample_jpg):
     # A target no converter has fails the only file: 422 with the manifest shape.
     r = _upload(
@@ -385,6 +394,13 @@ def test_docs_quote_the_magic_byte_rejection(client, auth_headers):
         found = re.findall(pattern, _flat(doc))
         assert found, f"{doc}: the magic-byte rejection sentence was not found"
         assert {int(code) for code in found} == {r.status_code}, doc
+
+
+def test_api_guide_quotes_the_unreadable_image_message(client, auth_headers):
+    r = _upload(client, auth_headers, "/api/v1/convert", b"not an image", target_format="png")
+    assert (r.status_code, r.headers.get("X-FileMorph-Error-Code")) == (400, "invalid_input")
+    first_sentence = r.json()["detail"].split(". ")[0]
+    assert f'"{first_sentence}. …"' in _flat("api-usage-guide.md")
 
 
 def test_api_guide_format_discovery_matches_the_route(client):

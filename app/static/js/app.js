@@ -809,10 +809,17 @@ async function submitForm() {
         showError(`Batch failed: ${data.summary.failed}/${data.summary.total} files. First error: ${first}`);
       } else if (res.status === 400 && data.detail) {
         // Batch-size over tier limit lands here with a clear server message;
-        // so does a password-protected PDF (localized, falls back to detail)
+        // so does a password-protected PDF, or one with a certificate / an
+        // unsupported encryption (both localized, fall back to detail)
         const errCode = res.headers.get('X-FileMorph-Error-Code');
         const i18n = window.FM_I18N || {};
-        showError(errCode === 'pdf_encrypted' ? (i18n.pdfEncrypted || data.detail) : data.detail);
+        let msg = data.detail;
+        if (errCode === 'pdf_encrypted') {
+          msg = i18n.pdfEncrypted || data.detail;
+        } else if (errCode === 'pdf_encryption_unsupported') {
+          msg = i18n.pdfEncryptionUnsupported || data.detail;
+        }
+        showError(msg);
       } else if (res.status === 401) {
         showError('Invalid API key. Check your key and try again.');
       } else if (res.status === 413) {
