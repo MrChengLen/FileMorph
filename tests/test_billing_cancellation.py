@@ -534,8 +534,11 @@ def test_automatic_cancellation_at_period_end(client, send_mock, stripe_api):
     received = _events("billing.cancellation.received")[0]
     assert received.actor_user_id == user.id
     assert not any("testclient" in cell for cell in _stored_cells())  # no IPs in the audit log
+    # Nor anything derived from the address: the account is the actor.
+    local, domain = CUSTOMER.split("@")
+    derived = {CUSTOMER, local, domain, hashlib.sha256(CUSTOMER.encode()).hexdigest()}
+    assert not any(value in cell for cell in _stored_cells() for value in derived)
     assert json.loads(received.payload_json) == {
-        "email_hash": hashlib.sha256(CUSTOMER.encode()).hexdigest(),
         "contract": "pro",
         "kind": "ordinary",
         "end": "earliest",

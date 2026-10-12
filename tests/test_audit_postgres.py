@@ -119,6 +119,13 @@ def test_deleting_a_free_account_nulls_its_audit_actor(client, pg, monkeypatch):
     token = res.json()["access_token"]
     res = client.post("/api/v1/auth/login", json={"email": email, "password": _PASSWORD})
     assert res.status_code == 200, res.text
+    # Attempts made without signing in also name the account; the deletion
+    # must clear them as well.
+    wrong = {"email": email, "password": "wrong-password"}
+    assert client.post("/api/v1/auth/login", json=wrong).status_code == 401
+    taken = {"email": email, "password": _PASSWORD}
+    assert client.post("/api/v1/auth/register", json=taken).status_code == 409
+    assert client.post("/api/v1/auth/forgot-password", json={"email": email}).status_code == 200
 
     res = client.request(
         "DELETE",
@@ -139,6 +146,9 @@ def test_deleting_a_free_account_nulls_its_audit_actor(client, pg, monkeypatch):
     assert {e.event_type for e in events} >= {
         "auth.register.success",
         "auth.login.success",
+        "auth.login.failure",
+        "auth.register.duplicate",
+        "auth.password_reset.requested",
         "auth.account_deletion.requested",
         "auth.account_deletion.completed",
     }

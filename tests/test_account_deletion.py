@@ -434,6 +434,28 @@ def test_forgot_password_after_deletion_is_enumeration_safe(client, mock_send_em
 # ── Free path: structured-log shape ───────────────────────────────────────────
 
 
+def test_failed_confirmation_email_logs_the_domain_only(client, monkeypatch, caplog):
+    """The SMTP error chained to EmailSendError can name the recipient, so
+    the route logs the domain without the traceback."""
+
+    async def _refused(**kwargs):
+        try:
+            raise RuntimeError(f"recipient refused: {kwargs['to']}")
+        except RuntimeError as exc:
+            raise email_mod.EmailSendError("SMTP delivery failed") from exc
+
+    asyncio.run(_insert_user(email="alice@example.com"))
+    token = _login(client, "alice@example.com")
+    monkeypatch.setattr(email_mod, "send_email", _refused)
+    with caplog.at_level(logging.INFO):
+        assert _delete(client, "alice@example.com", token).status_code == 204
+
+    [failed] = [r for r in caplog.records if "confirmation email failed" in r.getMessage()]
+    assert failed.exc_info is None
+    assert "example.com" in failed.getMessage()
+    assert "alice@example.com" not in caplog.text
+
+
 def test_free_path_logs_deletion_mode_free(client, mock_send_email, caplog):
     asyncio.run(_insert_user(email="alice@example.com"))
     token = _login(client, "alice@example.com")

@@ -95,10 +95,15 @@ Every Compliance-Edition deployment writes a tamper-evident audit log
 entry contains:
 
 - Event type, timestamp, actor identifier (the account ID, where there
-  is one), and the event payload as canonical JSON (operation metadata
-  such as format pair, byte counts and output SHA-256; a SHA-256 hash of
-  the email address for events such as a failed login; never file
-  content)
+  is one; for a failed login, a duplicate registration or a
+  password-reset request, the account the entered address belongs to),
+  and the event payload as canonical JSON (operation metadata such as
+  format pair, byte counts and output SHA-256; nothing derived from an
+  email address; never file content). Entries written before this
+  change (on filemorph.io: up to and including 12 October 2026; on a
+  self-hosted instance: before it ran a release with this change) may
+  still hold a SHA-256 hash of an email
+  address or, for an account deletion, its domain
 - Hash of the previous event (chain integrity)
 
 No IP address is recorded.

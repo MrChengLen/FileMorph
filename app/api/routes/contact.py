@@ -9,10 +9,11 @@ is what lets a contact form stand in for a phone number under German
 DDG §5 / ECJ C-298/07.
 
 The message body is **never persisted**. The only record kept is an audit
-event (``contact.message.received``) with a hashed email + the submitter's
-browser locale — and even that is a no-op-with-warning on a deployment
-without ``DATABASE_URL`` (``record_event`` opens its own session), so the
-form works on the Community edition too.
+event (``contact.message.received``) with the submitter's browser locale.
+Nothing derived from their address goes into it: the payload sits in the
+hash chain and could never be erased. Even that event is skipped on a
+deployment without ``DATABASE_URL`` (``record_event`` opens its own
+session), so the form works on the Community edition too.
 
 Spam controls — no external captcha (the project promises "no external
 resources"):
@@ -31,7 +32,6 @@ through — on failure the UI hands them the direct-email fallback.
 
 from __future__ import annotations
 
-import hashlib
 import html as html_mod
 import logging
 
@@ -63,9 +63,6 @@ class ContactRequest(BaseModel):
 @router.post("/contact", status_code=status.HTTP_200_OK)
 @limiter.limit("5/hour")
 async def submit_contact(request: Request, body: ContactRequest):
-    # TODO(followup, PR-R3): email-hashing is duplicated from
-    # app/api/routes/auth.py — extract to app/core/request_helpers.py
-    # when auth.py is split into a sub-package.
     if body.website.strip():
         # Honeypot tripped: return the same 200 a successful send returns,
         # but do nothing — no email, no audit event.
@@ -74,10 +71,9 @@ async def submit_contact(request: Request, body: ContactRequest):
         return {"detail": "Message sent."}
 
     locale = resolve_locale(request)
-    email_hash = hashlib.sha256(body.email.strip().lower().encode("utf-8")).hexdigest()
     await audit_record(
         "contact.message.received",
-        payload={"email_hash": email_hash, "locale": locale},
+        payload={"locale": locale},
     )
 
     subject_line = (

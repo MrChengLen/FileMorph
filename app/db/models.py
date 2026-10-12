@@ -317,6 +317,11 @@ class AuditEvent(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
     event_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    # The account an event concerns: the one that acted or, for an attempt
+    # made without signing in — a failed login, a registration with a taken
+    # address, a password-reset request, an online cancellation — the
+    # account the route's own lookup matched. For those the request may have
+    # come from anyone, so filter by event_type before reading it as "who".
     # Nulled by the database when the user is deleted (see the class
     # docstring). A ``User.audit_events`` relationship would need
     # ``passive_deletes="all"``: otherwise the ORM nulls the rows itself

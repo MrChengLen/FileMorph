@@ -1,5 +1,4 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-import hashlib
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -262,29 +261,6 @@ def _token_pair(user: User, refresh_token: str | None = None) -> TokenResponse:
     )
 
 
-def _email_hash(email: str) -> str:
-    """Lowercased SHA-256 of an email address.
-
-    Used in audit-event payloads for ``auth.login.failure`` and
-    ``auth.password_reset.requested`` so the chain records "this
-    email-shape was attempted N times" without recording the email
-    itself. Two reasons:
-
-    - Email addresses are PII (DSGVO Art. 4 Nr. 1). Storing them in
-      an append-only chain that may live for years exceeds the
-      data-minimisation principle (DSGVO Art. 5 Abs. 1 lit. c).
-    - An attacker who later exfiltrates the audit table learns
-      every email anyone ever tried to log in with. Hashing turns
-      that into "every email-hash anyone ever tried" — still useful
-      for failure-rate analysis, useless for credential stuffing.
-
-    Lowercased before hashing so ``Foo@Example.com`` and
-    ``foo@example.com`` collide on the same hash, matching the
-    existing case-insensitive lookup in ``forgot_password``.
-    """
-    return hashlib.sha256(email.strip().lower().encode("utf-8")).hexdigest()
-
-
 def _support_contact() -> str:
     """Best-effort support address for user-facing copy.
 
@@ -313,14 +289,15 @@ async def register(
     existing = await db.execute(
         select(User).where(User.email == body.email, User.deleted_at.is_(None))
     )
-    if existing.scalar_one_or_none():
-        # NEU-B.3: surface the duplicate-email attempt to the audit chain
-        # using the hash, not the address — enumeration-pattern visibility
-        # without the chain becoming a directory of every email anyone
-        # ever attempted.
+    existing_user = existing.scalar_one_or_none()
+    if existing_user:
+        # NEU-B.3: record the duplicate-email attempt against the account
+        # it names. Nothing derived from the address goes into the payload,
+        # which the hash chain could never erase; the account id sits
+        # outside it and is cleared when the account is deleted.
         await audit_record(
             "auth.register.duplicate",
-            payload={"email_hash": _email_hash(body.email)},
+            actor_user_id=existing_user.id,
         )
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="Email already registered."
@@ -379,13 +356,15 @@ async def login(request: Request, body: LoginRequest, db: AsyncSession | None = 
     )
     user = result.scalar_one_or_none()
     if not user or not verify_password(body.password, user.password_hash):
-        # NEU-B.3: ISO 27001 A.9.4.2 — record failed authentication. No
-        # actor_user_id (we don't reveal whether the email exists; the
-        # email_hash is enough to correlate brute-force attempts across
-        # the same target without storing the address itself).
+        # NEU-B.3: ISO 27001 A.9.4.2 — record failed authentication. A
+        # wrong password names the account the lookup above matched, so
+        # attempts against it stay visible; the id sits outside the hash
+        # chain and is cleared when the account is deleted. An address
+        # without an active account leaves no trace of itself. The client
+        # gets the same answer either way.
         await audit_record(
             "auth.login.failure",
-            payload={"email_hash": _email_hash(body.email)},
+            actor_user_id=user.id if user is not None else None,
         )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password."
@@ -543,13 +522,12 @@ async def forgot_password(
     )
     user = result.scalar_one_or_none()
     # NEU-B.3: every reset-request lands in the audit chain — both the
-    # match-and-send path and the no-match early-return path — keyed by
-    # email_hash so an auditor can see "thousands of resets attempted
-    # against this email-shape" without us logging the email itself.
+    # match-and-send path and the no-match early-return path. It names
+    # the account the lookup above matched, if any; nothing derived from
+    # the address goes into the payload, which could never be erased.
     await audit_record(
         "auth.password_reset.requested",
         actor_user_id=user.id if user is not None else None,
-        payload={"email_hash": _email_hash(body.email)},
     )
     if user is None or not user.is_active:
         email_domain = body.email.split("@", 1)[-1] if "@" in body.email else "invalid"
@@ -747,7 +725,12 @@ async def _send_account_deleted_email_safe(
     try:
         await email_mod.send_email(to=user_email, subject=subject, html=html, text=text)
     except email_mod.EmailSendError:
-        logger.exception("account_deletion: confirmation email failed for %s", user_email)
+        # This message names the domain only. No exc_info: the chained SMTP
+        # error can carry the recipient, and send_email logs the cause.
+        logger.error(
+            "account_deletion: confirmation email failed (domain=%s)",
+            user_email.rsplit("@", 1)[-1],
+        )
 
 
 async def _is_last_active_admin(db: AsyncSession, user: User) -> bool:
@@ -845,7 +828,6 @@ async def delete_account(
         "auth.account_deletion.requested",
         actor_user_id=user_id,
         payload={
-            "email_domain": email_domain,
             "had_subscription": had_subscription,
             "deletion_mode": mode,
         },
@@ -873,10 +855,7 @@ async def delete_account(
     )
     await audit_record(
         "auth.account_deletion.completed",
-        payload={
-            "email_domain": email_domain,
-            "deletion_mode": mode,
-        },
+        payload={"deletion_mode": mode},
     )
     await _send_account_deleted_email_safe(user_email, deleted_at_iso, email_locale, mode)
     # 204 No Content — body intentionally empty.
