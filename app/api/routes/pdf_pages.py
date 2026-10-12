@@ -47,7 +47,6 @@ from app.compressors.pdf import compress_pdf_to_target
 from app.converters.base import EncryptedPdfError
 from app.converters.pdf_pages import (
     PageSelectionError,
-    TooManyPagesError,
     UnreadablePdfError,
     extract_pages,
     split_pdf,
@@ -151,15 +150,12 @@ async def _do_extract(
             # client's page selection or PDF was the problem, not the server.
             # The code tells the UI which one, so it doesn't blame the
             # selection for a file without pages or one pypdf can't read,
-            # can say so when a password is the reason, and names the page
-            # cap instead of the selection syntax for a selection over it.
+            # and can say so when a password is the reason.
             logger.info("pdf extract rejected: %s", exc)
             if isinstance(exc, EncryptedPdfError):
                 code = "pdf_encrypted"
             elif isinstance(exc, UnreadablePdfError):
                 code = "invalid_pdf"
-            elif isinstance(exc, TooManyPagesError):
-                code = "pdf_too_many_pages"
             else:
                 code = "invalid_page_selection"
             raise HTTPException(
@@ -260,14 +256,7 @@ async def _do_split(
             raise
         except (EncryptedPdfError, PageSelectionError) as exc:
             logger.info("pdf split rejected: %s", exc)
-            # A PDF over the page cap is valid; invalid_pdf would make the UI
-            # call it unreadable.
-            if isinstance(exc, EncryptedPdfError):
-                code = "pdf_encrypted"
-            elif isinstance(exc, TooManyPagesError):
-                code = "pdf_too_many_pages"
-            else:
-                code = "invalid_pdf"
+            code = "pdf_encrypted" if isinstance(exc, EncryptedPdfError) else "invalid_pdf"
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(exc),
