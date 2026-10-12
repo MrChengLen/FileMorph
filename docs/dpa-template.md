@@ -91,8 +91,8 @@ or data sale.
 ## 5. Audit log and integrity attestation
 
 Every Compliance-Edition deployment writes a tamper-evident audit log
-(SHA-256 hash chain, see `app/core/audit.py` and Migration 005). Each
-entry contains:
+(SHA-256 hash chain, see `app/core/audit.py` and Migrations 005, 012
+and 013). Each entry contains:
 
 - Event type, timestamp, actor identifier (the account ID, where there
   is one; for a failed login, a duplicate registration or a
@@ -104,7 +104,13 @@ entry contains:
   self-hosted instance: before it ran a release with this change) may
   still hold a SHA-256 hash of an email
   address or, for an account deletion, its domain
-- Hash of the previous event (chain integrity)
+- Hash of the previous event and the entry's own hash (chain
+  integrity). Each entry records its hash format (`hash_version`), and
+  `app/core/audit.py` specifies each format; the current one covers the
+  event type, the UTC timestamp, the payload and the previous entry's
+  hash. The actor identifier stays outside the hash, so that it can be
+  erased (Art. 17 GDPR) without breaking the chain. `VERIFY_CHAIN_SQL`
+  in `app/core/audit.py` checks the whole chain from a database dump
 
 No IP address is recorded.
 

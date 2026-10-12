@@ -408,6 +408,23 @@ def test_verify_chain_sql_can_be_copied_from_the_source():
     assert VERIFY_CHAIN_SQL in source
 
 
+@pytest.mark.parametrize(
+    "doc",
+    [
+        "dpa-template.md",
+        "dpa-tom-annex.md",
+        "security-overview.md",
+        "vendor-security-questionnaire.md",
+    ],
+)
+def test_compliance_docs_point_to_the_sql_check(doc):
+    """These docs send auditors to ``VERIFY_CHAIN_SQL``; renaming it in
+    app/core/audit.py must not leave them pointing at nothing."""
+    assert hasattr(audit_module, "VERIFY_CHAIN_SQL"), "renamed? update the docs too"
+    docs = Path(__file__).resolve().parent.parent / "docs"
+    assert "VERIFY_CHAIN_SQL" in (docs / doc).read_text(encoding="utf-8"), doc
+
+
 def test_canonical_timestamp_is_utc_fixed_width_whatever_the_zone():
     """Postgres hands ``occurred_at`` back timezone-aware (any zone),
     SQLite hands it back naive: the same instant must hash the same."""

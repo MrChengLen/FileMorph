@@ -465,6 +465,12 @@ mechanically.
   audit-log hash chain (NEU-B.1) into something a downstream
   workflow (GoBD-archival, beA-Anhang-Trail, eDiscovery) can act
   on without trusting the application path.
+- Each audit entry records its hash format (`hash_version`), and
+  `app/core/audit.py` specifies each format; the current one covers the
+  event type, the UTC timestamp, the payload and the previous entry's
+  hash. The account ID stays outside the hash so that account deletion
+  can clear it. `VERIFY_CHAIN_SQL` in `app/core/audit.py` checks the
+  whole chain in plain Postgres SQL.
 - `RETENTION_HOURS` is an informational knob (default `0` =
   ephemeral by design; the Cloud edition's published privacy
   position). Compliance-edition self-hosters who plan to use the
