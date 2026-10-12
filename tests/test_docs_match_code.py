@@ -11,7 +11,9 @@ of the markdown and compare them with the code, so the next quota change fails
 CI until the docs follow.
 
 The same goes for the status codes and error messages the docs quote: those
-tests call the route and look for its answer in the markdown. And for what the
+tests call the route and look for its answer in the markdown. What the security
+docs and the pricing page say about the upload checks and the concurrency cap
+is checked against the routes and helpers that implement them. And for what the
 docs say about the ``pillow-heif`` wheel: those tests read the installed wheel
 and ``requirements.lock``.
 
@@ -21,6 +23,7 @@ against the code, then update the pattern here.
 
 from __future__ import annotations
 
+import ast
 import dataclasses
 import importlib.metadata
 import io
@@ -36,7 +39,8 @@ from app.api.routes.auth import get_optional_user
 from app.api.routes.convert import _MAX_TARGET_LEN, _download_name
 from app.core.batch import BatchFileResult, build_batch_zip
 from app.core.concurrency import ConcurrencyExhausted
-from app.core.config import Settings
+from app.core.config import Settings, settings
+from app.core.processing import BLOCKED_MAGIC, actor_id
 from app.core.quotas import _MB, QUOTAS
 from app.main import app
 
@@ -280,9 +284,18 @@ def _with_placeholders(message: str) -> str:
     return re.sub(r"\(\d+ MB max for your plan\)", "(N MB max for your plan)", message)
 
 
-def _upload(client, auth_headers, path: str, content: bytes, **data):
+def _upload(
+    client,
+    auth_headers,
+    path: str,
+    content: bytes,
+    *,
+    name: str = "a.jpg",
+    content_type: str = "image/jpeg",
+    **data,
+):
     field = "files" if path.endswith("/batch") else "file"
-    files = [(field, ("a.jpg", content, "image/jpeg"))]
+    files = [(field, (name, content, content_type))]
     return client.post(path, headers=auth_headers, files=files, data=data)
 
 
@@ -437,6 +450,120 @@ def test_api_reference_retry_after_row_matches_the_code():
         assert exc.headers["Retry-After"] == "5"
         assert f"`{exc.status_code}" in set_on, f"the row leaves out {exc.status_code}"
     assert "except the rate limiter's (slowapi" in set_on
+
+
+# ── Upload checks and the concurrency cap ────────────────────────────────────
+
+# How the docs used to describe BLOCKED_MAGIC: as an allow-list. It names the
+# prefixes to refuse and lets every other file through — a deny-list.
+_MAGIC_ALLOW_LIST = re.compile(r"magic[- ]byte allow-?list|BLOCKED_MAGIC`? allow-?list", re.I)
+
+
+def test_docs_call_blocked_magic_a_deny_list(client, auth_headers):
+    for prefix in BLOCKED_MAGIC:
+        r = _upload(
+            client, auth_headers, "/api/v1/convert", prefix + bytes(64), target_format="png"
+        )
+        # The detail, not just the 400: the image reader refuses these bytes too.
+        assert (r.status_code, r.json()["detail"]) == (400, "File type not permitted."), prefix
+    for doc in ("security-overview.md", "vendor-security-questionnaire.md"):
+        quoted = re.search(r'\[b"MZ".*?\]', _flat(doc))
+        assert quoted, f"{doc}: the quoted BLOCKED_MAGIC list was not found"
+        assert ast.literal_eval(quoted.group(0)) == BLOCKED_MAGIC, doc
+    claims = [
+        f"{doc.name}: {match.group(0)!r}"
+        for doc in sorted(DOCS.glob("*.md"))
+        for match in _MAGIC_ALLOW_LIST.finditer(" ".join(doc.read_text(encoding="utf-8").split()))
+    ]
+    assert not claims, f"docs call the magic-byte deny-list an allow-list: {claims}"
+
+
+def _names(source: str) -> set[str]:
+    """The names a module's code uses; an import alone does not count."""
+    return {node.id for node in ast.walk(ast.parse(source)) if isinstance(node, ast.Name)}
+
+
+def test_docs_name_every_upload_route_that_checks_magic_bytes():
+    """Every route module that takes an upload runs the BLOCKED_MAGIC check, and
+    the two docs that anchor the check name each of them — they named two of four."""
+    names = {path.name: _names(path.read_text(encoding="utf-8")) for path in ROUTES.glob("*.py")}
+    uploads = {module for module, used in names.items() if "UploadFile" in used}
+    assert uploads, "no route takes an UploadFile any more — update this test"
+    unchecked = sorted(module for module in uploads if "BLOCKED_MAGIC" not in names[module])
+    assert not unchecked, f"routes take uploads without the magic-byte check: {unchecked}"
+    for doc in ("security-overview.md", "threat-model.md"):
+        line = next(
+            (
+                line
+                for line in _text(doc).splitlines()
+                if "(`BLOCKED_MAGIC`)" in line and "enforced in" in line
+            ),
+            None,
+        )
+        assert line, f"{doc}: the BLOCKED_MAGIC anchor was not found"
+        named = set(re.findall(r"(\w+\.py)`", line.split("enforced in", 1)[1]))
+        assert named == uploads, f"{doc} names {sorted(named)}; uploads go to {sorted(uploads)}"
+
+
+# How the docs used to say the format is taken from the content.
+_FORMAT_FROM_CONTENT = re.compile(
+    r"determined from (?:the )?(?:bytes|content)|MIME type from content", re.I
+)
+
+
+def test_docs_say_the_extension_picks_the_converter(client, auth_headers, sample_jpg):
+    """The file extension picks the converter; neither the bytes nor the
+    Content-Type the client sends do. The security overview said the format "is
+    determined from bytes"."""
+    jpg = sample_jpg.read_bytes()
+    r = _upload(
+        client,
+        auth_headers,
+        "/api/v1/convert",
+        jpg,
+        content_type="application/pdf",
+        target_format="png",
+    )
+    assert r.status_code == 200
+    # A real JPEG under an unknown extension: the refusal names the extension.
+    r = _upload(client, auth_headers, "/api/v1/convert", jpg, name="a.xyz", target_format="png")
+    assert (r.status_code, r.json()["detail"]) == (
+        422,
+        "Conversion from 'xyz' to 'png' is not supported.",
+    )
+    for doc in ("security-overview.md", "vendor-security-questionnaire.md", "dpa-tom-annex.md"):
+        assert "chosen from the file extension, not detected from content" in _flat(doc), doc
+    claims = [
+        f"{doc.name}: {match.group(0)!r}"
+        for doc in sorted(DOCS.glob("*.md"))
+        for match in _FORMAT_FROM_CONTENT.finditer(
+            " ".join(doc.read_text(encoding="utf-8").split())
+        )
+    ]
+    assert not claims, f"docs say the format is taken from the content: {claims}"
+
+
+def test_concurrency_cap_is_described_per_account_or_ip(client, monkeypatch):
+    """The per-actor cap counts per account, or per IP address for a request
+    without one — never per API key. The 429 and the pricing page said "key"."""
+    request = MagicMock()
+    request.client.host = "203.0.113.7"
+    assert actor_id(request, MagicMock(id=42), "pro") == "user:42"  # whichever key or token
+    assert actor_id(request, None, "anonymous") == "ip:203.0.113.7"
+    assert actor_id(request, None, "pro").startswith("ip:203.0.113.7")  # a key-file key
+    detail = ConcurrencyExhausted(scope="per_actor", retry_after_seconds=1).detail
+    assert "key" not in detail.lower()
+    assert "account" in detail and "IP address" in detail
+    monkeypatch.setattr(settings, "pricing_page_enabled", True)
+    for locale, cap in (
+        ("en", "per account (per IP address without an account)"),
+        ("de", "pro Konto (ohne Konto: pro IP-Adresse)"),
+    ):
+        r = client.get(f"/{locale}/pricing")
+        assert r.status_code == 200, locale
+        page = " ".join(r.text.split())
+        assert cap in page, f"/{locale}/pricing: the concurrency-cap sentence was not found"
+        assert "per-key" not in page and "Pro-Key" not in page, locale
 
 
 # ── Authentication ───────────────────────────────────────────────────────────

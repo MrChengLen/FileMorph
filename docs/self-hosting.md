@@ -735,8 +735,9 @@ The only persistent data is `data/api_keys.json`.
 
 ### Capacity tuning (NEU-D.1 concurrency limiter)
 
-`/convert` and `/compress` enforce a global parallelism cap and a
-per-actor cap so a single tenant cannot OOM the worker. The
+`/convert`, `/compress`, the PDF tools (`/pdf/*`) and `/ai/redact/*`
+enforce a global parallelism cap and a per-actor cap so a single
+tenant cannot OOM the worker. The
 defaults are sized for a 4 GB host:
 
 | Env var | Default | What it controls |
@@ -749,8 +750,10 @@ defaults are sized for a 4 GB host:
 Per-actor limits (per user for authenticated callers, per client IP
 for everyone else) are tier-bound and not env-tunable: anonymous and
 free get 1 concurrent request, Pro 3, Business 6, Enterprise 10.
-`API_KEYS_FILE_TIER` only picks the tier your key-file keys run on;
-their requests count apart from the keyless ones from the same IP. A
+`API_KEYS_FILE_TIER` only picks the tier your key-file keys run on
+(on `/ai/redact/*` they stay anonymous); elsewhere, once lifted above
+anonymous, their requests count apart from the keyless ones from the
+same IP. A
 request past the per-actor cap returns `429 Too Many Requests`
 with `Retry-After`. These numbers are documented on the public
 [`/pricing`](/pricing) page so callers can size their own client
