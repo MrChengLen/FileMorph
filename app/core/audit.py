@@ -4,7 +4,7 @@
 ISO 27001 A.12.4.1 / BORA §50 / BeurkG §39a / BSI OPS.1.1.5 all expect
 operations on regulated data to leave a record that is provably
 unaltered. This module provides that record. The chain is intentionally
-simple — a forward SHA-256 chain over canonical-JSON event payloads —
+simple — a forward SHA-256 chain over each event's record —
 because simplicity is what makes it auditable from a SQL dump without
 running our code.
 
@@ -16,10 +16,19 @@ Three properties hold:
    ``actor_user_id`` when that account is deleted. SQLite (test
    harness only) skips the trigger; we cover the SQLite path with a
    "verify rejects tampering" test instead.
-2. **Forward chain.** ``record_hash[i] = SHA256(record_hash[i-1] ||
-   canonical_payload[i])``. The first row uses ``'0' * 64`` as the
-   genesis sentinel. Any retroactive edit cascades — every row from
-   the tampered one onward fails verification.
+2. **Forward chain.** ``record_hash[i]`` is the SHA-256 of
+   ``record_hash[i-1]`` plus row i's ``event_type``, ``occurred_at`` and
+   canonical payload; the exact byte recipe is in ``_compute_hash_v2``.
+   The first row uses ``'0' * 64`` as the genesis sentinel. Any
+   retroactive edit cascades — every row from the tampered one onward
+   fails verification. ``hash_version`` names the recipe per row: 2 for
+   rows written by this code, 1 for rows written before the column
+   existed (``SHA256(prev_hash || canonical_payload)``,
+   ``_compute_hash``); both kinds verify in one pass. ``actor_user_id``
+   is not hashed, in either recipe: it is personal data and must stay
+   erasable without breaking the chain — account deletion NULLs it
+   through ON DELETE SET NULL (the one UPDATE the trigger lets through,
+   migration 012).
 3. **Fire-and-forget by default.** ``record_event`` never raises into
    the caller. Compliance Edition flips ``settings.audit_fail_closed
    = True`` and the helper raises an ``AuditWriteError`` instead, so a
@@ -45,6 +54,7 @@ import json
 import logging
 import re
 import uuid
+from datetime import datetime, timezone
 from typing import Any, Mapping
 
 from sqlalchemy import select, text
@@ -63,6 +73,10 @@ logger = logging.getLogger(__name__)
 # chain"; if it appears in the middle of the table, that itself is
 # evidence of tampering.
 GENESIS_PREV_HASH = "0" * 64
+
+# Recipe ``_do_record`` writes (``AuditEvent.hash_version``). Rows from
+# before the column existed carry 1; see ``_recompute_hash``.
+HASH_VERSION = 2
 
 # Mirror of the metrics-key whitelist: ASCII lower/digit/dot/underscore/
 # hyphen, ≤64 chars. Event types are constructed in code, never from
@@ -95,17 +109,68 @@ def _canonical_payload(payload: Mapping[str, Any] | None) -> str:
 
 
 def _compute_hash(prev_hash: str, canonical: str) -> str:
-    """``SHA-256(prev_hash || canonical_payload)`` as lowercase hex.
+    """Recipe 1: ``SHA-256(prev_hash || canonical_payload)`` as lowercase hex.
 
-    Both inputs are ASCII / UTF-8 strings; we encode once and feed the
-    bytes into one hash context. No domain-separator is needed because
-    ``prev_hash`` is fixed-length (64 hex chars) — the boundary is
-    unambiguous to an auditor reading the spec in this docstring.
+    Verifies rows written before ``hash_version`` existed; new rows use
+    ``_compute_hash_v2``. Both inputs are ASCII / UTF-8 strings; we encode
+    once and feed the bytes into one hash context. No domain-separator is
+    needed because ``prev_hash`` is fixed-length (64 hex chars) — the
+    boundary is unambiguous to an auditor reading the spec in this docstring.
     """
     h = hashlib.sha256()
     h.update(prev_hash.encode("ascii"))
     h.update(canonical.encode("utf-8"))
     return h.hexdigest()
+
+
+def _canonical_timestamp(value: datetime) -> str:
+    """``occurred_at`` as hashed: UTC, microseconds, fixed width, e.g.
+    ``2026-09-29T07:48:13.921000Z``.
+
+    A naive value is UTC: SQLite (test harness) stores the UTC wall clock
+    without an offset and returns it naive; Postgres ``timestamptz``
+    comes back timezone-aware, possibly in another zone.
+    """
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    utc = value.astimezone(timezone.utc).replace(tzinfo=None)
+    return utc.isoformat(timespec="microseconds") + "Z"
+
+
+def _compute_hash_v2(prev_hash: str, event_type: str, occurred_at: datetime, canonical: str) -> str:
+    r"""Recipe 2: SHA-256, as lowercase hex, of the UTF-8 bytes of
+    ``"v2\n" + prev_hash + "\n" + event_type + "\n" + occurred_at +
+    "\n" + canonical_payload``, with ``occurred_at`` formatted by
+    ``_canonical_timestamp``.
+
+    A message this code writes holds exactly four newlines, the
+    separators: ``prev_hash`` is 64 hex chars, ``event_type`` passes
+    ``_VALID_EVENT_TYPE``, the timestamp has a fixed format, and
+    ``_canonical_payload`` escapes every newline. Any other field values
+    either split differently or add a newline, so they cannot produce the
+    same bytes. The leading ``v2`` can never start a recipe-1 input,
+    which begins with 64 hex chars.
+
+    The same value in Postgres alone (``VERIFY_CHAIN_SQL`` is the
+    full-chain query)::
+
+        encode(sha256(convert_to('v2' || chr(10) || prev_hash || chr(10) ||
+            event_type || chr(10) || to_char(occurred_at AT TIME ZONE 'UTC',
+            'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') || chr(10) || payload_json,
+            'UTF8')), 'hex')
+    """
+    message = "\n".join(("v2", prev_hash, event_type, _canonical_timestamp(occurred_at), canonical))
+    return hashlib.sha256(message.encode("utf-8")).hexdigest()
+
+
+def _recompute_hash(row: AuditEvent) -> str | None:
+    """The hash ``row`` should carry under the recipe its ``hash_version``
+    names; ``None`` for an unknown version, which never matches."""
+    if row.hash_version == 1:
+        return _compute_hash(row.prev_hash, row.payload_json)
+    if row.hash_version == 2:
+        return _compute_hash_v2(row.prev_hash, row.event_type, row.occurred_at, row.payload_json)
+    return None
 
 
 async def record_event(
@@ -195,13 +260,18 @@ async def _do_record(
             prev = result.scalar_one_or_none()
             prev_hash = prev if prev is not None else GENESIS_PREV_HASH
 
-            record_hash = _compute_hash(prev_hash, canonical)
+            # Stamped here, not by the column's server default: the hash
+            # covers it, so the value must be known before the INSERT.
+            occurred_at = datetime.now(timezone.utc)
+            record_hash = _compute_hash_v2(prev_hash, event_type, occurred_at, canonical)
             row = AuditEvent(
+                occurred_at=occurred_at,
                 event_type=event_type,
                 actor_user_id=actor_user_id,
                 payload_json=canonical,
                 prev_hash=prev_hash,
                 record_hash=record_hash,
+                hash_version=HASH_VERSION,
             )
             db.add(row)
             await db.commit()
@@ -215,6 +285,28 @@ async def _do_record(
                 raise AuditWriteError(f"audit insert failed for event_type={event_type}")
 
 
+# ``verify_chain`` in plain Postgres SQL: the id of the first broken row,
+# or no row. ``IS DISTINCT FROM``, not ``<>``: an unknown hash_version
+# makes the CASE NULL, and ``<>`` would let that row through. It takes no
+# parameters and has no backslashes, so it pastes into psql as it stands.
+VERIFY_CHAIN_SQL = """
+SELECT id FROM (
+    SELECT *, lag(record_hash) OVER (ORDER BY id) AS expected_prev
+    FROM audit_events
+) AS chain
+WHERE prev_hash IS DISTINCT FROM coalesce(expected_prev, repeat('0', 64))
+   OR record_hash IS DISTINCT FROM CASE hash_version
+      WHEN 1 THEN encode(sha256(convert_to(prev_hash || payload_json, 'UTF8')), 'hex')
+      WHEN 2 THEN encode(sha256(convert_to(
+          'v2' || chr(10) || prev_hash || chr(10) || event_type || chr(10)
+          || to_char(occurred_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
+          || chr(10) || payload_json, 'UTF8')), 'hex')
+      END
+ORDER BY id
+LIMIT 1
+"""
+
+
 async def verify_chain(
     db: AsyncSession,
     *,
@@ -225,9 +317,11 @@ async def verify_chain(
     match a recomputed hash, or ``None`` if the chain is intact.
 
     Reads in ascending id order; checks each row's ``prev_hash``
-    against the previous row's ``record_hash``, and recomputes
-    ``SHA-256(prev_hash || payload_json)`` against the stored
-    ``record_hash``. Either mismatch is a tamper signal.
+    against the previous row's ``record_hash``, and recomputes the
+    hash with the recipe the row's ``hash_version`` names against the
+    stored ``record_hash``. Either mismatch — or an unknown
+    ``hash_version`` — is a tamper signal. ``VERIFY_CHAIN_SQL`` is the
+    same full-chain check in plain Postgres SQL, for a SQL dump.
 
     ``start_id`` and ``limit`` let an admin verify slices of a long
     chain incrementally rather than scanning the whole table at once.
@@ -242,19 +336,18 @@ async def verify_chain(
     expected_prev = GENESIS_PREV_HASH
     is_first = True
     async for row in _aiter_rows(result):
-        if is_first and start_id is None:
+        if is_first:
             # Only the very first row of the table must use the
             # genesis sentinel. A partial-range verification (start_id
             # > 1) accepts whatever prev_hash the first inspected row
             # references; the caller is responsible for chaining
             # ranges together if they want full coverage.
-            if row.prev_hash != GENESIS_PREV_HASH:
+            if start_id is None and row.prev_hash != GENESIS_PREV_HASH:
                 return row.id
         elif row.prev_hash != expected_prev:
             return row.id
 
-        recomputed = _compute_hash(row.prev_hash, row.payload_json)
-        if recomputed != row.record_hash:
+        if _recompute_hash(row) != row.record_hash:
             return row.id
 
         expected_prev = row.record_hash
