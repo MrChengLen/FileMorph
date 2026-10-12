@@ -177,18 +177,35 @@ jobs:
       # The image name is derived from the tag, so it reaches the script as an
       # environment variable, never as `${{ }}` text spliced into the script
       # itself, where a crafted tag name could inject shell.
+      #
+      # The command it writes accepts one signer: docker.yml running for this
+      # tag. Fulcio writes the workflow file and the ref it ran for into the
+      # signing certificate, so a signature from any other workflow, or from
+      # docker.yml building another ref (main, a dispatched branch), fails.
+      # It names the digest, which cannot be moved to another image the way a
+      # tag can; if none was resolved, it names the tag and says what to pin.
       - name: Write image-digest attestation
         env:
           IMAGE: ${{ steps.digest.outputs.image }}
           DIGEST: ${{ steps.digest.outputs.digest }}
         run: |
+          IDENTITY="https://github.com/${GITHUB_REPOSITORY}/.github/workflows/docker.yml@${GITHUB_REF}"
           {
             echo "Image: ${IMAGE}"
-            echo "Digest: ${DIGEST}"
-            echo ""
-            echo "Verify the cosign signature with:"
-            echo "  cosign verify ${IMAGE} \\"
-            echo "    --certificate-identity-regexp '^https://github\\.com/${GITHUB_REPOSITORY}/' \\"
+            if [[ "$DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+              echo "Digest: ${DIGEST}"
+              echo ""
+              echo "Verify the cosign signature with:"
+              echo "  cosign verify ${IMAGE%:*}@${DIGEST} \\"
+            else
+              echo "Digest: not resolved when this release was published"
+              echo ""
+              echo "Verify the cosign signature with the command below. cosign resolves the"
+              echo "tag and prints the digest it verified (docker-manifest-digest); pull and"
+              echo "run that digest rather than the tag, which can be moved to another image."
+              echo "  cosign verify ${IMAGE} \\"
+            fi
+            echo "    --certificate-identity '${IDENTITY}' \\"
             echo "    --certificate-oidc-issuer https://token.actions.githubusercontent.com"
           } > IMAGE_DIGEST.txt
 

@@ -55,10 +55,14 @@ jobs:
       packages: write
       # NEU-B.4: cosign keyless signing uses the GitHub Actions OIDC
       # token to prove identity to Sigstore's Fulcio CA — no long-lived
-      # signing key to manage or rotate. Verifiable later with
+      # signing key to manage or rotate. The certificate names this
+      # workflow file and the ref it ran for, so an image verifies with
       #   cosign verify ghcr.io/<owner>/<repo>@sha256:<digest> \
-      #     --certificate-identity-regexp "^https://github\\.com/<owner>/<repo>/" \
+      #     --certificate-identity 'https://github.com/<Owner>/<Repo>/.github/workflows/docker.yml@<ref>' \
       #     --certificate-oidc-issuer https://token.actions.githubusercontent.com
+      # (registry path lower-case, identity spelled as on GitHub). release.yml
+      # writes this command, for the release tag, into each release's
+      # IMAGE_DIGEST.txt; renaming this file changes the identity.
       id-token: write
 
     steps:

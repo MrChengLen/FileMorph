@@ -42,7 +42,10 @@ silently undo it:
     docs/release-signing.md verifies it the way it is made;
   * only the slim image is tagged ``:latest``: docker.yml switches off
     metadata-action's automatic ``latest`` tag, which a release would
-    otherwise add to the office image too.
+    otherwise add to the office image too;
+  * the cosign command a release publishes in ``IMAGE_DIGEST.txt`` admits
+    only docker.yml's signature for that release tag, and names the digest;
+    the public docs verify images the same way.
 
 This is a tripwire, not a substitute for the server-side Scorecard run /
 review: the per-job permissions check here is a heuristic (it asserts a
@@ -54,8 +57,10 @@ with no permissions block at all, or a SHA pin reverted to a tag.
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -808,6 +813,103 @@ def test_release_publish_fails_closed() -> None:
     assert "sbom/filemorph-${{ github.ref_name }}.cdx.json" in files, (
         "release.yml does not publish the SBOM by its exact name from `sbom/`"
     )
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="runs a bash script; Linux CI runs it")
+@pytest.mark.parametrize(
+    ("digest", "verified"),
+    [
+        ("sha256:" + "ab" * 32, "ghcr.io/owner/repo@sha256:" + "ab" * 32),
+        ("", "ghcr.io/owner/repo:1.2.3"),
+        ("null", "ghcr.io/owner/repo:1.2.3"),
+    ],
+    ids=["resolved", "empty", "malformed"],
+)
+def test_release_attestation_admits_one_signer(tmp_path: Path, digest: str, verified: str) -> None:
+    """The cosign command in a release's ``IMAGE_DIGEST.txt`` accepts only
+    docker.yml's signature for that tag, and verifies the digest.
+
+    It used to accept any identity matching ``^https://github\\.com/<repo>/`` —
+    every workflow in the repository, at every ref, a build of main included —
+    and verified the tag, which can be moved to another image. release.yml
+    only runs on a signed tag, so this runs the step's script with sample
+    values. Without a digest the command falls back to the tag.
+    """
+    job = _workflow(_WORKFLOW_DIR / "release.yml")["jobs"]["verify-and-publish"]
+    script = next(
+        (s["run"] for s in _steps(job) if s.get("name") == "Write image-digest attestation"), None
+    )
+    assert script, "release.yml has no step 'Write image-digest attestation' — update this guard"
+    env = {
+        "PATH": os.environ.get("PATH", ""),
+        "IMAGE": "ghcr.io/owner/repo:1.2.3",
+        "DIGEST": digest,
+        "GITHUB_REPOSITORY": "Owner/Repo",
+        "GITHUB_REF": "refs/tags/v1.2.3",
+    }
+    result = subprocess.run(
+        ["bash", "-e", "-c", script],
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
+    assert result.returncode == 0, result.stderr
+    text = (tmp_path / "IMAGE_DIGEST.txt").read_text(encoding="utf-8")
+    assert f"cosign verify {verified} \\" in text, text
+    assert text.count("cosign verify ") == 1, text
+    assert (
+        "--certificate-identity "
+        "'https://github.com/Owner/Repo/.github/workflows/docker.yml@refs/tags/v1.2.3'"
+    ) in text, text
+    assert "--certificate-oidc-issuer https://token.actions.githubusercontent.com" in text, text
+    assert "regexp" not in text, text
+    assert "cosign sign" in _workflow_code("docker.yml"), (
+        "docker.yml no longer signs the images, but IMAGE_DIGEST.txt names it as the signer"
+    )
+
+
+def test_docs_verify_images_by_digest_against_the_signing_workflow() -> None:
+    """Every ``cosign verify`` in the public docs verifies a digest and admits
+    only the workflow that signs the images, at a ref.
+
+    The docs matched the signer with ``--certificate-identity-regexp
+    '^https://github\\.com/MrChengLen/FileMorph/'``, which a signature from any
+    workflow of the repository passes, at any ref, and verified tags, which
+    can be moved to another image.
+    """
+    commands = [
+        (rel, " ".join(match.replace("\\\n", " ").split()))
+        for rel in _tracked_docs()
+        for block in re.findall(
+            r"```bash\n(.*?)```", (_REPO_ROOT / rel).read_text(encoding="utf-8"), re.S
+        )
+        for match in re.findall(r"cosign verify (?:[^\n]*\\\n)*[^\n]*", block)
+    ]
+    assert commands, "no public doc shows a `cosign verify` command — update this guard"
+    for rel, command in commands:
+        signer = re.search(
+            r"--certificate-identity 'https://github\.com/MrChengLen/FileMorph/"
+            r"\.github/workflows/([\w.-]+)@refs/\S+'",
+            command,
+        )
+        assert signer and (_WORKFLOW_DIR / signer.group(1)).is_file(), (
+            f"{rel}: `{command}` does not pin the signer to a workflow of this repository — "
+            f"expected --certificate-identity "
+            f"'https://github.com/MrChengLen/FileMorph/.github/workflows/<file>@refs/…'"
+        )
+        assert "cosign sign" in _workflow_code(signer.group(1)), (
+            f"{rel}: `{command}`: {signer.group(1)} does not sign the images"
+        )
+        assert "regexp" not in command, f"{rel}: `{command}` matches the signer or issuer by regexp"
+        assert "--certificate-oidc-issuer https://token.actions.githubusercontent.com" in command, (
+            f"{rel}: `{command}` does not pin the OIDC issuer"
+        )
+        assert re.match(r"cosign verify \S+@sha256:", command), (
+            f"{rel}: `{command}` verifies a tag, which can be moved to another image — "
+            f"verify the digest"
+        )
 
 
 @pytest.mark.parametrize("workflow", ["release.yml", "sbom.yml"])

@@ -53,12 +53,33 @@ git verify-tag v1.2.3
 
 ## Verifying the container image
 
+Each release's `IMAGE_DIGEST.txt` records the image digest. Releases
+after v1.1.0 also carry this command with the digest filled in; for
+v1.1.0, whose file still shows an older command that accepts a
+signature from any workflow of the repository, take the digest from
+its `Digest:` line:
+
 ```bash
-# Pull-by-tag is fine; cosign resolves to the digest internally.
-cosign verify ghcr.io/mrchenglen/filemorph:1.2.3 \
-  --certificate-identity-regexp '^https://github\.com/MrChengLen/FileMorph/' \
+cosign verify ghcr.io/mrchenglen/filemorph@sha256:<digest> \
+  --certificate-identity 'https://github.com/MrChengLen/FileMorph/.github/workflows/docker.yml@refs/tags/v1.2.3' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
+
+The identity admits one signer: `docker.yml` running for the release
+tag `v1.2.3`. The signing certificate names the workflow file and the
+ref it ran for, so a signature from any other workflow in the
+repository, or from `docker.yml` building another ref (a push to
+`main`, say), fails. The command names the digest, not the tag
+`1.2.3`: a tag can later be moved to another image, a digest cannot,
+so pull the digest you verified. The office variant (`1.2.3-office`)
+comes from the same run and verifies with the same identity;
+`docker pull` prints its digest.
+
+After [verifying the tag](#verifying-a-release-tag), also add
+`--certificate-github-workflow-sha "$(git rev-parse 'v1.2.3^{commit}')"`
+in that clone: it ties the signature to the commit the tag's signature
+covers, so an image built after the tag was moved to another commit
+fails.
 
 A successful verification prints the signing certificate (issuer
 `https://token.actions.githubusercontent.com`, subject

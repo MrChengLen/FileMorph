@@ -103,13 +103,18 @@ pipeline.
 ## Signing & verification
 
 Each released Docker image is signed with [cosign](https://github.com/sigstore/cosign)
-using GitHub's OIDC keyless flow. To verify before pulling:
+using GitHub's OIDC keyless flow. To verify before pulling, take the
+digest from the release's `IMAGE_DIGEST.txt` (releases after v1.1.0
+carry this command filled in):
 
 ```bash
-cosign verify ghcr.io/mrchenglen/filemorph:X.Y.Z \
-  --certificate-identity-regexp '^https://github\.com/MrChengLen/FileMorph/' \
+cosign verify ghcr.io/mrchenglen/filemorph@sha256:<digest> \
+  --certificate-identity 'https://github.com/MrChengLen/FileMorph/.github/workflows/docker.yml@refs/tags/vX.Y.Z' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
+
+The identity admits only `docker.yml` running for tag `vX.Y.Z`, and a
+digest, unlike a tag, cannot be moved to another image.
 
 Git tags are signed with the maintainer's GPG key listed in
 [`docs/release-signing.md`](./release-signing.md). The release
