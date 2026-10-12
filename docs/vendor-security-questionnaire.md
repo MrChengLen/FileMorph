@@ -306,8 +306,9 @@ and renews certificates automatically.
   is shown once at creation and never logged.
 - **Audit log:** plain Postgres rows protected by an append-only
   trigger and a SHA-256 hash chain — `app/core/audit.py`, Migrations
-  005 and 012. Backups protect the integrity of the at-rest copy; the chain
-  detects retroactive edits from a SQL dump alone.
+  005, 012 and 013. Backups protect the integrity of the at-rest copy; the
+  chain detects retroactive edits to the hashed fields from a SQL dump
+  alone (`VERIFY_CHAIN_SQL` in `app/core/audit.py`).
 - **Database backups:** operator-side. The Compliance Edition deployment
   encrypts backups at rest and stores them off-site; the AGPL operator
   documents their own equivalent in their DPA Annex II.
@@ -581,11 +582,19 @@ classification. **No file content** is logged. The regression guard is
 
 Yes. The audit log is a SHA-256 hash chain over append-only Postgres
 rows protected by a database trigger
-(`app/core/audit.py`, Migrations 005 and 012). The one change the
-trigger allows is the database nulling the account ID on an account's
-events when that account is hard-deleted (Art. 17 GDPR); the chain
-still verifies afterwards. The `verify_chain` helper
-detects retroactive edits from a SQL dump alone — compatible with
+(`app/core/audit.py`, Migrations 005, 012 and 013). Each entry records
+which hash format it uses (`hash_version`), and `app/core/audit.py`
+specifies each format; the current one covers the event type, the UTC
+timestamp, the payload and the previous entry's hash. The account ID
+stays outside the hash on purpose: the one change the trigger allows
+is the database nulling it on an account's events when that account
+is hard-deleted (Art. 17 GDPR), and the chain still verifies
+afterwards. The `verify_chain` helper, or `VERIFY_CHAIN_SQL` (the same
+check in plain Postgres SQL, no application code needed), detects
+retroactive edits to the hashed fields from a SQL dump alone. Keeping
+the newest entry's `id` and `record_hash` outside the database, for
+example after each external audit, also shows changes the chain cannot
+show on its own, such as entries removed from its end. Compatible with
 ISO 27001 A.12.4.1, BORA §50, and BeurkG §39a expectations.
 
 The chain identifies an actor by account ID (a random UUID), never by

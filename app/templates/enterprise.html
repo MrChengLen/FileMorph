@@ -47,7 +47,7 @@
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-5 text-sm">
       <div class="space-y-1">
         <p class="text-white font-semibold">{{ _('SHA-256 audit log') }}</p>
-        <p class="text-gray-400 text-xs leading-relaxed">{{ _('Single-file format conversions and image/video compressions, plus account, contact, billing and redaction events, go into a continuous hash chain. Tampering with an old row breaks every following one.') }}</p>
+        <p class="text-gray-400 text-xs leading-relaxed">{{ _('Single-file format conversions and image/video compressions, plus account, contact, billing and redaction events, go into a continuous hash chain over each entry\'s type, time and details. Tampering with an old entry breaks every following one, and one SQL query checks the whole chain from a database dump. Account IDs stay outside the hash, so erasing them under the GDPR leaves the chain intact.') }}</p>
       </div>
       <div class="space-y-1">
         <p class="text-white font-semibold">{{ _('Signed image + SBOM') }}</p>
