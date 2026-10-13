@@ -127,11 +127,11 @@ Mangel darstellen. FileMorph liefert dieses Artefakt im
 CycloneDX-Format mit jedem Release als `filemorph-{version}.cdx.json`
 (siehe [`patch-policy.md`](./patch-policy.md)). Es erfasst die
 Python-Abhängigkeiten des Images, nicht dessen Betriebssystem-Pakete
-wie FFmpeg oder Ghostscript. Das SBOM zum bisher einzigen Release,
-v1.1.0 vom 1. Juni 2026, entstand noch mit dem früheren Verfahren: Es
-führt zusätzlich die Pakete des SBOM-Generators auf, und Komponenten,
-die ihre Lizenz nur als `License-Expression` angeben, stehen darin
-ohne Lizenzangabe.
+wie FFmpeg oder Ghostscript. Das SBOM zu v1.1.0 vom 1. Juni 2026
+entstand noch mit dem früheren Verfahren: Es führt zusätzlich die Pakete
+des SBOM-Generators auf, und Komponenten, die ihre Lizenz nur als
+`License-Expression` angeben, stehen darin ohne Lizenzangabe. Ab v1.2.0
+vom 13. Oktober 2026 entsteht es mit dem aktuellen Verfahren.
 
 > **Wichtig für die Vertragswahl:** Die Reform betraf 8 der 11
 > EVB-IT-Vertragstypen. **EVB-IT Cloud** und **EVB-IT Überlassung

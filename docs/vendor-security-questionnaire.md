@@ -26,9 +26,9 @@ to a questionnaire instead of re-deriving the answers each time.
 > appears in [`dpa-tom-annex.md`](./dpa-tom-annex.md).
 >
 > Application-level answers describe the current code on `main`. The
-> only tagged release so far, v1.1.0 (2026-06-01), predates several of
-> them — see the "Unreleased" section of [`CHANGELOG.md`](../CHANGELOG.md)
-> and the entries in [`changelog.d/`](../changelog.d/).
+> newest tagged release, v1.2.0 (2026-10-13), includes everything merged
+> before that tag; later changes are in [`changelog.d/`](../changelog.d/)
+> until the next release folds them into [`CHANGELOG.md`](../CHANGELOG.md).
 
 ---
 
@@ -663,9 +663,9 @@ SLAs:
 | Medium | 4.0 – 6.9 | next regular release |
 | Low | 0.1 – 3.9 | next regular release |
 
-So far there has been one tagged release, v1.1.0 (2026-06-01); there
-is no established release cadence yet, so "next regular release" has
-no fixed date. Enterprise / KRITIS customers contract for backports
+So far there have been two tagged releases, v1.1.0 (2026-06-01) and
+v1.2.0 (2026-10-13); there is no established release cadence yet, so
+"next regular release" has no fixed date. Enterprise / KRITIS customers contract for backports
 onto a fixed `vX.Y` line plus offline-update tooling — see
 [`COMMERCIAL-LICENSE.md`](../COMMERCIAL-LICENSE.md).
 
@@ -832,13 +832,14 @@ documented in
 
 A CycloneDX SBOM (`filemorph-{version}.cdx.json`) is generated per
 release and attached to the GitHub release. It lists every direct
-and transitive Python dependency with version pin, licence, and CPE
-where available — the set `requirements.lock` installs into the image.
+and transitive Python dependency with version pin, licence and package
+URL (purl) — the set `requirements.lock` installs into the image.
 Operating-system packages of the image (e.g. FFmpeg, Ghostscript) are
-not in it. The SBOM attached to v1.1.0, the only release so far, was
-generated before the current method: it also lists the SBOM
-generator's own packages, and components that declare their licence
-only as a `License-Expression` appear without one. Self-hosters who
+not in it. The SBOM attached to v1.1.0 was generated before the
+current method: it also lists the SBOM generator's own packages, and
+components that declare their licence only as a `License-Expression`
+appear without one. From v1.2.0 on, the release job generates it with
+the current method. Self-hosters who
 fork the repo regenerate it after their dependency updates.
 
 ### 11.3 Third-party licence compliance
