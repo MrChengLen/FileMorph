@@ -14,9 +14,10 @@ the binding one — this file is the starting point.
 > - **Application-level measures** — implemented *by the FileMorph
 >   software itself*, identical in every deployment of the same version,
 >   verifiable in the source. Stated here as facts, with the code anchor,
->   for the current code on `main`; the only tagged release so far,
->   v1.1.0 (2026-06-01), predates some of them — see
->   [`CHANGELOG.md`](../CHANGELOG.md).
+>   for the current code on `main`; the newest tagged release,
+>   v1.2.0 (October 2026), includes everything merged before that tag —
+>   later changes are in [`changelog.d/`](../changelog.d/) until the next
+>   release folds them into [`CHANGELOG.md`](../CHANGELOG.md).
 > - **Deployment-level measures** — implemented *by whoever operates the
 >   deployment* (hosting, network, backups, on-call). Shown as
 >   `[operator: …]` placeholders: a self-hoster fills them with their own

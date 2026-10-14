@@ -9,12 +9,14 @@ each instance.
 
 ## Supported versions
 
-There has been one tagged release so far: v1.1.0 (tagged 2026-06-01). Security fixes
-are made on the `main` branch, which has moved on since that tag; the `latest`
-and `office` container images are rebuilt from `main` on every merge. Older
-tags receive fixes only when the issue is critical and the upgrade path is
-non-trivial; otherwise users are expected to upgrade to the newest release or
-`main`.
+The newest tagged release is v1.2.0 (October 2026); the one before it is
+v1.1.0 (2026-06-01). Security fixes are made on the `main` branch first; the
+`latest` and `office` container images are rebuilt from `main` on every merge,
+and the next tagged release carries the fixes. Self-hosters pinned to an
+older `vX.Y` line can request a backport of a Critical or High fix onto that
+line (write to `security@filemorph.io` with the version, see
+[`docs/support-sla.md`](docs/support-sla.md)); otherwise users are expected to
+upgrade to the newest release or `main`.
 
 ## Reporting a vulnerability
 

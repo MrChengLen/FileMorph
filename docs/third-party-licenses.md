@@ -229,11 +229,11 @@ BSD-3-Clause although its binary wheel bundles GPLv2 `x265` (see above), and
 
 **The CycloneDX SBOM attached to the `v1.1.0` GitHub Release predates this**
 — it was generated before the lockfile-parity (#146) and SBOM-generation
-hardening (#163) changes, so it does not reflect `main`'s current dependency
-set or the current SBOM pipeline. Until the next tagged release publishes a
-fresh one, regenerate the SBOM locally against the current `requirements.lock`
-(see "How to verify" above) rather than treating the `v1.1.0` attachment as
-current. Re-run the SBOM and this scan on every release; flag any new
+hardening (#163) changes, so it reflects neither the current dependency set
+nor the current SBOM pipeline. `v1.2.0` (October 2026) is the first release
+whose SBOM comes from that pipeline; for changes merged after it, regenerate
+the SBOM locally against the current `requirements.lock` (see "How to verify"
+above). Re-run the SBOM and this scan on every release; flag any new
 copyleft entry in the `License Map` and here.
 
 ## See also
