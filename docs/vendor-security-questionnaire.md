@@ -26,7 +26,7 @@ to a questionnaire instead of re-deriving the answers each time.
 > appears in [`dpa-tom-annex.md`](./dpa-tom-annex.md).
 >
 > Application-level answers describe the current code on `main`. The
-> newest tagged release, v1.2.0 (2026-10-13), includes everything merged
+> newest tagged release, v1.2.0 (October 2026), includes everything merged
 > before that tag; later changes are in [`changelog.d/`](../changelog.d/)
 > until the next release folds them into [`CHANGELOG.md`](../CHANGELOG.md).
 
@@ -664,7 +664,7 @@ SLAs:
 | Low | 0.1 – 3.9 | next regular release |
 
 So far there have been two tagged releases, v1.1.0 (2026-06-01) and
-v1.2.0 (2026-10-13); there is no established release cadence yet, so
+v1.2.0 (October 2026); there is no established release cadence yet, so
 "next regular release" has no fixed date. Enterprise / KRITIS customers contract for backports
 onto a fixed `vX.Y` line plus offline-update tooling — see
 [`COMMERCIAL-LICENSE.md`](../COMMERCIAL-LICENSE.md).

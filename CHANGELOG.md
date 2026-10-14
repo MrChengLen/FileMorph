@@ -14,7 +14,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [1.2.0] — 2026-10-13
+## [1.2.0] — 2026-10-14
 
 **Upgrading from 1.1.0.** No endpoint, format or env var was removed. Check
 before pulling:

@@ -135,7 +135,7 @@ a liable EU contact), not permission. The audit log, PDF/A-2b and the EXIF/XMP
 strip in that list are the same AGPL code every edition runs.
 
 > **Honest maturity:** no external audit or ISO 27001 certification yet (both a
-> Year-2 roadmap item). The newest tagged release is v1.2.0 (tagged 2026-10-13),
+> Year-2 roadmap item). The newest tagged release is v1.2.0 (October 2026),
 > with a CycloneDX SBOM and the image digest attached to the GitHub release;
 > changes merged after it are in [`changelog.d/`](changelog.d/) until the next
 > release folds them into [`CHANGELOG.md`](CHANGELOG.md).

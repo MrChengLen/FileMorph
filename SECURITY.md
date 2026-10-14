@@ -9,7 +9,7 @@ each instance.
 
 ## Supported versions
 
-The newest tagged release is v1.2.0 (tagged 2026-10-13); the one before it is
+The newest tagged release is v1.2.0 (October 2026); the one before it is
 v1.1.0 (2026-06-01). Security fixes are made on the `main` branch first; the
 `latest` and `office` container images are rebuilt from `main` on every merge,
 and the next tagged release carries the fixes. Self-hosters pinned to an

@@ -16,7 +16,7 @@ Separately, at the maintainer's discretion, a commit on `main` gets a
 GPG-signed git tag `vX.Y.Z`; that tag build additionally pushes the
 image tags `X.Y.Z` and `X.Y` — **no `v` prefix on the image tag, and no
 bare-major tag** (pin `X.Y.Z` or `X.Y`, never just `X`). The tagged
-releases so far are `v1.1.0` (2026-06-01) and `v1.2.0` (2026-10-13) —
+releases so far are `v1.1.0` (2026-06-01) and `v1.2.0` (October 2026) —
 see [GitHub Releases](https://github.com/MrChengLen/FileMorph/releases)
 for the current list.
 

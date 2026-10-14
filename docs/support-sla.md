@@ -68,7 +68,7 @@ After an issue is triaged and confirmed (severity by CVSS v3.x base score):
 | Low | 0.1 – 3.9 | next regular release |
 
 So far there have been two tagged releases, v1.1.0 (2026-06-01) and
-v1.2.0 (2026-10-13); there is no established release cadence yet. Self-hosters who pin to a `vX.Y` line and
+v1.2.0 (October 2026); there is no established release cadence yet. Self-hosters who pin to a `vX.Y` line and
 cannot take the latest `main` tag can request a backport of a
 Critical/High fix onto that line — contact `security@filemorph.io` with the
 version; see [`patch-policy.md`](./patch-policy.md) for the release-line model.
