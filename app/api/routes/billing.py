@@ -171,12 +171,17 @@ async def stripe_webhook(
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Webhook not configured."
         )
+    # No signature, nothing to verify: refuse before reading the body.
+    if not stripe_signature:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid webhook signature."
+        )
 
     payload = await request.body()
     try:
         stripe.api_key = settings.stripe_secret_key
         event = stripe.Webhook.construct_event(
-            payload, stripe_signature or "", settings.stripe_webhook_secret
+            payload, stripe_signature, settings.stripe_webhook_secret
         )
     except (ValueError, stripe.SignatureVerificationError):
         raise HTTPException(
