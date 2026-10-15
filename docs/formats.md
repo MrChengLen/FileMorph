@@ -221,7 +221,7 @@ formats page — it is plumbing, not a conversion a user picks.
 
 | From | To | Notes |
 |------|-----|-------|
-| **XLSX** | CSV | Exports the active (first) sheet. Only cell values, no formatting or formulas. |
+| **XLSX** | CSV | Exports the active sheet (the first worksheet when a chart sheet is active). Only cell values — no formatting, formulas, charts or images. |
 | **CSV** | XLSX | All data imported into a single sheet. No type detection — all values are stored as text. The file must be UTF-8 text. |
 | **CSV** | JSON | Headers become keys. Result is a JSON array of objects. The file must be UTF-8 text. |
 | **JSON** | CSV | Input must be a JSON array of objects with consistent keys. Nested values are flattened as strings. The file must be UTF-8 text. |
