@@ -175,7 +175,7 @@ def test_qpdf_refuses_the_shared_fixtures_naming_the_encryption_dictionary(data)
 
 _ENGINES = [
     pytest.param(lambda src, out: pdf_pages.extract_pages(src, out, "1"), id="extract_pages"),
-    pytest.param(lambda src, out: pdf_pages.split_pdf(src), id="split_pdf"),
+    pytest.param(lambda src, out: pdf_pages.split_pdf(src, 10**9), id="split_pdf"),
     pytest.param(
         lambda src, out: pdf_pages.PdfPageExtractConverter().convert(src, out), id="pdf-to-pdf"
     ),

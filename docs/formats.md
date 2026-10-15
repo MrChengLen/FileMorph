@@ -205,9 +205,11 @@ formats page — it is plumbing, not a conversion a user picks.
   left unchanged rather than risking the worker (a denial-of-service guard).
 - **Split is capped at 10 000 pages.** A larger document is rejected with a
   clean `400` before any work — splitting it would explode into too many
-  output files.
+  output files. The single-page PDFs must fit your tier's output cap; the
+  split stops with a `413` as soon as they pass it.
 - **Extract** rejects an empty / reversed / out-of-range / non-numeric page
-  selection with a `400`; a selection can resolve to at most 10 000 pages.
+  selection with a `400`; a selection can resolve to at most 10 000 pages
+  (a page selected twice counts once) and be at most 65 536 characters long.
 - **No password-protected PDFs.** FileMorph never asks for a password, so a
   PDF that needs one to open is rejected with a `400` and
   `X-FileMorph-Error-Code: pdf_encrypted` here and on PDF → TXT / PDF/A;
