@@ -234,6 +234,18 @@ attachment) through all four call sites and fails if any of them
 loads; CI fails if WeasyPrint cannot render on the test runner, so
 that test cannot skip there. Self-hosters should not disable this.
 
+### PDF → TXT in a child process
+
+pypdf's text extraction runs in a child Python process
+(`app/converters/_pdf_text.py`), started by `PdfToTxtConverter` in
+`app/converters/document.py`. The parent stops it after 30 seconds and the
+conversion gets a `400`; on Linux the child caps its own address space at
+1 GiB. Like the LibreOffice subprocess below, the child gets the environment
+without application secrets; it reads no stdin, its diagnostic output is
+discarded, and it reports its outcome on stdout (for an unreadable PDF with
+the exception class). `tests/test_pdf_to_text_process.py` pins the page cap,
+the time limit, the environment and the memory cap.
+
 ### Office image: LibreOffice subprocess hardening
 
 On the `filemorph:office` image, DOCX→PDF conversion can delegate to a

@@ -90,7 +90,7 @@ quality-based compression there.
 | **DOCX** | PDF | Two-engine routing — see [Notes on DOCX → PDF](#notes-on-docx--pdf) below. Word-grade fidelity in the `filemorph:office` image; pure-Python fallback in the slim image. |
 | **DOCX** | TXT | Extracts plain text from all paragraphs. Formatting (bold, tables) is lost. |
 | **TXT** | PDF | Creates a clean PDF with Helvetica font, A4 page size. |
-| **PDF** | TXT | Extracts text from each page using PyPDF. Complex layouts (columns, forms) may not extract cleanly. |
+| **PDF** | TXT | Extracts text from each page using PyPDF. Complex layouts (columns, forms) may not extract cleanly. Up to 10 000 pages; the extraction runs in its own process and is stopped after 30 seconds — a PDF too large or complex for that gets a `400`: extract fewer pages with `/api/v1/pdf/extract` and convert them in parts. |
 | **PDF** | PDF/A-2b | Archival PDF (`target_format=pdfa`; the result is still a `.pdf`, named `<name>_pdfa.pdf`). Full conformance (passes [veraPDF](https://verapdf.org/) validation) needs Ghostscript, which the Docker image bundles; without it, output from the markup-only fallback can fail veraPDF, e.g. when the source PDF has unembedded fonts. |
 | **Markdown (.md)** | HTML | Converts Markdown to a complete HTML document. Supports tables and fenced code blocks. The file must be UTF-8 text. |
 | **Markdown (.md)** | PDF | Renders Markdown via HTML to PDF using WeasyPrint. Styled with a clean sans-serif font. The file must be UTF-8 text. |
