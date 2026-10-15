@@ -44,7 +44,8 @@ send is silently skipped:
   enumeration-safe: it always returns the same generic response whether
   the address exists, the user is inactive, or the email was skipped,
   so the response alone never tells a caller which case occurred — check
-  the application log to see what actually happened.
+  the application log to see what actually happened. The reset email
+  itself is sent after the response.
 - `/register` still creates the user — the verification email is fire-and-forget.
   The user can request a fresh link via `/resend-verification` once SMTP is wired.
 - `/auth/account` deletes the user even if the confirmation email cannot be sent;

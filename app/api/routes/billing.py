@@ -489,7 +489,7 @@ async def submit_cancellation(
         (
             await db.execute(
                 select(User)
-                .where(func.lower(User.email) == normalised, User.deleted_at.is_(None))
+                .where(func.lower(User.email) == func.lower(email), User.deleted_at.is_(None))
                 .limit(2)
             )
         )
