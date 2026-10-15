@@ -290,11 +290,12 @@ not a format conversion. Text, fonts and vector content are copied intact.
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `file` | file | Yes | The source PDF (must be a `.pdf`) |
-| `pages` | string | Yes | 1-based page selection — comma-separated singletons and `a-b` ranges, e.g. `1-3,5`. Sorted + de-duplicated. |
+| `pages` | string | Yes | 1-based page selection — comma-separated singletons and `a-b` ranges, e.g. `1-3,5`. Sorted + de-duplicated; a page selected twice counts once. At most 65 536 characters. |
 
 **Response**: `200 OK` (`application/pdf`) — the extracted pages as a download
 (`_pages.pdf` suffix). An empty / reversed (`5-3`) / out-of-range / non-numeric
-selection is a `400`; a non-PDF input is a `422`. A selection may resolve to at
+selection, or one longer than 65 536 characters, is a `400`; a non-PDF input is
+a `422`. A selection may resolve to at
 most 10 000 pages; a larger one is a `400` with `pdf_too_many_pages` (see
 [Error codes](#error-codes)).
 
@@ -324,8 +325,8 @@ Split a PDF into one single-page PDF per page, bundled as a ZIP.
 (`page_001.pdf`, `page_002.pdf`, … zero-padded to the page count's width, so
 entries sort correctly), `_pages.zip` suffix. A non-PDF input is a `422`; a
 document over **10 000 pages** is a `400` with `pdf_too_many_pages` (rejected
-before any work). The assembled ZIP must also fit the tier output cap (`413`
-otherwise).
+before any work). The pages must also fit the tier output cap: the split
+stops with a `413` as soon as they pass it.
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/pdf/split \
@@ -539,7 +540,7 @@ can branch on (the `detail` text may change):
 | `target_size_exceeds_cap` | `413` | `target_size_kb` (`/compress`, `/compress/batch`) or `target_kb` (`/pdf/compress`) is above your tier's output cap — rejected before any work |
 | `decompression_bomb` | `400` | The image's dimensions exceed the decoder's safety limit (`/convert`, `/compress`) |
 | `invalid_input` | `400` | A problem you can fix, named in `detail` — e.g. a Markdown, CSV or JSON file that isn't UTF-8, a PDF that can't be read, or a PDF → PDF conversion of a document over 10 000 pages (`/convert`); an image that isn't in a supported format or is too damaged to be recognised (`/convert`, `/compress`) |
-| `invalid_page_selection` | `400` | `/pdf/extract`: the `pages` selection is malformed or out of range |
+| `invalid_page_selection` | `400` | `/pdf/extract`: the `pages` selection is malformed, out of range or longer than 65 536 characters |
 | `invalid_pdf` | `400` | `/pdf/extract`, `/pdf/split`, `/pdf/compress`: the PDF can't be read; `/pdf/extract` and `/pdf/split` also for a PDF with no pages |
 | `pdf_encrypted` | `400` | The PDF needs a password to open (`/pdf/extract`, `/pdf/split`, `/pdf/compress`, `/convert`); remove the password and upload it again |
 | `pdf_encryption_unsupported` | `400` | The PDF is encrypted with a certificate or a method FileMorph can't open, so no password would help (`/pdf/extract`, `/pdf/split`, `/pdf/compress`, `/convert`); remove the protection, e.g. by asking the sender for an unprotected copy |
