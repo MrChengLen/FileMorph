@@ -1,9 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 from pathlib import Path
 
-import ffmpeg  # ffmpeg-python
-
-from app.converters._ffmpeg import audio_output_args, run_ffmpeg
+from app.converters._ffmpeg import audio_output_args, media_input, run_ffmpeg
 from app.converters.base import BaseConverter
 from app.converters.registry import register
 
@@ -28,7 +26,7 @@ class _AudioConverter(BaseConverter):
 
     def convert(self, input_path: Path, output_path: Path, **kwargs) -> Path:
         quality = int(kwargs.get("quality", 85))
-        stream = ffmpeg.input(str(input_path)).output(
+        stream = media_input(input_path).output(
             str(output_path), **audio_output_args(self._tgt_fmt, quality)
         )
         run_ffmpeg(stream)
