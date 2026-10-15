@@ -2,8 +2,8 @@
 """EML → PDF: mail text is decoded in the character sets mail is written in.
 
 Pure stdlib (``_eml_to_html``), so it runs on every host. Any charset label
-outside ``_MAIL_CHARSETS`` is read as UTF-8, and labels from the mail never
-reach Python's codec registry.
+outside ``_MAIL_CHARSETS`` is read as UTF-8; labels are looked up in that table
+only.
 """
 
 import codecs
@@ -34,6 +34,7 @@ def test_every_mail_charset_is_a_python_codec():
     ("label", "codec"),
     [
         ("UTF-8", "utf-8"),
+        ("US-ASCII", "cp1252"),
         (" utf8 ", "utf-8"),
         ("ISO-8859-1", "cp1252"),
         ("iso8859-1", "cp1252"),
@@ -91,23 +92,42 @@ def test_raw_8bit_text_and_an_encoded_word_in_one_header():
     assert "<td>Jörg und Müller</td>" in out
 
 
-def test_a_folded_header_keeps_its_space():
-    out = _eml_to_html(_mail(b"Antwort zur\r\n =?utf-8?q?K=C3=BCndigung?=", b"text/plain", b"hi"))
-    assert "<td>Antwort zur Kündigung</td>" in out
+@pytest.mark.parametrize(
+    ("subject", "shown"),
+    [
+        ("Åse und Тихо ".encode() + b"=?utf-8?q?M=C3=BCller?=", "Åse und Тихо Müller"),
+        (b"=?utf-8?q?M=C3?= =?utf-8?q?=BCller?=", "Müller"),  # one character over two words
+        (b"=?utf-8?q?a?= =?iso-8859-1?q?b?= c", "ab c"),
+        (b"=?iso-8859-1*de?q?Gr=FC=DFe?=", "Grüße"),  # with an RFC 2231 language tag
+        (b"=?utf-8?b?A?= =?utf-8?q?ok?=", "=?utf-8?b?A?= ok"),  # a damaged word, then a good one
+    ],
+)
+def test_encoded_words_as_mail_clients_write_them(subject, shown):
+    out = _eml_to_html(_mail(subject, b"text/plain; charset=utf-8", b"hi"))
+    assert f"<td>{shown}</td>" in out
 
 
-def test_a_damaged_encoded_word_shows_the_header_as_it_is():
+@pytest.mark.parametrize("fold", [b"\r\n ", b"\r\n\t", b"\n ", b"\r "])
+def test_a_folded_header_keeps_its_space(fold):
+    out = _eml_to_html(
+        _mail(b"Antwort zur" + fold + b"=?utf-8?q?K=C3=BCndigung?=", b"text/plain", b"hi")
+    )
+    space = fold.decode()[-1]  # the line break goes, the space or tab after it stays
+    assert f"<td>Antwort zur{space}Kündigung</td>" in out
+
+
+def test_a_damaged_encoded_word_is_shown_as_it_is():
     out = _eml_to_html(_mail(b"=?utf-8?b?A?=", b"text/plain", b"hi"))
     assert "<td>=?utf-8?b?A?=</td>" in out
 
 
 def test_a_header_is_read_up_to_its_limit():
     out = _eml_to_html(_mail(b"x" * 100_000, b"text/plain", b"hi"))
-    assert "x" * 8192 in out
-    assert "x" * 8193 not in out
+    assert "<td>" + "x" * 8192 + " […]</td>" in out
+    assert "<td>" + "x" * 8192 + "</td>" in _eml_to_html(_mail(b"x" * 8192, b"text/plain", b"hi"))
 
 
-def test_a_label_from_the_mail_never_reaches_the_codec_registry():
+def test_labels_are_looked_up_in_the_mail_table_only():
     token = uuid.uuid4().hex
     label = f"x-made-up-{token}"
     seen: list[str] = []
@@ -127,12 +147,38 @@ def test_a_label_from_the_mail_never_reaches_the_codec_registry():
         )
         assert "<td>Hallo</td>" in out
         assert "Hallo Welt" in out
+        # And once as the charset of a multipart boundary (RFC 2231).
+        out = _eml_to_html(
+            b"From: alice@example.com\r\nSubject: s\r\nMIME-Version: 1.0\r\n"
+            + f"Content-Type: multipart/mixed; boundary*={label}''zz\r\n\r\n".encode()
+            + b"--zz\r\nContent-Type: text/plain\r\n\r\nInside\r\n--zz--\r\n"
+        )
+        assert "Inside" in out
         assert not [name for name in seen if token in name]
         with pytest.raises(LookupError):  # the spy does see a lookup of that name
             codecs.lookup(label)
         assert [name for name in seen if token in name]
     finally:
         codecs.unregister(spy)
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        "{0}*=utf-8''a; {0}*0=b",  # whole and in numbered parts (an error before Python 3.14)
+        "{0}*" + "9" * 5000 + "=a",  # a section number too long to read
+    ],
+    ids=["whole-and-in-parts", "long-section-number"],
+)
+def test_malformed_parameters_are_read_as_missing(params):
+    out = _eml_to_html(
+        _mail(b"s", b"multipart/mixed; " + params.format("boundary").encode(), b"--a\r\n\r\nx")
+    )
+    assert "(no readable body)" in out
+    out = _eml_to_html(
+        _mail(b"s", b"text/plain; " + params.format("charset").encode(), "Grüße".encode())
+    )
+    assert "Grüße" in out
 
 
 def _multipart(boundary: str, *parts: bytes, kind: str = "mixed") -> bytes:

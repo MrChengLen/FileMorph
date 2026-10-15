@@ -95,7 +95,7 @@ quality-based compression there.
 | **Markdown (.md)** | HTML | Converts Markdown to a complete HTML document. Supports tables and fenced code blocks. The file must be UTF-8 text. |
 | **Markdown (.md)** | PDF | Renders Markdown via HTML to PDF using WeasyPrint. Styled with a clean sans-serif font. The file must be UTF-8 text. |
 | **HTML / HTM** | PDF | Renders an HTML file to PDF via WeasyPrint. External resources (remote CSS/images, `file://`) are **never fetched** (`url_fetcher` SSRF guard). |
-| **EML (email)** | PDF | Renders an `.eml` email to PDF: common headers (From / To / Cc / Date / Subject) plus the body (the first HTML part of the mail's own text — attachments and attached mails don't count — else the first plain-text part). Text is decoded in the character set the mail names if it is one of the character sets mail is written in (UTF-8/16/32, ISO-8859, Windows-125x, KOI8, the Japanese, Chinese and Korean mail sets, …); anything else is read as UTF-8. Remote tracking pixels / images are not fetched. `.msg` (Outlook) is not yet supported. |
+| **EML (email)** | PDF | Renders an `.eml` email to PDF: common headers (From / To / Cc / Date / Subject) plus the body (the first HTML part of the mail's own text — attachments and attached mails don't count — else the first plain-text part). Text is decoded in the character set the mail names if it is one of the character sets mail is written in (UTF-8/16/32, ISO-8859, Windows-125x, KOI8, the Japanese, Chinese and Korean mail sets, …); anything else is read as UTF-8. Very long header lines (a huge recipient list, say) are shortened and end in `[…]`. Remote tracking pixels / images are not fetched. `.msg` (Outlook) is not yet supported. |
 
 ### Notes on DOCX → PDF
 
