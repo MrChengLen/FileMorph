@@ -259,7 +259,9 @@ Any of the above can be converted to any other format.
 - WAV → MP3 (reduce file size after recording)
 
 > **Requires**: ffmpeg installed on the system. Each ffmpeg run is stopped
-> after `MEDIA_SUBPROCESS_TIMEOUT_SECONDS` (default 600 s).
+> after `MEDIA_SUBPROCESS_TIMEOUT_SECONDS` (default 600 s). ffmpeg reads an
+> upload only with the demuxers for the audio and video formats listed on
+> this page, and only as a local file.
 
 ---
 
@@ -314,7 +316,9 @@ qscale 31 → 2. A lower value means better quality and a larger file:
 > **Requires**: ffmpeg installed on the system. Each ffmpeg run — conversion
 > or compression — is stopped after `MEDIA_SUBPROCESS_TIMEOUT_SECONDS`
 > (default 600 s) and the request fails with `500`; raise the value if you
-> process long or HD footage.
+> process long or HD footage. ffmpeg reads an upload only with the demuxers
+> for the audio and video formats listed on this page, and only as a local
+> file.
 
 ---
 
