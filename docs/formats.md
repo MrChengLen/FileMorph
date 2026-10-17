@@ -200,9 +200,11 @@ formats page — it is plumbing, not a conversion a user picks.
   back valid and unchanged-in-content, honestly reported as *not converged*
   with `0` recompressible images (never a fake compression claim). Images
   carrying transparency (`/SMask`), stencil/image masks and indexed-palette
-  images are deliberately skipped (JPEG can't carry them faithfully). A
-  document whose images are too large in aggregate to decode safely is also
-  left unchanged rather than risking the worker (a denial-of-service guard).
+  images are deliberately skipped (JPEG can't carry them faithfully), and so
+  are JPEG 2000 images and images over the image size limit
+  (`FILEMORPH_IMAGE_MAX_MEGAPIXELS`): they stay as they are. A document whose
+  images are too large in aggregate to decode safely is also left unchanged
+  rather than risking the worker (a denial-of-service guard).
 - **Split is capped at 10 000 pages.** A larger document is rejected with a
   clean `400` before any work — splitting it would explode into too many
   output files.
