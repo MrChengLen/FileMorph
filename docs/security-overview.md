@@ -319,7 +319,8 @@ After conversion, but before the response is streamed, the byte
 length of the produced output is compared against
 `quota.output_cap_bytes` (`app/core/quotas.py`). If it exceeds the
 cap, the request returns HTTP 413 with a structured error and the
-output is discarded.
+output is discarded. XLSX → CSV, JSON → CSV and CSV → JSON don't wait for
+the end: they stop writing as soon as their output passes the cap.
 
 The caps are monotone: anonymous &lt; free &lt; pro &lt; business
 ≤ enterprise. The exact values live in code rather than in this

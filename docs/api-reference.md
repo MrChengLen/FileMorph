@@ -535,7 +535,7 @@ can branch on (the `detail` text may change):
 | Code | Status | Meaning |
 |---|---|---|
 | `input_too_large` | `413` | A file is larger than your tier allows per file |
-| `output_cap_exceeded` | `413` | The result is larger than your tier's output cap |
+| `output_cap_exceeded` | `413` | The result is larger than your tier's output cap. XLSX → CSV, JSON → CSV and CSV → JSON stop writing as soon as they pass it |
 | `target_size_exceeds_cap` | `413` | `target_size_kb` (`/compress`, `/compress/batch`) or `target_kb` (`/pdf/compress`) is above your tier's output cap — rejected before any work |
 | `decompression_bomb` | `400` | The image's dimensions exceed the decoder's safety limit (`/convert`, `/compress`) |
 | `invalid_input` | `400` | A problem you can fix, named in `detail` — e.g. a Markdown, CSV or JSON file that isn't UTF-8, a PDF that can't be read, or a PDF → PDF conversion of a document over 10 000 pages (`/convert`); an image that isn't in a supported format or is too damaged to be recognised (`/convert`, `/compress`) |
