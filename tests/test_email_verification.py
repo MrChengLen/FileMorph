@@ -200,7 +200,11 @@ def test_register_dispatches_verification_email(client, mock_send_email):
     kwargs = mock_send_email.await_args.kwargs
     assert kwargs["to"] == "newuser@example.com"
     assert "confirm" in kwargs["subject"].lower()
-    assert "/verify-email?token=" in kwargs["html"]
+    # Token in the fragment, never in the query: the part after "#" is not
+    # sent to the server, so it cannot land in an access log.
+    assert "/verify-email#token=" in kwargs["html"]
+    assert "/verify-email#token=" in kwargs["text"]
+    assert "?token=" not in kwargs["html"] + kwargs["text"]
 
     # email_verified_at starts NULL; preferred_lang seeded from the request
     # locale (the Accept-Language: en header above).

@@ -118,9 +118,10 @@ def operator_recipient() -> str:
 
 
 class EmailSendError(RuntimeError):
-    """Raised when SMTP delivery fails. The original SMTP error is logged but
-    never included in the message — it may contain addresses or hostnames we
-    don't want to bubble up to an HTTP response."""
+    """Raised when SMTP delivery fails. The original SMTP error is logged by
+    type and SMTP code only and never chained onto this exception — its text
+    can quote the recipient address, which must reach neither an HTTP
+    response nor a log line."""
 
 
 async def send_email(
@@ -135,13 +136,11 @@ async def send_email(
     when given (used by the ``/contact`` form to route replies to the
     submitter).
     """
+    # Log lines carry the recipient's domain, never the address, and no
+    # subject: the contact form puts the sender's own text into it.
     to_domain = to.split("@", 1)[-1] if "@" in to else "unknown"
     if not settings.smtp_host:
-        logger.warning(
-            "send_email skipped — SMTP not configured (to_domain=%s, subject=%r)",
-            to_domain,
-            subject,
-        )
+        logger.warning("send_email skipped — SMTP not configured (to_domain=%s)", to_domain)
         return
 
     from_email = settings.smtp_from_email or settings.smtp_username
@@ -176,7 +175,24 @@ async def send_email(
             timeout=20,
             **tls_kwargs,
         )
-        logger.info("send_email ok to_domain=%s subject=%r", to_domain, subject)
+        logger.info("send_email ok to_domain=%s", to_domain)
     except Exception as exc:
-        logger.exception("send_email failed to_domain=%s subject=%r", to_domain, subject)
-        raise EmailSendError("Failed to deliver email.") from exc
+        # A server reply or a refused recipient can quote the address, so
+        # replies give their code only. aiosmtplib's own connection texts
+        # name the SMTP host and port, nothing about the recipient.
+        if isinstance(exc, aiosmtplib.SMTPRecipientsRefused):
+            detail = [r.code for r in exc.recipients]
+        elif isinstance(exc, aiosmtplib.SMTPResponseException):
+            detail = exc.code
+        elif isinstance(exc, aiosmtplib.SMTPException):
+            detail = exc.message
+        else:
+            detail = None
+        logger.error(
+            "send_email failed to_domain=%s error=%s detail=%s cause=%s",
+            to_domain,
+            type(exc).__name__,
+            detail,
+            type(exc.__cause__).__name__ if exc.__cause__ else None,
+        )
+        raise EmailSendError("Failed to deliver email.") from None

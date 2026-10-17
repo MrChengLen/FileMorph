@@ -640,10 +640,13 @@ is preserved.
 Server access logs (IP, request time, URL, status, response size)
 are written by the reverse proxy and by the application server:
 uvicorn's per-request access line (client address, method, path,
-status) is on in the shipped container (`entrypoint.sh`). The
-application log itself records a client IP in one case — when the
-contact form's spam trap is triggered. Retention is per the
-operator's log-rotation policy.
+status) is on in the shipped container (`entrypoint.sh`); the
+application drops the query string from that line. Links in account
+emails carry their token after `#`, which browsers never send to the
+server. The application log itself records no client IP address and
+no recipient address — mail delivery logs the recipient's domain only,
+and database errors leave out the statement's values.
+Retention is per the operator's log-rotation policy.
 
 **See also:** [`docs/records-of-processing-template.md`](./records-of-processing-template.md) A5.
 
