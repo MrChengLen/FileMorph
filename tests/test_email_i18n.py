@@ -25,8 +25,8 @@ from app.core.email import EMAIL_SUBJECTS, render_email
 # extras is harmless (Jinja ignores them).
 _CTX = dict(
     user_email="alice@example.de",
-    verify_url="http://localhost:8000/verify-email?token=abc",
-    reset_url="http://localhost:8000/reset-password?token=abc",
+    verify_url="http://localhost:8000/verify-email#token=abc",
+    reset_url="http://localhost:8000/reset-password#token=abc",
     deleted_at="2026-05-11T10:00:00+00:00",
     support_email="privacy@example.de",
     app_base_url="http://localhost:8000",

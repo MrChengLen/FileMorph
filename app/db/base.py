@@ -19,8 +19,12 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 # surface as mid-request errors.
 # pool_recycle: force-close and replace any pooled connection older than 1 h,
 # which keeps us ahead of Postgres/Hetzner cloud idle-kill timers.
+# hide_parameters: a database error's text omits the statement's values —
+# an email address or a password hash would otherwise reach the error log.
 engine = (
-    create_async_engine(DATABASE_URL, echo=False, pool_pre_ping=True, pool_recycle=3600)
+    create_async_engine(
+        DATABASE_URL, echo=False, pool_pre_ping=True, pool_recycle=3600, hide_parameters=True
+    )
     if DATABASE_URL
     else None
 )

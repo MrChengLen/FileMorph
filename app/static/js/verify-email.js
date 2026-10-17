@@ -1,8 +1,20 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 (function () {
+  // The emailed link carries the token in the fragment (#token=…), which the
+  // browser never sends to the server. Links mailed before that change use
+  // ?token=: accept them and move the token into the fragment. They expire
+  // within 7 days of this change going live (October 2026); drop it then.
   function getToken() {
-    const params = new URLSearchParams(window.location.search);
-    return params.get('token') || '';
+    const fromHash = new URLSearchParams(window.location.hash.slice(1)).get('token');
+    if (fromHash) {
+      return fromHash;
+    }
+    const fromQuery = new URLSearchParams(window.location.search).get('token');
+    if (fromQuery) {
+      window.history.replaceState(null, '', window.location.pathname + '#token=' + encodeURIComponent(fromQuery));
+      return fromQuery;
+    }
+    return '';
   }
 
   function show(id) {
