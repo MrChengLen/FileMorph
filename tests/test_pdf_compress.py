@@ -321,16 +321,13 @@ _NEEDS_JPEG2000 = pytest.mark.skipif(
             id="unreadable-behind-flate",
         ),
         pytest.param(
-            lambda: _entropy_jpeg_bytes(300, 90)[:2000], ["/DCTDecode"], id="damaged-jpeg"
-        ),
-        pytest.param(
             lambda: _entropy_jpeg_bytes(600, 90), ["/DCTDecode"], id="other-size-than-declared"
         ),
     ],
 )
 def test_engine_leaves_images_it_does_not_decode_as_they_are(tmp_path, make_data, filters):
     """Only the ordinary JPEG is re-encoded; the other image stays byte for
-    byte, and a damaged one doesn't fail the request."""
+    byte."""
     import pikepdf
 
     from app.compressors.pdf import compress_pdf_to_target
@@ -381,6 +378,20 @@ def test_engine_re_encodes_lossless_images_and_jpegs_behind_a_filter(tmp_path, m
     assert result["recompressible_images"] == 2
     with pikepdf.open(str(out)) as pdf:
         assert pdf.pages[0].Resources.XObject.Im1.Filter == "/DCTDecode"
+
+
+def test_engine_survives_a_jpeg_cut_short(tmp_path):
+    """A damaged JPEG doesn't fail the request. (Whether its rest decodes as
+    gray depends on the platform's JPEG library, so only that is checked.)"""
+    from app.compressors.pdf import compress_pdf_to_target
+
+    src, out = tmp_path / "in.pdf", tmp_path / "out.pdf"
+    _two_image_pdf(src, _entropy_jpeg_bytes(300, 90)[:2000], ["/DCTDecode"])
+
+    result = compress_pdf_to_target(src, out, target_bytes=10 * 1024 * 1024)
+
+    assert result["recompressible_images"] >= 1
+    assert out.read_bytes()[:4] == b"%PDF"
 
 
 def test_engine_leaves_a_doubly_compressed_image_as_it_is(tmp_path):
