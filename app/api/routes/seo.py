@@ -151,13 +151,22 @@ async def llms_txt() -> str:
     agnostic). English-only by design: it targets crawlers, not end users.
     """
     base = settings.app_base_url.rstrip("/")
+    # Where filemorph.io runs — only on the commercial surface, so a
+    # self-hosted instance doesn't claim it. Same wording as
+    # partials/hosting_note.html (pinned by tests/test_public_claims.py).
+    hosting = (
+        " Server at Hetzner in the EU, connections via Cloudflare (USA) — "
+        f"[privacy policy § 4]({base}/privacy#hosting)."
+        if settings.pricing_page_enabled
+        else ""
+    )
     lines = [
         "# FileMorph",
         "",
         "> Free, open-source, privacy-respecting file converter and compressor. "
-        "Convert and compress images, documents, spreadsheets, audio and video in "
-        "the browser or via a REST API. Self-hostable (AGPLv3), EU-hosted, no "
-        "account required.",
+        "Convert and compress images, documents, spreadsheets, audio and video "
+        "through a web interface or a REST API — the files are processed on the "
+        "server. Self-hostable (AGPLv3), no account required.",
         "",
         "## Core pages",
         "",
@@ -178,9 +187,10 @@ async def llms_txt() -> str:
         "ICO), documents (DOCX, PDF, TXT, Markdown, HTML, EML), spreadsheets (XLSX, "
         "CSV, JSON), audio (MP3, WAV, FLAC, OGG, M4A, AAC, WMA, Opus) and video (MP4, "
         "MOV, AVI, MKV, WebM, FLV, WMV). "
-        "It can compress JPEG, WebP and AVIF images to an exact target size using "
-        "a binary search. Files are processed server-side and deleted immediately "
-        "after conversion; hosting is in the EU and no account is required.",
+        "It can compress JPEG, WebP and AVIF images to a target size using "
+        "a binary search; the result can end up to 3 % above the target, or larger "
+        "if an image can't get that small. Files are processed server-side and "
+        "deleted immediately after conversion, and no account is required." + hosting,
         "",
         f"Open source under AGPLv3: {GITHUB_URL}",
         "",
@@ -193,7 +203,7 @@ async def llms_txt() -> str:
                     i + 1,
                     f"- [Redact PII from documents]({base}/redact): detect and remove "
                     "IBANs, emails, phone numbers, IPv4 addresses and card numbers from "
-                    "TXT, DOCX and XLSX — free findings preview, EU-hosted, no third-party AI",
+                    "TXT, DOCX and XLSX — free findings preview, no third-party AI",
                 )
                 break
     # PDF structural operations (split / extract pages / compress) are a
@@ -218,7 +228,7 @@ async def llms_txt() -> str:
             lines.insert(
                 i + 1,
                 f"- [Compress an image or video]({base}/compress): shrink a JPEG, "
-                "WebP or AVIF toward an exact target size in MB, or a video by quality",
+                "WebP or AVIF toward a target size in MB, or a video by quality",
             )
             break
     # Per-pair landing pages (Phase 2) — generated from PAIR_CONTENT (the

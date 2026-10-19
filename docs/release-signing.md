@@ -28,8 +28,9 @@ signing is not enough — the published image must be tied to a
 verifiable identity. This document plus the cosign workflow cover
 both surfaces.
 
-ISO 27001:2013 A.14.2.9 ("System acceptance testing") and BSI SYS.1.6
-("Containerisierung") both expect the signing claims to be reproducible
+ISO/IEC 27001:2022 A.8.29 ("Security testing in development and
+acceptance") and BSI SYS.1.6 ("Containerisierung") both expect the
+signing claims to be reproducible
 *outside* the repository — i.e. a third-party auditor can verify
 without our help. Sigstore's transparency log (Rekor) and the public
 PGP keys below satisfy that expectation.

@@ -67,9 +67,11 @@ objects are refused (their binary parts can't be certified clean).
 ## Privacy / GDPR
 
 - **Stateless:** the file is processed in memory and deleted immediately after
-  the output is returned — nothing is stored. EU-hosted.
-- **No external transmission:** redaction runs locally; file content never leaves
-  the server or reaches any third party / model.
+  the output is returned — nothing is stored. On filemorph.io the server is at
+  Hetzner in the EU and connections go through Cloudflare (USA) — see
+  [privacy policy § 4](https://filemorph.io/privacy#hosting).
+- **No external transmission:** redaction runs locally; the server never sends
+  file content on to any third party or model.
 - **Metadata-only audit:** each redaction writes a tamper-evident audit entry with
   *operation, format, item count, tier* — never the content or any detected value.
 

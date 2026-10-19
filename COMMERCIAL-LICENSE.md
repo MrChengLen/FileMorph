@@ -97,7 +97,7 @@ for a back-end file-conversion service.
 | **OEM / white-label** | Embed + redistribute inside your own product | Case-by-case |
 
 What "dedicated onboarding" (and the lighter onboarding at the other
-tiers) includes — kickoff call, deployment-architecture review, DPA +
+tiers) includes — kickoff call, deployment-architecture review,
 "Annex II — TOM" finalisation, security-questionnaire answers, and a
 tailored deployment-readiness checklist plus post-go-live check-ins at
 the Enterprise tier — is defined in [`docs/onboarding.md`](docs/onboarding.md).
@@ -121,7 +121,9 @@ Kleinunternehmer gemäß §19 UStG — no VAT is charged (small-business regulat
 > embeds FileMorph closed-source — there AGPL §13 actually triggers. Authorities,
 > clinics and law firms running FileMorph **internally** do not trigger AGPL and
 > do **not** need this license; for them the Compliance tiers sell accountability
-> (DPA, SLA, a liable contact, signed releases), not permission. See
+> (SLA, a liable contact), not permission — signed releases come with every
+> edition, and a self-hosted deployment involves no data processing on the
+> customer's behalf, so no DPA. See
 > [`docs/agpl-fuer-behoerden.md`](docs/agpl-fuer-behoerden.md).
 
 ---

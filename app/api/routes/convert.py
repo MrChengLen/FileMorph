@@ -298,7 +298,7 @@ async def _do_convert(
         # the metric write; Compliance Edition flips ``audit_fail_closed``
         # so this raises and the request fails closed instead. The payload
         # carries no file content — only metadata sufficient for an
-        # ISO 27001 A.12.4.1 / BORA §50 retrospective review.
+        # ISO/IEC 27001:2022 A.8.15 retrospective review.
         await audit_record(
             "convert.success",
             actor_user_id=user.id if user is not None else None,

@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """H1 — Rate-limit positive regression test.
 
-The pricing copy promises "10 requests/minute" on convert + compress
-(``@limiter.limit("10/minute")``). The slowapi limiter is **disabled**
+The pricing copy says the per-minute limit is the same for every plan —
+"10 requests per minute to convert or compress a file", counted per IP and
+route (``@limiter.limit("10/minute")``). The slowapi limiter is **disabled**
 session-wide via ``RATELIMIT_ENABLED=0`` in ``conftest.py`` so the rest
 of the suite isn't accidentally rate-limited (test 11+ would otherwise
 return 429 and break unrelated tests).

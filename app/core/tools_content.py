@@ -44,7 +44,7 @@ TOOLS_CONTENT: dict[str, dict] = {
         "meta": (
             "Browse every FileMorph tool — convert & compress files, split or "
             "extract PDF pages, or shrink a PDF to a target size. Free, no "
-            "account, EU-hosted."
+            "account needed."
         ),
         "h1": "All FileMorph tools",
         "hero": (
@@ -62,7 +62,7 @@ TOOLS_CONTENT: dict[str, dict] = {
             "compress_target": {
                 "title": "Compress to a target size",
                 "desc": (
-                    "Dial in an exact target size in MB for a JPEG, WebP or "
+                    "Dial in a target size in MB for a JPEG, WebP or "
                     "AVIF image, or shrink a video by quality — the dedicated "
                     "tool, with honest limits on which formats hit a target."
                 ),
@@ -99,8 +99,8 @@ TOOLS_CONTENT: dict[str, dict] = {
         "title": "Tools — konvertieren, komprimieren, PDF",
         "meta": (
             "Alle FileMorph-Tools: Dateien konvertieren und komprimieren, "
-            "PDF-Seiten aufteilen, extrahieren oder verkleinern. Kostenlos, "
-            "ohne Konto, EU-gehostet."
+            "PDF-Seiten aufteilen, extrahieren oder verkleinern. Kostenlos "
+            "und ohne Konto."
         ),
         "h1": "Alle FileMorph-Tools",
         "hero": (
@@ -120,10 +120,10 @@ TOOLS_CONTENT: dict[str, dict] = {
             "compress_target": {
                 "title": "Auf Zielgröße komprimieren",
                 "desc": (
-                    "Für ein JPEG, WebP oder AVIF eine exakte Größe in MB "
+                    "Für ein JPEG, WebP oder AVIF eine Zielgröße in MB "
                     "einstellen, oder ein Video per Qualität verkleinern — "
                     "das eigene Tool, mit ehrlichem Hinweis, welche Formate "
-                    "eine exakte Zielgröße erreichen."
+                    "eine Zielgröße erreichen."
                 ),
             },
             "split": {

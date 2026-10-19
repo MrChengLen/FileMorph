@@ -21,7 +21,7 @@
       <!-- The real, working tool: free findings preview (detect) → paid output (apply) -->
       {% include "partials/redact_tool.html" %}
 
-      <p class="text-center text-xs text-gray-700 leading-relaxed">{{ content.trust }}</p>
+      <p class="text-center text-xs text-ink-muted leading-relaxed">{{ content.trust }}{% if pricing_enabled %} {% include "partials/hosting_note.html" %}.{% endif %}</p>
 
       <!-- What it detects -->
       <section class="border border-gray-800 rounded-xl px-5 py-4 space-y-2">

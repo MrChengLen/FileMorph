@@ -47,7 +47,7 @@ async function upgrade(tier) {
     if (res.status === 503) {
       btn.disabled = false;
       btn.textContent = labelForTier(tier);
-      alert(I18N.paymentsNotActive || 'Payments are not yet active. Please check back soon.');
+      alert(I18N.paymentsNotActive || 'Payments are currently not available.');
       return;
     }
     const data = await res.json();

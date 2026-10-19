@@ -256,3 +256,30 @@ def test_enterprise_page_format_pair_claim_is_not_an_overclaim(client, monkeypat
     assert pairs >= 180, f"registry only has {pairs} distinct pairs — enterprise.html claims 180+"
     for path in ("/en/enterprise", "/de/enterprise"):
         assert "180+" in client.get(path).text, f"{path} lost its '180+ format pairs' claim"
+
+
+def test_enterprise_page_names_how_many_pairs_are_documents(client, monkeypatch):
+    """Most of the 180+ pairs are image, audio and video permutations; the
+    page says how many are document and spreadsheet pairs. The
+    number is counted from the registry — a pair belongs to the media side
+    when the image, audio or video converter handles it — so a new document
+    converter fails here until the sentence is updated."""
+    from app.converters.registry import get_converter
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "pricing_page_enabled", True)
+    media = {"app.converters.image", "app.converters.audio", "app.converters.video"}
+    documents = {
+        (_alias(src), _alias(tgt))
+        for src, tgts in get_public_conversions().items()
+        for tgt in tgts
+        if _alias(src) != _alias(tgt) and type(get_converter(src, tgt)).__module__ not in media
+    }
+    count = len(documents)
+    expected = {
+        "/en/enterprise": f"180+ format pairs, {count} of them document and spreadsheet pairs",
+        "/de/enterprise": f"180+ Format-Paare ab, davon {count} Dokument- und Tabellenpaare",
+    }
+    for path, sentence in expected.items():
+        page = " ".join(client.get(path).text.split())
+        assert sentence in page, f"{path}: expected {sentence!r} ({count} counted)"

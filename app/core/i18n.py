@@ -348,7 +348,7 @@ def _js_i18n_strings(_: gettext.GNUTranslations.gettext) -> dict[str, str]:
         "signIn": _("Sign In"),
         "signingIn": _("Signing in…"),
         # pricing.js — Stripe upgrade buttons
-        "paymentsNotActive": _("Payments are not yet active. Please check back soon."),
+        "paymentsNotActive": _("Payments are currently not available."),
         "redirecting": _("Redirecting…"),
         "upgradeToBusiness": _("Upgrade to Business"),
         "upgradeToPro": _("Upgrade to Pro"),

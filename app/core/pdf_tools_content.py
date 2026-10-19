@@ -36,7 +36,7 @@ PDF_TOOL_CONTENT: dict[str, dict[str, dict]] = {
             "title": "Split a PDF into pages online — free",
             "meta": (
                 "Split a PDF into individual pages online for free, no account. Get a "
-                "ZIP with one PDF per page. EU-hosted, files deleted right after."
+                "ZIP with one PDF per page. Files deleted right after."
             ),
             "h1": "Split a PDF into pages",
             "hero": "Turn a multi-page PDF into one file per page, bundled as a ZIP.",
@@ -94,7 +94,7 @@ PDF_TOOL_CONTENT: dict[str, dict[str, dict]] = {
             "title": "PDF in Einzelseiten aufteilen — kostenlos",
             "meta": (
                 "PDF kostenlos online in Einzelseiten aufteilen, ohne Konto. Ein "
-                "ZIP mit einem PDF pro Seite. EU-gehostet, Dateien sofort gelöscht."
+                "ZIP mit einem PDF pro Seite. Dateien sofort gelöscht."
             ),
             "h1": "PDF in Einzelseiten aufteilen",
             "hero": "Ein mehrseitiges PDF in einzelne Seiten aufteilen — als ZIP zum Download.",
@@ -159,8 +159,7 @@ PDF_TOOL_CONTENT: dict[str, dict[str, dict]] = {
             "title": "Extract pages from a PDF online — free",
             "meta": (
                 "Extract specific pages from a PDF online for free, no account. "
-                "Enter a page range like 1-3,5 and download just those pages. "
-                "EU-hosted."
+                "Enter a page range like 1-3,5 and download just those pages."
             ),
             "h1": "Extract pages from a PDF",
             "hero": "Pick the pages you need and download them as a single, smaller PDF.",
@@ -218,7 +217,7 @@ PDF_TOOL_CONTENT: dict[str, dict[str, dict]] = {
             "meta": (
                 "Bestimmte Seiten kostenlos online aus einem PDF extrahieren, ohne "
                 "Konto. Seitenbereich wie 1-3,5 eingeben und nur diese Seiten "
-                "herunterladen. EU-gehostet."
+                "herunterladen."
             ),
             "h1": "Seiten aus einem PDF extrahieren",
             "hero": "Wähle die Seiten, die du brauchst, und lade sie als kleineres PDF herunter.",
@@ -280,7 +279,7 @@ PDF_TOOL_CONTENT: dict[str, dict[str, dict]] = {
             "meta": (
                 "Compress a PDF toward a target size online for free, no account. "
                 "Recompresses embedded images; honestly reports when there's "
-                "nothing to shrink. EU-hosted."
+                "nothing to shrink."
             ),
             "h1": "Compress a PDF to a target size",
             "hero": "Shrink a PDF toward a size you choose by recompressing its embedded images.",
@@ -340,7 +339,7 @@ PDF_TOOL_CONTENT: dict[str, dict[str, dict]] = {
             "meta": (
                 "PDF kostenlos online auf eine Zielgröße verkleinern, ohne Konto. "
                 "Rekomprimiert Bilder, meldet ehrlich, wenn nichts zu verkleinern "
-                "ist. EU-gehostet."
+                "ist."
             ),
             "h1": "PDF auf eine Zielgröße verkleinern",
             "hero": (

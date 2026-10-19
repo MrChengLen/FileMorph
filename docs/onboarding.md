@@ -9,7 +9,7 @@ signing, what the "dedicated onboarding" line in
 
 > **FileMorph is self-hosted.** Onboarding is *enablement and
 > paperwork* — getting your team to a verified, production-ready
-> deployment with the support relationship and the Article 28
+> deployment with the support relationship and the compliance
 > documentation in place. It is **not** managed hosting: you run the
 > instance on your own (or your provider's) infrastructure; we do not
 > operate it for you. A managed-hosting option does not exist today; if
@@ -23,7 +23,7 @@ signing, what the "dedicated onboarding" line in
 | Email Q&A round on deployment + licence scope | ✔ | ✔ | ✔ | ✔ |
 | Kickoff call (scope, timeline, named contacts) | — | ✔ | ✔ | ✔ |
 | Deployment-architecture review (your topology: reverse proxy, DB, network, env vars) | — | ✔ | ✔ | ✔ |
-| DPA + "Annex II — TOM" finalised in the pilot conversation (placeholders filled for your deployment) | — | ✔ | ✔ | ✔ |
+| "Annex II — TOM" filled in for your deployment in the pilot conversation (no DPA: self-hosted, no data processing on your behalf) | — | ✔ | ✔ | ✔ |
 | Your security questionnaire answered (SIG-Lite / VSA / in-house form) | — | ✔ | ✔ | ✔ |
 | Artifact-verification walkthrough (`cosign verify`, SBOM ingestion, audit-log `verify_chain`, veraPDF check) | — | ✔ | ✔ | ✔ |
 | Dedicated onboarding contact + named escalation path | — | — | ✔ | ✔ |
@@ -50,10 +50,11 @@ A typical engagement, contract-signed to go-live:
    [`security-overview.md`](security-overview.md). You get back any
    deployment-specific notes.
 3. **Compliance paperwork finalised** *(Standard+)* — the
-   [DPA template](dpa-template.md) and its
-   [Annex II — TOM](dpa-tom-annex.md) are filled in for your concrete
+   [Annex II — TOM](dpa-tom-annex.md) is filled in for your concrete
    deployment (instance location, network segmentation, on-call,
-   pen-test status, retention values) and counter-signed; the
+   pen-test status, retention values); a self-hosted deployment
+   involves no data processing on your behalf, so there is no DPA to
+   counter-sign ([DPA template](dpa-template.md) §1); the
    [sub-processor list](sub-processors.md) is confirmed, or reduced in
    scope if you operate fully self-contained.
 4. **Security due-diligence support** *(Standard+)* — your security
@@ -121,8 +122,9 @@ and the offline-tooling setup.
 - [`COMMERCIAL-LICENSE.md`](../COMMERCIAL-LICENSE.md) — the Compliance
   Edition tiers and what each includes.
 - [`support-sla.md`](support-sla.md) — what onboarding hands off to.
-- [`dpa-template.md`](dpa-template.md) + [`dpa-tom-annex.md`](dpa-tom-annex.md)
-  — the paperwork finalised during onboarding.
+- [`dpa-tom-annex.md`](dpa-tom-annex.md) — the TOM annex filled in during
+  onboarding; [`dpa-template.md`](dpa-template.md) applies only where
+  FileMorph processes data on your behalf (its §1).
 - [`security-overview.md`](security-overview.md) · [`threat-model.md`](threat-model.md)
   · [`patch-policy.md`](patch-policy.md) · [`sub-processors.md`](sub-processors.md)
   · [`third-party-licenses.md`](third-party-licenses.md) · [`release-signing.md`](release-signing.md)

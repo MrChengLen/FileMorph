@@ -321,7 +321,7 @@ async def register(
     # increment owns its session — kept off the request transaction so a
     # metrics failure here can't corrupt the freshly committed user row.
     await metric_increment("registrations")
-    # NEU-B.3: ISO 27001 A.9.2.1 — record account creation with the new
+    # NEU-B.3: ISO/IEC 27001:2022 A.5.16 — record account creation with the new
     # user's id as actor. ``audit_record`` opens its own session so a
     # failure here can never corrupt the freshly committed user row.
     await audit_record(
@@ -364,7 +364,7 @@ async def login(request: Request, body: LoginRequest, db: AsyncSession | None = 
         user.password_hash if user is not None else DUMMY_PASSWORD_HASH,
     )
     if not user or not password_ok:
-        # NEU-B.3: ISO 27001 A.9.4.2 — record failed authentication. A
+        # NEU-B.3: ISO/IEC 27001:2022 A.8.5 — record failed authentication. A
         # wrong password names the account the lookup above matched, so
         # attempts against it stay visible; the id sits outside the hash
         # chain and is cleared when the account is deleted. An address
@@ -617,7 +617,7 @@ async def reset_password(
     user.password_hash = await asyncio.to_thread(hash_password, body.new_password)
     await db.commit()
     logger.info("reset_password: password updated user=%s", user.id)
-    # NEU-B.3: ISO 27001 A.9.2.4 — credential changes are audit-relevant.
+    # NEU-B.3: ISO/IEC 27001:2022 A.5.17 — credential changes are audit-relevant.
     # Order is "commit then audit" because the audit log uses its own
     # session and there is no two-phase commit between the user-table
     # write and the audit-events insert. Under ``audit_fail_closed``,
@@ -677,7 +677,7 @@ async def verify_email(
     if user.email_verified_at is None:
         user.email_verified_at = datetime.now(timezone.utc)
         await db.commit()
-        # NEU-B.3: ISO 27001 A.9.2.1 — credential / identity-binding
+        # NEU-B.3: ISO/IEC 27001:2022 A.5.16 — credential / identity-binding
         # changes are audit-relevant. Same "commit then audit" ordering
         # as password-reset.completed; under audit_fail_closed the
         # state change has already landed if the audit insert fails.

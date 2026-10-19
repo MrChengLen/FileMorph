@@ -1,12 +1,14 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""NEU-D.2: pricing page surfaces concurrency + rate-limits per tier.
+"""NEU-D.2: pricing page surfaces concurrency per tier.
 
 A hard regression-guard so the contract on `/pricing` cannot drift
 out of sync with the limiter values in
 ``app/core/concurrency.py::_PER_TIER_CONCURRENCY``. The Pricing
 page is the public claim ("25,000 calls / month, 3 concurrent");
 the limiter is the enforcement; if they disagree, paying users
-hit unexpected 429s.
+hit unexpected 429s. A tier's cap only counts up to the global pool
+(``MAX_GLOBAL_CONCURRENCY``), so the page shows the smaller of the two —
+Business's 6 is 4 on a default deployment.
 
 The test renders the pricing template via ``stripe_enabled=True``
 so the full feature list is shown (the Coming-Soon banner replaces
@@ -55,11 +57,12 @@ def test_pricing_explains_quota_vs_concurrency(pricing_html):
         ("business", "200,000", _PER_TIER_CONCURRENCY["business"]),
     ],
 )
-def test_each_tier_lists_quota_concurrent_and_rate(pricing_html, tier, quota_label, concurrent):
+def test_each_tier_lists_quota_and_concurrent(pricing_html, tier, quota_label, concurrent):
     """Every paid (and free-API) tier prints the monthly quota
-    *and* the concurrent slot count. If the limiter changes the
-    per-tier number, this test fails until the page is updated."""
+    *and* the concurrent slot count one account can actually use. If
+    the limiter changes the per-tier number, this test fails until the
+    page is updated."""
     assert quota_label in pricing_html, f"{tier}: missing {quota_label} in pricing HTML"
     # Concurrent slot count appears on the same line as the quota.
-    needle = f"{concurrent} concurrent"
+    needle = f"{min(concurrent, settings.max_global_concurrency)} concurrent"
     assert needle in pricing_html, f"{tier}: missing '{needle}' in pricing HTML"

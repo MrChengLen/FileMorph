@@ -38,7 +38,7 @@ class SaasPlan:
     api_calls_display: str  # locale-formatted, e.g. "25,000" / "25.000"
     ai_credits_per_month: int | None
     ai_credits_display: str  # locale-formatted PII-redaction credits, "—" when none
-    concurrency: int
+    concurrency: int  # what one account can actually run: tier cap, bounded by the global cap
     storage_days: int | None
 
 
@@ -79,7 +79,10 @@ def _saas_plan(tier: str, price_display: str, locale: str) -> SaasPlan:
         ai_credits_display=(
             _fmt(q.ai_credits_per_month, locale) if q.ai_credits_per_month else "—"
         ),
-        concurrency=q.concurrency,
+        # The per-tier cap only raises what one actor may request; the global
+        # pool (``MAX_GLOBAL_CONCURRENCY``, default 4) is shared by everyone, so
+        # Business's 6 could never all run at once on a default deployment.
+        concurrency=min(q.concurrency, settings.max_global_concurrency),
         storage_days=q.storage_days,
     )
 

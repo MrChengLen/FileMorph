@@ -126,7 +126,7 @@ def build() -> None:
     )
     draw.text(
         (tx, 392 * SS),
-        "EU-hosted   ·   AGPLv3   ·   self-hostable",
+        "Open source   ·   AGPLv3   ·   self-hostable",
         font=chips,
         fill=CHIP,
         anchor="la",

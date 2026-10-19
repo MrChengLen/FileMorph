@@ -115,11 +115,11 @@ def test_homepage_carries_avif_hint_both_locales(client):
 # ── Claim checks — every surface naming the target-size formats ───────────
 
 
-def test_homepage_faq_exact_size_answer_names_avif(client):
+def test_homepage_faq_target_size_answer_names_avif(client):
     en = client.get("/en/").text
     de = client.get("/de/").text
-    en_q = "Can I compress a file to an exact size?"
-    de_q = "Kann ich eine Datei auf eine exakte Größe komprimieren?"
+    en_q = "Can I compress a file to a target size?"
+    de_q = "Kann ich eine Datei auf eine Zielgröße komprimieren?"
     en_match = re.search(re.escape(en_q) + r"</h3>\s*<p[^>]*>(.*?)</p>", en, re.S)
     de_match = re.search(re.escape(de_q) + r"</h3>\s*<p[^>]*>(.*?)</p>", de, re.S)
     assert en_match, f"FAQ question {en_q!r} not found on /en/"
@@ -141,7 +141,7 @@ def test_formats_page_target_size_section_names_avif(client):
 
 def test_llms_txt_states_avif_target_size(client):
     llms = client.get("/llms.txt").text
-    assert "compress JPEG, WebP and AVIF images to an exact target size" in llms
+    assert "compress JPEG, WebP and AVIF images to a target size" in llms
 
 
 def test_llms_txt_compress_bullet_names_avif(client):

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ _('Compliance Edition — self-hosted conversion') }} | FileMorph{% endblock %}
-{% block meta_description %}{{ _('Self-hosted, GDPR-compliant file conversion for public sector, hospitals and law firms — DPA, SLA, signed releases, audit log.') }}{% endblock %}
+{% block meta_description %}{{ _('Self-hosted, GDPR-compliant file conversion for public sector, hospitals and law firms — commercial license, SLA, signed releases, audit log.') }}{% endblock %}
 {% block content %}
 <main class="max-w-4xl mx-auto px-6 py-12 space-y-20 text-gray-300 text-sm leading-relaxed">
 
@@ -15,10 +15,10 @@
   <section class="space-y-6">
     <p class="text-xs uppercase tracking-widest text-brand">{{ _('FileMorph Compliance Edition') }}</p>
     <h1 class="text-3xl sm:text-4xl font-bold text-white leading-tight">
-      {{ _('Run FileMorph on citizen data — with a signed DPA, a liable EU contact, and an SLA.') }}
+      {{ _('Run FileMorph on citizen data — on your own servers, with a liable EU contact and an SLA.') }}
     </h1>
     <p class="text-lg text-gray-300 max-w-2xl leading-relaxed">
-      {{ _('Self-hosted behind your firewall. The open-source engine is free under AGPLv3; the Compliance Edition adds the contract behind it — Art. 28 DPA, support SLA, signed releases, and someone accountable. EU vendor with German imprint.') }}
+      {{ _('Self-hosted behind your firewall: we process no data on your behalf, so no DPA is needed. The open-source engine is free under AGPLv3; the Compliance Edition adds the contract behind it — commercial license, support SLA and someone accountable. EU vendor with German imprint.') }}
     </p>
     <p class="text-sm text-gray-400 max-w-2xl leading-relaxed">
       {{ _('Internal use is already free under AGPL-3.0') }} —
@@ -95,7 +95,7 @@
       </table>
     </div>
     <p class="text-xs text-gray-500">
-      {{ _('KRITIS and air-gap variants on request. All tiers include commercial license, DPA template, signed Docker image and support SLA.') }}
+      {{ _('KRITIS and air-gap variants on request. All tiers include commercial license, signed Docker image and support SLA.') }}
     </p>
     <p class="text-xs text-gray-600">
       {{ _('Prices per year. Kleinunternehmer gemäß §19 UStG — keine Umsatzsteuer ausgewiesen (no VAT charged, small-business rule, §19 German VAT Act).') }}
@@ -109,25 +109,26 @@
       {{ _('Public authorities, hospitals and law firms often may not process citizen and client data through public cloud conversion services — the GDPR data chain and the EVB-IT contract framework set tight limits here. At the same time, the typical IT department lacks the bandwidth to maintain a conversion backend on its own.') }}
     </p>
     <p>
-      {{ _('FileMorph closes this gap: the open-source engine covers 180+ format pairs and runs on your own Hetzner / on-premises / air-gap infrastructure. The Compliance Edition additionally provides the contracts, SLAs and roadmap guarantees that an EVB-IT-compliant procurement requires.') }}
+      {{ _('FileMorph closes this gap: the open-source engine covers 180+ format pairs, 13 of them document and spreadsheet pairs, and runs on your own Hetzner / on-premises / air-gap infrastructure. The Compliance Edition additionally provides the contracts, SLAs and roadmap guarantees that an EVB-IT-compliant procurement requires.') }}
     </p>
   </section>
 
   <!-- What's in the edition -->
   <section class="space-y-5">
     <h2 class="text-2xl font-bold text-white">{{ _('What\'s in the Compliance Edition') }}</h2>
+    <p class="text-gray-400">{{ _('The audit log, PDF/A-2b and signed releases are part of the open-source engine and come with every edition. The Compliance Edition adds the commercial license, the support SLA and a liable contact.') }}</p>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
       <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-3">
         <h3 class="text-base font-semibold text-white tracking-tight">{{ _('Commercial license') }}</h3>
         <p class="text-gray-400 leading-relaxed">{{ _('Lifts the AGPLv3 publication obligation for internal in-house developments + public citizen-portal integrations.') }}</p>
       </div>
       <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-3">
-        <h3 class="text-base font-semibold text-white tracking-tight">{{ _('Data Processing Agreement (DPA)') }}</h3>
-        <p class="text-gray-400 leading-relaxed">{{ _('GDPR Art. 28-compliant DPA — drafted jointly in the pilot conversation and adapted to your authority or clinic specifics.') }}</p>
+        <h3 class="text-base font-semibold text-white tracking-tight">{{ _('Data protection: no DPA needed') }}</h3>
+        <p class="text-gray-400 leading-relaxed">{{ _('You run FileMorph on your own infrastructure, so there is no processing on your behalf under Art. 28 GDPR and no DPA is needed.') }}</p>
       </div>
       <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-3">
         <h3 class="text-base font-semibold text-white tracking-tight">{{ _('Audit log with hash chain') }}</h3>
-        <p class="text-gray-400 leading-relaxed">{{ _('SHA-256-chained operations log, ISO 27001 A.12.4.1 / BORA §50 / BeurkG §39a.') }}</p>
+        <p class="text-gray-400 leading-relaxed">{{ _('SHA-256-chained operations log, for ISO/IEC 27001:2022 control A.8.15 (logging).') }}</p>
       </div>
       <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-3">
         <h3 class="text-base font-semibold text-white tracking-tight">{{ _('PDF/A-2b output') }}</h3>
@@ -158,7 +159,7 @@
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
         <div class="space-y-1">
           <p class="text-white font-semibold">{{ _('What you give') }}</p>
-          <p class="text-gray-400 text-xs leading-relaxed">{{ _('Logo mention as pilot customer (optional). Roadmap feedback every four weeks. Willingness to prioritize feature tickets.') }}</p>
+          <p class="text-gray-400 text-xs leading-relaxed">{{ _('Anonymized case study (optional). Roadmap feedback every four weeks. Willingness to prioritize feature tickets.') }}</p>
         </div>
         <div class="space-y-1">
           <p class="text-white font-semibold">{{ _('What you get') }}</p>
@@ -200,12 +201,6 @@
             <td class="px-4 py-3 text-center text-emerald-400">✓</td>
             <td class="px-4 py-3 text-center text-gray-400">{{ _('often ✓') }}</td>
             <td class="px-4 py-3 text-center text-gray-400">{{ _('rare') }}</td>
-          </tr>
-          <tr>
-            <td class="px-4 py-3 font-medium">{{ _('GDPR DPA template in German form') }}</td>
-            <td class="px-4 py-3 text-center text-emerald-400">✓</td>
-            <td class="px-4 py-3 text-center text-gray-400">{{ _('rare') }}</td>
-            <td class="px-4 py-3 text-center text-gray-400">{{ _('varies') }}</td>
           </tr>
           <tr>
             <td class="px-4 py-3 font-medium">{{ _('Audit log with hash chain') }}</td>
@@ -307,7 +302,7 @@
       </div>
       <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-2">
         <p class="text-white font-semibold">{{ _('What happens if we cancel?') }}</p>
-        <p class="text-gray-400 leading-relaxed">{{ _('You keep the code (AGPLv3 stays). You lose the commercial license, the updated DPA, new releases with compliance features, and the support SLA. Existing installations continue running — no lock-in via forced updates.') }}</p>
+        <p class="text-gray-400 leading-relaxed">{{ _('You keep the code (AGPLv3 stays) and can keep updating under the AGPL. You lose the commercial license, the support SLA and any backports agreed in the contract. Existing installations continue running — no lock-in via forced updates.') }}</p>
       </div>
       <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-2">
         <p class="text-white font-semibold">{{ _('How does AGPLv3 behave with citizen-portal integrations?') }}</p>

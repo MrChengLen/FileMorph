@@ -44,7 +44,7 @@ to a questionnaire instead of re-deriving the answers each time.
 | Licensing contact | `licensing@filemorph.io` ([`COMMERCIAL-LICENSE.md`](../COMMERCIAL-LICENSE.md)) |
 | Support contact | `support@filemorph.io` ([`support-sla.md`](./support-sla.md)) |
 | Public source code | [`github.com/MrChengLen/FileMorph`](https://github.com/MrChengLen/FileMorph) |
-| Product editions | **Community Edition** (AGPL-3.0, self-host, anonymous conversions) and **Compliance Edition** (the same code under a per-server commercial licence, with DPA, support agreement and onboarding) — see [`COMMERCIAL-LICENSE.md`](../COMMERCIAL-LICENSE.md) |
+| Product editions | **Community Edition** (AGPL-3.0, self-host, anonymous conversions) and **Compliance Edition** (the same code under a per-server commercial licence, with support agreement and onboarding; self-hosted, so the vendor processes no data on the customer's behalf and no DPA is needed) — see [`COMMERCIAL-LICENSE.md`](../COMMERCIAL-LICENSE.md) |
 
 ## 1. Product overview
 
@@ -62,8 +62,9 @@ the application after the response is returned.
 The product is a single Linux container — Python 3.14 + FastAPI on
 Uvicorn. It runs behind any reverse proxy (the deployment templates use
 Caddy with automatic HTTPS) on any host the customer chooses. The
-public SaaS at filemorph.io runs on Hetzner Online GmbH — data centre in
-the EU. Self-hosted deployments place themselves wherever the
+public SaaS at filemorph.io runs on a server at Hetzner Online GmbH in the
+EU; connections go through Cloudflare (USA), which terminates TLS — see
+§2.3. Self-hosted deployments place themselves wherever the
 customer requires — on-premises, sovereign cloud, air-gapped.
 
 ### 1.3 What deployment models are supported?
@@ -74,7 +75,8 @@ customer requires — on-premises, sovereign cloud, air-gapped.
   unmodified container; no licence cost.
 - **Self-hosted Compliance Edition** under the per-server commercial
   licence — the same code under a commercial licence instead of the
-  AGPL, plus the contract chain (DPA, support agreement, onboarding)
+  AGPL, plus the contract chain (support agreement, onboarding — no DPA,
+  as the vendor processes no data on the customer's behalf)
   and, for Enterprise / KRITIS, backports and offline-update tooling as
   agreed; details in [`COMMERCIAL-LICENSE.md`](../COMMERCIAL-LICENSE.md).
   The audit-log fail-closed mode (`AUDIT_FAIL_CLOSED`) and PDF/A-2b
@@ -85,8 +87,8 @@ customer requires — on-premises, sovereign cloud, air-gapped.
 
 German public bodies, hospitals, law firms (Kanzleien), insurers, and
 their service providers — buyers who require on-premises / sovereign
-deployment, an audit trail, a signed contract chain (DPA + TOM +
-licence agreement), and a named support escalation path. The product
+deployment, an audit trail, a signed contract chain (licence and
+support agreement), and a named support escalation path. The product
 is deliberately not aimed at the consumer "free online converter"
 segment.
 
@@ -100,8 +102,9 @@ segment.
 
 ### 2.1 Where is data hosted?
 
-For the SaaS at filemorph.io: Hetzner Online GmbH — data centre in the
-EU. Hetzner's datacentres are ISO 27001-certified. For a
+For the SaaS at filemorph.io: a server at Hetzner Online GmbH in the
+EU; connections go through Cloudflare (USA) — see §2.3. Hetzner's
+datacentres are ISO 27001-certified. For a
 self-hosted deployment: wherever the customer runs the container —
 their answer governs.
 
@@ -183,6 +186,10 @@ template:
 
 The vendor is willing to counter-sign reasonable controller-supplied
 DPA variants instead, provided the substance matches the template.
+
+For a self-hosted deployment — Community or Compliance Edition — the
+customer operates FileMorph and the vendor processes no personal data
+on the customer's behalf, so no DPA is needed (template §1).
 
 ### 3.2 Is there a Record of Processing Activities (Art. 30)?
 
@@ -600,7 +607,7 @@ retroactive edits to the hashed fields from a SQL dump alone. Keeping
 the newest entry's `id` and `record_hash` outside the database, for
 example after each external audit, also shows changes the chain cannot
 show on its own, such as entries removed from its end. Compatible with
-ISO 27001 A.12.4.1, BORA §50, and BeurkG §39a expectations.
+ISO/IEC 27001:2022 A.8.15 (logging) expectations.
 
 The chain identifies an actor by account ID (a random UUID), never by
 email address, and records neither an IP address nor anything derived
@@ -753,7 +760,8 @@ sequence:
 2. **Contain** (revoke compromised keys, rotate secrets, take the
    affected endpoint offline if necessary).
 3. **Notify** affected controllers within 72 hours of becoming aware
-   of a personal-data breach (DPA §9, GDPR Art. 33). The
+   of a personal-data breach (GDPR Art. 33; where a DPA is in place,
+   its §9). The
    notification includes the nature of the breach, the categories
    and approximate number of data subjects affected, the likely
    consequences, and the measures taken or proposed.
@@ -764,9 +772,9 @@ sequence:
 ### 9.2 Personal-data-breach notification SLA
 
 Notification to the controller within 72 hours of becoming aware
-(DPA §9 mirroring GDPR Art. 33). The breach-notification clause is
-in the standard DPA template (§9) and remains in force as long as
-the DPA is in force.
+(GDPR Art. 33). Where a DPA is in place, its breach-notification
+clause (§9 of the standard template) applies for as long as the DPA
+is in force.
 
 ### 9.3 Status page / customer notification
 
@@ -895,8 +903,8 @@ dynamically and isolated per AGPL §13 best practice.
 
 **None.** The vendor does not claim ISO 27001, SOC 2, BSI Grundschutz,
 PCI-DSS, or HIPAA conformance. Where a control matches the shape of a
-standard (e.g. tamper-evident audit logging matches ISO 27001
-A.12.4.1), the documentation says so for orientation, not as a
+standard (e.g. tamper-evident audit logging matches ISO/IEC
+27001:2022 A.8.15), the documentation says so for orientation, not as a
 conformance claim. See
 [`docs/security-overview.md`](./security-overview.md) § "What this is
 not".
@@ -905,14 +913,14 @@ not".
 
 German law applies. Exclusive venue for disputes is Hamburg, Germany,
 subject to mandatory consumer-protection law. The contract chain
-(DPA, Commercial Licence Agreement, Support Framework) names this
+(Commercial Licence Agreement, Support Framework) names this
 explicitly.
 
 ### 12.3 Does FileMorph meet KRITIS / B3S / EVB-IT requirements?
 
 The product is designed with the KRITIS / B3S buyer in mind —
 audit-log hash chain, signed releases, on-premises / sovereign
-deployment, AGPL source availability, DPA + TOM templates. Specific
+deployment, AGPL source availability, TOM and DPA templates. Specific
 conformance is engagement-by-engagement; the gaps (no external
 pentest, no MFA, no SAML SSO) are listed in §5 and §8 above and are
 on-demand build items via the Compliance Edition agreement.
@@ -988,7 +996,7 @@ fix clock.
 
 ### 14.1 What happens at end of contract?
 
-For Compliance Edition contracts, DPA §10 governs: at the controller's
+Where a DPA is in place, its §10 governs: at the controller's
 choice the processor either returns all personal data or deletes it,
 with confirmation in writing. The 30-day grace period covers an
 orderly export.
@@ -1035,8 +1043,8 @@ public source) is what the buyer gets in return.
 ### 15.2 Background checks
 
 Not applicable — sole-proprietor operation. For the Compliance
-Edition tier, identity is confirmed by the contract chain (counter-
-signed DPA, Commercial Licence Agreement).
+Edition tier, identity is confirmed by the contract chain (Commercial
+Licence Agreement, support agreement).
 
 ### 15.3 Subcontractors
 
@@ -1088,7 +1096,7 @@ prior-notice rule.
    instruments are signed in this order:
    - Commercial Licence Agreement
      ([`docs/commercial-license-agreement-template.md`](./commercial-license-agreement-template.md)).
-   - DPA + Annex II (TOM) + Annex III (sub-processor list)
+   - Where a DPA is needed: DPA + Annex II (TOM) + Annex III (sub-processor list)
      ([`docs/dpa-template.md`](./dpa-template.md),
      [`docs/dpa-tom-annex.md`](./dpa-tom-annex.md),
      [`docs/sub-processors.md`](./sub-processors.md)).
