@@ -44,10 +44,9 @@ from starlette.background import BackgroundTask
 from app.api.deps import caller_tier, require_api_key
 from app.api.routes.auth import get_optional_user
 from app.compressors.pdf import compress_pdf_to_target
-from app.converters.base import EncryptedPdfError
+from app.converters.base import EncryptedPdfError, OutputTooLargeError
 from app.converters.pdf_pages import (
     PageSelectionError,
-    SplitOutputTooLargeError,
     TooManyPagesError,
     UnreadablePdfError,
     extract_pages,
@@ -260,8 +259,8 @@ async def _do_split(
             outputs = await asyncio.to_thread(split_pdf, input_path, quota.output_cap_bytes)
         except HTTPException:
             raise
-        except SplitOutputTooLargeError as exc:
-            raise _output_cap_error(exc.size, quota, tier) from None
+        except OutputTooLargeError:
+            raise _output_cap_error(None, quota, tier) from None
         except (EncryptedPdfError, PageSelectionError) as exc:
             logger.info("pdf split rejected: %s", exc)
             # A PDF over the page cap is valid; invalid_pdf would make the UI
@@ -347,9 +346,14 @@ def _enforce_output_cap(output_size: int, quota, tier: str) -> None:
         raise _output_cap_error(output_size, quota, tier)
 
 
-def _output_cap_error(output_size: int, quota, tier: str) -> HTTPException:
+def _output_cap_error(output_size: int | None, quota, tier: str) -> HTTPException:
+    """The output-cap 413. ``None``: the split stopped at the cap, so the full
+    size is unknown."""
     cap_mb = quota.output_cap_bytes // _MB
-    out_mb = output_size // _MB
+    if output_size is None:
+        too_large = f"Output too large (over the {cap_mb} MB cap)."
+    else:
+        too_large = f"Output too large ({output_size // _MB} MB > {cap_mb} MB cap)."
     hint = (
         "Extract a smaller page range or register for a higher cap."
         if tier == "anonymous"
@@ -357,7 +361,7 @@ def _output_cap_error(output_size: int, quota, tier: str) -> HTTPException:
     )
     return HTTPException(
         status_code=status.HTTP_413_CONTENT_TOO_LARGE,
-        detail=f"Output too large ({out_mb} MB > {cap_mb} MB cap). {hint}",
+        detail=f"{too_large} {hint}",
         headers={"X-FileMorph-Error-Code": "output_cap_exceeded"},
     )
 

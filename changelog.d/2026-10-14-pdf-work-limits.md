@@ -9,8 +9,8 @@
   Use ranges such as 1-100 instead of listing pages one by one." (every
   page up to the cap, listed one by one, is about 49 000 characters).
 - **Split** (`/pdf/split`) checks the tier output cap while it writes the
-  single-page PDFs and stops with the usual `413` (`output_cap_exceeded`)
-  once they pass it. Each single-page PDF carries its own copy of the
+  single-page PDFs and stops with the usual `413` (`output_cap_exceeded`,
+  "Output too large (over the N MB cap).") once they pass it. Each single-page PDF carries its own copy of the
   images and fonts it uses, so a split can come out larger than its input.
 
 Tests cover repeated and adjacent ranges, a selection exactly at and just

@@ -14,6 +14,7 @@ import pytest
 from pypdf import PdfWriter
 
 from app.converters import pdf_pages
+from app.converters.base import OutputTooLargeError
 from app.core import quotas as quotas_module
 
 _TEXT = b"BT /F1 12 Tf 20 100 Td (Hello) Tj ET\n"
@@ -128,10 +129,9 @@ def test_split_stops_at_the_cap_while_it_writes_pages(tmp_path, monkeypatch):
         return real_write(self, stream)
 
     monkeypatch.setattr(PdfWriter, "write", counting_write)
-    with pytest.raises(pdf_pages.SplitOutputTooLargeError) as caught:
+    with pytest.raises(OutputTooLargeError):
         pdf_pages.split_pdf(src, cap)
     assert len(writes) == 3
-    assert caught.value.size > cap
 
 
 def test_split_route_answers_413_once_the_pages_pass_the_cap(client, auth_headers, monkeypatch):
@@ -140,4 +140,4 @@ def test_split_route_answers_413_once_the_pages_pass_the_cap(client, auth_header
     res = _post(client, auth_headers, "/api/v1/pdf/split", _raw_pdf([_TEXT] * 3))
     assert res.status_code == 413
     assert res.headers["X-FileMorph-Error-Code"] == "output_cap_exceeded"
-    assert res.json()["detail"].startswith("Output too large (")
+    assert res.json()["detail"].startswith("Output too large (over the ")

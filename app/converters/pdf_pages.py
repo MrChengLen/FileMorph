@@ -42,7 +42,13 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
-from app.converters.base import BaseConverter, EncryptedPdfError, InvalidInputError, open_pypdf
+from app.converters.base import (
+    BaseConverter,
+    EncryptedPdfError,
+    InvalidInputError,
+    OutputTooLargeError,
+    open_pypdf,
+)
 from app.converters.registry import register
 
 logger = logging.getLogger(__name__)
@@ -106,18 +112,6 @@ _TOO_MANY_PAGES_SELECTED = (
 _SELECTION_TOO_LONG = (
     "The page selection is too long. Use ranges such as 1-100 instead of listing pages one by one."
 )
-
-
-class SplitOutputTooLargeError(Exception):
-    """The single-page PDFs written so far add up to more than the cap.
-
-    ``size`` is their total in bytes; the route answers with its output-cap
-    413.
-    """
-
-    def __init__(self, size: int) -> None:
-        super().__init__(size)
-        self.size = size
 
 
 def parse_page_ranges(spec: str, page_count: int) -> list[int]:
@@ -271,7 +265,7 @@ def extract_pages(input_path: Path, output_path: Path, pages_spec: str) -> Path:
     return output_path
 
 
-def split_pdf(input_path: Path, max_total_bytes: int) -> list[tuple[str, bytes]]:
+def split_pdf(input_path: Path, max_output_bytes: int) -> list[tuple[str, bytes]]:
     """Split a PDF into one single-page PDF per page.
 
     Returns ``[(filename, pdf_bytes), ...]`` with ``page_001.pdf`` style
@@ -279,8 +273,8 @@ def split_pdf(input_path: Path, max_total_bytes: int) -> list[tuple[str, bytes]]
     the ZIP). The route bundles these into a ZIP via
     ``app/core/batch.py``. Each single-page PDF carries its own copy of
     the resources it uses. Once they add up to more than
-    ``max_total_bytes`` (the caller's output cap),
-    :class:`SplitOutputTooLargeError` stops the split.
+    ``max_output_bytes`` (the caller's output cap),
+    :class:`~app.converters.base.OutputTooLargeError` stops the split.
     """
     import io
 
@@ -307,8 +301,8 @@ def split_pdf(input_path: Path, max_total_bytes: int) -> list[tuple[str, bytes]]
             buf = io.BytesIO()
             writer.write(buf)
             total_bytes += buf.tell()
-            if total_bytes > max_total_bytes:
-                raise SplitOutputTooLargeError(total_bytes)
+            if total_bytes > max_output_bytes:
+                raise OutputTooLargeError
             outputs.append((f"page_{i:0{width}d}.pdf", buf.getvalue()))
     return outputs
 
