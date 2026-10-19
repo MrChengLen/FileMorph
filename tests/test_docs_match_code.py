@@ -42,6 +42,7 @@ from app.core.concurrency import ConcurrencyExhausted
 from app.core.config import Settings, settings
 from app.core.processing import BLOCKED_MAGIC, actor_id
 from app.core.quotas import _MB, QUOTAS
+from app.core.request_limits import SMALL_BODY_LIMIT_BYTES
 from app.main import app
 
 DOCS = Path(__file__).resolve().parent.parent / "docs"
@@ -165,6 +166,19 @@ def test_docs_quote_the_default_request_cap():
             quoted[doc.name] = {int(n) for n in found}
     assert quoted, "no doc quotes the MAX_UPLOAD_SIZE_MB default any more"
     assert quoted == {name: {default} for name in quoted}
+
+
+def test_docs_quote_the_small_body_limit():
+    """The routes that take no file accept at most ``SMALL_BODY_LIMIT_BYTES``."""
+    for doc, pattern in [
+        ("api-reference.md", r"or (\d+) MB on any other endpoint"),
+        ("api-usage-guide.md", r"take at most (\d+) MB per request"),
+        ("architecture.md", r"(\d+) MB on every other route"),
+        ("threat-model.md", r"on the file endpoints, (\d+) MB elsewhere"),
+    ]:
+        found = re.findall(pattern, _flat(doc))
+        assert found, f"{doc}: the small-body limit sentence was not found"
+        assert {int(n) * _MB for n in found} == {SMALL_BODY_LIMIT_BYTES}, doc
 
 
 def test_self_hosting_quotes_the_per_tier_concurrency():

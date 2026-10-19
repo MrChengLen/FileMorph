@@ -604,7 +604,7 @@ use:
   one busy key can take every slot, and callers without a key get `503`
   until one frees up.
 - **`MAX_UPLOAD_SIZE_MB` (default 100 MB) still caps every whole
-  request** before any tier limit; a batch is one request.
+  upload request** before any tier limit; a batch is one request.
 - **Rate limits don't change:** the per-minute limits count per client
   IP and are the same for every tier.
 
