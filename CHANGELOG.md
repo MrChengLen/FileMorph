@@ -14,7 +14,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [1.2.0] — 2026-10-14
+## [1.2.0] — 2026-10-19
 
 **Upgrading from 1.1.0.** No endpoint, format or env var was removed. Check
 before pulling:
@@ -34,6 +34,243 @@ before pulling:
   tools, the cancellation form and failed API-key attempts (see "HSTS behind
   Docker" in `docs/self-hosting.md`). The new limits on API keys, checkout and
   the billing portal count per signed-in account.
+- **New refusals:** a few requests 1.1.0 processed now get an error: `413`
+  for a body over 1 MB on the account, keys, billing, contact and webhook
+  routes, and for an upload over `MAX_UPLOAD_SIZE_MB` sent without
+  `Content-Length` (chunked); `415` for a form that names a charset other
+  than UTF-8; `400` for PDF → TXT over 10 000 pages or needing more than
+  30 seconds (on Linux also more than 1 GiB), and for audio or video in a
+  container outside the supported list. The entries below have the details.
+- **Logs:** the limiter and spam-trap lines no longer hold IP addresses (the
+  access log keeps the client IP); no log holds recipient addresses, query
+  strings or database statement values. A fail2ban or alert rule that
+  matched them needs a new pattern.
+
+### Fixed — server logs leave out email addresses, IP addresses and link tokens, as the privacy notice says
+
+The privacy notice says the logs record the URL path, an email domain
+instead of the address, and no IP address from the limiters. Four places
+logged more:
+
+- **Links in account emails** — email confirmation and password reset —
+  carry their token after `#` (`/verify-email#token=…`,
+  `/reset-password#token=…`). Browsers never send that part to the server,
+  so neither the token nor the address a confirmation token was issued for
+  reaches an access log. Links sent before this change (`?token=…`) still
+  work; the page moves the token behind `#`.
+- **The application server's access log** (uvicorn) drops the query string
+  and keeps the path.
+- **Mail delivery** logs the recipient's domain only. It no longer logs the
+  subject, which carries the sender's own text for contact-form messages. A
+  failed send records the error type, the SMTP reply code (for a refused
+  recipient: the codes) and, for a connection problem, aiosmtplib's own text
+  naming the SMTP host and port — no longer the server's reply, which can
+  quote the recipient address. That error is no longer chained onto the one
+  the routes log.
+- **The concurrency cap** logs whether the caller was an account or an IP
+  address, not the account id or the address itself. **The contact form's
+  spam trap** no longer logs the IP address.
+
+A database error's text no longer carries the statement's values either: a
+failed insert used to print the address and the password hash into the error
+that gets logged.
+
+`docs/vendor-security-questionnaire.md`,
+`docs/records-of-processing-template.md` and `docs/email-setup.md` describe
+the logs this way. `tests/test_log_privacy.py` pins it: both link builders
+put the token after `#` and both landing pages read it from there; a real
+uvicorn server logs a request's path without its query; a refused
+recipient's address and a message subject appear in no log line; neither
+limiter log line nor the spam-trap line holds an IP address or an account
+id; and the database engine hides statement values.
+
+### Fixed — XLSX → CSV reads cell values only; a workbook with an active chart sheet converts
+
+XLSX → CSV now opens the workbook for its cell values only: chart sheets are
+read without their charts and images, and links to other workbooks are left
+unread — a CSV holds none of these. When a chart sheet is the active sheet, the
+first worksheet is exported; that used to fail with a `500`. A workbook
+without any worksheet gets `400` with `X-FileMorph-Error-Code: invalid_input`
+and a message that names the fix. The workbook file is closed after the export, and also when reading
+it fails.
+
+### Changed — Table conversions stop at the output cap
+
+XLSX → CSV, JSON → CSV and CSV → JSON stop writing as soon as the output
+passes your tier's output cap, instead of writing the whole file first. They
+answer `413` with `X-FileMorph-Error-Code: output_cap_exceeded` and "Output
+too large (over the N MB cap). Split the table into smaller files and convert
+them one by one …" on `/convert`, and "Output too large (over the N MB cap).
+Split the table or upgrade your plan." per file on `/convert/batch`. JSON →
+CSV refuses a table whose rows × columns alone can't fit before writing
+anything. A conversion that fits writes the same file as before.
+
+### Security — PDF → PDF/A removes active content from pages, annotations, form fields and bookmarks
+
+PDF → PDF/A (`target_format=pdfa`) removes the active content PDF/A-2
+forbids and the files attached to the document, its pages and annotations, on
+the Ghostscript output and on the markup-only path alike:
+
+- from the document: additional actions (`/AA`), the open action, JavaScript,
+  XFA forms, attached and associated files, portfolios, alternate
+  presentations, renditions and page templates;
+- from every page: additional actions, presentation steps, associated files,
+  and file-attachment, sound, movie, screen, 3D and rich-media annotations;
+- from the other annotations: additional actions and associated files;
+- from form fields and their widgets: every action, as PDF/A-2 requires;
+- from links and bookmarks: every action type PDF/A-2 does not permit, and from
+  a permitted one the actions chained after it and an embedded copy of the file
+  it opens.
+
+Links (URI, GoTo and the other permitted types) and page navigation stay. A
+PDF with an extreme number of pages, annotations, form fields and bookmarks
+(around 200,000 together) gets a `400` (`invalid_input`) instead of a
+half-checked PDF/A.
+
+The comment on Ghostscript's `-dPDFACompatibilityPolicy=1` now says what the
+setting does: Ghostscript drops a feature PDF/A-2 forbids and goes on writing
+PDF/A.
+
+Tests convert PDFs without Ghostscript and check what is left: active content
+on a page, its annotations, form fields (one of them reached only through its
+widget) and bookmarks; an attachment a popup still points to; an annotation
+list two pages share; and malformed entries, among them names that aren't
+UTF-8.
+
+### Changed — PDF → TXT extracts the text in its own process, with a time limit
+
+PDF → TXT (`/convert`) now runs pypdf in a child Python process
+(`app/converters/_pdf_text.py`). The process is stopped after 30 seconds; on
+Linux it may use at most 1 GiB of memory. A PDF too large or complex for that
+gets `400` (`invalid_input`) with "This PDF is too large or complex to
+extract its text in one go. Extract fewer pages with /api/v1/pdf/extract and
+convert them in parts." Like the other PDF tools, PDF → TXT reads at most
+10 000 pages; a larger PDF gets `400` with a message naming the cap. The
+child gets no application secrets, like the LibreOffice subprocess, and its
+diagnostic output is discarded. Password-protected, certificate-encrypted
+and unreadable PDFs keep their existing answers.
+
+The Docker image check on pull requests now converts a PDF to text inside
+the image, so the child process is tested where it runs in production.
+
+### Changed — PDF compression leaves JPEG 2000 images as they are
+
+PDF compress-to-target (`/api/v1/pdf/compress`) re-encodes embedded images
+stored as JPEG (`/DCTDecode`, also behind a lossless filter such as ASCII85 or
+Flate, as ReportLab writes them) or with the lossless filters qpdf decodes
+itself (Flate, LZW, run-length, ASCII85, ASCIIHex). JPEG 2000 images now stay
+as they are, and so do images over the image size limit
+(`FILEMORPH_IMAGE_MAX_MEGAPIXELS`, 89 megapixels by default) and images with
+longer filter chains. An image that can't be read is skipped instead of
+failing the request. A losslessly stored image with a `/Decode` array (e.g.
+inverted grayscale) keeps its look; it used to come out inverted.
+
+Tests compress PDFs with a JPEG 2000 image, unreadable and damaged images, a
+JPEG of another size than its dictionary declares, a doubly compressed image
+and a malformed filter, each next to an ordinary JPEG, and check that only the
+ordinary JPEG is re-encoded; that images over the size limit stay as they
+are; that a losslessly stored image and JPEGs behind ASCII85 and Flate are
+re-encoded; and that an inverted grayscale image keeps its look.
+
+### Security — FFmpeg reads uploads only in the formats FileMorph supports
+
+The audio and video conversions and the video compressor now open uploads
+with ffmpeg limited to the demuxers of the formats FileMorph accepts: MP3,
+WAV, FLAC, Ogg (incl. Opus), AAC, ASF (WMA, WMV), MP4/MOV/M4A, AVI, Matroska
+(MKV, WebM) and FLV, and only as a local file. ffmpeg still recognises other
+formats, but refuses to open an upload in one of them; such an upload gets
+`400` with `X-FileMorph-Error-Code: invalid_input` and "Could not read this
+file: it is not in one of the audio or video formats FileMorph supports.
+Save it as MP4 (video) or MP3 (audio) and try again." The list covers audio
+and video together, so a file whose container differs from its extension
+still converts as long as the container is one of these. The list is one
+constant, `INPUT_DEMUXERS` in `app/converters/_ffmpeg.py`, and every ffmpeg
+call on an upload goes through `media_input()` there.
+
+Tests build each accepted input format with ffmpeg and convert it, check
+that a file in another format is refused, and check the source code for any
+other way into ffmpeg.
+
+### Security — Request size limits count the bytes that arrive
+
+The request size limit now counts the body as it arrives, not only the
+`Content-Length` header. It is `MAX_UPLOAD_SIZE_MB` (default 100 MB) per
+request on the file endpoints (`/convert`, `/compress`, the PDF tools and
+the AI routes), and 1 MB on every other endpoint: the account, keys,
+billing, contact and Stripe webhook routes, whose JSON bodies are a few KB.
+A body past its limit gets `413` ("File too large. Maximum size: N MB" on
+the file endpoints, "Request too large. Maximum size: 1 MB" elsewhere); a
+`Content-Length` above the limit is refused before anything is read.
+
+The Stripe webhook refuses a request without a `stripe-signature` header
+before reading its body.
+
+The limits live in `app/core/request_limits.py`, a pure ASGI middleware
+that replaces the `limit_upload_size` HTTP middleware. Its `413` answers
+carry the CORS and security headers like any route's response.
+
+### Changed — PDF tools: page selections count each page once; split stops at the output cap
+
+- **Page selections** (`/pdf/extract`): a page selected twice now counts
+  once against the 10 000-page cap. `1-10000,1-5` used to be refused with
+  "You can extract at most 10,000 pages at once", although it selects
+  10 000 pages. Overlapping and adjacent ranges are merged before pages are
+  counted. A selection longer than 65 536 characters gets
+  `400` with `invalid_page_selection` and "The page selection is too long.
+  Use ranges such as 1-100 instead of listing pages one by one." (every
+  page up to the cap, listed one by one, is about 49 000 characters).
+- **Split** (`/pdf/split`) checks the tier output cap while it writes the
+  single-page PDFs and stops with the usual `413` (`output_cap_exceeded`,
+  "Output too large (over the N MB cap).") once they pass it. Each single-page PDF carries its own copy of the
+  images and fonts it uses, so a split can come out larger than its input.
+
+Tests cover repeated and adjacent ranges, a selection exactly at and just
+over the length limit, and a split stopping at the cap while it writes.
+
+### Changed — Form bodies must be UTF-8
+
+A form body (multipart or URL-encoded) whose `Content-Type` names a charset
+other than UTF-8 now gets `415` with "Form data must be UTF-8 encoded.".
+Browsers and common HTTP clients send no charset there, and `charset=utf-8`
+is accepted.
+
+### Fixed — EML → PDF decodes mail text in the character sets mail uses
+
+EML → PDF decodes text parts and encoded header words in the character set
+the mail names if it is one of the character sets mail is written in:
+UTF-8/16/32, ASCII, ISO-8859-x, Windows-125x, KOI8, Mac Roman, the Japanese,
+Chinese and Korean mail sets, and the labels mail clients use for them
+(e.g. `ISO8859-1`, `iso-8859-8-i`, `ks_c_5601-1987`). Labels that mail
+clients and browsers read as a superset get the superset (US-ASCII and
+ISO-8859-1 as Windows-1252, Shift_JIS as CP932, EUC-KR as CP949, GB2312 as
+GBK, Big5 as CP950). Any other label is read as UTF-8, with bytes that aren't
+valid UTF-8 replaced; a mail naming a character set Python doesn't know used
+to fail with a `500`. A malformed charset or boundary parameter is read as
+missing.
+
+In headers, text sent as raw 8-bit bytes is read as UTF-8, also next to
+encoded words; adjacent encoded words in one character set are decoded
+together, so a character split across two of them stays whole; a language
+tag in an encoded word is ignored; a folded line keeps its space; and a
+damaged encoded word is shown as it is. A header longer than 8,192
+characters is shortened and ends in `[…]`. The body is the first HTML part
+of the mail's own text (attachments and attached mails don't count), else
+the first plain-text part.
+
+### Fixed — Password reset finds the account in any letter case; long passwords work again; password checks run in a worker thread
+
+- **Forgot password** (`/api/v1/auth/forgot-password`) finds the account by
+  its address, ignoring letter case, and sends the reset email after the
+  response. The online cancellation (`/api/v1/billing/cancellation`)
+  compares addresses the same way.
+- **Passwords longer than 72 bytes** work again for registration, password
+  reset and sign-in. bcrypt reads only the first 72 bytes; since bcrypt 5 it
+  refuses longer input, so registration and reset with such a password
+  failed with a `500`. FileMorph now passes bcrypt the first 72 bytes
+  itself, which gives the same hash as before.
+- **Sign-in, registration, password reset and account deletion** hash or
+  check passwords in a worker thread, so a password check no longer holds
+  up other requests.
 
 ### Fixed — the concurrency cap is per account, not per API key; the security docs say the extension picks the converter
 
