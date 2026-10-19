@@ -100,7 +100,7 @@ repository so that:
 | Purpose | Deliver authentication / account / billing emails: email verification, password reset, payment-failure (dunning) notices, account-deletion confirmation. FileMorph sends no payment receipts |
 | Data subjects | Registered users |
 | Personal data | Recipient email address; email body (e.g. the reset link) |
-| Recipients | Zoho Corporation B.V. (SMTP relay) |
+| Recipients | Zoho Corporation GmbH (SMTP relay; contracting entity for Germany) |
 | Third-country transfers | Data stays in Zoho's EU data centres (Amsterdam, NL; Dublin, IE). In rare cases staff of Zoho's Indian group company may access it for technical support — covered by the EU Standard Contractual Clauses |
 | Retention / erasure | Not persisted by FileMorph — emails are sent fire-and-forget; the relay's own retention is governed by its terms |
 | TOMs | See [`dpa-tom-annex.md`](dpa-tom-annex.md) |

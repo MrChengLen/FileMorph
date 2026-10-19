@@ -8,25 +8,37 @@ say what Cloudflare does with a request. Now:
 - **Rights:** access, rectification, erasure, restriction, data portability,
   objection and complaint, each with its article. The right to object stands
   on its own in a highlighted box (Art. 21(4) GDPR) and names the processing
-  it covers.
+  it covers. Requests are answered without undue delay, within one month
+  (Art. 12(3)).
 - **Supervisory authority:** the Hamburg Commissioner for Data Protection and
-  Freedom of Information, with address and website.
+  Freedom of Information, with address and website; a complaint can also go
+  where the reader lives or works or where the infringement took place.
 - **§ 4 Hosting and connection:** Hetzner holds what FileMorph stores.
   Cloudflare, Inc. (USA) ends the encrypted connection, so it processes IP
-  addresses, request data and — in transit — uploaded and converted files;
-  the transfer rests on the EU-U.S. Data Privacy Framework plus the EU
-  Standard Contractual Clauses, the legal basis is Art. 6(1)(f) GDPR.
-- **Recipients:** Zoho also hosts the operator's mailbox, and rare support
-  access by Zoho's Indian group company is covered by the Standard
-  Contractual Clauses. Stripe's contracting entity is Stripe Payments Europe,
-  Ltd.; paid plans are not offered at present.
-- **The rest of Art. 13:** the legal basis for processing uploaded files,
-  contact by email, server logs deleted after 30 days at the latest, which
-  data is required, no automated decisions, and why there is no data
-  protection officer.
-- The German text addresses the reader as "du" throughout. § 2i, shown only
-  with the redaction add-on, says uploads are temporary files on the server,
-  not held in memory only.
+  addresses, request data and — in transit — uploaded and converted files.
+  The transfer rests on Cloudflare's EU-U.S. Data Privacy Framework
+  certification (adequacy decision); the Standard Contractual Clauses in its
+  DPA apply only if that lapses. Legal basis: Art. 6(1)(f) GDPR.
+- **Recipients:** Zoho Corporation GmbH, the contracting entity for Germany,
+  sends account emails and hosts the operator's mailbox; rare support access
+  by Zoho's Indian group company is covered by the Standard Contractual
+  Clauses. Stripe's contracting entity is Stripe Payments Europe, Ltd.; Stripe
+  and Cloudflare process part of the data under their own responsibility;
+  paid plans are not offered at present. A copy of the Standard Contractual
+  Clauses is available on request.
+- **The rest of Art. 13:** the legal basis for processing uploaded files
+  (Art. 6(1)(b), and (f) for other people's data in a file) and for statutory
+  retention (Art. 6(1)(c)), contact by email, server logs deleted after 30
+  days at the latest, which data is required, no automated decisions, and why
+  there is no data protection officer.
+- § 2a no longer says no file content is "stored in any form": uploads sit
+  on the server as temporary files while processed, and the audit log keeps
+  the output's hash. § 6 names Cloudflare's `cf_clearance` cookie after a
+  security check. The notice says it applies to filemorph.io; a self-hosted
+  instance needs its own.
+- The German text addresses the reader as "du" throughout and cites
+  "Art. 6 Abs. 1 lit. …". § 2i, shown only with the redaction add-on, says
+  uploads are temporary files on the server, not held in memory only.
 
 `docs/sub-processors.md`, `docs/vendor-security-questionnaire.md`,
 `docs/records-of-processing-template.md` and `docs/security-overview.md` name

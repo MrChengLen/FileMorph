@@ -134,11 +134,13 @@ For the SaaS:
 
 - Payment processing for paid subscriptions (none offered at present):
   the contracting entity is **Stripe Payments Europe, Ltd.** (Ireland);
-  Stripe also processes data in the United States, covered by the Stripe
-  DPA and EU Standard Contractual Clauses (SCCs). Card data is collected
-  by Stripe directly and never reaches FileMorph.
+  Stripe also processes data in the United States — Stripe, LLC is
+  certified under the EU-U.S. Data Privacy Framework, and the Stripe DPA
+  contains the EU Standard Contractual Clauses (SCCs). Card data is
+  collected by Stripe directly and never reaches FileMorph.
 - Transactional email and the operator's mailbox sit with **Zoho
-  Corporation B.V.**, EU data centres in Amsterdam (NL) and Dublin (IE).
+  Corporation GmbH** (contracting entity for Germany), EU data centres in
+  Amsterdam (NL) and Dublin (IE).
   In rare cases staff of Zoho's Indian group company may access data
   remotely for technical support — a third-country transfer covered by
   the EU SCCs.
@@ -148,7 +150,8 @@ For the SaaS:
   edge terminates TLS, so every request — uploaded files included — and
   every response passes through Cloudflare's network, which is global;
   covered by Cloudflare's EU-U.S. Data Privacy Framework certification
-  and, in addition, the EU Standard Contractual Clauses in its DPA.
+  (adequacy decision); the EU Standard Contractual Clauses in its DPA
+  apply if the certification lapses.
 
 For a self-hoster: their own configuration governs. The application
 defaults emit no third-country traffic unless the operator wires Stripe,

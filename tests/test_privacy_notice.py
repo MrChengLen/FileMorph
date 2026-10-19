@@ -137,16 +137,18 @@ def test_section_4_explains_cloudflare_and_the_transfer(client, locale):
 
 RECIPIENT_FACTS = {
     "de": [
-        "Zoho Corporation B.V.",
+        "Zoho Corporation GmbH (Deutschland)",
         "indischen Konzerngesellschaft",
         "Stripe Payments Europe, Ltd. (Dublin, Irland)",
         "in eigener Verantwortung",
+        "Eine Kopie der in dieser Erklärung genannten EU-Standardvertragsklauseln",
     ],
     "en": [
-        "Zoho Corporation B.V.",
+        "Zoho Corporation GmbH (Germany)",
         "Indian group company",
         "Stripe Payments Europe, Ltd. (Dublin, Ireland)",
-        "under its own responsibility",
+        "under their own responsibility",
+        "You can get a copy of the EU Standard Contractual Clauses",
     ],
 }
 
@@ -167,6 +169,13 @@ ARTICLE_13_REST = {
         "weder gesetzlich noch vertraglich verpflichtet",
         "Automatisierte Entscheidungen im Sinne von Art. 22 DSGVO treffen wir nicht",
         "Einen Datenschutzbeauftragten haben wir nicht benannt",
+        # third parties' data in a file, statutory retention, reply time
+        "für personenbezogene Daten anderer Menschen in einer Datei Art. 6 Abs. 1 lit. f DSGVO",
+        "verarbeiten wir nach Art. 6 Abs. 1 lit. c DSGVO",
+        "spätestens innerhalb eines Monats",
+        # whose notice this is, Cloudflare's challenge cookie
+        "Diese Erklärung gilt für filemorph.io",
+        "cf_clearance",
     ],
     "en": [
         "Legal basis: Art. 6(1)(b) GDPR — we carry out the conversion",
@@ -175,6 +184,11 @@ ARTICLE_13_REST = {
         "no legal or contractual obligation",
         "We make no automated decisions within the meaning of Art. 22 GDPR",
         "We have not appointed a data protection officer",
+        "for personal data of other people in a file, Art. 6(1)(f) GDPR",
+        "we process under Art. 6(1)(c) GDPR",
+        "within one month at the latest",
+        "This notice applies to filemorph.io",
+        "cf_clearance",
     ],
 }
 
@@ -205,6 +219,14 @@ def test_old_claims_are_gone(client):
         # every request runs through Cloudflare (§ 4).
         assert "third-party CDN" not in text and "Drittanbieter-CDN" not in text
         assert "typically up to 30 days" not in text and "typisch bis zu 30 Tage" not in text
+        # § 2a: uploads do sit on disk while processed, and § 2h keeps a hash.
+        assert "No file content is stored" not in text
+        assert "in irgendeiner Form gespeichert" not in text
+        # Cloudflare's SCCs are the fallback, not an addition to the DPF.
+        assert "apply in addition" not in text and "zusätzlich gelten" not in text
+    de = _text(_main(client, "de"))
+    assert "Art. 6(1)" not in de  # German citation style throughout
+    assert "strikt notwendig" not in de and "Barrierefreiheit" not in de
 
 
 def test_processor_docs_name_the_same_entities():
