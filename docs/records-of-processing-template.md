@@ -63,7 +63,7 @@ repository so that:
 |---|---|
 | Purpose | Assist users in removing structured personal data (email, IBAN, phone, IPv4, payment card) from uploaded TXT / DOCX / XLSX before they share or archive them |
 | Data subjects | Natural persons whose data appears in uploaded files — the feature's purpose means inputs are routinely PII-dense; special-category data (Art. 9) may appear and is processed under the customer's own lawful basis, not certified by the operator |
-| Personal data | Uploaded file content while being processed (in memory; UUID scratch only if needed). Detected values are never logged, stored, or written to the audit trail |
+| Personal data | Uploaded file content while being processed (temporary files with UUID names, deleted right after the response). Detected values are never logged, stored, or written to the audit trail |
 | Recipients | None — redaction runs locally; no file content is sent to any third party or external model |
 | Third-country transfers | None |
 | Retention / erasure | Inputs and outputs: ephemeral — deleted immediately after the redacted output is returned. The audit entry holds operation metadata only (operation, format, item count, tier), never content or detected values. `RETENTION_HOURS` defaults to `0`. |
@@ -88,8 +88,8 @@ repository so that:
 | Purpose | Process subscription payments and manage paid-tier entitlements |
 | Data subjects | Paying customers |
 | Personal data | Email address; internal user identifier; for an online cancellation, the declaration itself (contract, type of cancellation, a reason if one is given, the requested end date). Card data is collected by Stripe directly and never reaches FileMorph. |
-| Recipients | Stripe Inc. (payment processing) |
-| Third-country transfers | United States — covered by the Stripe DPA and EU Standard Contractual Clauses |
+| Recipients | Stripe Payments Europe, Ltd. (payment processing; Stripe acts partly as an independent controller, e.g. for fraud prevention) |
+| Third-country transfers | United States — Stripe also processes data there; covered by the Stripe DPA and EU Standard Contractual Clauses |
 | Retention / erasure | Tax-relevant records retained per HGB §257 / AO §147 (typically 10 years); other billing metadata until no longer needed for the subscription |
 | TOMs | See [`dpa-tom-annex.md`](dpa-tom-annex.md) |
 
@@ -101,7 +101,7 @@ repository so that:
 | Data subjects | Registered users |
 | Personal data | Recipient email address; email body (e.g. the reset link) |
 | Recipients | Zoho Corporation B.V. (SMTP relay) |
-| Third-country transfers | None — Zoho EU, data centres in Amsterdam (NL) and Dublin (IE) |
+| Third-country transfers | Data stays in Zoho's EU data centres (Amsterdam, NL; Dublin, IE). In rare cases staff of Zoho's Indian group company may access it for technical support — covered by the EU Standard Contractual Clauses |
 | Retention / erasure | Not persisted by FileMorph — emails are sent fire-and-forget; the relay's own retention is governed by its terms |
 | TOMs | See [`dpa-tom-annex.md`](dpa-tom-annex.md) |
 

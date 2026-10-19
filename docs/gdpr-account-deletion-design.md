@@ -497,16 +497,16 @@ logger.info(
 ```
 
 The log carries the `email_domain` rather than the full address.
-That matches the promise in `privacy.html` § 2d: "structured JSON
-without plaintext email addresses — only the email domain is
-kept for debug purposes."
+That matches the promise in `privacy.html` § 2d: for email events the
+application logs "only the domain of the address […], never the
+address itself."
 
 ### Retention
 
-The log line's retention follows the hosting infrastructure's defaults. On
-production deployments behind Caddy, logs are typically retained
-for around thirty days, which lines up with the EDPB's one-month
-recommendation for handling erasure requests.
+The privacy notice (§ 2d) promises that server logs are deleted
+automatically after 30 days at the latest, which lines up with the EDPB's
+one-month recommendation for handling erasure requests. Self-hosters set
+their own log retention and state it in their own notice.
 
 ---
 

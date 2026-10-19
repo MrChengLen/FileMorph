@@ -541,8 +541,8 @@ mechanically.
   § 5.B for the design.
 
 The full data-flow analysis, including the sub-processor list
-(Cloudflare for DNS / WAF, Stripe for payments, Zoho for
-transactional email), lives in
+(Cloudflare for DNS and as the edge proxy that terminates TLS, Stripe for
+payments, Zoho for transactional email), lives in
 [`gdpr-privacy-analysis.md`](./gdpr-privacy-analysis.md).
 
 ---
