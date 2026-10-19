@@ -17,6 +17,7 @@ from app.api.routes.auth import get_optional_user
 from app.converters.base import (
     EncryptedPdfError,
     InvalidInputError,
+    OutputTooLargeError,
     UnsupportedConversionError,
 )
 from app.converters.registry import _ensure_loaded, get_converter
@@ -60,6 +61,19 @@ _MAX_TARGET_LEN = 16
 
 def _download_name(original_stem: str, tgt_ext: str) -> str:
     return safe_download_name(original_stem, _DOWNLOAD_SUFFIX.get(tgt_ext, f".{tgt_ext}"))
+
+
+def _output_too_large(output_size: int | None, cap: int) -> str:
+    """The start of the output-cap message. ``None``: the converter stopped
+    writing at the cap, so the full size is unknown."""
+    cap_mb = cap // _MB
+    if output_size is None:
+        return f"Output too large (over the {cap_mb} MB cap)."
+    return f"Output too large ({output_size // _MB} MB > {cap_mb} MB cap)."
+
+
+# Table targets: only the table conversions write them, and a table splits.
+_TABLE_TARGETS = ("csv", "json")
 
 
 @router.post("/convert", tags=["Convert"], dependencies=[Depends(require_api_key)])
@@ -156,9 +170,17 @@ async def _do_convert(
         try:
             # Offload sync C-binding call (Pillow/FFmpeg/WeasyPrint/pypdf) to a
             # worker thread so the event-loop can serve parallel requests.
-            await asyncio.to_thread(converter.convert, input_path, output_path, quality=quality)
+            await asyncio.to_thread(
+                converter.convert,
+                input_path,
+                output_path,
+                quality=quality,
+                max_output_bytes=quota.output_cap_bytes,
+            )
         except HTTPException:
             raise
+        except OutputTooLargeError:
+            output_disk_size = None  # stopped writing at the cap: answered below
         except _PILImage.DecompressionBombError as exc:
             # P3-4: Pillow's DecompressionBombWarning is filtered to an error
             # at startup (see app/core/image_hardening.py); the Error subclass
@@ -194,17 +216,20 @@ async def _do_convert(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Conversion failed. Verify your file is valid and the format is supported.",
             )
+        else:
+            output_disk_size = output_path.stat().st_size
 
         # S1-B: Output-cap check — reject before loading into memory. Guards
         # against bandwidth amplification (JPG→PNG ~5-10×, MP3→WAV ~11×).
-        output_disk_size = output_path.stat().st_size
-        if output_disk_size > quota.output_cap_bytes:
-            cap_mb = quota.output_cap_bytes // _MB
-            out_mb = output_disk_size // _MB
-            if tier == "anonymous":
-                hint = "Try a more efficient target (WebP/AVIF for images, FLAC for audio) or register for a higher cap."
+        if output_disk_size is None or output_disk_size > quota.output_cap_bytes:
+            if tgt_ext in _TABLE_TARGETS:
+                tip = "Split the table into smaller files and convert them one by one"
             else:
-                hint = "Try a more efficient target (WebP/AVIF for images, FLAC for audio) or upgrade your plan."
+                tip = "Try a more efficient target (WebP/AVIF for images, FLAC for audio)"
+            if tier == "anonymous":
+                hint = f"{tip} or register for a higher cap."
+            else:
+                hint = f"{tip} or upgrade your plan."
             # S4-foundation: record the rejection so dashboards can count
             # cap-hits per tier / format-pair. Success log alone would miss
             # this outcome entirely.
@@ -225,7 +250,7 @@ async def _do_convert(
             )
             raise HTTPException(
                 status_code=status.HTTP_413_CONTENT_TOO_LARGE,
-                detail=f"Output too large ({out_mb} MB > {cap_mb} MB cap). {hint}",
+                detail=f"{_output_too_large(output_disk_size, quota.output_cap_bytes)} {hint}",
                 headers={"X-FileMorph-Error-Code": "output_cap_exceeded"},
             )
 
@@ -453,16 +478,27 @@ async def _do_convert_batch(
                 if any(header.startswith(sig) for sig in BLOCKED_MAGIC):
                     raise BatchFileError("File type not permitted.")
 
-                await asyncio.to_thread(converter.convert, input_path, output_path, quality=quality)
+                try:
+                    await asyncio.to_thread(
+                        converter.convert,
+                        input_path,
+                        output_path,
+                        quality=quality,
+                        max_output_bytes=quota.output_cap_bytes,
+                    )
+                except OutputTooLargeError:
+                    output_disk_size = None  # stopped writing at the cap
+                else:
+                    output_disk_size = output_path.stat().st_size
 
                 # S1-B: Output-cap check — reject before loading into memory.
-                output_disk_size = output_path.stat().st_size
-                if output_disk_size > quota.output_cap_bytes:
-                    cap_mb = quota.output_cap_bytes // _MB
-                    out_mb = output_disk_size // _MB
+                if output_disk_size is None or output_disk_size > quota.output_cap_bytes:
+                    if tgt_ext in _TABLE_TARGETS:
+                        tip = "Split the table or upgrade your plan."
+                    else:
+                        tip = "Try WebP/AVIF or upgrade your plan."
                     raise BatchFileError(
-                        f"Output too large ({out_mb} MB > {cap_mb} MB cap). "
-                        "Try WebP/AVIF or upgrade your plan."
+                        f"{_output_too_large(output_disk_size, quota.output_cap_bytes)} {tip}"
                     )
 
                 content = output_path.read_bytes()

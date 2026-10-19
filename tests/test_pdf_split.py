@@ -151,7 +151,7 @@ def test_extract_corrupt_pdf_raises_safe(tmp_path):
 
 
 def test_split_returns_one_per_page(tmp_path, pdf5):
-    outputs = split_pdf(pdf5)
+    outputs = split_pdf(pdf5, 10**9)
     assert len(outputs) == 5
     names = [n for n, _ in outputs]
     assert names == ["page_1.pdf", "page_2.pdf", "page_3.pdf", "page_4.pdf", "page_5.pdf"]
@@ -164,7 +164,7 @@ def test_split_returns_one_per_page(tmp_path, pdf5):
 
 def test_split_zero_padding_width(tmp_path):
     pdf = _make_pdf(tmp_path / "ten.pdf", 10)
-    outputs = split_pdf(pdf)
+    outputs = split_pdf(pdf, 10**9)
     names = [n for n, _ in outputs]
     # 10 pages → width 2, so page 1 is "page_01.pdf" and sorts before page 10.
     assert names[0] == "page_01.pdf"
@@ -176,7 +176,7 @@ def test_split_corrupt_pdf_raises_safe(tmp_path):
     bad = tmp_path / "bad.pdf"
     bad.write_bytes(b"%PDF-1.4 garbage")
     with pytest.raises(PageSelectionError):
-        split_pdf(bad)
+        split_pdf(bad, 10**9)
 
 
 def test_split_too_many_pages_raises(tmp_path, monkeypatch, pdf5):
@@ -203,7 +203,7 @@ def test_split_too_many_pages_raises(tmp_path, monkeypatch, pdf5):
 
     monkeypatch.setattr(pp, "_open_reader", lambda _path: _FakeReader())
     with pytest.raises(TooManyPagesError) as caught:
-        split_pdf(pdf5)
+        split_pdf(pdf5, 10**9)
     assert str(caught.value) == pp._TOO_MANY_PAGES_TO_SPLIT
 
 

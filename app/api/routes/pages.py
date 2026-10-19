@@ -282,7 +282,7 @@ async def reset_password_page(request: Request):
 @router.get("/verify-email")
 async def verify_email_page(request: Request):
     # NEU-B.3 (slice b): the email link points here. The page-level JS
-    # extracts the ?token= parameter and POSTs it to
+    # reads the #token= fragment (older links: ?token=) and POSTs it to
     # /api/v1/auth/verify-email so the user sees confirmation in-app.
     return _render(request, "verify-email.html")
 

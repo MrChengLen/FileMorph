@@ -185,7 +185,7 @@ def test_split_pdf_raises_unreadable(tmp_path, build):
     src = tmp_path / "in.pdf"
     src.write_bytes(build())
     with pytest.raises(UnreadablePdfError, match=_UNREADABLE):
-        split_pdf(src)
+        split_pdf(src, 10**9)
 
 
 # ── routes ───────────────────────────────────────────────────────────────────

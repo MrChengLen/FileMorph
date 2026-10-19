@@ -12,8 +12,22 @@ from uuid import uuid4
 import bcrypt as _bcrypt
 
 
+# bcrypt reads at most 72 bytes of a password. Up to bcrypt 4 it ignored the
+# rest; bcrypt 5 raises instead, so both functions cut the input to 72 bytes
+# themselves — the same hash as before, for every password length.
+_BCRYPT_MAX_BYTES = 72
+
+
 def hash_password(password: str) -> str:
-    return _bcrypt.hashpw(password.encode(), _bcrypt.gensalt(rounds=12)).decode()
+    return _bcrypt.hashpw(
+        password.encode()[:_BCRYPT_MAX_BYTES], _bcrypt.gensalt(rounds=12)
+    ).decode()
+
+
+# A bcrypt hash (cost 12, like ``hash_password``) of a random password nobody
+# knows. Sign-in checks against it when no account matches the address, so
+# that path does the same bcrypt work as a wrong password.
+DUMMY_PASSWORD_HASH = "$2b$12$VHorAul1yLPvRwVQ99/IoeN7Sj7QH0Qoi6ZXLxkaA/6YM8hSWdMNG"
 
 
 def deleted_password_sentinel() -> str:
@@ -41,6 +55,6 @@ def verify_password(plain: str, hashed: str) -> bool:
     column (login, reset, delete-account). A False result is the right
     semantics: no plaintext password matches a corrupted hash."""
     try:
-        return _bcrypt.checkpw(plain.encode(), hashed.encode())
+        return _bcrypt.checkpw(plain.encode()[:_BCRYPT_MAX_BYTES], hashed.encode())
     except ValueError:
         return False

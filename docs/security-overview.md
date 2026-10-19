@@ -203,7 +203,8 @@ converter:
    from the file extension, not detected from content; the
    `Content-Type` the client sends is not used. Image uploads are
    then opened only by the readers listed under "Image formats"
-   below.
+   below, audio and video uploads only by the demuxers listed under
+   "Audio and video formats".
 3. **Path safety.** The original filename is never used as a
    filesystem path. Where a temporary path is needed, it uses a
    UUID stem under a `fm_`-prefixed scratch directory.
@@ -299,6 +300,18 @@ every upload through `open_image()` (both in
 recognises is answered with HTTP 400 and
 `X-FileMorph-Error-Code: invalid_input`.
 
+### Audio and video formats
+
+ffmpeg reads audio and video uploads only with the demuxers for the
+formats FileMorph accepts: MP3, WAV, FLAC, Ogg (incl. Opus), AAC, ASF
+(WMA, WMV), MP4/MOV/M4A, AVI, Matroska (MKV, WebM) and FLV. ffmpeg still
+recognises other formats, but refuses to open an upload in one of them, and
+an upload is opened as a local file only. The list is one constant,
+`INPUT_DEMUXERS`, and the media converters and the video compressor open
+every upload through `media_input()` (both in
+`app/converters/_ffmpeg.py`). An upload in another format is answered with
+HTTP 400 and `X-FileMorph-Error-Code: invalid_input`.
+
 ### Historical findings addressed in this area
 
 - **PT-001 (Critical).** Path traversal via the upload filename
@@ -331,7 +344,8 @@ After conversion, but before the response is streamed, the byte
 length of the produced output is compared against
 `quota.output_cap_bytes` (`app/core/quotas.py`). If it exceeds the
 cap, the request returns HTTP 413 with a structured error and the
-output is discarded.
+output is discarded. XLSX → CSV, JSON → CSV, CSV → JSON and `/pdf/split`
+don't wait for the end: they stop writing as soon as their output passes the cap.
 
 The caps are monotone: anonymous &lt; free &lt; pro &lt; business
 ≤ enterprise. The exact values live in code rather than in this
@@ -810,6 +824,7 @@ For readers who want to jump directly to the code:
 | Rate limiter | `app/core/rate_limit.py` |
 | Magic-byte deny-list | `app/core/processing.py` (`BLOCKED_MAGIC`); enforced in `app/api/routes/convert.py`, `compress.py`, `pdf_pages.py` + `ai.py` |
 | Image-format allow-list | `app/core/image_hardening.py` (`IMAGE_INPUT_FORMATS`, `open_image`) |
+| Audio/video demuxer allow-list | `app/converters/_ffmpeg.py` (`INPUT_DEMUXERS`, `media_input`) |
 | WeasyPrint SSRF hardening | `app/converters/document.py` (search `_deny_url_fetcher`) |
 | Office image: hardened LibreOffice subprocess env | `app/converters/document.py` (search `_soffice_child_env`) |
 | Security-headers middleware (HSTS, Permissions-Policy, CSP, etc.) | `app/main.py::security_headers` |

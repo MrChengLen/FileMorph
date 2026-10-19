@@ -15,7 +15,7 @@ flowchart LR
     Proxy -->|HTTP| App[FastAPI app<br/>uvicorn worker]
 
     subgraph App_Internal[FileMorph application]
-        Mw[Middleware:<br/>CORS, GZip, locale,<br/>security headers,<br/>upload size limit,<br/>page views, metrics,<br/>data classification]
+        Mw[Middleware:<br/>CORS, GZip, locale,<br/>security headers,<br/>request-body limits,<br/>page views, metrics,<br/>data classification]
         Routes[API routes<br/>/convert, /compress, /pdf,<br/>/ai, /formats, /contact,<br/>/auth, /keys, /billing,<br/>/cockpit, /health]
         Conv[Converter registry<br/>plugin-based]
         Mw --> Routes --> Conv
@@ -52,8 +52,11 @@ Every conversion or compression request follows the same path:
      `strict-origin-when-cross-origin`, a `Permissions-Policy`, and HSTS on
      HTTPS;
    - CORS and GZip;
-   - **upload-size guard** — rejects any POST with a `Content-Length` above
-     `MAX_UPLOAD_SIZE_MB` (default 100) before the body is read;
+   - **request-body limits** (`app/core/request_limits.py`) —
+     `MAX_UPLOAD_SIZE_MB` (default 100) per request on the file endpoints,
+     1 MB on every other route, counted as the body arrives (a
+     `Content-Length` above the limit is refused before anything is read);
+     a form body declared in a charset other than UTF-8 gets `415`;
    - locale resolver (from the URL prefix, no cookie);
    - data classification — reads `X-Data-Classification` and echoes it on
      the response;
@@ -104,7 +107,7 @@ Every conversion or compression request follows the same path:
 | Concern | Location |
 |---|---|
 | HTTP entry point | `app/main.py` |
-| Middleware (data classification, upload limit, page-view counter, security headers, locale, GZip, CORS) | `app/main.py`; request metrics in `app/core/observability.py` |
+| Middleware (data classification, page-view counter, security headers, locale, GZip, CORS, request-body limits) | `app/main.py`; request metrics in `app/core/observability.py`; request-body limits in `app/core/request_limits.py` |
 | API routes | `app/api/routes/` |
 | Auth (API-key check, JWT issue/verify, password hashing) | `app/api/deps.py`, `app/core/security.py`, `app/core/tokens.py`, `app/core/auth.py`, `app/api/routes/auth.py` |
 | Converter plugins | `app/converters/` |

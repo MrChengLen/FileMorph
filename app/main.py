@@ -9,7 +9,7 @@ import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -49,6 +49,7 @@ from app.core.logging_config import configure_logging
 from app.core.metrics import increment as metric_increment
 from app.core.observability import setup_metrics
 from app.core.rate_limit import limiter
+from app.core.request_limits import RequestLimitsMiddleware
 from app.core.templates import templates
 from app.converters.registry import _ensure_loaded
 from app.db.base import AsyncSessionLocal, engine
@@ -234,6 +235,13 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+# Request-body limits (app/core/request_limits.py). Added first, so it is the
+# innermost middleware: its 413/415 answers pass through CORS and the
+# security headers like any route's response. Every middleware added after
+# it runs outside it, so none of them may read the request body: that would
+# read it before the limits apply.
+app.add_middleware(RequestLimitsMiddleware)
+
 # A-2: CORS fix — conditional credentials, restricted methods/headers.
 # `expose_headers` is load-bearing for cross-origin downloads: browsers hide
 # non-simple response headers from JS unless the server lists them. The Web
@@ -382,20 +390,6 @@ async def page_view_counter(request: Request, call_next):
     ):
         await metric_increment("page_views")
     return response
-
-
-@app.middleware("http")
-async def limit_upload_size(request: Request, call_next):
-    if request.method == "POST":
-        content_length = request.headers.get("content-length")
-        if content_length and int(content_length) > settings.max_upload_size_bytes:
-            return JSONResponse(
-                status_code=status.HTTP_413_CONTENT_TOO_LARGE,
-                content={
-                    "detail": f"File too large. Maximum size: {settings.max_upload_size_mb} MB"
-                },
-            )
-    return await call_next(request)
 
 
 # NEU-C.3: BSI-style data-classification taxonomy on the request boundary.

@@ -1,10 +1,11 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
+import asyncio
 import logging
 import uuid
 from datetime import datetime, timezone
 
 import stripe
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Request, status
 from pydantic import BaseModel, EmailStr, Field, field_validator
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core import email as email_mod
 from app.core.account_deletion import deletion_mode_for, perform_account_deletion
 from app.core.audit import record_event as audit_record
-from app.core.auth import hash_password, verify_password
+from app.core.auth import DUMMY_PASSWORD_HASH, hash_password, verify_password
 from app.core.i18n import SUPPORTED_LOCALES, get_locale
 from app.core.tokens import (
     create_access_token,
@@ -40,11 +41,11 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
 _PASSWORD_MAX = 128
-"""Hard cap on inbound passwords. bcrypt itself silently truncates at 72
-bytes, but accepting megabyte-sized inputs would let a caller burn
-server CPU on the bcrypt work-factor with each login attempt — a cheap
-DoS vector. 128 is comfortably past every real-world password manager
-and well below where bcrypt's truncation matters."""
+"""Hard cap on inbound passwords. bcrypt reads only the first 72 bytes
+(``app/core/auth.py`` cuts them off explicitly), but accepting
+megabyte-sized inputs would let a caller burn server CPU with each login
+attempt — a cheap DoS vector. 128 is comfortably past every real-world
+password manager."""
 
 
 class RegisterRequest(BaseModel):
@@ -310,7 +311,7 @@ async def register(
     locale = await get_locale(request)
     user = User(
         email=body.email,
-        password_hash=hash_password(body.password),
+        password_hash=await asyncio.to_thread(hash_password, body.password),
         preferred_lang=locale,
     )
     db.add(user)
@@ -355,7 +356,14 @@ async def login(request: Request, body: LoginRequest, db: AsyncSession | None = 
         )
     )
     user = result.scalar_one_or_none()
-    if not user or not verify_password(body.password, user.password_hash):
+    # Without an account, check against a dummy hash: the same bcrypt work
+    # as a wrong password.
+    password_ok = await asyncio.to_thread(
+        verify_password,
+        body.password,
+        user.password_hash if user is not None else DUMMY_PASSWORD_HASH,
+    )
+    if not user or not password_ok:
         # NEU-B.3: ISO 27001 A.9.4.2 — record failed authentication. A
         # wrong password names the account the lookup above matched, so
         # attempts against it stay visible; the id sits outside the hash
@@ -448,8 +456,11 @@ _ENUMERATION_SAFE_RESPONSE = {
 
 
 def _build_reset_url(token: str) -> str:
+    # The token rides in the URL fragment: browsers never send the part
+    # after "#" to the server, so it stays out of every access log on the
+    # way. reset-password.js reads it and POSTs it.
     base = settings.app_base_url.rstrip("/")
-    return f"{base}/reset-password?token={token}"
+    return f"{base}/reset-password#token={token}"
 
 
 def _render_reset_emails(user_email: str, reset_url: str, locale: str) -> tuple[str, str, str]:
@@ -462,12 +473,27 @@ def _render_reset_emails(user_email: str, reset_url: str, locale: str) -> tuple[
     )
 
 
+async def _send_reset_email_safe(user_id: uuid.UUID, to: str, reset_url: str, locale: str) -> None:
+    """Background task after the forgot-password response; never raises SMTP errors."""
+    subject, html, text = _render_reset_emails(user_email=to, reset_url=reset_url, locale=locale)
+    try:
+        await email_mod.send_email(to=to, subject=subject, html=html, text=text)
+        logger.info("forgot_password: reset email dispatched user=%s", user_id)
+    except email_mod.EmailSendError:
+        # send_email logged the cause; this line adds the account, nothing
+        # from the exception (it can quote the address). The caller got its
+        # 200 already, the same answer as for an unknown address.
+        logger.error("forgot_password: email delivery failed user=%s", user_id)
+
+
 # ── Email-verification helpers (NEU-B.3 slice b) ──────────────────────────────
 
 
 def _build_verify_url(token: str) -> str:
+    # Fragment, not query — see _build_reset_url. The token also carries
+    # the address it was issued for (``eat``).
     base = settings.app_base_url.rstrip("/")
-    return f"{base}/verify-email?token={token}"
+    return f"{base}/verify-email#token={token}"
 
 
 def _render_verify_emails(user_email: str, verify_url: str, locale: str) -> tuple[str, str, str]:
@@ -504,23 +530,34 @@ async def _send_verify_email_safe(user: User, locale: str) -> None:
 @router.post("/forgot-password", status_code=status.HTTP_200_OK)
 @limiter.limit("3/minute")
 async def forgot_password(
-    request: Request, body: ForgotPasswordRequest, db: AsyncSession | None = Depends(get_db)
+    request: Request,
+    body: ForgotPasswordRequest,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession | None = Depends(get_db),
 ):
     # Always return the same payload, whether or not the email exists —
     # this keeps the endpoint enumeration-safe. Any branching / error is
-    # logged server-side only.
+    # logged server-side only. The email goes out after the response.
     if db is None:
         logger.warning("forgot_password: DB not configured, returning generic 200")
         return _ENUMERATION_SAFE_RESPONSE
 
-    # ``deleted_at IS NULL``: skip a tax-retained row entirely — it's
-    # inactive, and (after a re-registration with the same address) a
-    # bare ``.ilike`` would match two rows and ``scalar_one_or_none``
-    # would raise, breaking this enumeration-safe endpoint.
+    # The exact address, in any case — ``ilike`` would read ``%`` and ``_``
+    # in it as wildcards. ``deleted_at IS NULL`` skips a tax-retained row.
+    # If case variants of the address belong to separate accounts, the
+    # spelling entered wins; otherwise only a single match counts.
     result = await db.execute(
-        select(User).where(User.email.ilike(body.email), User.deleted_at.is_(None))
+        select(User).where(
+            func.lower(User.email) == func.lower(body.email), User.deleted_at.is_(None)
+        )
     )
-    user = result.scalar_one_or_none()
+    matches = result.scalars().all()
+    user = next((u for u in matches if u.email == body.email), None)
+    if user is None and len(matches) == 1:
+        user = matches[0]
+    # Ends the read transaction so the pooled connection goes back before the
+    # mail is sent. ``expire_on_commit=False`` keeps ``user``.
+    await db.commit()
     # NEU-B.3: every reset-request lands in the audit chain — both the
     # match-and-send path and the no-match early-return path. It names
     # the account the lookup above matched, if any; nothing derived from
@@ -531,7 +568,10 @@ async def forgot_password(
     )
     if user is None or not user.is_active:
         email_domain = body.email.split("@", 1)[-1] if "@" in body.email else "invalid"
-        logger.info("forgot_password: no active user (domain=%s, no email sent)", email_domain)
+        reason = (
+            "ambiguous case variants" if len(matches) > 1 and user is None else "no active user"
+        )
+        logger.info("forgot_password: %s (domain=%s, no email sent)", reason, email_domain)
         return _ENUMERATION_SAFE_RESPONSE
 
     phv = password_hash_version(user.password_hash)
@@ -541,18 +581,7 @@ async def forgot_password(
     # locale of whatever device requested the reset; otherwise match the
     # request context.
     locale = user.preferred_lang or await get_locale(request)
-    subject, html, text = _render_reset_emails(
-        user_email=user.email, reset_url=reset_url, locale=locale
-    )
-
-    try:
-        await email_mod.send_email(to=user.email, subject=subject, html=html, text=text)
-        logger.info("forgot_password: reset email dispatched user=%s", user.id)
-    except email_mod.EmailSendError:
-        # Already logged inside send_email. Still return 200 so an attacker
-        # can't distinguish "email exists but SMTP down" from "email unknown".
-        logger.exception("forgot_password: email delivery failed user=%s", user.id)
-
+    background_tasks.add_task(_send_reset_email_safe, user.id, user.email, reset_url, locale)
     return _ENUMERATION_SAFE_RESPONSE
 
 
@@ -585,7 +614,7 @@ async def reset_password(
             detail="Reset link is no longer valid.",
         )
 
-    user.password_hash = hash_password(body.new_password)
+    user.password_hash = await asyncio.to_thread(hash_password, body.new_password)
     await db.commit()
     logger.info("reset_password: password updated user=%s", user.id)
     # NEU-B.3: ISO 27001 A.9.2.4 — credential changes are audit-relevant.
@@ -725,8 +754,8 @@ async def _send_account_deleted_email_safe(
     try:
         await email_mod.send_email(to=user_email, subject=subject, html=html, text=text)
     except email_mod.EmailSendError:
-        # This message names the domain only. No exc_info: the chained SMTP
-        # error can carry the recipient, and send_email logs the cause.
+        # This message names the domain only; send_email has logged the
+        # error type and SMTP code.
         logger.error(
             "account_deletion: confirmation email failed (domain=%s)",
             user_email.rsplit("@", 1)[-1],
@@ -792,7 +821,7 @@ async def delete_account(
     # 1. Re-confirmation gate — uniform 400 on any mismatch.
     if body.confirm_email.lower() != user.email.lower():
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=_DELETE_GENERIC_400)
-    if not verify_password(body.password, user.password_hash):
+    if not await asyncio.to_thread(verify_password, body.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=_DELETE_GENERIC_400)
     # ``confirm_word`` was validated by the Pydantic field validator.
 

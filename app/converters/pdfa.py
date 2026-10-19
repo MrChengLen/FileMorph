@@ -19,8 +19,10 @@ paths cooperate:
    pikepdf can write deterministically — XMP ``pdfaid:part=2`` /
    ``conformance=B``, ``xmpMM:DocumentID`` / ``InstanceID``, a
    clean ``/ID`` array, ``OutputIntent`` if not already present,
-   and a sweep of PDF/A-forbidden surfaces (``/JavaScript``,
-   ``/JS``, ``/OpenAction``, ``/EmbeddedFiles``).
+   and a sweep of the active content PDF/A-2 forbids: additional
+   actions (``/AA``), JavaScript and other forbidden actions on the
+   document, its pages, annotations, form fields and bookmarks,
+   embedded files, and media/3D annotations.
 
 Combined behaviour
 ------------------
@@ -109,27 +111,202 @@ def _srgb_icc_bytes() -> bytes:
     return profile.tobytes()
 
 
+# Action types PDF/A-2 permits (ISO 19005-2, 6.5.1 forbids Launch, Sound,
+# Movie, ResetForm, ImportData, Hide, SetOCGState, Rendition, Trans,
+# GoTo3DView and JavaScript); a Named action only for page navigation. Any
+# other action — forbidden or unknown — is removed.
+_ALLOWED_ACTIONS = {"/GoTo", "/GoToR", "/GoToE", "/Thread", "/URI", "/SubmitForm", "/Named"}
+_ALLOWED_NAMED_ACTIONS = {"/NextPage", "/PrevPage", "/FirstPage", "/LastPage"}
+# Annotation types PDF/A-2 forbids or that carry an embedded file (6.3.1, 6.8).
+_FORBIDDEN_ANNOTATIONS = {"/FileAttachment", "/Sound", "/Movie", "/Screen", "/3D", "/RichMedia"}
+# Upper bound on the pages, annotations, form fields and bookmarks one sweep
+# looks at. A file with more is refused rather than converted half-swept.
+_MAX_SWEEP_OBJECTS = 200_000
+_TOO_MANY_OBJECTS = (
+    "This PDF has more links, form fields and bookmarks than a PDF/A conversion "
+    "can check. Split it into smaller PDFs and convert each one."
+)
+
+
+def _name(value) -> str:
+    """``value`` as text for a set lookup: a name as ``"/Link"``, anything else
+    (an array, say) as its repr, and a name that isn't UTF-8 as ""."""
+    try:
+        return str(value)
+    except UnicodeDecodeError:
+        return ""
+
+
+def _permitted(action) -> bool:
+    """True if ``action`` is an action PDF/A-2 permits."""
+    import pikepdf
+
+    if not isinstance(action, pikepdf.Dictionary):
+        return False
+    kind = _name(action.get("/S"))
+    return kind in _ALLOWED_ACTIONS and (
+        kind != "/Named" or _name(action.get("/N")) in _ALLOWED_NAMED_ACTIONS
+    )
+
+
+def _clean_action(obj) -> None:
+    """Drop ``obj``'s ``/A`` unless PDF/A-2 permits it. A kept action loses
+    the actions chained after it (``/Next``), so no chain has to be followed,
+    and an embedded copy of the file it opens."""
+    import pikepdf
+
+    action = obj.get("/A")
+    if action is None:
+        return
+    if not _permitted(action):
+        del obj["/A"]
+        return
+    if "/Next" in action:
+        del action["/Next"]
+    target = action.get("/F")
+    if isinstance(target, pikepdf.Dictionary):
+        for key in ("/EF", "/RF"):
+            if key in target:
+                del target[key]
+
+
 def _strip_forbidden_surfaces(pdf: "pikepdf_mod.Pdf") -> None:
-    """Remove every catalog-level surface PDF/A-2b forbids.
+    """Remove the active content PDF/A-2b forbids and the files attached to
+    the document, its pages and annotations.
 
-    PDF/A-2 §6.1.2 forbids encryption (we never encrypt on output
-    anyway, but a source PDF may be encrypted — pikepdf has already
-    decrypted it on open, this just makes sure no remnant attribute
-    leaks through). §6.6.1 forbids /JavaScript and /JS actions. §6.9
-    forbids /EmbeddedFiles. /OpenAction at the catalog level can
-    trigger script execution and is removed defensively.
+    From the catalog: additional actions (6.5.2), the open action, associated
+    files, a portfolio (``/Collection``), ``/NeedsRendering`` (6.4.2) and the
+    ``/JavaScript``, ``/EmbeddedFiles`` (6.8), ``/AlternatePresentations``
+    (6.10), ``/Renditions`` and ``/Templates`` name trees. From every page:
+    additional actions (6.5.2), presentation steps (6.10), associated files,
+    and annotations of a forbidden type (6.3.1, 6.8), which are also emptied
+    in case something else still points at them. The other annotations lose
+    their additional actions and associated files, form fields and their
+    widgets every action (6.4.1), the AcroForm its XFA (6.4.2), and links and
+    bookmarks any action PDF/A-2 forbids (6.5.1).
     """
-    catalog = pdf.Root
+    import pikepdf
 
-    for key in ("/AA", "/OpenAction", "/JavaScript", "/JS"):
+    budget = _MAX_SWEEP_OBJECTS
+
+    def spend(count: int = 1) -> None:
+        nonlocal budget
+        budget -= count
+        if budget < 0:
+            raise InvalidInputError(_TOO_MANY_OBJECTS)
+
+    def walk(first_items, children_keys: tuple[str, ...]):
+        """Yield the dictionaries reachable through ``children_keys``, each once."""
+        # Per walk: fields and bookmarks are separate trees. Only indirect
+        # objects can close a cycle, so only they are remembered, by object
+        # number (pikepdf wraps a direct object anew on every access).
+        seen: set[tuple[int, int]] = set()
+        pending = list(first_items)
+        while pending:
+            item = pending.pop()
+            if not isinstance(item, pikepdf.Dictionary):
+                continue
+            if item.is_indirect:
+                if item.objgen in seen:
+                    continue
+                seen.add(item.objgen)
+            spend()
+            yield item
+            for key in children_keys:
+                child = item.get(key)
+                if isinstance(child, pikepdf.Array):
+                    spend(len(child))
+                    pending.extend(child)
+                elif child is not None:
+                    pending.append(child)
+
+    catalog = pdf.Root
+    for key in (
+        "/AA",
+        "/OpenAction",
+        "/JavaScript",
+        "/JS",
+        "/AF",
+        "/Collection",
+        "/NeedsRendering",
+    ):
         if key in catalog:
             del catalog[key]
 
     names = catalog.get("/Names")
-    if names is not None:
-        for forbidden in ("/JavaScript", "/EmbeddedFiles"):
-            if forbidden in names:
-                del names[forbidden]
+    if isinstance(names, pikepdf.Dictionary):
+        for key in (
+            "/JavaScript",
+            "/EmbeddedFiles",
+            "/AlternatePresentations",
+            "/Renditions",
+            "/Templates",
+        ):
+            if key in names:
+                del names[key]
+
+    widgets = []
+    seen_annots: set[tuple[int, int]] = set()
+    spend(len(pdf.pages))
+    for page in pdf.pages:
+        for key in ("/AA", "/PresSteps", "/AF"):
+            if key in page.obj:
+                del page.obj[key]
+        annots = page.obj.get("/Annots")
+        if not isinstance(annots, pikepdf.Array):
+            continue
+        if annots.is_indirect:  # an array several pages share is swept once
+            if annots.objgen in seen_annots:
+                continue
+            seen_annots.add(annots.objgen)
+        spend(len(annots))
+        kept = []
+        for annot in annots:
+            if not isinstance(annot, pikepdf.Dictionary):
+                continue
+            subtype = _name(annot.get("/Subtype"))
+            if subtype in _FORBIDDEN_ANNOTATIONS:
+                keys = list(annot.keys())
+                spend(len(keys))
+                for key in keys:  # a popup's /Parent may still point here
+                    if key not in ("/Type", "/Subtype"):
+                        del annot[key]
+                continue
+            for key in ("/AA", "/AF"):
+                if key in annot:
+                    del annot[key]
+            if subtype == "/Widget":
+                widgets.append(annot)  # loses its actions with the form fields below
+            else:
+                _clean_action(annot)
+            kept.append(annot)
+        if len(kept) < len(annots):
+            # In place, so a shared array stays one array; clear + extend
+            # takes linear time where deleting entry by entry would not.
+            annots.clear()
+            annots.extend(kept)
+
+    # Form fields and widgets: the walk goes down /Kids and up /Parent, so a
+    # field the /Fields tree leaves out is reached through its widgets.
+    seeds = widgets
+    acroform = catalog.get("/AcroForm")
+    if isinstance(acroform, pikepdf.Dictionary):
+        if "/XFA" in acroform:
+            del acroform["/XFA"]
+        for key in ("/Fields", "/CO"):
+            fields = acroform.get(key)
+            if isinstance(fields, pikepdf.Array):
+                spend(len(fields))
+                seeds.extend(fields)
+    for field in walk(seeds, ("/Kids", "/Parent")):
+        for key in ("/AA", "/A"):
+            if key in field:
+                del field[key]
+
+    outlines = catalog.get("/Outlines")
+    if isinstance(outlines, pikepdf.Dictionary):
+        for item in walk([outlines.get("/First")], ("/First", "/Next")):
+            _clean_action(item)
 
 
 def _ensure_id_array(pdf: "pikepdf_mod.Pdf") -> None:

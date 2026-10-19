@@ -55,6 +55,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
+from app.api.routes import auth as auth_route
 from app.core import email as email_mod
 from app.core.auth import deleted_password_sentinel, hash_password, verify_password
 from app.db.base import Base, get_db
@@ -262,6 +263,26 @@ def test_delete_account_happy_path_returns_204_and_removes_row(client, mock_send
     assert asyncio.run(_user_exists("alice@example.com")) is False
 
 
+def test_delete_account_checks_the_password_in_a_worker_thread(
+    client, mock_send_email, monkeypatch
+):
+    asyncio.run(_insert_user(email="alice@example.com"))
+    token = _login(client, "alice@example.com")
+    where: list[str] = []
+
+    def spy(plain, hashed):
+        try:
+            asyncio.get_running_loop()
+            where.append("event loop")
+        except RuntimeError:
+            where.append("worker thread")
+        return verify_password(plain, hashed)
+
+    monkeypatch.setattr(auth_route, "verify_password", spy)
+    assert _delete(client, "alice@example.com", token).status_code == 204
+    assert where == ["worker thread"]
+
+
 # ── Free path: re-confirmation gate uniformity ────────────────────────────────
 
 
@@ -435,8 +456,9 @@ def test_forgot_password_after_deletion_is_enumeration_safe(client, mock_send_em
 
 
 def test_failed_confirmation_email_logs_the_domain_only(client, monkeypatch, caplog):
-    """The SMTP error chained to EmailSendError can name the recipient, so
-    the route logs the domain without the traceback."""
+    """An SMTP error can name the recipient. send_email no longer chains it
+    onto EmailSendError; should one ever be chained again, the route still
+    logs the domain without the traceback (defence in depth)."""
 
     async def _refused(**kwargs):
         try:
