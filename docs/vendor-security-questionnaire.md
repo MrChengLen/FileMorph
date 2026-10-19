@@ -538,6 +538,11 @@ The threat model lists the known classes:
   other formats are not used on them. A file none of these readers
   recognises gets `400` with `X-FileMorph-Error-Code: invalid_input` —
   `app/core/image_hardening.py`.
+- **Audio and video parsers** — audio and video uploads are opened with
+  ffmpeg limited to the demuxers of the formats FileMorph accepts (MP3,
+  WAV, FLAC, Ogg/Opus, AAC, WMA/WMV, MP4/MOV/M4A, AVI, MKV/WebM, FLV), and
+  only as a local file; an upload in another format gets `400` with
+  `X-FileMorph-Error-Code: invalid_input` — `app/converters/_ffmpeg.py`.
 - **Zip slip / archive escape** — extraction routines normalise paths
   to a fixed temp directory and reject `..` components.
 - **PDF metadata injection** — PDF/A-2b conversion strips uncontrolled

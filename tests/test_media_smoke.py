@@ -22,11 +22,14 @@ import json
 import shutil
 import subprocess
 
+import ffmpeg
 import pytest
 
+from app.compressors.video import _SUPPORTED_FORMATS as _COMPRESS_VIDEO_INPUTS
 from app.compressors.video import compress_video
 from app.converters._ffmpeg import (
     AUDIO_TARGETS,
+    INPUT_DEMUXERS,
     VIDEO_CODECS,
     FFmpegError,
     audio_output_args,
@@ -34,6 +37,7 @@ from app.converters._ffmpeg import (
     video_output_args,
 )
 from app.converters.audio import _AUDIO_FORMATS
+from app.converters.base import InvalidInputError
 from app.converters.registry import get_converter
 from app.converters.video import _VIDEO_FORMATS
 
@@ -111,9 +115,88 @@ def test_unknown_targets_raise():
 
 
 def _fake_stream():
-    import ffmpeg
-
     return ffmpeg.input("in.mp4").output("out.mp4")
+
+
+# The ffmpeg demuxer that reads each accepted input extension.
+_DEMUXER_FOR_INPUT = {
+    "mp3": "mp3",
+    "wav": "wav",
+    "flac": "flac",
+    "ogg": "ogg",
+    "opus": "ogg",
+    "m4a": "mov",
+    "aac": "aac",
+    "wma": "asf",
+    "mp4": "mov",
+    "mov": "mov",
+    "avi": "avi",
+    "mkv": "matroska",
+    "webm": "matroska",
+    "flv": "flv",
+    "wmv": "asf",
+}
+
+
+def test_every_accepted_media_input_has_its_demuxer_listed():
+    accepted = set(_AUDIO_FORMATS) | set(_VIDEO_FORMATS) | set(_COMPRESS_VIDEO_INPUTS)
+    assert accepted == set(_DEMUXER_FOR_INPUT)
+    # live_flv: the flv demuxer's name for FLV saved from a live stream.
+    assert set(_DEMUXER_FOR_INPUT.values()) | {"live_flv"} == set(INPUT_DEMUXERS.split(","))
+
+
+def test_app_opens_media_only_through_media_input():
+    import ast
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    sites = []
+    for path in sorted((root / "app").rglob("*.py")):
+        rel = path.relative_to(root).as_posix()
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            if isinstance(node, ast.Call) and ast.unparse(node.func) in {
+                "ffmpeg.input",
+                "ffmpeg.probe",
+            }:
+                sites.append(rel)
+            elif isinstance(node, ast.ImportFrom) and node.module == "ffmpeg":
+                sites.append(f"{rel} from ffmpeg import")
+            elif isinstance(node, ast.Import) and any(
+                alias.name == "ffmpeg" and alias.asname for alias in node.names
+            ):
+                sites.append(f"{rel} import ffmpeg as")
+    assert sites == ["app/converters/_ffmpeg.py"], sites
+
+
+def test_a_refused_container_is_a_400_not_a_500(monkeypatch):
+    import app.converters._ffmpeg as mod
+
+    monkeypatch.setattr(mod.shutil, "which", lambda _: "ffmpeg")
+
+    class _Result:
+        returncode = 1
+        stderr = b"Format au not on whitelist 'mp3,wav'\nin.wav: Invalid argument"
+
+    monkeypatch.setattr(mod.subprocess, "run", lambda cmd, **kw: _Result())
+    with pytest.raises(InvalidInputError):
+        run_ffmpeg(_fake_stream(), timeout=5)
+
+
+def test_uploads_are_opened_with_the_listed_demuxers_only(tmp_path, monkeypatch):
+    commands = []
+
+    def capture(stream, **kwargs):
+        commands.append(ffmpeg.compile(stream))
+
+    for module in ("app.converters.audio", "app.converters.video", "app.compressors.video"):
+        monkeypatch.setattr(f"{module}.run_ffmpeg", capture)
+    get_converter("wav", "mp3").convert(tmp_path / "in.wav", tmp_path / "out.mp3")
+    get_converter("mp4", "webm").convert(tmp_path / "in.mp4", tmp_path / "out.webm")
+    compress_video(tmp_path / "in.mkv", tmp_path / "out.mkv")
+    assert len(commands) == 3
+    for cmd in commands:
+        options = cmd[1 : cmd.index("-i")]
+        assert options == ["-format_whitelist", INPUT_DEMUXERS, "-protocol_whitelist", "file"]
 
 
 def test_run_ffmpeg_missing_binary(monkeypatch):
@@ -318,3 +401,33 @@ def test_compress_video_preserves_webm_container(sample_webm, tmp_path):
     fmt_name, codecs = _probe(out)
     assert "webm" in fmt_name
     assert {"vp9", "opus"} <= codecs
+
+
+@requires_ffmpeg
+@pytest.mark.parametrize("fmt", sorted(set(_AUDIO_FORMATS) - {"wav"}))
+def test_every_audio_input_format_is_read(sample_wav, tmp_path, fmt):
+    source = tmp_path / f"in.{fmt}"
+    get_converter("wav", fmt).convert(sample_wav, source, quality=85)
+    assert _DEMUXER_FOR_INPUT[fmt] in _probe(source)[0].split(",")
+    out = tmp_path / "out.wav"
+    get_converter(fmt, "wav").convert(source, out, quality=85)
+    assert out.stat().st_size > 0
+
+
+@requires_ffmpeg
+@pytest.mark.parametrize("fmt", sorted(set(_VIDEO_FORMATS) - {"mp4"}))
+def test_every_video_input_format_is_read(sample_mp4, tmp_path, fmt):
+    source = tmp_path / f"in.{fmt}"
+    get_converter("mp4", fmt).convert(sample_mp4, source, quality=70)
+    assert _DEMUXER_FOR_INPUT[fmt] in _probe(source)[0].split(",")
+    out = tmp_path / "out.mp4"
+    get_converter(fmt, "mp4").convert(source, out, quality=70)
+    assert out.stat().st_size > 0
+
+
+@requires_ffmpeg
+def test_an_upload_in_another_format_is_refused(tmp_path):
+    source = tmp_path / "in.wav"  # Sun AU audio under a .wav name
+    _generate("-f", "lavfi", "-i", "sine=frequency=440:duration=0.3", "-f", "au", str(source))
+    with pytest.raises(InvalidInputError):
+        get_converter("wav", "mp3").convert(source, tmp_path / "out.mp3", quality=85)
