@@ -37,11 +37,14 @@ import pytest
 
 from app.api.routes.auth import get_optional_user
 from app.api.routes.convert import _MAX_TARGET_LEN, _download_name
+from app.converters import document as document_converters
+from app.converters.pdf_pages import _MAX_SELECTION_CHARS
 from app.core.batch import BatchFileResult, build_batch_zip
 from app.core.concurrency import ConcurrencyExhausted
 from app.core.config import Settings, settings
 from app.core.processing import BLOCKED_MAGIC, actor_id
 from app.core.quotas import _MB, QUOTAS
+from app.core.request_limits import SMALL_BODY_LIMIT_BYTES
 from app.main import app
 
 DOCS = Path(__file__).resolve().parent.parent / "docs"
@@ -167,6 +170,44 @@ def test_docs_quote_the_default_request_cap():
     assert quoted == {name: {default} for name in quoted}
 
 
+def test_docs_quote_the_small_body_limit():
+    """The routes that take no file accept at most ``SMALL_BODY_LIMIT_BYTES``."""
+    for doc, pattern in [
+        ("api-reference.md", r"or (\d+) MB on any other endpoint"),
+        ("api-usage-guide.md", r"take at most (\d+) MB per request"),
+        ("architecture.md", r"(\d+) MB on every other route"),
+        ("threat-model.md", r"on the file endpoints, (\d+) MB elsewhere"),
+    ]:
+        found = re.findall(pattern, _flat(doc))
+        assert found, f"{doc}: the small-body limit sentence was not found"
+        assert {int(n) * _MB for n in found} == {SMALL_BODY_LIMIT_BYTES}, doc
+
+
+@pytest.mark.parametrize(
+    ("doc", "pattern"),
+    [
+        ("api-reference.md", r"counts once\. At most ([\d ]+) characters"),
+        ("formats.md", r"counts once\) and be at most ([\d ]+) characters"),
+    ],
+)
+def test_docs_quote_the_page_selection_length_limit(doc, pattern):
+    found = re.findall(pattern, " ".join(_text(doc).split()))
+    assert found, f"{doc}: the page-selection length sentence was not found"
+    assert {int(n.replace(" ", "")) for n in found} == {_MAX_SELECTION_CHARS}
+
+
+@pytest.mark.parametrize(
+    ("doc", "sentence"),
+    [
+        ("formats.md", "stopped after {} seconds"),
+        ("security-overview.md", "stops it after {} seconds"),
+    ],
+)
+def test_docs_quote_the_pdf_to_text_time_limit(doc, sentence):
+    limit = document_converters._TEXT_TIME_LIMIT_SECONDS
+    assert sentence.format(limit) in " ".join(_text(doc).split())
+
+
 def test_self_hosting_quotes_the_per_tier_concurrency():
     text = " ".join(_text("self-hosting.md").split())
     match = re.search(
@@ -281,6 +322,7 @@ def _flat(doc: str) -> str:
 def _with_placeholders(message: str) -> str:
     """A route's error message with its sizes written the way the guide writes them."""
     message = re.sub(r"\(\d+ MB > \d+ MB cap\)", "(N MB > M MB cap)", message)
+    message = re.sub(r"\(over the \d+ MB cap\)", "(over the M MB cap)", message)
     return re.sub(r"\(\d+ MB max for your plan\)", "(N MB max for your plan)", message)
 
 
@@ -321,6 +363,32 @@ def test_api_guide_quotes_the_output_cap_messages(client, auth_headers, sample_j
         assert _with_placeholders(response.json()["detail"]).startswith(shared)
     compress_hint = _with_placeholders(compress.json()["detail"])[len(shared) :].strip()
     assert f'"{compress_hint}"' in guide
+    # Table conversions stop at the cap: their own wording, quoted the same way.
+    csv_text = b"a,b\n1,2\n"
+    table = _upload(
+        client,
+        auth_headers,
+        "/api/v1/convert",
+        csv_text,
+        name="t.csv",
+        content_type="text/csv",
+        target_format="json",
+    )
+    table_batch = _upload(
+        client,
+        auth_headers,
+        "/api/v1/convert/batch",
+        csv_text,
+        name="t.csv",
+        content_type="text/csv",
+        target_formats="json",
+    )
+    assert (table.status_code, table_batch.status_code) == (413, 422)
+    stopped = "Output too large (over the M MB cap)."
+    assert f'"{stopped}"' in guide
+    assert _with_placeholders(table.json()["detail"]).startswith(stopped)
+    table_message = _with_placeholders(table_batch.json()["files"][0]["error_message"])
+    assert f'"{table_message}"' in guide
 
 
 def test_api_guide_quotes_the_file_size_message(client, auth_headers, sample_jpg, monkeypatch):

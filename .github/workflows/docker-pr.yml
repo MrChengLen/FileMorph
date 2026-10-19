@@ -163,6 +163,9 @@ jobs:
           docker exec filemorph ffmpeg -version > /dev/null
           docker exec filemorph gs --version
           docker exec filemorph python -c "import weasyprint; assert weasyprint.HTML(string='<p>probe</p>').write_pdf().startswith(b'%PDF')"
+          # PDF -> TXT runs pypdf in a child process (app/converters/_pdf_text.py):
+          # start it the way the converter does, inside the image.
+          docker exec filemorph python -c "import pathlib, tempfile; from pypdf import PdfWriter; from app.converters.document import PdfToTxtConverter; d = pathlib.Path(tempfile.mkdtemp()); w = PdfWriter(); w.add_blank_page(width=200, height=200); w.write(d / 'in.pdf'); PdfToTxtConverter().convert(d / 'in.pdf', d / 'out.txt'); assert (d / 'out.txt').exists()"
 
       # What the office image adds, driven the way the DOCX converter drives
       # it: headless, with a throwaway profile, through Writer to PDF.

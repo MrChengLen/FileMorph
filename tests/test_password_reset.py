@@ -138,8 +138,9 @@ def test_forgot_password_sends_email_when_user_exists(client, mock_send_email):
     kwargs = mock_send_email.await_args.kwargs
     assert kwargs["to"] == "real@example.com"
     assert "reset" in kwargs["subject"].lower()
-    assert "token=" in kwargs["text"]
-    assert "/reset-password?token=" in kwargs["html"]
+    assert "/reset-password#token=" in kwargs["text"]
+    assert "/reset-password#token=" in kwargs["html"]
+    assert "?token=" not in kwargs["html"] + kwargs["text"]
 
 
 def test_forgot_password_skips_deactivated_user(client, mock_send_email):

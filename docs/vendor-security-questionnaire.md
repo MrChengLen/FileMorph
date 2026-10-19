@@ -538,6 +538,11 @@ The threat model lists the known classes:
   other formats are not used on them. A file none of these readers
   recognises gets `400` with `X-FileMorph-Error-Code: invalid_input` —
   `app/core/image_hardening.py`.
+- **Audio and video parsers** — audio and video uploads are opened with
+  ffmpeg limited to the demuxers of the formats FileMorph accepts (MP3,
+  WAV, FLAC, Ogg/Opus, AAC, WMA/WMV, MP4/MOV/M4A, AVI, MKV/WebM, FLV), and
+  only as a local file; an upload in another format gets `400` with
+  `X-FileMorph-Error-Code: invalid_input` — `app/converters/_ffmpeg.py`.
 - **Zip slip / archive escape** — extraction routines normalise paths
   to a fixed temp directory and reject `..` components.
 - **PDF metadata injection** — PDF/A-2b conversion strips uncontrolled
@@ -640,10 +645,13 @@ is preserved.
 Server access logs (IP, request time, URL, status, response size)
 are written by the reverse proxy and by the application server:
 uvicorn's per-request access line (client address, method, path,
-status) is on in the shipped container (`entrypoint.sh`). The
-application log itself records a client IP in one case — when the
-contact form's spam trap is triggered. Retention is per the
-operator's log-rotation policy.
+status) is on in the shipped container (`entrypoint.sh`); the
+application drops the query string from that line. Links in account
+emails carry their token after `#`, which browsers never send to the
+server. The application log itself records no client IP address and
+no recipient address — mail delivery logs the recipient's domain only,
+and database errors leave out the statement's values.
+Retention is per the operator's log-rotation policy.
 
 **See also:** [`docs/records-of-processing-template.md`](./records-of-processing-template.md) A5.
 

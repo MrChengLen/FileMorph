@@ -24,15 +24,19 @@ This module owns the container→codec matrix, the extension→muxer
 mapping, the quality→CRF/qscale/bitrate translation, and a single
 :func:`run_ffmpeg` that compiles an ffmpeg-python stream and executes
 it via subprocess with a hard timeout (mirroring _ghostscript.py).
+Uploads are opened through :func:`media_input`, never ``ffmpeg.input()``
+directly.
 """
 
 from __future__ import annotations
 
 import shutil
 import subprocess
+from pathlib import Path
 
 import ffmpeg  # ffmpeg-python
 
+from app.converters.base import InvalidInputError
 from app.core.config import settings
 
 
@@ -42,6 +46,26 @@ class FFmpegError(RuntimeError):
 
 # ffmpeg muxer names that differ from the user-facing file extension.
 _MUXER_FOR_EXT = {"mkv": "matroska", "wmv": "asf"}
+
+# The ffmpeg demuxers for the audio and video formats FileMorph accepts:
+# mp3, wav, flac, ogg (also Opus), aac (ADTS), asf (WMA, WMV), mov (MP4,
+# MOV, M4A), avi, matroska (MKV, WebM), flv and live_flv (FLV saved from a
+# live stream). ffmpeg picks the demuxer from the file's content and
+# refuses the upload if that demuxer is not listed. One list for audio and
+# video, so a file whose container differs from its extension still
+# converts if the container is listed.
+INPUT_DEMUXERS = "mp3,wav,flac,ogg,aac,asf,mov,avi,matroska,flv,live_flv"
+
+_NOT_A_SUPPORTED_MEDIA_FORMAT = (
+    "Could not read this file: it is not in one of the audio or video formats "
+    "FileMorph supports. Save it as MP4 (video) or MP3 (audio) and try again."
+)
+
+
+def media_input(path: Path):
+    """``ffmpeg.input`` for an upload: only ``INPUT_DEMUXERS``, only local files."""
+    return ffmpeg.input(str(path), format_whitelist=INPUT_DEMUXERS, protocol_whitelist="file")
+
 
 # Container → (video codec, audio codec). WebM *requires* VP8/VP9/AV1 +
 # Vorbis/Opus; AVI gets the classic MPEG-4 Part 2 + MP3 combo because the
@@ -172,4 +196,6 @@ def run_ffmpeg(stream, *, timeout: int | None = None) -> None:
 
     if result.returncode != 0:
         tail = result.stderr.decode("utf-8", errors="replace")[-500:].strip()
+        if "not on whitelist" in tail:  # a container media_input doesn't accept
+            raise InvalidInputError(_NOT_A_SUPPORTED_MEDIA_FORMAT)
         raise FFmpegError(f"ffmpeg exit {result.returncode}: {tail or '<no stderr>'}")

@@ -56,6 +56,7 @@ pytestmark = pytest.mark.skipif(
     "Linux CI + production are unaffected.",
 )
 
+from app.converters.base import InvalidInputError  # noqa: E402
 from app.converters.pdfa import PdfToPdfaConverter  # noqa: E402
 
 
@@ -156,6 +157,259 @@ def test_forbidden_surfaces_are_stripped(tmp_path, simple_pdf):
         if names is not None:
             assert "/JavaScript" not in names
             assert "/EmbeddedFiles" not in names
+
+
+def _js(code: str):
+    from pikepdf import Dictionary, Name, String
+
+    return Dictionary(S=Name("/JavaScript"), JS=String(code))
+
+
+def _annot(pdf, subtype, **entries):
+    from pikepdf import Array, Dictionary, Name
+
+    if isinstance(subtype, str):
+        subtype = Name(subtype)
+    return pdf.make_indirect(
+        Dictionary(Type=Name("/Annot"), Subtype=subtype, Rect=Array([0, 0, 9, 9]), **entries)
+    )
+
+
+def _convert_without_ghostscript(pdf, tmp_path, monkeypatch) -> Path:
+    """Save ``pdf`` and convert it on the markup-only path, which also runs
+    when Ghostscript fails; return the output's path."""
+    from app.converters import _ghostscript
+
+    monkeypatch.setattr(_ghostscript, "is_available", lambda: False)
+    src, out = tmp_path / "in.pdf", tmp_path / "out.pdf"
+    pdf.save(str(src))
+    PdfToPdfaConverter().convert(src, out)
+    return out
+
+
+def test_active_content_is_removed_without_ghostscript(tmp_path, monkeypatch):
+    """Actions, additional actions and embedded files PDF/A-2 forbids go from
+    the document, its page and annotations; the permitted link and page
+    navigation stay."""
+    pikepdf = pytest.importorskip("pikepdf")
+    from pikepdf import Array, Dictionary, Name, String
+
+    pdf = pikepdf.new()
+    pdf.add_blank_page(page_size=(200, 200))
+    page = pdf.pages[0].obj
+    page["/AA"] = Dictionary(O=_js("page open"))
+    page["/PresSteps"] = Dictionary(Type=Name("/NavNode"), NA=_js("next step"))
+    filespec = pdf.make_indirect(
+        Dictionary(
+            Type=Name("/Filespec"), F=String("a.txt"), EF=Dictionary(F=pdf.make_stream(b"secret"))
+        )
+    )
+    page["/AF"] = Array([filespec])
+    attachment = _annot(pdf, "/FileAttachment", FS=filespec, AA=Dictionary(E=_js("enter")))
+    uri = Dictionary(S=Name("/URI"), URI=String("https://example.com"))
+    uri["/Next"] = Array([_js("then"), Dictionary(S=Name("/URI"), URI=String("https://a.example"))])
+    page["/Annots"] = Array(
+        [
+            _annot(pdf, "/Link", A=_js("link")),
+            _annot(pdf, "/Link", A=uri),
+            _annot(pdf, "/Link", A=Dictionary(S=Name("/Named"), N=Name("/Print"))),
+            _annot(pdf, "/Link", A=Dictionary(S=Name("/Named"), N=Name("/NextPage"))),
+            attachment,
+            _annot(pdf, "/Popup", Parent=attachment),  # still points at the attachment
+            _annot(
+                pdf,
+                "/Widget",
+                FT=Name("/Btn"),
+                T=String("send"),
+                A=Dictionary(S=Name("/SubmitForm"), F=String("https://example.com/form")),
+                AA=Dictionary(D=_js("down")),
+            ),
+            _annot(
+                pdf,
+                "/Link",
+                A=Dictionary(
+                    S=Name("/GoToR"),
+                    D=Array([0, Name("/Fit")]),
+                    F=Dictionary(
+                        Type=Name("/Filespec"),
+                        F=String("other.pdf"),
+                        EF=Dictionary(F=pdf.make_stream(b"copy")),
+                    ),
+                ),
+            ),
+        ]
+    )
+    widget = page["/Annots"][6]
+    pdf.Root["/AcroForm"] = Dictionary(Fields=Array([widget]), XFA=pdf.make_stream(b"<xdp/>"))
+    pdf.Root["/NeedsRendering"] = True
+    pdf.Root["/OpenAction"] = _js("open")
+    pdf.Root["/AF"] = Array([filespec])
+    pdf.Root["/Collection"] = Dictionary(Type=Name("/Collection"))
+    pdf.Root["/Names"] = Dictionary(
+        JavaScript=Dictionary(Names=Array([String("js"), _js("named")])),
+        EmbeddedFiles=Dictionary(Names=Array([String("a.txt"), filespec])),
+        AlternatePresentations=Dictionary(Names=Array()),
+        Renditions=Dictionary(Names=Array()),
+        Templates=Dictionary(Names=Array()),
+    )
+    item = pdf.make_indirect(Dictionary(Title=String("t"), A=_js("bookmark")))
+    item["/Next"] = item  # a sibling chain that loops back on itself
+    pdf.Root["/Outlines"] = pdf.make_indirect(
+        Dictionary(Type=Name("/Outlines"), First=item, Last=item)
+    )
+
+    out = _convert_without_ghostscript(pdf, tmp_path, monkeypatch)
+
+    with pikepdf.open(str(out)) as pdf:
+        root, page = pdf.Root, pdf.pages[0].obj
+        for key in ("/AA", "/PresSteps", "/AF"):
+            assert key not in page
+        annots = list(page["/Annots"])
+        assert [str(a["/Subtype"]) for a in annots] == [
+            "/Link",
+            "/Link",
+            "/Link",
+            "/Link",
+            "/Popup",
+            "/Widget",
+            "/Link",
+        ]
+        assert "/A" not in annots[0]
+        assert annots[1]["/A"]["/URI"] == "https://example.com"
+        assert "/Next" not in annots[1]["/A"]
+        assert "/A" not in annots[2]
+        assert annots[3]["/A"]["/N"] == "/NextPage"
+        assert "/A" not in annots[5] and "/AA" not in annots[5]
+        assert annots[6]["/A"]["/F"]["/F"] == "other.pdf"
+        assert not any(
+            isinstance(o, pikepdf.Stream) and o.read_bytes() in (b"secret", b"copy", b"<xdp/>")
+            for o in pdf.objects
+        )
+        assert "/XFA" not in root["/AcroForm"]
+        for key in ("/NeedsRendering", "/OpenAction", "/AF", "/Collection"):
+            assert key not in root
+        assert list(root["/Names"].keys()) == []
+        assert "/A" not in root["/Outlines"]["/First"]
+
+
+@pytest.mark.filterwarnings("ignore:This document has 1 form widget")  # the unlisted one
+def test_every_form_field_and_bookmark_is_swept(tmp_path, monkeypatch):
+    """Form fields lose their actions wherever the form puts them, a field
+    the form lists only through its widget included; a bookmark that is also
+    listed as a form field doesn't keep the other bookmarks from the sweep."""
+    pikepdf = pytest.importorskip("pikepdf")
+    from pikepdf import Array, Dictionary, Name, String
+
+    pdf = pikepdf.new()
+    pdf.add_blank_page(page_size=(200, 200))
+
+    def field(name, kid):
+        parent = pdf.make_indirect(
+            Dictionary(
+                FT=Name("/Tx"), T=String(name), Kids=Array([kid]), AA=Dictionary(C=_js(name))
+            )
+        )
+        kid["/Parent"] = parent
+        return parent
+
+    hidden_widget = _annot(pdf, "/Widget", AA=Dictionary(K=_js("hidden")))  # on no page
+    listed = field("listed", hidden_widget)
+    page_widget = _annot(pdf, "/Widget", AA=Dictionary(K=_js("visible")))
+    field("unlisted", page_widget)  # reached through page_widget only
+    pdf.pages[0].obj["/Annots"] = Array([page_widget])
+
+    goto = Dictionary(S=Name("/GoTo"), D=Array([pdf.pages[0].obj, Name("/Fit")]))
+    last = pdf.make_indirect(Dictionary(Title=String("last"), A=goto))
+    second = pdf.make_indirect(Dictionary(Title=String("second"), A=_js("2"), Next=last))
+    child = pdf.make_indirect(Dictionary(Title=String("child"), A=_js("child")))
+    first = pdf.make_indirect(Dictionary(Title=String("first"), Next=second, First=child))
+    pdf.Root["/Outlines"] = pdf.make_indirect(Dictionary(Type=Name("/Outlines"), First=first))
+    pdf.Root["/AcroForm"] = Dictionary(Fields=Array([first, listed]))
+
+    out = _convert_without_ghostscript(pdf, tmp_path, monkeypatch)
+
+    with pikepdf.open(str(out)) as pdf:
+        listed = pdf.Root["/AcroForm"]["/Fields"][1]
+        page_widget = pdf.pages[0].obj["/Annots"][0]
+        for obj in (listed, listed["/Kids"][0], page_widget, page_widget["/Parent"]):
+            assert "/AA" not in obj
+        first = pdf.Root["/Outlines"]["/First"]
+        assert "/A" not in first["/Next"]
+        assert "/A" not in first["/First"]
+        assert first["/Next"]["/Next"]["/A"]["/S"] == "/GoTo"
+
+
+def test_annotations_shared_by_pages_stay_one_array(tmp_path, monkeypatch):
+    pikepdf = pytest.importorskip("pikepdf")
+    from pikepdf import Array
+
+    pdf = pikepdf.new()
+    pdf.add_blank_page(page_size=(200, 200))
+    pdf.add_blank_page(page_size=(200, 200))
+    shared = pdf.make_indirect(
+        Array([_annot(pdf, "/Link", A=_js("link")), _annot(pdf, "/FileAttachment")])
+    )
+    for page in pdf.pages:
+        page.obj["/Annots"] = shared
+
+    out = _convert_without_ghostscript(pdf, tmp_path, monkeypatch)
+
+    with pikepdf.open(str(out)) as pdf:
+        first, second = (page.obj["/Annots"] for page in pdf.pages)
+        assert first.is_indirect and first.objgen == second.objgen
+        assert [str(a["/Subtype"]) for a in first] == ["/Link"]
+        assert "/A" not in first[0]
+
+
+def test_a_pdf_with_more_than_the_sweep_checks_is_refused(tmp_path, monkeypatch):
+    pikepdf = pytest.importorskip("pikepdf")
+    from pikepdf import Array
+
+    monkeypatch.setattr("app.converters.pdfa._MAX_SWEEP_OBJECTS", 10)
+    pdf = pikepdf.new()
+    pdf.add_blank_page(page_size=(200, 200))
+    pdf.pages[0].obj["/Annots"] = Array([_annot(pdf, "/Link") for _ in range(20)])
+
+    with pytest.raises(InvalidInputError, match="Split it into smaller PDFs"):
+        _convert_without_ghostscript(pdf, tmp_path, monkeypatch)
+
+
+def test_malformed_entries_do_not_fail_the_conversion(tmp_path, monkeypatch):
+    pikepdf = pytest.importorskip("pikepdf")
+    from pikepdf import Array, Dictionary, Name, String
+
+    pdf = pikepdf.new()
+    pdf.add_blank_page(page_size=(200, 200))
+    not_utf8 = pikepdf.Object.parse(b"/#FF")  # a name whose byte isn't UTF-8
+    chain = None
+    for i in range(3000):  # a long chain of follow-up actions
+        action = Dictionary(S=Name("/URI"), URI=String(f"https://example.com/{i}"))
+        if chain is not None:
+            action["/Next"] = chain
+        chain = pdf.make_indirect(action)
+    pdf.pages[0].obj["/Annots"] = Array(
+        [
+            _annot(pdf, "/Link", A=Dictionary(S=Array([Name("/URI")]), URI=String("x"))),
+            _annot(pdf, "/Link", A=Dictionary(S=Name("/Named"), N=Array([Name("/NextPage")]))),
+            _annot(pdf, Array([Name("/FileAttachment")]), AA=Dictionary(E=_js("enter"))),
+            _annot(pdf, "/Link", A=chain),
+            _annot(pdf, not_utf8, AA=Dictionary(E=_js("enter"))),
+            _annot(pdf, "/Link", A=Dictionary(S=not_utf8)),
+            _annot(pdf, "/Link", A=Dictionary(S=Name("/Named"), N=not_utf8)),
+        ]
+    )
+    pdf.Root["/AcroForm"] = Dictionary(Fields=5)
+
+    out = _convert_without_ghostscript(pdf, tmp_path, monkeypatch)
+
+    with pikepdf.open(str(out)) as pdf:
+        annots = pdf.pages[0].obj["/Annots"]
+        assert "/A" not in annots[0] and "/A" not in annots[1]
+        assert "/AA" not in annots[2]
+        assert annots[3]["/A"]["/URI"] == "https://example.com/2999"
+        assert "/Next" not in annots[3]["/A"]
+        assert "/AA" not in annots[4]
+        assert "/A" not in annots[5] and "/A" not in annots[6]
 
 
 def test_id_array_is_set(converted):

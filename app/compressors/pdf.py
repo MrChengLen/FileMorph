@@ -23,7 +23,14 @@ Images we leave alone (honest scope, not a bug):
 * indexed / palette images — re-encoding to JPEG would blow up the size
   and wreck the palette;
 * images carrying a soft mask (``/SMask``, i.e. alpha) — DCTDecode has no
-  alpha channel, so recompressing would silently drop transparency.
+  alpha channel, so recompressing would silently drop transparency;
+* images in any encoding other than JPEG (``/DCTDecode``, possibly behind
+  the lossless filters qpdf decodes itself, ``_SAMPLE_FILTERS``) or those
+  lossless filters alone, e.g. JPEG 2000. JPEG data is read with Pillow's
+  JPEG reader only; a losslessly stored image is rebuilt from its samples by
+  pikepdf;
+* images over the per-image pixel limit Pillow applies
+  (``FILEMORPH_IMAGE_MAX_MEGAPIXELS``, see ``app/core/image_hardening.py``).
 
 Honest limit for image-poor PDFs
 --------------------------------
@@ -96,6 +103,15 @@ _DEFAULT_FLOOR = _MIN_QUALITY
 _MAX_TOTAL_DECODE_PIXELS = 500_000_000  # ~500 megapixels summed across images
 _MAX_RECOMPRESSIBLE_IMAGES = 2_000
 
+# Filters qpdf decodes itself: an image stored with only these is rebuilt from
+# its samples, without an image-format reader (see ``_decoding``).
+_SAMPLE_FILTERS = frozenset(
+    {"/FlateDecode", "/LZWDecode", "/RunLengthDecode", "/ASCII85Decode", "/ASCIIHexDecode"}
+)
+# Of those, the ones whose output can be much larger than their input; an image may
+# use one of them, in a chain of at most two (plus /DCTDecode for a JPEG).
+_EXPANDING_FILTERS = frozenset({"/FlateDecode", "/LZWDecode", "/RunLengthDecode"})
+
 
 class _DecodedImage:
     """A recompressible image XObject decoded once for repeated re-encoding.
@@ -113,8 +129,56 @@ class _DecodedImage:
         self.pil = pil
 
 
+def _decoding(obj: "pikepdf_mod.Object") -> str | None:
+    """How an image XObject is decoded: ``"jpeg"`` when ``/DCTDecode`` ends its
+    filter chain, ``"samples"`` when it doesn't, else ``None`` (left as it is).
+    Either way the rest of the chain is at most two ``_SAMPLE_FILTERS``, one
+    of them at most from ``_EXPANDING_FILTERS``."""
+    import pikepdf
+
+    filters = obj.get("/Filter")
+    if filters is None:
+        chain = []
+    elif isinstance(filters, pikepdf.Array):
+        chain = list(filters)
+    else:
+        chain = [filters]
+    if not all(isinstance(f, pikepdf.Name) for f in chain):
+        return None
+    try:
+        names = [str(f) for f in chain]
+    except UnicodeDecodeError:  # a filter name that isn't UTF-8
+        return None
+    kind = "samples"
+    if names[-1:] == ["/DCTDecode"]:
+        kind, names = "jpeg", names[:-1]
+    if (
+        len(names) > 2
+        or sum(n in _EXPANDING_FILTERS for n in names) > 1
+        or not all(n in _SAMPLE_FILTERS for n in names)
+    ):
+        return None
+    return kind
+
+
+def _jpeg_data(obj: "pikepdf_mod.Object", pim) -> bytes:
+    """The JPEG data of a ``"jpeg"`` image: its stream with the lossless
+    filters in front of ``/DCTDecode`` decoded by qpdf — on a copy, as pikepdf
+    does it, so the image keeps its filters."""
+    import pikepdf
+
+    if len(pim.filters) == 1:
+        return obj.read_raw_bytes()
+    with pikepdf.Pdf.new() as tmp:
+        copy = tmp.copy_foreign(obj)
+        copy.Filter = pikepdf.Array([pikepdf.Name(str(f)) for f in pim.filters[:-1]])
+        copy.DecodeParms = pikepdf.Array(pim.decode_parms[: len(pim.filters) - 1])
+        return copy.read_bytes(pikepdf.StreamDecodeLevel.specialized)
+
+
 def _iter_image_xobjects(pdf: "pikepdf_mod.Pdf"):
-    """Yield every distinct image XObject stream in the document.
+    """Yield every distinct image XObject this module can decode, and how
+    (``_decoding``): ``(stream, "jpeg" | "samples")``.
 
     Walks each page's ``/Resources/XObject``. De-duplicates by object id so
     an image referenced from several pages (a repeated logo/letterhead) is
@@ -141,7 +205,9 @@ def _iter_image_xobjects(pdf: "pikepdf_mod.Pdf"):
             if key in seen:
                 continue
             seen.add(key)
-            yield obj
+            kind = _decoding(obj)
+            if kind is not None:
+                yield obj, kind
 
 
 def _is_recompressible(obj: "pikepdf_mod.Object", pim) -> bool:
@@ -149,8 +215,9 @@ def _is_recompressible(obj: "pikepdf_mod.Object", pim) -> bool:
 
     Skips the classes JPEG can't faithfully carry (see module docstring):
     stencil/image masks, indexed/palette images, and anything with a soft
-    mask (alpha). Everything else (RGB / grayscale photos, whether stored
-    as DCTDecode or FlateDecode) is fair game.
+    mask (alpha), and images over Pillow's per-image pixel limit. Everything
+    else (RGB / grayscale photos, whether stored as DCTDecode or FlateDecode)
+    is fair game.
     """
     import pikepdf
 
@@ -174,6 +241,9 @@ def _is_recompressible(obj: "pikepdf_mod.Object", pim) -> bool:
     # Only modes Pillow can re-encode as a plain JPEG.
     if pim.colorspace not in (pikepdf.Name("/DeviceRGB"), pikepdf.Name("/DeviceGray")):
         return False
+    # The per-image pixel limit Pillow applies to a JPEG, for any image.
+    if Image.MAX_IMAGE_PIXELS and pim.width * pim.height > Image.MAX_IMAGE_PIXELS:
+        return False
     return True
 
 
@@ -195,7 +265,7 @@ def _exceeds_working_set(pdf: "pikepdf_mod.Pdf") -> bool:
 
     count = 0
     total_pixels = 0
-    for obj in _iter_image_xobjects(pdf):
+    for obj, _kind in _iter_image_xobjects(pdf):
         try:
             pim = PdfImage(obj)
             if not _is_recompressible(obj, pim):
@@ -219,24 +289,35 @@ def _exceeds_working_set(pdf: "pikepdf_mod.Pdf") -> bool:
 def _collect_decoded(pdf: "pikepdf_mod.Pdf") -> list[_DecodedImage]:
     """Decode every recompressible image once; return them for re-encoding.
 
-    A decode that raises (corrupt stream, unsupported predictor) is skipped
-    with a warning rather than aborting the whole compress — one bad image
-    shouldn't sink an otherwise-shrinkable document.
+    A JPEG is read with Pillow's JPEG reader only; any other image pikepdf
+    rebuilds from its stored samples. Either way ``/Decode`` stays in the
+    image dictionary for viewers to apply, so it isn't applied here. A decode
+    that raises (corrupt stream, unsupported predictor, data that doesn't
+    decode, a JPEG of another size than its dictionary says) is skipped with a
+    warning rather than aborting the whole compress — one bad image shouldn't
+    sink an otherwise-shrinkable document.
     """
     from pikepdf import PdfImage
 
     decoded: list[_DecodedImage] = []
-    for obj in _iter_image_xobjects(pdf):
-        pim = PdfImage(obj)
-        if not _is_recompressible(obj, pim):
-            continue
+    for obj, kind in _iter_image_xobjects(pdf):
         try:
-            pil = pim.as_pil_image()
+            pim = PdfImage(obj)
+            if not _is_recompressible(obj, pim):
+                continue
+            if kind == "jpeg":
+                pil = Image.open(io.BytesIO(_jpeg_data(obj, pim)), formats=["JPEG"])
+                # The pre-flight counted the size the dictionary declares.
+                if pil.size != (pim.width, pim.height):
+                    raise ValueError("JPEG size differs from the image dictionary")
+            else:
+                pil = pim.as_pil_image(apply_decode_array=False)
+            pil.load()
+            if pil.mode not in ("RGB", "L"):
+                pil = pil.convert("RGB")
         except Exception as exc:  # noqa: BLE001 — any decode failure → skip this image
             logger.warning("pdf compress: skipping undecodable image (%s)", exc)
             continue
-        if pil.mode not in ("RGB", "L"):
-            pil = pil.convert("RGB")
         decoded.append(_DecodedImage(obj, pil))
     return decoded
 

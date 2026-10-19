@@ -1,0 +1,76 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+"""PDF → TXT text extraction, run as a child process.
+
+``python -m app.converters._pdf_text <input.pdf> <output.txt> <max-pages>``
+
+``PdfToTxtConverter`` (``app/converters/document.py``) starts this with a time
+limit and stops it when it runs over: some PDFs take pypdf a long time, and
+only a process can be stopped from outside. On Linux the address space is
+capped as well. The outcome is printed as one word on stdout — ``ok``,
+``too_many_pages``, ``encrypted``, ``unsupported_encryption``, ``too_large``,
+``unreadable`` or ``failed`` — the last two followed by the exception class
+(pypdf's messages can quote the file). The parent discards stderr.
+"""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+_MEMORY_LIMIT_BYTES = 1024 * 1024 * 1024
+
+
+def _limit_memory() -> None:
+    """Cap the address space at 1 GiB (Linux), and be the first to go on OOM."""
+    if sys.platform != "linux":
+        return
+    import resource
+
+    hard = resource.getrlimit(resource.RLIMIT_AS)[1]
+    soft = _MEMORY_LIMIT_BYTES if hard == resource.RLIM_INFINITY else min(hard, _MEMORY_LIMIT_BYTES)
+    resource.setrlimit(resource.RLIMIT_AS, (soft, hard))
+    try:  # if the host runs short of memory, the kernel kills this child, not the server
+        Path("/proc/self/oom_score_adj").write_text("1000", encoding="utf-8")
+    except OSError:
+        pass
+
+
+def extract(input_path: Path, output_path: Path, max_pages: int) -> str:
+    """Write the PDF's text to ``output_path``; return the outcome."""
+    from pypdf.errors import FileNotDecryptedError, PyPdfError
+
+    from app.converters.base import UnsupportedPdfEncryptionError, open_pypdf
+
+    try:
+        reader = open_pypdf(input_path)
+        if len(reader.pages) > max_pages:
+            return "too_many_pages"
+        parts = [page.extract_text() or "" for page in reader.pages]
+        # A broken font map can yield an unpaired surrogate, which UTF-8 can't
+        # encode: write that character as "?" instead of failing.
+        output_path.write_text("\n\n".join(parts), encoding="utf-8", errors="replace", newline="\n")
+    except UnsupportedPdfEncryptionError:
+        return "unsupported_encryption"
+    except FileNotDecryptedError:
+        return "encrypted"
+    # PyPdfError covers LimitReachedError (a crafted file tripping one of
+    # pypdf's resource limits); pypdf reads fonts and content streams lazily,
+    # so a broken one only fails during extraction.
+    except (PyPdfError, ValueError) as exc:
+        return f"unreadable {type(exc).__name__}"
+    except MemoryError:
+        return "too_large"
+    except Exception as exc:  # the parent logs the class and answers 500
+        return f"failed {type(exc).__name__}"
+    return "ok"
+
+
+if __name__ == "__main__":
+    import logging
+    import warnings
+
+    # pypdf logs each repair it makes; nobody reads them here.
+    logging.disable(logging.CRITICAL)
+    warnings.simplefilter("ignore")
+    _limit_memory()
+    print(extract(Path(sys.argv[1]), Path(sys.argv[2]), int(sys.argv[3])))
