@@ -12,6 +12,891 @@ Versions follow [Semantic Versioning](https://semver.org/).
 > New entries go in [`changelog.d/`](changelog.d/), one file per change;
 > `scripts/changelog.py` folds them in here, newest first.
 
+---
+
+## [1.2.0] — 2026-10-19
+
+**Upgrading from 1.1.0.** No endpoint, format or env var was removed. Check
+before pulling:
+
+- **Cloud Edition (`DATABASE_URL` set):** the app exits at start-up (status 3)
+  unless `JWT_SECRET` is set, at least 32 characters long and not a published
+  placeholder; `docker-compose.cloud.yml` no longer starts without it.
+  `JWT_AUDIENCE` must not be empty (default `filemorph-api`). Everyone who is
+  signed in signs in once more after the update. Details in the JWT and
+  sign-in entries below.
+- **Database:** migrations 009–013 run automatically (`alembic upgrade head`
+  in the entrypoint). 013 cannot be downgraded once format-2 audit entries
+  exist.
+- **Behind a reverse proxy:** per-IP limits count each visitor only when
+  `FORWARDED_ALLOW_IPS` covers the proxy; otherwise every visitor shares one
+  budget. Besides sign-in and uploads, 1.2.0 adds per-IP limits to the PDF
+  tools, the cancellation form and failed API-key attempts (see "HSTS behind
+  Docker" in `docs/self-hosting.md`). The new limits on API keys, checkout and
+  the billing portal count per signed-in account.
+- **New refusals:** a few requests 1.1.0 processed now get an error: `413`
+  for a body over 1 MB on the account, keys, billing, contact and webhook
+  routes, and for an upload over `MAX_UPLOAD_SIZE_MB` sent without
+  `Content-Length` (chunked); `415` for a form that names a charset other
+  than UTF-8; `400` for PDF → TXT over 10 000 pages or needing more than
+  30 seconds (on Linux also more than 1 GiB), and for audio or video in a
+  container outside the supported list. The entries below have the details.
+- **Logs:** the limiter and spam-trap lines no longer hold IP addresses (the
+  access log keeps the client IP); no log holds recipient addresses, query
+  strings or database statement values. A fail2ban or alert rule that
+  matched them needs a new pattern.
+
+### Fixed — server logs leave out email addresses, IP addresses and link tokens, as the privacy notice says
+
+The privacy notice says the logs record the URL path, an email domain
+instead of the address, and no IP address from the limiters. Four places
+logged more:
+
+- **Links in account emails** — email confirmation and password reset —
+  carry their token after `#` (`/verify-email#token=…`,
+  `/reset-password#token=…`). Browsers never send that part to the server,
+  so neither the token nor the address a confirmation token was issued for
+  reaches an access log. Links sent before this change (`?token=…`) still
+  work; the page moves the token behind `#`.
+- **The application server's access log** (uvicorn) drops the query string
+  and keeps the path.
+- **Mail delivery** logs the recipient's domain only. It no longer logs the
+  subject, which carries the sender's own text for contact-form messages. A
+  failed send records the error type, the SMTP reply code (for a refused
+  recipient: the codes) and, for a connection problem, aiosmtplib's own text
+  naming the SMTP host and port — no longer the server's reply, which can
+  quote the recipient address. That error is no longer chained onto the one
+  the routes log.
+- **The concurrency cap** logs whether the caller was an account or an IP
+  address, not the account id or the address itself. **The contact form's
+  spam trap** no longer logs the IP address.
+
+A database error's text no longer carries the statement's values either: a
+failed insert used to print the address and the password hash into the error
+that gets logged.
+
+`docs/vendor-security-questionnaire.md`,
+`docs/records-of-processing-template.md` and `docs/email-setup.md` describe
+the logs this way. `tests/test_log_privacy.py` pins it: both link builders
+put the token after `#` and both landing pages read it from there; a real
+uvicorn server logs a request's path without its query; a refused
+recipient's address and a message subject appear in no log line; neither
+limiter log line nor the spam-trap line holds an IP address or an account
+id; and the database engine hides statement values.
+
+### Fixed — XLSX → CSV reads cell values only; a workbook with an active chart sheet converts
+
+XLSX → CSV now opens the workbook for its cell values only: chart sheets are
+read without their charts and images, and links to other workbooks are left
+unread — a CSV holds none of these. When a chart sheet is the active sheet, the
+first worksheet is exported; that used to fail with a `500`. A workbook
+without any worksheet gets `400` with `X-FileMorph-Error-Code: invalid_input`
+and a message that names the fix. The workbook file is closed after the export, and also when reading
+it fails.
+
+### Changed — Table conversions stop at the output cap
+
+XLSX → CSV, JSON → CSV and CSV → JSON stop writing as soon as the output
+passes your tier's output cap, instead of writing the whole file first. They
+answer `413` with `X-FileMorph-Error-Code: output_cap_exceeded` and "Output
+too large (over the N MB cap). Split the table into smaller files and convert
+them one by one …" on `/convert`, and "Output too large (over the N MB cap).
+Split the table or upgrade your plan." per file on `/convert/batch`. JSON →
+CSV refuses a table whose rows × columns alone can't fit before writing
+anything. A conversion that fits writes the same file as before.
+
+### Security — PDF → PDF/A removes active content from pages, annotations, form fields and bookmarks
+
+PDF → PDF/A (`target_format=pdfa`) removes the active content PDF/A-2
+forbids and the files attached to the document, its pages and annotations, on
+the Ghostscript output and on the markup-only path alike:
+
+- from the document: additional actions (`/AA`), the open action, JavaScript,
+  XFA forms, attached and associated files, portfolios, alternate
+  presentations, renditions and page templates;
+- from every page: additional actions, presentation steps, associated files,
+  and file-attachment, sound, movie, screen, 3D and rich-media annotations;
+- from the other annotations: additional actions and associated files;
+- from form fields and their widgets: every action, as PDF/A-2 requires;
+- from links and bookmarks: every action type PDF/A-2 does not permit, and from
+  a permitted one the actions chained after it and an embedded copy of the file
+  it opens.
+
+Links (URI, GoTo and the other permitted types) and page navigation stay. A
+PDF with an extreme number of pages, annotations, form fields and bookmarks
+(around 200,000 together) gets a `400` (`invalid_input`) instead of a
+half-checked PDF/A.
+
+The comment on Ghostscript's `-dPDFACompatibilityPolicy=1` now says what the
+setting does: Ghostscript drops a feature PDF/A-2 forbids and goes on writing
+PDF/A.
+
+Tests convert PDFs without Ghostscript and check what is left: active content
+on a page, its annotations, form fields (one of them reached only through its
+widget) and bookmarks; an attachment a popup still points to; an annotation
+list two pages share; and malformed entries, among them names that aren't
+UTF-8.
+
+### Changed — PDF → TXT extracts the text in its own process, with a time limit
+
+PDF → TXT (`/convert`) now runs pypdf in a child Python process
+(`app/converters/_pdf_text.py`). The process is stopped after 30 seconds; on
+Linux it may use at most 1 GiB of memory. A PDF too large or complex for that
+gets `400` (`invalid_input`) with "This PDF is too large or complex to
+extract its text in one go. Extract fewer pages with /api/v1/pdf/extract and
+convert them in parts." Like the other PDF tools, PDF → TXT reads at most
+10 000 pages; a larger PDF gets `400` with a message naming the cap. The
+child gets no application secrets, like the LibreOffice subprocess, and its
+diagnostic output is discarded. Password-protected, certificate-encrypted
+and unreadable PDFs keep their existing answers.
+
+The Docker image check on pull requests now converts a PDF to text inside
+the image, so the child process is tested where it runs in production.
+
+### Changed — PDF compression leaves JPEG 2000 images as they are
+
+PDF compress-to-target (`/api/v1/pdf/compress`) re-encodes embedded images
+stored as JPEG (`/DCTDecode`, also behind a lossless filter such as ASCII85 or
+Flate, as ReportLab writes them) or with the lossless filters qpdf decodes
+itself (Flate, LZW, run-length, ASCII85, ASCIIHex). JPEG 2000 images now stay
+as they are, and so do images over the image size limit
+(`FILEMORPH_IMAGE_MAX_MEGAPIXELS`, 89 megapixels by default) and images with
+longer filter chains. An image that can't be read is skipped instead of
+failing the request. A losslessly stored image with a `/Decode` array (e.g.
+inverted grayscale) keeps its look; it used to come out inverted.
+
+Tests compress PDFs with a JPEG 2000 image, unreadable and damaged images, a
+JPEG of another size than its dictionary declares, a doubly compressed image
+and a malformed filter, each next to an ordinary JPEG, and check that only the
+ordinary JPEG is re-encoded; that images over the size limit stay as they
+are; that a losslessly stored image and JPEGs behind ASCII85 and Flate are
+re-encoded; and that an inverted grayscale image keeps its look.
+
+### Security — FFmpeg reads uploads only in the formats FileMorph supports
+
+The audio and video conversions and the video compressor now open uploads
+with ffmpeg limited to the demuxers of the formats FileMorph accepts: MP3,
+WAV, FLAC, Ogg (incl. Opus), AAC, ASF (WMA, WMV), MP4/MOV/M4A, AVI, Matroska
+(MKV, WebM) and FLV, and only as a local file. ffmpeg still recognises other
+formats, but refuses to open an upload in one of them; such an upload gets
+`400` with `X-FileMorph-Error-Code: invalid_input` and "Could not read this
+file: it is not in one of the audio or video formats FileMorph supports.
+Save it as MP4 (video) or MP3 (audio) and try again." The list covers audio
+and video together, so a file whose container differs from its extension
+still converts as long as the container is one of these. The list is one
+constant, `INPUT_DEMUXERS` in `app/converters/_ffmpeg.py`, and every ffmpeg
+call on an upload goes through `media_input()` there.
+
+Tests build each accepted input format with ffmpeg and convert it, check
+that a file in another format is refused, and check the source code for any
+other way into ffmpeg.
+
+### Security — Request size limits count the bytes that arrive
+
+The request size limit now counts the body as it arrives, not only the
+`Content-Length` header. It is `MAX_UPLOAD_SIZE_MB` (default 100 MB) per
+request on the file endpoints (`/convert`, `/compress`, the PDF tools and
+the AI routes), and 1 MB on every other endpoint: the account, keys,
+billing, contact and Stripe webhook routes, whose JSON bodies are a few KB.
+A body past its limit gets `413` ("File too large. Maximum size: N MB" on
+the file endpoints, "Request too large. Maximum size: 1 MB" elsewhere); a
+`Content-Length` above the limit is refused before anything is read.
+
+The Stripe webhook refuses a request without a `stripe-signature` header
+before reading its body.
+
+The limits live in `app/core/request_limits.py`, a pure ASGI middleware
+that replaces the `limit_upload_size` HTTP middleware. Its `413` answers
+carry the CORS and security headers like any route's response.
+
+### Changed — PDF tools: page selections count each page once; split stops at the output cap
+
+- **Page selections** (`/pdf/extract`): a page selected twice now counts
+  once against the 10 000-page cap. `1-10000,1-5` used to be refused with
+  "You can extract at most 10,000 pages at once", although it selects
+  10 000 pages. Overlapping and adjacent ranges are merged before pages are
+  counted. A selection longer than 65 536 characters gets
+  `400` with `invalid_page_selection` and "The page selection is too long.
+  Use ranges such as 1-100 instead of listing pages one by one." (every
+  page up to the cap, listed one by one, is about 49 000 characters).
+- **Split** (`/pdf/split`) checks the tier output cap while it writes the
+  single-page PDFs and stops with the usual `413` (`output_cap_exceeded`,
+  "Output too large (over the N MB cap).") once they pass it. Each single-page PDF carries its own copy of the
+  images and fonts it uses, so a split can come out larger than its input.
+
+Tests cover repeated and adjacent ranges, a selection exactly at and just
+over the length limit, and a split stopping at the cap while it writes.
+
+### Changed — Form bodies must be UTF-8
+
+A form body (multipart or URL-encoded) whose `Content-Type` names a charset
+other than UTF-8 now gets `415` with "Form data must be UTF-8 encoded.".
+Browsers and common HTTP clients send no charset there, and `charset=utf-8`
+is accepted.
+
+### Fixed — EML → PDF decodes mail text in the character sets mail uses
+
+EML → PDF decodes text parts and encoded header words in the character set
+the mail names if it is one of the character sets mail is written in:
+UTF-8/16/32, ASCII, ISO-8859-x, Windows-125x, KOI8, Mac Roman, the Japanese,
+Chinese and Korean mail sets, and the labels mail clients use for them
+(e.g. `ISO8859-1`, `iso-8859-8-i`, `ks_c_5601-1987`). Labels that mail
+clients and browsers read as a superset get the superset (US-ASCII and
+ISO-8859-1 as Windows-1252, Shift_JIS as CP932, EUC-KR as CP949, GB2312 as
+GBK, Big5 as CP950). Any other label is read as UTF-8, with bytes that aren't
+valid UTF-8 replaced; a mail naming a character set Python doesn't know used
+to fail with a `500`. A malformed charset or boundary parameter is read as
+missing.
+
+In headers, text sent as raw 8-bit bytes is read as UTF-8, also next to
+encoded words; adjacent encoded words in one character set are decoded
+together, so a character split across two of them stays whole; a language
+tag in an encoded word is ignored; a folded line keeps its space; and a
+damaged encoded word is shown as it is. A header longer than 8,192
+characters is shortened and ends in `[…]`. The body is the first HTML part
+of the mail's own text (attachments and attached mails don't count), else
+the first plain-text part.
+
+### Fixed — Password reset finds the account in any letter case; long passwords work again; password checks run in a worker thread
+
+- **Forgot password** (`/api/v1/auth/forgot-password`) finds the account by
+  its address, ignoring letter case, and sends the reset email after the
+  response. The online cancellation (`/api/v1/billing/cancellation`)
+  compares addresses the same way.
+- **Passwords longer than 72 bytes** work again for registration, password
+  reset and sign-in. bcrypt reads only the first 72 bytes; since bcrypt 5 it
+  refuses longer input, so registration and reset with such a password
+  failed with a `500`. FileMorph now passes bcrypt the first 72 bytes
+  itself, which gives the same hash as before.
+- **Sign-in, registration, password reset and account deletion** hash or
+  check passwords in a worker thread, so a password check no longer holds
+  up other requests.
+
+### Fixed — the concurrency cap is per account, not per API key; the security docs say the extension picks the converter
+
+The concurrency cap — how many requests one caller may run at the same time —
+counts per account, whichever key or token the account sends, and per IP
+address for a request without an account. Two texts said it was per API key:
+
+- **The `429`** of that cap now reads "Concurrency limit reached for this
+  account, or for this IP address when no account is used. Lower the
+  parallelism or upgrade the plan." It used to name "this API key".
+- **The pricing page** says each tier has "a concurrency cap per account (per
+  IP address without an account)", in English and German, where it said
+  "per-key".
+
+The docs now describe the upload checks and the cap the way the code runs
+them:
+
+- `docs/security-overview.md` said the format "is determined from bytes". It
+  now says what the vendor questionnaire says: the converter is chosen from the
+  file extension, not detected from content, and the `Content-Type` the client
+  sends is not used. Image uploads are then opened only by the readers for the
+  supported image formats. Its magic-byte item now says that files which
+  *start with* a PE, ELF, shell-script or PHP signature are rejected — the
+  check reads the first bytes.
+- PT-007 in `docs/security-pentest-report.md` is now **Partially addressed**,
+  and the report's summary box says so: the magic-byte deny-list and the
+  image-format list are in place, but the review's recommendation to check the
+  content against the extension is not. Apart from images, uploads reach the
+  parser their extension selects without a format check.
+  `docs/security-overview.md` says the same under PT-007.
+- The code anchors in `docs/security-overview.md` and `docs/threat-model.md`
+  named two of the four route modules that run the `BLOCKED_MAGIC` check; they
+  now name `convert.py`, `compress.py`, `pdf_pages.py` and `ai.py`.
+- `docs/self-hosting.md` said `/convert` and `/compress` enforce the
+  concurrency caps; the PDF tools (`/pdf/*`) and `/ai/redact/*` do too.
+
+`tests/test_docs_match_code.py` pins this: every `BLOCKED_MAGIC` prefix is
+refused with "File type not permitted." and no doc calls the list an
+allow-list; every route module that takes an upload runs the check, and both
+anchors name them; a JPEG under an unknown extension is refused by its
+extension, while a wrong `Content-Type` changes nothing; and the `429` and both
+language versions of the pricing page describe the cap the way `actor_id`
+counts it.
+
+### Changed — compliance docs describe the audit hash format
+
+The TOM annex, the DPA template, the security questionnaire, the security
+overview and the /enterprise page say what an audit entry's hash covers in
+the current format: the event type, the UTC timestamp, the payload and the
+previous entry's hash. Each entry records its format (`hash_version`), and
+`app/core/audit.py` specifies each one. The texts state that the account ID
+stays outside the hash so that account deletion can clear it, and point
+auditors to `VERIFY_CHAIN_SQL` in `app/core/audit.py`: the full-chain check
+in plain Postgres SQL that runs on a database dump. The questionnaire adds
+that keeping the newest entry's `id` and `record_hash` outside the database
+also shows changes the chain cannot show on its own, such as entries removed
+from its end.
+
+- **Guard.** `tests/test_audit_log.py` fails if one of these docs stops
+  naming `VERIFY_CHAIN_SQL`.
+
+### Security — a release's cosign command accepts only that release's image build
+
+A security review found that the `cosign verify` command `release.yml` writes
+into each release's `IMAGE_DIGEST.txt` matched the signer against
+`^https://github\.com/MrChengLen/FileMorph/`. Every workflow in the repository
+passes that, at every ref: an image `docker.yml` built from `main`, or from a
+branch it was dispatched on, would have verified as the release, and so would
+a signature from any other workflow. The command also verified the tag, which
+can later be moved to another image.
+
+- **One signer.** The command now passes `--certificate-identity
+  'https://github.com/MrChengLen/FileMorph/.github/workflows/docker.yml@refs/tags/vX.Y.Z'`,
+  the exact subject Sigstore writes into the certificate when `docker.yml`
+  signs for that tag. Checked against the published v1.1.0 images: all ten
+  signatures (slim and office) carry that subject, while a build of `main`
+  (checked on `latest`) carries `…/docker.yml@refs/heads/main`, which the new
+  command rejects.
+- **The digest, not the tag.** It verifies
+  `ghcr.io/mrchenglen/filemorph@sha256:…` when the release job resolved the
+  digest, as it did for v1.1.0. Otherwise it falls back to the tag and tells
+  the reader to pull the digest cosign reports, not the tag.
+- **Docs.** `docs/release-signing.md`, `docs/patch-policy.md`,
+  `docs/self-hosting.md` and the comment in `docker.yml` quote the same form;
+  `self-hosting.md` verifies a release instead of the moving `:office` tag.
+  `release-signing.md` also shows how to tie the signature to the commit the
+  tag's GPG signature covers (`--certificate-github-workflow-sha`). v1.1.0's
+  `IMAGE_DIGEST.txt` predates this and keeps the old command; the docs say to
+  verify v1.1.0 with the new one.
+
+`release.yml` only runs on a signed tag, so `tests/test_supply_chain_hygiene.py`
+runs the step's script with sample values (digest resolved, empty and
+malformed). It fails if the command widens the signer, verifies the tag
+although a digest was resolved, or `docker.yml` stops signing; each of seven
+simulated regressions fails it. A second guard fails if a public doc shows a
+`cosign verify` that verifies a tag or does not pin the signing workflow.
+
+### Changed — the audit log keeps nothing derived from an email address
+
+Audit entries no longer hold a hash of an email address or an email domain.
+The payload sits in the hash chain and can never be erased, and anyone who
+knows an address can hash it and find the matching entries.
+
+- A wrong-password login, a registration with a taken address and a
+  password-reset request name the account they concern by its ID
+  (`actor_user_id`), which a hard delete clears. An address without an
+  account leaves no trace, and the client sees the same answer as before.
+  Online cancellations already named a matching account this way.
+- Contact-form entries keep only the language derived from the browser. Account-deletion entries
+  no longer carry the email domain; the structured log still does, as the
+  privacy policy says.
+- **Texts.** The privacy policy (§2g, §2h), the DPA template, the records of
+  processing, the TOM annex, the security questionnaire, the API reference and
+  the account-deletion design describe this. They also state that entries
+  written before this change keep their email hashes and domains (on
+  filemorph.io: up to and including 12 October 2026): those sit in the hash
+  chain too.
+- When the confirmation email after an account deletion fails, the log line
+  names the domain only, not the full address.
+- **Guard.** `tests/test_audit_no_email.py` scans every audit call in `app/`
+  and drives every auth and contact route that takes an email address, then
+  checks every column of every audit row those requests wrote. The online
+  cancellation is checked by `tests/test_billing_cancellation.py`.
+
+### Changed — audit log: record hash format 2
+
+New audit entries carry `hash_version = 2`: `record_hash` is the SHA-256 of
+`v2`, the previous hash, the event type, the UTC timestamp and the canonical
+payload, one per line. `app/core/audit.py` specifies it, together with
+`VERIFY_CHAIN_SQL`, the same full-chain check in plain Postgres SQL for an
+auditor working from a database dump. The actor column stays outside the
+hash, so account deletion (Art. 17 GDPR) can clear it without breaking the
+chain. Entries written earlier keep format 1 and verify as before;
+`verify_chain` checks each entry with the format it names.
+
+- **Upgrade note (deployments with a database).** Migration
+  `013_audit_hash_version` adds the column with a constraint that allows
+  formats 1 and 2. On Postgres it changes only the catalogue: no row is
+  rewritten, and the append-only trigger does not fire. Its downgrade refuses
+  once format-2 entries exist, because the older code cannot verify them.
+- `occurred_at` is now stamped by the application, because the hash needs it
+  before the row is written.
+- `verify_chain(start_id=…)` checks a slice of the chain again: the slice's
+  first row may chain from a row before it. It used to be reported as broken.
+- **Guards.** `tests/test_audit_log.py` fails when a new `audit_events` column
+  is neither hashed nor explicitly left out. `tests/test_audit_postgres.py`
+  migrates entries from before 013 on real Postgres and checks that they still
+  verify, that `VERIFY_CHAIN_SQL` agrees with `verify_chain`, and that account
+  deletion still clears the actor on them. `tests/test_alembic_heads.py` fails
+  when two migrations share a parent or a revision id is longer than the
+  32 characters Alembic's version table holds.
+
+### Changed — `/convert/batch` refuses a target format longer than 16 characters up front
+
+`POST /api/v1/convert/batch` now looks at every `target_formats` value before
+it processes any file. A value longer than 16 characters — no format FileMorph
+knows comes close; the longest has 4 — refuses the whole batch with `422` and
+"Unknown target format. GET /api/v1/formats lists the supported ones.", the
+way a mismatch between the number of `files` and `target_formats` values
+already does. A shorter unknown value still fails only its own file, as
+before. A test checks that every registered target fits under the limit, so a
+new converter with a longer format name can't be refused by the batch route
+without CI noticing.
+
+### Changed — the audit log no longer records IP addresses
+
+Audit events written while handling a request used to carry the caller's IP
+address in `audit_events.actor_ip` — anonymous conversions included — and the
+append-only log keeps its rows. Now nothing on the audit path receives the
+client address: `record_event()` has no parameter for one, no route passes it,
+and the ORM no longer maps the column. (The online-cancellation events never
+recorded one.)
+
+- **Upgrade note (deployments with a database).** Rows written before this
+  change keep their stored address for now. The nullable `actor_ip` column
+  stays in the table, unmapped, and new rows leave it empty. A follow-up
+  migration will drop the column together with the addresses in it. If you
+  must keep them (a legal hold, say), export them before that release:
+  `COPY (SELECT id, occurred_at, actor_ip FROM audit_events WHERE actor_ip IS NOT NULL) TO STDOUT WITH CSV HEADER`.
+- **Texts.** The privacy policy gains §2h on the audit log: what an entry
+  records, that it keeps no IP address, how long entries are kept (no time
+  limit yet; automatic deletion is planned) and what account deletion changes.
+  PII redaction moves to §2i. The DPA template, records of processing,
+  self-hosting guide and `.env.example` no longer list an audit-log IP
+  address; the security questionnaire and security overview now state that
+  none is recorded. The DPA template, records of processing and security
+  questionnaire add that a built-in retention job is planned. The security
+  overview also stops calling upload metadata unpersisted: the audit log keeps
+  the format, byte counts, tier and data-classification label.
+- **Guard.** `tests/test_audit_no_ip.py` sends requests from an RFC 5737
+  address through the real routes and fails if that address — or a shortened
+  or hashed form of it — lands in any audit column, or if a new row fills the
+  legacy column. It also scans `app/` for any audit call that could pass a
+  client address, and for `actor_ip` anywhere in application code. The docs
+  are checked the same way, and the privacy page in both languages.
+
+### Security — Pillow can't start Ghostscript; CVE-2026-106443 (WeasyPrint) not reachable
+
+`pip-audit` began flagging `weasyprint==69.0` for CVE-2026-106443
+(GHSA-r543-q48m-4c9j, HIGH, CVSS 8.8, fixed in 70.0), which turned the
+required `lint-and-test` check red on `main` and on every pull request, and
+held every deploy. An image reference (`<img>`, a CSS or SVG image, a data
+URI) can make WeasyPrint hand PostScript to Pillow, whose EPS reader runs
+Ghostscript, an external PostScript interpreter.
+
+Every WeasyPrint render here already gets a `url_fetcher` that refuses every
+URL it is asked to fetch, so no image bytes reach Pillow and the advisory
+was not reachable. The new setting removes the sink itself, so it holds
+whatever the fetcher contract is, and WeasyPrint 70 changes that contract:
+FileMorph converts no EPS, and at startup `apply_hardening()`
+(`app/core/image_hardening.py`) now marks Ghostscript as missing for Pillow,
+so an EPS image fails to load without a process being started. The PDF/A
+converter runs Ghostscript itself and is not affected. Tests pin the setting
+and that no process starts.
+
+CI ignores the advisory with that reasoning next to the `pip-audit` step,
+and `docs/security-overview.md` lists it among the accepted advisories.
+Taking the fix, WeasyPrint 70.0, needs the same `url_fetcher` port that
+already holds back CVE-2026-55073.
+
+### Security — WeasyPrint 70: the SSRF guard is ported, two advisories are fixed
+
+WeasyPrint, which renders HTML, Markdown, email and (on the pure-Python path)
+DOCX to PDF, moves from 69.0 to 70.0. That release fixes CVE-2026-55073 (an
+SSRF-protection bypass) and CVE-2026-106443 (image bytes handed to Pillow
+unrestricted, with Ghostscript behind it). Neither was reachable here, so CI
+had ignored both with a written reason; the two `--ignore-vuln` entries and
+their rows in `docs/security-overview.md` are gone.
+With python-jose already replaced by PyJWT, CI's `pip-audit` now ignores
+no advisory at all.
+
+WeasyPrint 70 accepts only an object as the URL fetcher, not a function,
+which is what held the upgrade back. `_deny_url_fetcher()` now returns a
+fetcher that refuses every URL it is asked for, remote, `file:` and `data:`
+alike, and every `weasyprint.HTML(...)` call passes a fresh one. The PDFs
+come out the same: a referenced stylesheet, font, image or attachment was
+never loaded before and still is not.
+
+Tests:
+
+- A new test renders a page that asks for a resource of each kind
+  (stylesheets, `@import`, a font, images, a CSS background, an SVG image and
+  an attachment, over http, `file:` and `data:`) through all four WeasyPrint
+  call sites. It fails if any resource loads or a connection is attempted.
+- A self-test shows that the same page does load without the guard, so the
+  test above can fail.
+- A check that runs on every host, Windows included, fails when a
+  `weasyprint.HTML(...)` call lacks `url_fetcher=_deny_url_fetcher()`, and
+  when app code passes `write_pdf()` a stylesheet, attachment or XMP
+  metadata option (these read a plain file name without asking the fetcher).
+- The existing HTML, email and DOCX SSRF tests now record outbound
+  connections. They used to raise inside WeasyPrint, which catches that and
+  renders on, so they could not fail.
+- CI now fails if WeasyPrint cannot render on the test runner, instead of
+  letting its tests skip unnoticed.
+
+The requirement is now `weasyprint>=70,<71`, and Dependabot holds back
+WeasyPrint 71 instead of 70, so the next major again needs a deliberate
+update. On Windows, WeasyPrint 70 also looks for the GTK/Pango libraries in
+`C:\msys64\ucrt64\bin` (`docs/installation.md`).
+
+### Security — JWTs are handled by PyJWT instead of python-jose; tokens must carry exp, iss and aud
+
+`python-jose` has had no release or commit since 3.5.0 (May 2025), and
+`pip-audit` flagged two advisories in it that have no fix: CVE-2026-85394
+(algorithm confusion, in python-jose itself) and PYSEC-2026-1325 (`ecdsa`,
+pulled in by it). Both were accepted as not reachable. FileMorph now signs
+and checks its tokens with PyJWT 2.15.1, so both `--ignore-vuln` entries are
+gone from `ci.yml`, along with `ecdsa`, `rsa`, `pyasn1` and `six` in the
+image.
+
+- **Stricter check:** a token must carry `exp`, `iss` and `aud`.
+  python-jose let a signed token without `aud` or `exp` through, and one
+  without `exp` never expired. Every token FileMorph issues carries all
+  three.
+- **No sign-out:** the token format is unchanged (HS256, same secret, same
+  claims). Sessions, and password-reset and verification links already
+  sent, stay valid. A test pins tokens that python-jose issued. The one
+  exception is a deployment that set `JWT_AUDIENCE` to an empty value:
+  PyJWT treats an empty `aud` as missing and refuses every token, so give
+  it a value (the default is `filemorph-api`) before upgrading.
+- **Malformed tokens:** a token longer than 4096 characters, or with
+  non-ASCII characters, is refused before it is parsed; the ones FileMorph
+  issues are a few hundred ASCII characters. A lone surrogate character in
+  the token sent to the refresh, password-reset or verification route got
+  a 500; it now gets the usual 401 or 400.
+- **`cryptography` stays:** pypdf needs it to open AES-encrypted PDFs, and it
+  used to arrive through python-jose. It is now listed in
+  `requirements.txt` in its own right.
+
+### Security — Pillow reads image uploads only in the formats FileMorph supports
+
+`/convert` and `/compress` (and their batch routes) now open uploaded images
+with Pillow limited to the formats FileMorph accepts: JPEG (multi-picture
+JPEGs from phone cameras included), PNG, WebP, GIF, BMP, TIFF, ICO,
+HEIC/HEIF and AVIF. Pillow ships readers for many other formats; they are not
+used on these uploads, which keeps the code that parses an uploaded image to
+what the service needs. The list is one constant, `IMAGE_INPUT_FORMATS` in
+`app/core/image_hardening.py`, and the image converters and compressors open
+every upload through `open_image()` there.
+
+An upload none of these readers recognises (a file that isn't an image, one
+too damaged to be recognised, or one in another format) now gets `400` with
+`X-FileMorph-Error-Code: invalid_input` and "Could not read the image: it is
+damaged or not in a supported image format. Save it as PNG or JPEG (e.g. in
+an image editor) and try again." A file that isn't an image used to get the
+generic `500` ("Conversion failed. …", "Compression failed. …"); damage that
+only shows while an image is decoded still does. `/convert/batch` and
+`/compress/batch` report the message for the file.
+
+Tests build each supported variant in-process (a two-frame MPO, an animated
+PNG, ICO with PNG and with BMP frames, JPEG-compressed TIFF, HEIF and AVIF
+among them), check that the list covers every image input the converters and
+compressors accept, and check that files in five other Pillow formats are
+refused without any reader outside the list being consulted.
+
+### Security — PDF → PDF/A only processes PDFs, and runs Ghostscript with -dSAFER
+
+PDF → PDF/A now confirms an upload is a PDF before its Ghostscript re-render
+stage. It reads the file's `%PDF-` header — the one the spec defines, found
+within the first 1024 bytes, so a damaged-but-repairable PDF still qualifies
+and keeps its Ghostscript repair pass. A file without the header skips
+Ghostscript and gets `400` with `X-FileMorph-Error-Code: invalid_input` and
+"This file is not a PDF. Convert it to PDF first, then upload the PDF to create
+a PDF/A.", where a file that was not a PDF used to reach the re-render stage and,
+failing that, the markup pass for a generic 500. The re-render also passes
+`-dSAFER` to Ghostscript explicitly (its default since gs 9.50) so the sandbox
+holds regardless of the installed version's default.
+
+Ghostscript is faked in the tests, so they hold with or without it installed: a
+non-PDF never reaches the re-render call, a damaged PDF that carries the header
+still does, the route answers 400 rather than 500, and `-dSAFER` is in the
+command.
+
+### Fixed — a certificate-encrypted PDF gets a 400 that says so, not a 500
+
+A PDF encrypted with something other than a password — a certificate
+(`/Adobe.PubSec`) or a DRM plug-in's own security handler — failed on every
+PDF path. pypdf raises `NotImplementedError` while it opens such a file, or
+one with an unsupported `/V`, `/SubFilter` or crypt-filter method, and
+nothing caught it: `/pdf/extract`, `/pdf/split` and `/convert` (PDF → TXT,
+PDF → PDF) answered a generic 500 and logged a traceback, and
+`/convert/batch` reported "Conversion failed. Verify the file is valid."
+pikepdf raises a plain
+`PdfError` instead, so `/pdf/compress` told the user to verify the file and
+logged a traceback, and PDF → PDF/A answered a 500; where Ghostscript is
+installed (the Docker image ships it), the file reached Ghostscript, which
+can't decrypt it either.
+
+All these paths now answer `400` with a new code,
+`X-FileMorph-Error-Code: pdf_encryption_unsupported`, and "This PDF is
+protected with a certificate or an unsupported encryption. Remove the
+protection (e.g. ask the sender for an unprotected copy) and try again."
+PDF → PDF/A refuses the file before Ghostscript runs. The PDF tool pages and
+the converter show the text in German or English; `/convert/batch` reports it
+for the file. The two PDF libraries don't always agree on what is
+unsupported: `/pdf/compress` and PDF → PDF/A (pikepdf) answer `pdf_encrypted`
+for a `/SubFilter` or an unknown crypt-filter method under the standard
+handler, which qpdf takes for a password problem.
+
+`pdf_encrypted` keeps its meaning, "the PDF needs a password", because no
+password opens a certificate-encrypted file; hence the separate code. Only
+the opening step is guarded: there pypdf raises `NotImplementedError` only
+while it reads the encryption dictionary (checked in pypdf 6.19); later the
+same error means an unsupported stream filter, which has nothing to do with
+encryption.
+
+### Fixed — a PDF over the 10 000-page cap is no longer called unreadable
+
+`/pdf/split` takes at most 10 000 pages, but it answered a longer PDF with
+`invalid_pdf`, so the split page said "Could not read the PDF. Verify the file
+is valid." about a file that was fine, and offered no way forward.
+`/pdf/extract` answered a selection of more than 10 000 pages with
+`invalid_page_selection`, so its page explained the page-number syntax instead
+of the limit.
+
+Both now answer `400` with the new `X-FileMorph-Error-Code:
+pdf_too_many_pages` and a message that names the cap and the next step. The
+split page says to extract up to 10 000 pages at a time and split each part,
+and links to "Extract PDF pages"; the extract page says to select fewer pages
+or to extract them in several parts. Both texts are in German and English. The
+other codes stay as they were, and so does `/convert`: PDF → PDF over the cap
+keeps `invalid_input`, whose message already names the cap.
+
+Tests lower the cap to two pages and check the engine, both routes, a request
+exactly at the cap, the localized texts and the page wiring.
+
+### Security — office image: the LibreOffice subprocess runs without Ghostscript
+
+On the `filemorph:office` image, DOCX→PDF conversion can delegate to a
+LibreOffice (`soffice`) subprocess that parses the uploaded document. As
+defense-in-depth, that subprocess now runs with a reduced environment: the
+application's secrets (signing key, database URL, Stripe and SMTP credentials)
+are dropped from it, and a Ghostscript stub is placed ahead of any real `gs`
+on its `PATH`, so the subprocess cannot start Ghostscript.
+
+FileMorph's own PDF/A re-render resolves Ghostscript in the app process and is
+unaffected, as is the pure-Python (mammoth) conversion path. Routing tests
+pin the subprocess environment (`tests/test_office_gs_isolation.py`), and the
+pull-request Docker build exercises a DOCX→PDF conversion on the office image.
+`docs/security-overview.md` notes it.
+
+### Changed — dependency batch: SQLAlchemy 2.1, FastAPI 0.142 and thirteen smaller updates; Stripe 16 held back
+
+Dependabot's weekly `python-all` group brought every pending Python update
+except WeasyPrint, which stays below 70 on purpose, in one pull request, and
+`requirements.lock` was recompiled once for all of them. What the image ships
+now:
+
+- **SQLAlchemy 2.1.4** (from 2.0.52). The one test that depended on 2.0
+  behaviour was already made 2.1-safe in #139. 2.1.4 rather than 2.1.3
+  because it fixes a connection leak and a masked error on the asyncio and
+  asyncpg path FileMorph uses.
+- **FastAPI 0.142.2** (from 0.141.1). It now depends on `opentelemetry-api`;
+  its built-in OpenTelemetry support stays dormant unless an SDK is
+  configured, and the image ships none. 0.142.2 rather than the newest patch
+  release, which was younger than the three-day cooldown.
+- mammoth 1.13.0 (a fix for crafted documents that took very long to convert,
+  and better escaping), Markdown 3.11 (two regex-backtracking slowdowns fixed),
+  uvicorn 0.54.0, pikepdf 10.16.0 and python-dotenv 1.2.4.
+
+The floors for Pillow, pydantic, python-multipart, reportlab and the SBOM
+generator rise to versions the lockfile already shipped, so nothing changes
+there. Development tools: ruff 0.16.10, uv 0.12.22 (`requirements-uv.lock`
+recompiled with it) and httpx 0.28.1.
+
+Stripe stays on 15.6.1, now capped below 16. Stripe 16 pins Stripe API version
+`2026-09-30.endive`, which no longer accepts `payment_method_types` when a
+Checkout session is created, so Stripe would reject every checkout once keys
+are set; the tests mock that call and could not notice. A new check in
+`tests/test_billing_consent.py` now compares the parameters sent with the
+installed SDK's Checkout contract, so such a break turns CI red. Dependabot
+does not propose the upgrade until that call is ported.
+
+### Changed — Dependabot no longer proposes the WeasyPrint 70 and Stripe 16 majors before their ports
+
+Both majors need code changes first: WeasyPrint 70 reworks the `url_fetcher`
+interface that the SSRF guard relies on, and Stripe 16 rejects a parameter the
+Checkout call sends. Until now they arrived as pull requests of their own that
+could only sit red until someone ported the code. Dependabot now ignores those
+version ranges, like the existing caps for pikepdf and the SBOM generator, and
+the port itself lifts the cap in `requirements.txt` together with the entry in
+`.github/dependabot.yml`. Patch and minor releases below the caps now come in
+the weekly batch instead of as pull requests of their own. A new test fails
+when an ignore entry outlives its cap, so a lifted cap cannot leave the
+package frozen.
+
+### Security — assessed CVE-2026-85394 (python-jose algorithm confusion) as not reachable
+
+`pip-audit` began flagging `python-jose==3.5.0` for CVE-2026-85394
+(GHSA-3qf3-8w2g-rqmx, CRITICAL, CVSS 9.1), an incomplete fix for
+CVE-2024-33663. python-jose refuses PEM- and SSH-formatted public keys as an
+HMAC secret but accepts DER-encoded ones, so a service that verifies tokens
+with a public key and also allows HS256 accepts a token an attacker signed
+with that public key. No fixed release exists; 3.5.0 (May 2025) is the latest.
+
+Not reachable here. FileMorph has no asymmetric key: every token is verified
+in one place (`_decode` in `app/core/tokens.py`) with the symmetric
+`JWT_SECRET` and `algorithms=["HS256"]`. python-jose takes the key only from
+that argument, never from a `kid`, `jwk` or `jku` header, and there is no
+JWKS, OIDC or SSO feature. The advisory's precondition, a public key used as
+the verification key, cannot occur.
+
+The ignore is documented at the pip-audit step in `ci.yml` and in
+`docs/security-overview.md`, and is reviewed on 2026-11-05 and at each
+release. Migrating off `python-jose`, which has had no commit since 3.5.0,
+lifts it together with the `ecdsa` ignore (PYSEC-2026-1325).
+
+### Fixed — licence and install docs describe the pillow-heif wheel FileMorph ships
+
+The code review of #164 found two claims about `pillow-heif` that were already
+wrong on `main`:
+
+- **Licence.** `docs/third-party-licenses.md` and `docs/tech-stack-rationale.md`
+  said the wheel's metadata declares GPLv2 and that a `pip-licenses` or SBOM
+  scan will flag it. That stopped being true with pillow-heif 1.6.0, which
+  dropped the `GPLv2` classifier (upstream #455): the locked 1.8.0 declares only
+  `BSD-3-Clause`, and `pip-licenses` and the release SBOM
+  (`cyclonedx-py environment --PEP-639`, run over the locked wheels) report
+  exactly that. The GPLv2 part — the `x265` HEVC encoder the binary wheel
+  bundles next to `libheif` and `libde265` — is stated only in the wheel's
+  `LICENSES_bundled.txt`, which neither scan reads. The docs now say so and
+  what it means for operators: running FileMorph is not distribution;
+  redistributing the image or the wheel passes `x265` on under GPLv2 and
+  `libheif`/`libde265` under LGPL-3.0, with their source obligations; and an
+  SBOM-driven review has to add all three by hand. They also say that `x265`
+  is loaded with the bundled `libheif`, although FileMorph never calls an
+  encoder. The libheif row of the native-library table no longer lists
+  `libaom`, which the 1.8.0 wheel does not bundle, and names the copy HEIC
+  decoding uses: the wheel's (Debian's `libheif1` only in the no-wheel
+  fallback).
+- **libheif minimum.** pillow-heif 1.8.0 compiles only against libheif 1.23.4
+  or newer (an `#error` in its C source; upstream #480). `docs/formats.md`,
+  `docs/installation.md` and `README.md` sent Linux users to their
+  distribution's `libheif-dev`, the pentest report said pillow-heif requires
+  a system libheif (now a dated correction note there, which also says that
+  dpkg-based image scanners report Debian's unused `libheif1`/`libde265-0`
+  but not the bundled copies), and the Dockerfile's comments called the
+  system `libheif1` the decoder pillow-heif loads. None
+  of them holds: the x86_64 and aarch64 wheels bundle their own libheif, and
+  a source build needs one that many distributions don't package. Debian 13
+  shipped 1.19.8; 1.23.4 came as a security update (DSA-6523-1, 2026-09-28),
+  which is why the Dockerfile's `libheif-dev` fallback for architectures
+  without a wheel still meets that minimum. Only the Dockerfile's comments
+  change; its packages, and so the image, stay the same.
+
+Two guards in `tests/test_docs_match_code.py`: one reads the installed wheel's
+licence metadata and `LICENSES_bundled.txt` and checks the licence docs
+against them; the other fails when `requirements.lock` moves pillow-heif away
+from the version `docs/formats.md` gives the libheif minimum for, or when two
+docs quote different minimums.
+
+### Fixed — a password-protected PDF says so, and two PDF errors stop blaming a page selection
+
+A PDF that needs a password to open got the answer for a broken file:
+"Could not read the PDF. Verify the file is valid." on `/pdf/extract`,
+`/pdf/split` and `/convert` (PDF → TXT, PDF → PDF), and "PDF compression
+failed. Verify your file is a valid PDF." plus a logged traceback on
+`/pdf/compress`. Checking the file can't help; the password is in the way.
+PDF → PDF/A was worse. Ghostscript, which runs first where it is installed (the
+Docker image ships it), doesn't fail on such a file: it renders it without the
+password and exits normally, so the conversion answered 200 with a PDF/A that
+cannot hold the protected content. Without Ghostscript it was a 500.
+
+pypdf raises `FileNotDecryptedError` on such a file and pikepdf
+`PasswordError`; all these paths now answer `400` with
+`X-FileMorph-Error-Code: pdf_encrypted` and "This PDF is password-protected.
+Remove the password (e.g. open the file and print it to a new PDF) and try
+again." PDF → PDF/A checks for the password before Ghostscript runs. The PDF
+tool pages and the converter show the text in German or English;
+`/convert/batch` reports it for the file. A PDF that opens without a password
+is processed as before.
+
+`/pdf/extract` answered a PDF without pages with `invalid_page_selection`, so
+its web page asked the user to fix a page selection that was fine. It now
+sends `invalid_pdf`, as `/pdf/split` already did. And `/convert` from PDF to
+PDF without a page selection, which keeps every page, said "Too many pages
+selected." for a document over 10 000 pages although nothing was selected;
+the message now names the document's size and points to
+`/api/v1/pdf/extract` for processing it in parts.
+
+Tests build small PDFs in-process: locked with RC4-128, AES-128 and AES-256,
+encrypted without an open password, without pages, and longer than a lowered
+page cap. `scripts/make_testdata_pdf_error_messages.py` writes
+byte-stable fixtures for checking this by hand to a gitignored local folder;
+only the script ships.
+
+### Changed — the deploy starts only for main's newest commit, once Docker and CI both passed for it
+
+`notify-ops.yml`, which starts the deploy of filemorph.io after a merge to
+`main`, used to wait for the `Docker` workflow alone, whichever commit that run
+had built. The required checks are not strict and pull requests often merge
+within minutes of each other, so a merge result that failed the tests could
+reach production as soon as its images were built, and a deploy could pull the
+image of a newer commit than the one it had checked. The deploy is now started
+only when `Docker` and `CI` (lint, tests, PDF/A validation, dependency audit,
+lockfile and secret scans) have both passed for the commit, and only if that
+commit is still the tip of `main`, read from git when the check runs; for an
+older one, the newer commit's own runs deploy. Either workflow finishing starts
+the check and the run of whichever finished last goes on, so one build deploys
+once. A manual `Docker` rebuild or a re-run of either workflow deploys again,
+for the newest commit on `main`. The deploy pulls a moving image tag: the
+dispatch now carries the commit's SHA, and pinning the deploy to it is a
+follow-up on the deploy side.
+
+The whole `CI` workflow counts, not only the required checks: while
+`lockfile-drift`, which does not block a merge, or a newly published `pip-audit`
+advisory keeps it red on `main`, nothing deploys, and the check says so in a
+warning. Likewise, while the newest commit on `main` has not passed, an older
+green one is not deployed, and neither is a commit whose `CI` run a newer merge
+cancelled: the newer commit's own runs deploy instead. `docker.yml` now builds
+one commit at a time per branch, so the image tags move in merge order (two
+merges seconds apart used to finish out of order, as on 2026-09-26 and
+2026-09-28): of several merges in a row the running build finishes, the newest
+commit builds next and the ones in between are not built. Tests pin the
+trigger, the job and the dispatch's body, and run the check in bash against
+stand-ins for the API and `git`: a run for a pull request, a fork or another
+branch never counts, a failed or empty answer is asked for again, and a tip
+that cannot be read fails the step.
+
+### Changed — veraPDF now blocks the merge, inside lint-and-test; duplicate CI runs removed
+
+PDF/A-2b conformance now blocks the merge. The veraPDF gate ran as a workflow
+of its own, `verapdf.yml`: it reported on every pull request, but nothing
+required it, although the README and the pricing page call it a CI gate. Its
+steps now follow the test run in `lint-and-test`, a check that merging into
+`main` requires, and `verapdf.yml` is gone. The fixture is built from the
+lockfile versions that job installs anyway, so the gate no longer sets up the
+same environment a second time; the validator image stays pinned by digest
+(`verapdf/cli` v1.30.2), now without network access and with the fixture
+mounted read-only, and the fixture is still kept as an artifact, after a
+failure too. A test holds both steps in that job, with no `if:` and no
+`continue-on-error` to skip them.
+
+One more duplicate and a dead trigger went. `sbom.yml` no longer runs on every push to `main`:
+`docker.yml` builds the same SBOM there and attests it to the images, and the
+90-day artifact the push produced had no reader. It remains a manual run that
+rehearses the SBOM steps `release.yml` and `docker.yml` repeat. `ci.yml` and
+`scope-guard.yml` no longer list a `develop` branch, which does not exist.
+
+Dependabot's pip group, now `python-all`, takes every Python update instead of
+only minor and patch ones. Dependabot gives a `requirements.txt` floor raise no
+update type, so each still arrived as a PR of its own, #191 to #195 in one week,
+and four of them turned `lint-and-test` red until `requirements.lock` was
+recompiled. They now come as one weekly PR and one lockfile pass, after a
+three-day cooldown. The caps on WeasyPrint (below 70), pikepdf and the SBOM
+generator are held back by version range.
+
+### Changed — changelog entries are one file each in `changelog.d/`
+
+Every pull request used to add its entry directly under `## [Unreleased]` in
+this file, the same line every time, so each merge left every other open pull
+request in conflict, and a conflicting pull request gets no CI run at all.
+Since 2026-09-01, 47 of 72 merged pull requests touched this file, and 22 of
+them needed an extra three-commit round just to resolve that line. A
+`merge=union` attribute is no way out: GitHub's server-side merges ignore it.
+
+New entries now go in `changelog.d/<YYYY-MM-DD>-<topic>.md`, one file per
+change, in the same house style; new files never conflict.
+`scripts/changelog.py` folds them in here, newest first, and with
+`--release X.Y.Z` it also cuts the version heading in the release-prep pull
+request. `tests/test_changelog_fragments.py` checks each file's name and first
+line, and fails when an entry is added at the top of this file instead. The
+entries already below stay as they are and move under the next version at
+release.
+
 ### Fixed — a PDF that pypdf can't read gets a 400, not a 500
 
 pypdf raises `LimitReachedError` when a crafted file trips one of its safety
