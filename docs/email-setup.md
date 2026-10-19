@@ -38,7 +38,7 @@ send is silently skipped:
 
 - `/forgot-password` and `/resend-verification` still return `200`.
   `send_email()` sees `SMTP_HOST` is empty, logs `send_email skipped —
-  SMTP not configured (to_domain=…, subject=…)` at WARNING and returns
+  SMTP not configured (to_domain=…)` at WARNING and returns
   without sending — no exception reaches the route, so there is no
   error status to surface. `/forgot-password` is deliberately
   enumeration-safe: it always returns the same generic response whether
@@ -195,9 +195,11 @@ arrives, check:
    may not have picked up an `.env` change, or the overlay/unit file
    isn't passing it through), `send_email ok` (success — the message left
    for the provider; a delivery problem from here on is provider-side),
-   or `send_email failed` (the exception is logged server-side with full
-   SMTP error details; the HTTP response stays generic so those details
-   never leak to the client).
+   or `send_email failed` (logged with `error=<type>`, the SMTP reply
+   code — the codes, for refused recipients — or, for a connection
+   problem, aiosmtplib's text naming host and port; the server's reply
+   text is left out because it can quote the recipient, so the provider's
+   delivery log has the full reason. The HTTP response stays generic).
 2. **DNS / SPF / DKIM / DMARC** — for ESPs and mailbox providers, the
    sending domain must have valid SPF and DKIM records pointing at the
    provider, plus a DMARC policy. Without alignment, Gmail and Outlook

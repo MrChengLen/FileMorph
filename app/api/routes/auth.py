@@ -456,8 +456,11 @@ _ENUMERATION_SAFE_RESPONSE = {
 
 
 def _build_reset_url(token: str) -> str:
+    # The token rides in the URL fragment: browsers never send the part
+    # after "#" to the server, so it stays out of every access log on the
+    # way. reset-password.js reads it and POSTs it.
     base = settings.app_base_url.rstrip("/")
-    return f"{base}/reset-password?token={token}"
+    return f"{base}/reset-password#token={token}"
 
 
 def _render_reset_emails(user_email: str, reset_url: str, locale: str) -> tuple[str, str, str]:
@@ -487,8 +490,10 @@ async def _send_reset_email_safe(user_id: uuid.UUID, to: str, reset_url: str, lo
 
 
 def _build_verify_url(token: str) -> str:
+    # Fragment, not query — see _build_reset_url. The token also carries
+    # the address it was issued for (``eat``).
     base = settings.app_base_url.rstrip("/")
-    return f"{base}/verify-email?token={token}"
+    return f"{base}/verify-email#token={token}"
 
 
 def _render_verify_emails(user_email: str, verify_url: str, locale: str) -> tuple[str, str, str]:
@@ -749,8 +754,8 @@ async def _send_account_deleted_email_safe(
     try:
         await email_mod.send_email(to=user_email, subject=subject, html=html, text=text)
     except email_mod.EmailSendError:
-        # This message names the domain only. No exc_info: the chained SMTP
-        # error can carry the recipient, and send_email logs the cause.
+        # This message names the domain only; send_email has logged the
+        # error type and SMTP code.
         logger.error(
             "account_deletion: confirmation email failed (domain=%s)",
             user_email.rsplit("@", 1)[-1],

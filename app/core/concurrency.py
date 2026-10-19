@@ -168,6 +168,9 @@ async def acquire_slot(*, actor_id: str, tier: str) -> AsyncIterator[None]:
     """
     timeout = settings.concurrency_acquire_timeout_seconds
     retry_after = max(1, settings.concurrency_retry_after_seconds)
+    # Log only the kind ("user" / "ip"): the id itself is an account id or
+    # an IP address, and limiter keys stay in memory.
+    actor_kind = actor_id.split(":", 1)[0]
 
     g = _global_semaphore()
     p = _per_actor_semaphore(actor_id, tier)
@@ -177,7 +180,7 @@ async def acquire_slot(*, actor_id: str, tier: str) -> AsyncIterator[None]:
     except asyncio.TimeoutError:
         logger.info(
             "concurrency: global slot exhausted",
-            extra={"actor": actor_id, "tier": tier, "scope": "global"},
+            extra={"actor_kind": actor_kind, "tier": tier, "scope": "global"},
         )
         raise ConcurrencyExhausted(scope="global", retry_after_seconds=retry_after)
 
@@ -189,7 +192,7 @@ async def acquire_slot(*, actor_id: str, tier: str) -> AsyncIterator[None]:
         except asyncio.TimeoutError:
             logger.info(
                 "concurrency: per-actor slot exhausted",
-                extra={"actor": actor_id, "tier": tier, "scope": "per_actor"},
+                extra={"actor_kind": actor_kind, "tier": tier, "scope": "per_actor"},
             )
             raise ConcurrencyExhausted(scope="per_actor", retry_after_seconds=retry_after)
         yield

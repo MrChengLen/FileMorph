@@ -456,8 +456,9 @@ def test_forgot_password_after_deletion_is_enumeration_safe(client, mock_send_em
 
 
 def test_failed_confirmation_email_logs_the_domain_only(client, monkeypatch, caplog):
-    """The SMTP error chained to EmailSendError can name the recipient, so
-    the route logs the domain without the traceback."""
+    """An SMTP error can name the recipient. send_email no longer chains it
+    onto EmailSendError; should one ever be chained again, the route still
+    logs the domain without the traceback (defence in depth)."""
 
     async def _refused(**kwargs):
         try:
