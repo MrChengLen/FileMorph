@@ -495,6 +495,9 @@ Common per-file `error_message` values:
   plan."` — the output (N MB) exceeded your tier's output cap (M MB).
   On `/compress/batch` the hint reads `"Lower the quality or upgrade
   your plan."`
+- `"Output too large (over the M MB cap). Split the table or upgrade your
+  plan."` — XLSX → CSV, JSON → CSV and CSV → JSON stop writing as soon as
+  their output passes the cap (M MB).
 - `"Conversion from 'docx' to 'mp4' is not supported."` — no
   converter for that pair.
 - `"File type not permitted."` — magic-byte filter rejected the
@@ -606,7 +609,10 @@ mint it.
   `"Lower the quality or upgrade your plan."` Note this is checked
   **after** the conversion runs, so the server has already spent the
   CPU time; the request counts toward the per-minute rate limit but
-  not toward your monthly API calls.
+  not toward your monthly API calls. XLSX → CSV, JSON → CSV and
+  CSV → JSON stop writing as soon as their output passes the cap; their
+  413 reads `"Output too large (over the M MB cap)."` with the hint
+  "Split the table into smaller files and convert them one by one".
 - **Concurrent requests exceeded** → `429 Too Many Requests` with a
   `Retry-After` header (seconds).
 - **Monthly API calls used up** → `429` with a `Retry-After` header
@@ -624,7 +630,8 @@ mint it.
 A 5 MB JPEG re-encoded to PNG can balloon to 50+ MB; MP3 → WAV is
 ~11×. Without an output cap, a single request could push gigabytes
 out of the server. The cap depends on the tier (see the table above)
-and is enforced post-conversion. To stay under it: pick
+and is enforced post-conversion (table conversions stop writing as
+soon as they pass it). To stay under it: pick
 modern lossy formats (WebP, AVIF, MP3 at lower bitrate) where you
 have a choice.
 

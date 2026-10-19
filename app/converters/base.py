@@ -22,6 +22,15 @@ class InvalidInputError(Exception):
     """
 
 
+class OutputTooLargeError(Exception):
+    """The converter stopped writing: the output would pass ``max_output_bytes``.
+
+    Converters that can write far more than they read take the caller's
+    output cap as ``max_output_bytes``. The routes answer this like an
+    output over the cap (413 ``output_cap_exceeded``).
+    """
+
+
 class EncryptedPdfError(InvalidInputError):
     """The PDF opens only with a password, and FileMorph never asks for one.
 

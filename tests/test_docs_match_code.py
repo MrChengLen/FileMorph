@@ -295,6 +295,7 @@ def _flat(doc: str) -> str:
 def _with_placeholders(message: str) -> str:
     """A route's error message with its sizes written the way the guide writes them."""
     message = re.sub(r"\(\d+ MB > \d+ MB cap\)", "(N MB > M MB cap)", message)
+    message = re.sub(r"\(over the \d+ MB cap\)", "(over the M MB cap)", message)
     return re.sub(r"\(\d+ MB max for your plan\)", "(N MB max for your plan)", message)
 
 
@@ -335,6 +336,32 @@ def test_api_guide_quotes_the_output_cap_messages(client, auth_headers, sample_j
         assert _with_placeholders(response.json()["detail"]).startswith(shared)
     compress_hint = _with_placeholders(compress.json()["detail"])[len(shared) :].strip()
     assert f'"{compress_hint}"' in guide
+    # Table conversions stop at the cap: their own wording, quoted the same way.
+    csv_text = b"a,b\n1,2\n"
+    table = _upload(
+        client,
+        auth_headers,
+        "/api/v1/convert",
+        csv_text,
+        name="t.csv",
+        content_type="text/csv",
+        target_format="json",
+    )
+    table_batch = _upload(
+        client,
+        auth_headers,
+        "/api/v1/convert/batch",
+        csv_text,
+        name="t.csv",
+        content_type="text/csv",
+        target_formats="json",
+    )
+    assert (table.status_code, table_batch.status_code) == (413, 422)
+    stopped = "Output too large (over the M MB cap)."
+    assert f'"{stopped}"' in guide
+    assert _with_placeholders(table.json()["detail"]).startswith(stopped)
+    table_message = _with_placeholders(table_batch.json()["files"][0]["error_message"])
+    assert f'"{table_message}"' in guide
 
 
 def test_api_guide_quotes_the_file_size_message(client, auth_headers, sample_jpg, monkeypatch):
