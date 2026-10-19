@@ -37,6 +37,7 @@ import pytest
 
 from app.api.routes.auth import get_optional_user
 from app.api.routes.convert import _MAX_TARGET_LEN, _download_name
+from app.converters.pdf_pages import _MAX_SELECTION_CHARS
 from app.core.batch import BatchFileResult, build_batch_zip
 from app.core.concurrency import ConcurrencyExhausted
 from app.core.config import Settings, settings
@@ -179,6 +180,19 @@ def test_docs_quote_the_small_body_limit():
         found = re.findall(pattern, _flat(doc))
         assert found, f"{doc}: the small-body limit sentence was not found"
         assert {int(n) * _MB for n in found} == {SMALL_BODY_LIMIT_BYTES}, doc
+
+
+@pytest.mark.parametrize(
+    ("doc", "pattern"),
+    [
+        ("api-reference.md", r"counts once\. At most ([\d ]+) characters"),
+        ("formats.md", r"counts once\) and be at most ([\d ]+) characters"),
+    ],
+)
+def test_docs_quote_the_page_selection_length_limit(doc, pattern):
+    found = re.findall(pattern, " ".join(_text(doc).split()))
+    assert found, f"{doc}: the page-selection length sentence was not found"
+    assert {int(n.replace(" ", "")) for n in found} == {_MAX_SELECTION_CHARS}
 
 
 def test_self_hosting_quotes_the_per_tier_concurrency():

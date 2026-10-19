@@ -146,7 +146,7 @@ def test_pageless_fixture_has_no_pages():
 
 _ENGINES = [
     pytest.param(lambda src, out: pdf_pages.extract_pages(src, out, "1"), id="extract_pages"),
-    pytest.param(lambda src, out: pdf_pages.split_pdf(src), id="split_pdf"),
+    pytest.param(lambda src, out: pdf_pages.split_pdf(src, 10**9), id="split_pdf"),
     pytest.param(
         lambda src, out: pdf_pages.PdfPageExtractConverter().convert(src, out), id="pdf-to-pdf"
     ),
@@ -420,7 +420,7 @@ def test_split_pdf_over_the_page_cap_raises_too_many_pages(tmp_path, two_page_ca
     src = tmp_path / "in.pdf"
     src.write_bytes(_pdf(3))
     with pytest.raises(pdf_pages.TooManyPagesError) as caught:
-        pdf_pages.split_pdf(src)
+        pdf_pages.split_pdf(src, 10**9)
     assert str(caught.value) == pdf_pages._TOO_MANY_PAGES_TO_SPLIT
     # Both bases keep /convert and /convert/batch answering a 400.
     assert isinstance(caught.value, pdf_pages.PageSelectionError)
@@ -429,7 +429,7 @@ def test_split_pdf_over_the_page_cap_raises_too_many_pages(tmp_path, two_page_ca
 
 @pytest.mark.parametrize("spec", ["1-3", "1,2,3"])
 def test_parse_page_ranges_over_the_page_cap_raises_too_many_pages(two_page_cap, spec):
-    """A range and a list of single pages are counted in separate branches."""
+    """A range and a list of single pages, each one page over the cap."""
     with pytest.raises(pdf_pages.TooManyPagesError) as caught:
         pdf_pages.parse_page_ranges(spec, 3)
     assert str(caught.value) == pdf_pages._TOO_MANY_PAGES_SELECTED

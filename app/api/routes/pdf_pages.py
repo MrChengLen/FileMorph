@@ -44,7 +44,7 @@ from starlette.background import BackgroundTask
 from app.api.deps import caller_tier, require_api_key
 from app.api.routes.auth import get_optional_user
 from app.compressors.pdf import compress_pdf_to_target
-from app.converters.base import EncryptedPdfError
+from app.converters.base import EncryptedPdfError, OutputTooLargeError
 from app.converters.pdf_pages import (
     PageSelectionError,
     TooManyPagesError,
@@ -255,9 +255,12 @@ async def _do_split(
         input_size_bytes = _write_upload_and_check_magic(file, input_path)
 
         try:
-            outputs = await asyncio.to_thread(split_pdf, input_path)
+            # Bandwidth-awareness: the split stops at the tier output cap.
+            outputs = await asyncio.to_thread(split_pdf, input_path, quota.output_cap_bytes)
         except HTTPException:
             raise
+        except OutputTooLargeError:
+            raise _output_cap_error(None, quota, tier) from None
         except (EncryptedPdfError, PageSelectionError) as exc:
             logger.info("pdf split rejected: %s", exc)
             # A PDF over the page cap is valid; invalid_pdf would make the UI
@@ -279,13 +282,6 @@ async def _do_split(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Split failed. Verify your file is a valid PDF.",
             )
-
-        # Bandwidth-awareness: the assembled ZIP must respect the tier
-        # output cap just like a single conversion would. Sum the page
-        # bytes before building the ZIP so a pathological many-page PDF is
-        # rejected without buffering the archive.
-        total_out = sum(len(b) for _, b in outputs)
-        _enforce_output_cap(total_out, quota, tier)
 
         results = [
             BatchFileResult(
@@ -347,18 +343,27 @@ async def _do_split(
 def _enforce_output_cap(output_size: int, quota, tier: str) -> None:
     """Reject before streaming if the output exceeds the tier bandwidth cap."""
     if output_size > quota.output_cap_bytes:
-        cap_mb = quota.output_cap_bytes // _MB
-        out_mb = output_size // _MB
-        hint = (
-            "Extract a smaller page range or register for a higher cap."
-            if tier == "anonymous"
-            else "Extract a smaller page range or upgrade your plan."
-        )
-        raise HTTPException(
-            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
-            detail=f"Output too large ({out_mb} MB > {cap_mb} MB cap). {hint}",
-            headers={"X-FileMorph-Error-Code": "output_cap_exceeded"},
-        )
+        raise _output_cap_error(output_size, quota, tier)
+
+
+def _output_cap_error(output_size: int | None, quota, tier: str) -> HTTPException:
+    """The output-cap 413. ``None``: the split stopped at the cap, so the full
+    size is unknown."""
+    cap_mb = quota.output_cap_bytes // _MB
+    if output_size is None:
+        too_large = f"Output too large (over the {cap_mb} MB cap)."
+    else:
+        too_large = f"Output too large ({output_size // _MB} MB > {cap_mb} MB cap)."
+    hint = (
+        "Extract a smaller page range or register for a higher cap."
+        if tier == "anonymous"
+        else "Extract a smaller page range or upgrade your plan."
+    )
+    return HTTPException(
+        status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+        detail=f"{too_large} {hint}",
+        headers={"X-FileMorph-Error-Code": "output_cap_exceeded"},
+    )
 
 
 # Sanity ceiling on the requested target so a typo (``target_kb=99999999``)

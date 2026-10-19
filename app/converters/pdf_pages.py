@@ -42,17 +42,26 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
-from app.converters.base import BaseConverter, EncryptedPdfError, InvalidInputError, open_pypdf
+from app.converters.base import (
+    BaseConverter,
+    EncryptedPdfError,
+    InvalidInputError,
+    OutputTooLargeError,
+    open_pypdf,
+)
 from app.converters.registry import register
 
 logger = logging.getLogger(__name__)
 
 # Defensive ceiling on how many distinct pages a single selection may
 # resolve to. A crafted "1-1000000" against a 2-page PDF is already
-# rejected by the page-count bound, but an explicit cap keeps the parser
-# itself from materialising a multi-million-int list before that check
-# (the range is expanded lazily up to this many entries).
+# rejected by the page-count bound; this cap is checked on the merged
+# ranges, before any page index is materialised.
 _MAX_SELECTION_PAGES = 10_000
+
+# Every page up to the cap, listed one by one, is about 49,000 characters;
+# a longer selection is refused up front.
+_MAX_SELECTION_CHARS = 64 * 1024
 
 
 class PageSelectionError(InvalidInputError):
@@ -100,6 +109,9 @@ _TOO_MANY_PAGES_SELECTED = (
     f"You can extract at most {_MAX_SELECTION_PAGES:,} pages at once. Select "
     f"fewer pages, or extract them in several parts."
 )
+_SELECTION_TOO_LONG = (
+    "The page selection is too long. Use ranges such as 1-100 instead of listing pages one by one."
+)
 
 
 def parse_page_ranges(spec: str, page_count: int) -> list[int]:
@@ -108,22 +120,25 @@ def parse_page_ranges(spec: str, page_count: int) -> list[int]:
     Accepts comma-separated singletons and ``a-b`` ranges, e.g.
     ``"1-3,5,8-9"``. Whitespace around tokens is ignored. The result is
     sorted ascending and de-duplicated so overlapping tokens
-    (``"1-3,2-4"``) collapse cleanly and output page order is stable.
+    (``"1-3,2-4"``) collapse cleanly and output page order is stable; a
+    page selected twice counts once against the cap.
 
     Raises :class:`PageSelectionError` (never a bare ValueError / pypdf
-    error) on: empty spec, non-numeric token, zero/negative page number,
-    reversed range (``b < a``), any page beyond ``page_count``, or a
-    selection that would expand past ``_MAX_SELECTION_PAGES`` (the
-    :class:`TooManyPagesError` subclass). The message is generic and safe
-    to return to the client. A ``page_count`` of 0 raises the
+    error) on: empty spec, a spec over ``_MAX_SELECTION_CHARS``, non-numeric
+    token, zero/negative page number, reversed range (``b < a``), any page
+    beyond ``page_count``, or more than ``_MAX_SELECTION_PAGES`` distinct
+    pages (the :class:`TooManyPagesError` subclass). The message is generic
+    and safe to return to the client. A ``page_count`` of 0 raises the
     :class:`UnreadablePdfError` subclass: the file is at fault.
     """
     if page_count <= 0:
         raise UnreadablePdfError("The PDF has no pages to extract.")
     if spec is None or not spec.strip():
         raise PageSelectionError("No pages specified.")
+    if len(spec) > _MAX_SELECTION_CHARS:
+        raise PageSelectionError(_SELECTION_TOO_LONG)
 
-    pages: set[int] = set()
+    ranges: list[tuple[int, int]] = []
     for raw_token in spec.split(","):
         token = raw_token.strip()
         if not token:
@@ -146,9 +161,7 @@ def parse_page_ranges(spec: str, page_count: int) -> list[int]:
                     f"Page {end} is out of range (the PDF has {page_count} page"
                     f"{'s' if page_count != 1 else ''})."
                 )
-            if len(pages) + (end - start + 1) > _MAX_SELECTION_PAGES:
-                raise TooManyPagesError(_TOO_MANY_PAGES_SELECTED)
-            pages.update(range(start - 1, end))  # 1-based inclusive → 0-based
+            ranges.append((start, end))
         else:
             value = _parse_int(token, token)
             if value < 1:
@@ -158,13 +171,24 @@ def parse_page_ranges(spec: str, page_count: int) -> list[int]:
                     f"Page {value} is out of range (the PDF has {page_count} page"
                     f"{'s' if page_count != 1 else ''})."
                 )
-            if len(pages) + 1 > _MAX_SELECTION_PAGES:
-                raise TooManyPagesError(_TOO_MANY_PAGES_SELECTED)
-            pages.add(value - 1)
+            ranges.append((value, value))
 
-    if not pages:
+    if not ranges:
         raise PageSelectionError("No pages specified.")
-    return sorted(pages)
+    # Merge overlapping and adjacent ranges, so a page selected twice counts
+    # once.
+    ranges.sort()
+    merged = [ranges[0]]
+    for start, end in ranges[1:]:
+        last_start, last_end = merged[-1]
+        if start <= last_end + 1:
+            merged[-1] = (last_start, max(last_end, end))
+        else:
+            merged.append((start, end))
+    if sum(end - start + 1 for start, end in merged) > _MAX_SELECTION_PAGES:
+        raise TooManyPagesError(_TOO_MANY_PAGES_SELECTED)
+    # 1-based inclusive ranges → 0-based indices.
+    return [index for start, end in merged for index in range(start - 1, end)]
 
 
 def _parse_int(value: str, token: str) -> int:
@@ -241,14 +265,16 @@ def extract_pages(input_path: Path, output_path: Path, pages_spec: str) -> Path:
     return output_path
 
 
-def split_pdf(input_path: Path) -> list[tuple[str, bytes]]:
+def split_pdf(input_path: Path, max_output_bytes: int) -> list[tuple[str, bytes]]:
     """Split a PDF into one single-page PDF per page.
 
     Returns ``[(filename, pdf_bytes), ...]`` with ``page_001.pdf`` style
     names (zero-padded to the page count's width so they sort lexically in
     the ZIP). The route bundles these into a ZIP via
-    ``app/core/batch.py``; keeping the bytes in memory here is bounded by
-    the same per-tier output cap the route enforces on the assembled ZIP.
+    ``app/core/batch.py``. Each single-page PDF carries its own copy of
+    the resources it uses. Once they add up to more than
+    ``max_output_bytes`` (the caller's output cap),
+    :class:`~app.converters.base.OutputTooLargeError` stops the split.
     """
     import io
 
@@ -267,12 +293,16 @@ def split_pdf(input_path: Path) -> list[tuple[str, bytes]]:
 
     width = len(str(total))
     outputs: list[tuple[str, bytes]] = []
+    total_bytes = 0
     with _reading_pdf():
         for i, page in enumerate(reader.pages, start=1):
             writer = PdfWriter()
             writer.add_page(page)
             buf = io.BytesIO()
             writer.write(buf)
+            total_bytes += buf.tell()
+            if total_bytes > max_output_bytes:
+                raise OutputTooLargeError
             outputs.append((f"page_{i:0{width}d}.pdf", buf.getvalue()))
     return outputs
 
