@@ -5,11 +5,12 @@
 
 ``PdfToTxtConverter`` (``app/converters/document.py``) starts this with a time
 limit and stops it when it runs over: some PDFs take pypdf a long time, and
-only a process can be stopped from outside. On Linux the address space is
-capped as well. The outcome is printed as one word on stdout — ``ok``,
-``too_many_pages``, ``encrypted``, ``unsupported_encryption``, ``too_large``,
-``unreadable`` or ``failed`` — the last two followed by the exception class
-(pypdf's messages can quote the file). The parent discards stderr.
+only a process can be stopped from outside. On Linux the address space and
+the CPU time are capped as well. The outcome is printed as one word on stdout
+— ``ok``, ``too_many_pages``, ``encrypted``, ``unsupported_encryption``,
+``too_large``, ``unreadable`` or ``failed`` — the last two followed by the
+exception class (pypdf's messages can quote the file). The parent discards
+stderr.
 """
 
 from __future__ import annotations
@@ -18,21 +19,8 @@ import sys
 from pathlib import Path
 
 _MEMORY_LIMIT_BYTES = 1024 * 1024 * 1024
-
-
-def _limit_memory() -> None:
-    """Cap the address space at 1 GiB (Linux), and be the first to go on OOM."""
-    if sys.platform != "linux":
-        return
-    import resource
-
-    hard = resource.getrlimit(resource.RLIMIT_AS)[1]
-    soft = _MEMORY_LIMIT_BYTES if hard == resource.RLIM_INFINITY else min(hard, _MEMORY_LIMIT_BYTES)
-    resource.setrlimit(resource.RLIMIT_AS, (soft, hard))
-    try:  # if the host runs short of memory, the kernel kills this child, not the server
-        Path("/proc/self/oom_score_adj").write_text("1000", encoding="utf-8")
-    except OSError:
-        pass
+# A little over the parent's 30 s time limit (document.py).
+_CPU_LIMIT_SECONDS = 35
 
 
 def extract(input_path: Path, output_path: Path, max_pages: int) -> str:
@@ -72,5 +60,7 @@ if __name__ == "__main__":
     # pypdf logs each repair it makes; nobody reads them here.
     logging.disable(logging.CRITICAL)
     warnings.simplefilter("ignore")
-    _limit_memory()
+    from app.converters._isolated import limit_resources
+
+    limit_resources(_MEMORY_LIMIT_BYTES, _CPU_LIMIT_SECONDS)
     print(extract(Path(sys.argv[1]), Path(sys.argv[2]), int(sys.argv[3])))

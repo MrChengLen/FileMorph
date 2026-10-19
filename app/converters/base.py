@@ -133,10 +133,40 @@ def read_utf8_text(path: Path) -> str:
         ) from exc
 
 
+_TOO_LARGE_TO_CONVERT = (
+    "This file is too large or complex to convert in one go. Split it into "
+    "smaller files and convert them one by one."
+)
+
+
 class BaseConverter(ABC):
     """Abstract base class for all file converters."""
+
+    # True for a converter the routes run in a child process with memory and
+    # time limits (``run()``). The child passes back only the errors
+    # ``run_isolated`` maps, so e.g. no ``DecompressionBombError``.
+    isolated: bool = False
 
     @abstractmethod
     def convert(self, input_path: Path, output_path: Path, **kwargs) -> Path:
         """Convert input_path and write result to output_path. Returns output_path."""
         ...
+
+    def run(self, input_path: Path, output_path: Path, **kwargs) -> Path:
+        """Convert the way the routes do: ``convert()`` in this process, or for
+        an ``isolated`` converter in a child process with memory and time
+        limits (``app/converters/_isolated.py``)."""
+        if not self.isolated:
+            return self.convert(input_path, output_path, **kwargs)
+        from app.converters._isolated import run_isolated
+
+        run_isolated(
+            "convert",
+            too_large=_TOO_LARGE_TO_CONVERT,
+            tmp_dir=output_path.parent,
+            converter=f"{type(self).__module__}:{type(self).__qualname__}",
+            input_path=input_path,
+            output_path=output_path,
+            **kwargs,
+        )
+        return output_path

@@ -171,7 +171,7 @@ async def _do_convert(
             # Offload sync C-binding call (Pillow/FFmpeg/WeasyPrint/pypdf) to a
             # worker thread so the event-loop can serve parallel requests.
             await asyncio.to_thread(
-                converter.convert,
+                converter.run,
                 input_path,
                 output_path,
                 quality=quality,
@@ -480,7 +480,7 @@ async def _do_convert_batch(
 
                 try:
                     await asyncio.to_thread(
-                        converter.convert,
+                        converter.run,
                         input_path,
                         output_path,
                         quality=quality,
