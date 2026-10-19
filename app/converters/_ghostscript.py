@@ -144,10 +144,11 @@ def rerender_to_pdfa(
             )
         )
 
-        # ``-dPDFACompatibilityPolicy=1`` tells gs to abort on a feature
-        # that PDF/A-2 forbids rather than silently strip it — that
-        # makes failures visible (caught here, fallback to markup) instead
-        # of producing a "looks PDF/A but isn't" file.
+        # ``-dPDFACompatibilityPolicy=1``: gs drops a feature PDF/A-2
+        # forbids, with a warning, and goes on writing PDF/A (0 would give
+        # up on PDF/A, 2 would abort). The markup pass in pdfa.py strips
+        # the active content again either way, on this output and on the
+        # original when gs fails.
         cmd = [
             _GS_BINARY,
             # ``-dSAFER`` confines the job to the files it is handed: the

@@ -91,11 +91,11 @@ quality-based compression there.
 | **DOCX** | TXT | Extracts plain text from all paragraphs. Formatting (bold, tables) is lost. |
 | **TXT** | PDF | Creates a clean PDF with Helvetica font, A4 page size. |
 | **PDF** | TXT | Extracts text from each page using PyPDF. Complex layouts (columns, forms) may not extract cleanly. |
-| **PDF** | PDF/A-2b | Archival PDF (`target_format=pdfa`; the result is still a `.pdf`, named `<name>_pdfa.pdf`). Full conformance (passes [veraPDF](https://verapdf.org/) validation) needs Ghostscript, which the Docker image bundles; without it, output from the markup-only fallback can fail veraPDF, e.g. when the source PDF has unembedded fonts. |
+| **PDF** | PDF/A-2b | Archival PDF (`target_format=pdfa`; the result is still a `.pdf`, named `<name>_pdfa.pdf`). Full conformance (passes [veraPDF](https://verapdf.org/) validation) needs Ghostscript, which the Docker image bundles; without it, output from the markup-only fallback can fail veraPDF, e.g. when the source PDF has unembedded fonts. Either way the conversion removes the active content PDF/A-2 forbids: JavaScript and the other forbidden action types on the document, its links and bookmarks, every action of form fields, additional actions (`/AA`) and presentation steps, XFA forms, files attached to the document, its pages and annotations, and the file-attachment, sound, movie, screen, 3D and rich-media annotations on its pages. Links and page navigation stay, without actions chained after them. A PDF with an extreme number of annotations, form fields and bookmarks gets a `400` (`invalid_input`) instead of a half-checked PDF/A. |
 | **Markdown (.md)** | HTML | Converts Markdown to a complete HTML document. Supports tables and fenced code blocks. The file must be UTF-8 text. |
 | **Markdown (.md)** | PDF | Renders Markdown via HTML to PDF using WeasyPrint. Styled with a clean sans-serif font. The file must be UTF-8 text. |
 | **HTML / HTM** | PDF | Renders an HTML file to PDF via WeasyPrint. External resources (remote CSS/images, `file://`) are **never fetched** (`url_fetcher` SSRF guard). |
-| **EML (email)** | PDF | Renders an `.eml` email to PDF: common headers (From / To / Cc / Date / Subject) plus the body (HTML part preferred, else plain text). Remote tracking pixels / images are not fetched. `.msg` (Outlook) is not yet supported. |
+| **EML (email)** | PDF | Renders an `.eml` email to PDF: common headers (From / To / Cc / Date / Subject) plus the body (the first HTML part of the mail's own text — attachments and attached mails don't count — else the first plain-text part). Text is decoded in the character set the mail names if it is one of the character sets mail is written in (UTF-8/16/32, ISO-8859, Windows-125x, KOI8, the Japanese, Chinese and Korean mail sets, …); anything else is read as UTF-8. Very long header lines (a huge recipient list, say) are shortened and end in `[…]`. Remote tracking pixels / images are not fetched. `.msg` (Outlook) is not yet supported. |
 
 ### Notes on DOCX → PDF
 
@@ -200,9 +200,11 @@ formats page — it is plumbing, not a conversion a user picks.
   back valid and unchanged-in-content, honestly reported as *not converged*
   with `0` recompressible images (never a fake compression claim). Images
   carrying transparency (`/SMask`), stencil/image masks and indexed-palette
-  images are deliberately skipped (JPEG can't carry them faithfully). A
-  document whose images are too large in aggregate to decode safely is also
-  left unchanged rather than risking the worker (a denial-of-service guard).
+  images are deliberately skipped (JPEG can't carry them faithfully), and so
+  are JPEG 2000 images and images over the image size limit
+  (`FILEMORPH_IMAGE_MAX_MEGAPIXELS`): they stay as they are. A document whose
+  images are too large in aggregate to decode safely is also left unchanged
+  rather than risking the worker (a denial-of-service guard).
 - **Split is capped at 10 000 pages.** A larger document is rejected with a
   clean `400` before any work — splitting it would explode into too many
   output files. The single-page PDFs must fit your tier's output cap; the
@@ -223,10 +225,10 @@ formats page — it is plumbing, not a conversion a user picks.
 
 | From | To | Notes |
 |------|-----|-------|
-| **XLSX** | CSV | Exports the active (first) sheet. Only cell values, no formatting or formulas. |
+| **XLSX** | CSV | Exports the active sheet (the first worksheet when a chart sheet is active). Only cell values — no formatting, formulas, charts or images. Stops at your tier's output cap (`413`). |
 | **CSV** | XLSX | All data imported into a single sheet. No type detection — all values are stored as text. The file must be UTF-8 text. |
-| **CSV** | JSON | Headers become keys. Result is a JSON array of objects. The file must be UTF-8 text. |
-| **JSON** | CSV | Input must be a JSON array of objects with consistent keys. Nested values are flattened as strings. The file must be UTF-8 text. |
+| **CSV** | JSON | Headers become keys. Result is a JSON array of objects. The file must be UTF-8 text. Stops at your tier's output cap (`413`). |
+| **JSON** | CSV | Input must be a JSON array of objects with consistent keys. Nested values are flattened as strings. The file must be UTF-8 text. Stops at your tier's output cap (`413`). |
 
 **Common use cases**:
 - Export Excel data for Python/pandas analysis (XLSX → CSV)
@@ -261,7 +263,9 @@ Any of the above can be converted to any other format.
 - WAV → MP3 (reduce file size after recording)
 
 > **Requires**: ffmpeg installed on the system. Each ffmpeg run is stopped
-> after `MEDIA_SUBPROCESS_TIMEOUT_SECONDS` (default 600 s).
+> after `MEDIA_SUBPROCESS_TIMEOUT_SECONDS` (default 600 s). ffmpeg reads an
+> upload only with the demuxers for the audio and video formats listed on
+> this page, and only as a local file.
 
 ---
 
@@ -316,7 +320,9 @@ qscale 31 → 2. A lower value means better quality and a larger file:
 > **Requires**: ffmpeg installed on the system. Each ffmpeg run — conversion
 > or compression — is stopped after `MEDIA_SUBPROCESS_TIMEOUT_SECONDS`
 > (default 600 s) and the request fails with `500`; raise the value if you
-> process long or HD footage.
+> process long or HD footage. ffmpeg reads an upload only with the demuxers
+> for the audio and video formats listed on this page, and only as a local
+> file.
 
 ---
 

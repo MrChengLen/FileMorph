@@ -65,9 +65,8 @@ class ContactRequest(BaseModel):
 async def submit_contact(request: Request, body: ContactRequest):
     if body.website.strip():
         # Honeypot tripped: return the same 200 a successful send returns,
-        # but do nothing — no email, no audit event.
-        client_ip = request.client.host if request.client else None
-        logger.info("contact: honeypot tripped, dropping submission (ip=%s)", client_ip)
+        # but do nothing — no email, no audit event, no IP in the log.
+        logger.info("contact: honeypot tripped, dropping submission")
         return {"detail": "Message sent."}
 
     locale = resolve_locale(request)

@@ -123,7 +123,7 @@ repository so that:
 |---|---|
 | Purpose | Operate, troubleshoot, and secure the service |
 | Data subjects | Visitors to the service |
-| Personal data | IP address; request timestamp; requested URL; HTTP status; response size — written by the reverse proxy, and by the application server: uvicorn's per-request access line (client address, method, path, status) is on in the shipped container (`entrypoint.sh`) |
+| Personal data | IP address; request timestamp; requested URL; HTTP status; response size — written by the reverse proxy, and by the application server: uvicorn's per-request access line (client address, method, path without the query string, status) is on in the shipped container (`entrypoint.sh`) |
 | Recipients | Hosting provider |
 | Third-country transfers | `[operator: none for an EU host such as Hetzner; state otherwise if your host is elsewhere]` |
 | Retention / erasure | `[operator: your log-rotation period — e.g. rotated within 30 days]` |
@@ -135,7 +135,7 @@ repository so that:
 |---|---|
 | Purpose | Answer messages sent through the public contact form (`/contact`) |
 | Data subjects | People who send a message through the form |
-| Personal data | Name (optional); email address; subject (optional); message; page language. An audit event `contact.message.received` records the language only (see A5). If the form's spam trap is triggered, the application log records the client IP and nothing is sent. The rate limiter (5 messages per hour per IP) holds the client IP in memory only |
+| Personal data | Name (optional); email address; subject (optional); message; page language. An audit event `contact.message.received` records the language only (see A5). If the form's spam trap is triggered, nothing is sent; the application log notes it without the IP address. The rate limiter (5 messages per hour per IP) holds the client IP in memory only |
 | Recipients | The SMTP relay (A4), which delivers the message to the operator's mailbox with the sender's address as `Reply-To` |
 | Third-country transfers | As A4 for the relay; an edge proxy as in A1 |
 | Retention / erasure | Not stored by FileMorph — the message exists only as the delivered email. `[operator: how long contact messages are kept in the mailbox]` |

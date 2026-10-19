@@ -29,12 +29,14 @@ fixtures committed.
 
 from __future__ import annotations
 
+import base64
 import io
 import sys
+import zlib
 from pathlib import Path
 
 import pytest
-from PIL import Image
+from PIL import Image, ImageStat, features
 
 pytestmark = pytest.mark.skipif(
     sys.platform == "win32",
@@ -258,6 +260,213 @@ def test_engine_image_count_ceiling_is_noop(tmp_path, monkeypatch):
     assert result["converged"] is False
     with pikepdf.open(str(out)) as pdf:
         assert len(pdf.pages) == 3  # content preserved, just not recompressed
+
+
+# ── Engine: which images are decoded ─────────────────────────────────────────
+
+
+def _image_bytes(fmt: str) -> bytes:
+    buf = io.BytesIO()
+    Image.new("RGB", (300, 300), (200, 30, 30)).save(buf, format=fmt)
+    return buf.getvalue()
+
+
+def _two_image_pdf(path: Path, data: bytes, filters: list[str], **im1) -> None:
+    """One page with an ordinary JPEG (/Im0) and a second 300×300 image (/Im1)
+    stored as ``data`` under ``filters``; ``im1`` sets more of its keys."""
+    import pikepdf
+    from pikepdf import Array, Name, Pdf
+
+    pdf = Pdf.new()
+    page = pdf.add_blank_page(page_size=(600, 600))
+    images = pikepdf.Dictionary()
+    for key, raw, chain in (
+        ("/Im0", _entropy_jpeg_bytes(300, 98), ["/DCTDecode"]),
+        ("/Im1", data, filters),
+    ):
+        stream = pdf.make_stream(raw)
+        stream.Type = Name("/XObject")
+        stream.Subtype = Name("/Image")
+        stream.Width = 300
+        stream.Height = 300
+        stream.ColorSpace = Name("/DeviceRGB")
+        stream.BitsPerComponent = 8
+        stream.Filter = Array([Name(f) for f in chain])
+        images[key] = stream
+    for name, value in im1.items():
+        images["/Im1"][f"/{name}"] = value
+    page.Resources = pikepdf.Dictionary(XObject=images)
+    page.Contents = pdf.make_stream(
+        b"q 300 0 0 300 0 0 cm /Im0 Do Q q 300 0 0 300 300 300 cm /Im1 Do Q"
+    )
+    # Saved as built: qpdf would otherwise recompress a lossless chain as one filter.
+    pdf.save(str(path), compress_streams=False)
+
+
+_NEEDS_JPEG2000 = pytest.mark.skipif(
+    not features.check("jpg_2000"), reason="this Pillow can't write JPEG 2000"
+)
+
+
+@pytest.mark.parametrize(
+    ("make_data", "filters"),
+    [
+        pytest.param(
+            lambda: _image_bytes("JPEG2000"), ["/JPXDecode"], id="jpeg2000", marks=_NEEDS_JPEG2000
+        ),
+        pytest.param(lambda: _image_bytes("PNG"), ["/DCTDecode"], id="unreadable"),
+        pytest.param(
+            lambda: zlib.compress(_image_bytes("PNG")),
+            ["/FlateDecode", "/DCTDecode"],
+            id="unreadable-behind-flate",
+        ),
+        pytest.param(
+            lambda: _entropy_jpeg_bytes(600, 90), ["/DCTDecode"], id="other-size-than-declared"
+        ),
+    ],
+)
+def test_engine_leaves_images_it_does_not_decode_as_they_are(tmp_path, make_data, filters):
+    """Only the ordinary JPEG is re-encoded; the other image stays byte for
+    byte."""
+    import pikepdf
+
+    from app.compressors.pdf import compress_pdf_to_target
+
+    data = make_data()
+    src, out = tmp_path / "in.pdf", tmp_path / "out.pdf"
+    _two_image_pdf(src, data, filters)
+
+    result = compress_pdf_to_target(src, out, target_bytes=10 * 1024 * 1024)
+
+    assert result["recompressible_images"] == 1
+    with pikepdf.open(str(out)) as pdf:
+        im1 = pdf.pages[0].Resources.XObject.Im1
+        assert im1.read_raw_bytes() == data
+        assert [str(f) for f in im1.Filter] == filters
+
+
+@pytest.mark.parametrize(
+    ("make_data", "filters"),
+    [
+        pytest.param(
+            lambda: zlib.compress(Image.new("RGB", (300, 300), (10, 120, 200)).tobytes()),
+            ["/FlateDecode"],
+            id="lossless",
+        ),
+        pytest.param(
+            lambda: base64.a85encode(_entropy_jpeg_bytes(300, 98)) + b"~>",
+            ["/ASCII85Decode", "/DCTDecode"],
+            id="jpeg-behind-ascii85",  # how ReportLab stores a JPEG
+        ),
+        pytest.param(
+            lambda: zlib.compress(_entropy_jpeg_bytes(300, 98)),
+            ["/FlateDecode", "/DCTDecode"],
+            id="jpeg-behind-flate",
+        ),
+    ],
+)
+def test_engine_re_encodes_lossless_images_and_jpegs_behind_a_filter(tmp_path, make_data, filters):
+    import pikepdf
+
+    from app.compressors.pdf import compress_pdf_to_target
+
+    src, out = tmp_path / "in.pdf", tmp_path / "out.pdf"
+    _two_image_pdf(src, make_data(), filters)
+
+    result = compress_pdf_to_target(src, out, target_bytes=10 * 1024 * 1024)
+
+    assert result["recompressible_images"] == 2
+    with pikepdf.open(str(out)) as pdf:
+        assert pdf.pages[0].Resources.XObject.Im1.Filter == "/DCTDecode"
+
+
+def test_engine_survives_a_jpeg_cut_short(tmp_path):
+    """A damaged JPEG doesn't fail the request. (Whether its rest decodes as
+    gray depends on the platform's JPEG library, so only that is checked.)"""
+    from app.compressors.pdf import compress_pdf_to_target
+
+    src, out = tmp_path / "in.pdf", tmp_path / "out.pdf"
+    _two_image_pdf(src, _entropy_jpeg_bytes(300, 90)[:2000], ["/DCTDecode"])
+
+    result = compress_pdf_to_target(src, out, target_bytes=10 * 1024 * 1024)
+
+    assert result["recompressible_images"] >= 1
+    assert out.read_bytes()[:4] == b"%PDF"
+
+
+def test_engine_leaves_a_doubly_compressed_image_as_it_is(tmp_path):
+    """Two filters that can expand data are one too many: the image isn't
+    decoded. (The re-save may store the same samples under one filter.)"""
+    import pikepdf
+
+    from app.compressors.pdf import compress_pdf_to_target
+
+    samples = Image.new("RGB", (300, 300), (5, 6, 7)).tobytes()
+    src, out = tmp_path / "in.pdf", tmp_path / "out.pdf"
+    _two_image_pdf(src, zlib.compress(zlib.compress(samples)), ["/FlateDecode", "/FlateDecode"])
+
+    result = compress_pdf_to_target(src, out, target_bytes=10 * 1024 * 1024)
+
+    assert result["recompressible_images"] == 1
+    with pikepdf.open(str(out)) as pdf:
+        assert pdf.pages[0].Resources.XObject.Im1.read_bytes() == samples
+
+
+def test_engine_leaves_an_image_with_a_malformed_filter_as_it_is(tmp_path):
+    import pikepdf
+
+    from app.compressors.pdf import compress_pdf_to_target
+
+    data = _entropy_jpeg_bytes(300, 90)
+    src, out = tmp_path / "in.pdf", tmp_path / "out.pdf"
+    _two_image_pdf(src, data, ["/DCTDecode"], Filter=pikepdf.String("/DCTDecode"))
+
+    result = compress_pdf_to_target(src, out, target_bytes=10 * 1024 * 1024)
+
+    assert result["recompressible_images"] == 1
+    with pikepdf.open(str(out)) as pdf:
+        assert pdf.pages[0].Resources.XObject.Im1.read_raw_bytes() == data
+
+
+def test_engine_leaves_images_over_the_pixel_limit(tmp_path, monkeypatch):
+    """An image over Pillow's per-image limit is left as it is, JPEG or not."""
+    from app.compressors.pdf import compress_pdf_to_target
+
+    monkeypatch.setattr(Image, "MAX_IMAGE_PIXELS", 300 * 300 - 1)
+    src, out = tmp_path / "in.pdf", tmp_path / "out.pdf"
+    _two_image_pdf(src, zlib.compress(bytes(300 * 300 * 3)), ["/FlateDecode"])
+
+    result = compress_pdf_to_target(src, out, target_bytes=10 * 1024 * 1024)
+
+    assert result["recompressible_images"] == 0
+
+
+def test_engine_keeps_the_decode_array_of_a_lossless_image(tmp_path):
+    """An inverted grayscale image keeps its stored samples and its /Decode,
+    so a viewer still inverts it exactly once."""
+    import pikepdf
+    from pikepdf import Array, Name, PdfImage
+
+    from app.compressors.pdf import compress_pdf_to_target
+
+    src, out = tmp_path / "in.pdf", tmp_path / "out.pdf"
+    samples = bytes([40]) * (300 * 300)  # dark samples, shown light
+    _two_image_pdf(
+        src,
+        zlib.compress(samples),
+        ["/FlateDecode"],
+        ColorSpace=Name("/DeviceGray"),
+        Decode=Array([1, 0]),
+    )
+
+    result = compress_pdf_to_target(src, out, target_bytes=10 * 1024 * 1024)
+
+    assert result["recompressible_images"] == 2
+    with pikepdf.open(str(out)) as pdf:
+        im1 = pdf.pages[0].Resources.XObject.Im1
+        assert list(im1.Decode) == [1, 0]
+        stored = PdfImage(im1).as_pil_image(apply_decode_array=False).convert("L")
+        assert abs(ImageStat.Stat(stored).mean[0] - 40) < 5
 
 
 # ── Engine: input validation ─────────────────────────────────────────────────

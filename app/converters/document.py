@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 from __future__ import annotations
 
+import email.message
 import logging
 import os
 import re
@@ -539,20 +540,183 @@ class HtmlToPdfConverter(BaseConverter):
 # else the escaped text/plain part). Same mandatory SSRF guard — an email's
 # HTML part routinely references remote tracking pixels / images, which must
 # never be fetched server-side.
+#
+# A mail names the character set of each text part and encoded header word
+# itself. A label is decoded as named only if it is one of the character
+# sets mail is written in (looked up in this table only, lower case with "-"
+# for "_"); any other label is read as UTF-8, with undecodable bytes
+# replaced. Labels that mail clients and browsers read as a superset get the
+# superset: US-ASCII and ISO-8859-1 as Windows-1252, Shift_JIS as CP932,
+# EUC-KR as CP949, GB2312 as GBK, Big5 as CP950.
+_MAIL_CHARSETS = {
+    "utf-8": "utf-8",
+    "utf8": "utf-8",
+    "utf-16": "utf-16",
+    "utf-16le": "utf-16-le",
+    "utf-16be": "utf-16-be",
+    "utf-32": "utf-32",
+    "utf-32le": "utf-32-le",
+    "utf-32be": "utf-32-be",
+    "us-ascii": "cp1252",
+    "ascii": "cp1252",
+    **{
+        f"{prefix}{n}": f"iso8859-{n}"
+        for prefix in ("iso-8859-", "iso8859-")
+        for n in (2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16)
+    },
+    **dict.fromkeys(("iso-8859-1", "iso8859-1", "latin1", "latin-1"), "cp1252"),
+    "iso-8859-8-i": "iso8859-8",
+    **{f"windows-{n}": f"cp{n}" for n in range(1250, 1259)},
+    **{f"cp{n}": f"cp{n}" for n in range(1250, 1259)},
+    "cp437": "cp437",
+    "cp850": "cp850",
+    "cp852": "cp852",
+    "cp866": "cp866",
+    "ibm866": "cp866",
+    "koi8-r": "koi8-r",
+    "koi8-u": "koi8-u",
+    "macintosh": "mac-roman",
+    "x-mac-roman": "mac-roman",
+    "tis-620": "tis-620",
+    "windows-874": "cp874",
+    "cp874": "cp874",
+    **dict.fromkeys(("shift-jis", "sjis", "x-sjis", "windows-31j", "ms932", "cp932"), "cp932"),
+    "euc-jp": "euc_jp",
+    "x-euc-jp": "euc_jp",
+    "iso-2022-jp": "iso2022_jp",
+    **dict.fromkeys(("gb2312", "gbk", "x-gbk", "cp936"), "gbk"),
+    "gb18030": "gb18030",
+    **dict.fromkeys(("big5", "cp950"), "cp950"),
+    "big5-hkscs": "big5hkscs",
+    **dict.fromkeys(("euc-kr", "ks-c-5601-1987", "cp949"), "cp949"),
+    "iso-2022-kr": "iso2022_kr",
+}
+_MAX_HEADER_CHARS = 8192  # a header is shown up to this many characters, then " […]"
+
+
+def _mail_codec(label: object) -> str:
+    """The codec for a charset label from a mail; UTF-8 for any other label."""
+    if isinstance(label, str):
+        return _MAIL_CHARSETS.get(label.strip().lower().replace("_", "-"), "utf-8")
+    return "utf-8"  # None, or an RFC 2231 (charset, language, value) tuple
+
+
+def _mail_word(word: re.Match) -> tuple[bytes, str] | None:
+    """An encoded word's bytes and codec (RFC 2047); None if it is damaged."""
+    import binascii
+    from email import base64mime, quoprimime
+
+    charset, encoding, encoded = word.group("charset", "encoding", "encoded")
+    if encoding in "qQ":
+        data = quoprimime.header_decode(encoded).encode("latin-1")
+    else:
+        try:
+            data = base64mime.decode(encoded + "=" * (-len(encoded) % 4))
+        except binascii.Error:
+            return None
+    # An RFC 2231 language tag ("iso-8859-1*de") is not part of the charset.
+    return data, _mail_codec(charset.split("*", 1)[0])
+
+
+def _mail_header(value: object) -> str:
+    """A header's text, with its encoded words decoded in mail charsets only.
+
+    The words are found and decoded here, not by ``email.header.decode_header``,
+    which would also split the text at characters such as U+0085 that a raw
+    8-bit header read as latin-1 contains.
+    """
+    from email.header import decode_header, ecre
+
+    raw_8bit = not isinstance(value, str)
+    if raw_8bit:
+        # A compat32 Header: the line has raw 8-bit bytes. As a latin-1 string
+        # (one character per byte) its encoded words are found below, and its
+        # plain text goes back to those bytes, read as UTF-8.
+        value = b"".join(chunk for chunk, _ in decode_header(value)).decode("latin-1")
+
+    def plain(text: str) -> str:
+        return text.encode("latin-1").decode("utf-8", "replace") if raw_8bit else text
+
+    # Unfold continuation lines first, so a folded line keeps its space.
+    value = re.sub(r"(?:\r\n|\r|\n)(?=[ \t])", "", value)
+    shown = value[:_MAX_HEADER_CHARS]
+    parts: list = []  # plain text as str, encoded words as [bytes, codec]
+    end = 0
+    for word in ecre.finditer(shown):
+        gap, end = shown[end : word.start()], word.end()
+        decoded = _mail_word(word)
+        if decoded and parts and isinstance(parts[-1], list) and not gap.strip(" \t"):
+            # Two encoded words: the space between them goes (RFC 2047, 6.2), and
+            # words in one charset are decoded together (a character may span two).
+            if parts[-1][1] == decoded[1]:
+                parts[-1][0] += decoded[0]
+                continue
+        else:
+            parts.append(plain(gap))
+        parts.append(list(decoded) if decoded else plain(word.group(0)))  # damaged: as it is
+    parts.append(plain(shown[end:]))
+    text = "".join(p if isinstance(p, str) else p[0].decode(p[1], "replace") for p in parts)
+    return text + " […]" if len(value) > _MAX_HEADER_CHARS else text
+
+
+def _mail_text(part) -> str:
+    """A text part's payload, decoded in the charset it names (see _mail_codec)."""
+    try:
+        label = part.get_param("charset")
+    except (TypeError, ValueError):  # malformed RFC 2231 parameters: read as UTF-8
+        label = None
+    payload = part.get_payload(decode=True) or b""
+    return payload.decode(_mail_codec(label), errors="replace")
+
+
+class _MailMessage(email.message.Message):
+    """A compat32 message that reads its boundary as ASCII text.
+
+    A boundary is ASCII, so the charset an RFC 2231 boundary names is ignored,
+    and malformed parameters read as no boundary at all.
+    """
+
+    def get_boundary(self, failobj=None):
+        try:
+            boundary = self.get_param("boundary")
+        except (TypeError, ValueError):
+            return failobj
+        if boundary is None:
+            return failobj
+        if isinstance(boundary, tuple):  # RFC 2231: (charset, language, value)
+            boundary = boundary[2]
+        return boundary.rstrip()
+
+
+def _mail_body_parts(part):
+    """The text parts of the mail's own body: no attachments, no attached mails."""
+    if part.get_content_disposition() == "attachment":
+        return
+    maintype = part.get_content_maintype()
+    if maintype == "text":
+        yield part
+    elif maintype == "multipart" and part.is_multipart():
+        for sub in part.get_payload():
+            yield from _mail_body_parts(sub)
+
+
 def _eml_to_html(raw: bytes) -> str:
     """Parse an ``.eml`` (RFC 5322 / MIME) into a self-contained HTML document.
 
     Pure stdlib (no WeasyPrint) so the escaping / body-selection logic is
     unit-testable on every host, not just CI. Header values are HTML-escaped;
-    the body prefers the ``text/html`` part (left un-escaped — it *is* HTML,
-    and it's rendered with no JS execution + the SSRF guard downstream) and
-    falls back to the escaped ``text/plain`` part, or a placeholder if empty.
+    the body prefers the first ``text/html`` part of the mail's own body
+    (attachments and attached mails don't count; left un-escaped — it *is*
+    HTML, and it's rendered with no JS execution + the SSRF guard downstream)
+    and falls back to the first escaped ``text/plain`` part, or a placeholder
+    if empty. Parsed with the ``compat32`` policy, which decodes no header on
+    its own: every charset the mail names goes through ``_mail_codec``, and
+    boundaries are read without one (``_MailMessage``).
     """
-    import email
     import html as html_lib
     from email import policy
 
-    msg = email.message_from_bytes(raw, policy=policy.default)
+    msg = email.message_from_bytes(raw, _class=_MailMessage, policy=policy.compat32)
 
     rows = []
     for key in ("From", "To", "Cc", "Date", "Subject"):
@@ -560,15 +724,23 @@ def _eml_to_html(raw: bytes) -> str:
         if val:
             rows.append(
                 f"<tr><td class='k'>{html_lib.escape(key)}</td>"
-                f"<td>{html_lib.escape(str(val))}</td></tr>"
+                f"<td>{html_lib.escape(_mail_header(val))}</td></tr>"
             )
     header_html = "<table class='hdr'>" + "".join(rows) + "</table>"
 
-    body_part = msg.get_body(preferencelist=("html", "plain"))
-    if body_part is not None and body_part.get_content_type() == "text/html":
-        body_html = body_part.get_content()
+    html_part = plain_part = None
+    for part in _mail_body_parts(msg):
+        subtype = part.get_content_subtype()
+        if subtype == "html" and html_part is None:
+            html_part = part
+        elif subtype == "plain" and plain_part is None:
+            plain_part = part
+        if html_part is not None and plain_part is not None:
+            break
+    if html_part is not None:
+        body_html = _mail_text(html_part)
     else:
-        text = body_part.get_content() if body_part is not None else ""
+        text = _mail_text(plain_part) if plain_part is not None else ""
         body_html = (
             "<pre>" + html_lib.escape(text) + "</pre>"
             if text.strip()

@@ -38,13 +38,14 @@ send is silently skipped:
 
 - `/forgot-password` and `/resend-verification` still return `200`.
   `send_email()` sees `SMTP_HOST` is empty, logs `send_email skipped —
-  SMTP not configured (to_domain=…, subject=…)` at WARNING and returns
+  SMTP not configured (to_domain=…)` at WARNING and returns
   without sending — no exception reaches the route, so there is no
   error status to surface. `/forgot-password` is deliberately
   enumeration-safe: it always returns the same generic response whether
   the address exists, the user is inactive, or the email was skipped,
   so the response alone never tells a caller which case occurred — check
-  the application log to see what actually happened.
+  the application log to see what actually happened. The reset email
+  itself is sent after the response.
 - `/register` still creates the user — the verification email is fire-and-forget.
   The user can request a fresh link via `/resend-verification` once SMTP is wired.
 - `/auth/account` deletes the user even if the confirmation email cannot be sent;
@@ -194,9 +195,11 @@ arrives, check:
    may not have picked up an `.env` change, or the overlay/unit file
    isn't passing it through), `send_email ok` (success — the message left
    for the provider; a delivery problem from here on is provider-side),
-   or `send_email failed` (the exception is logged server-side with full
-   SMTP error details; the HTTP response stays generic so those details
-   never leak to the client).
+   or `send_email failed` (logged with `error=<type>`, the SMTP reply
+   code — the codes, for refused recipients — or, for a connection
+   problem, aiosmtplib's text naming host and port; the server's reply
+   text is left out because it can quote the recipient, so the provider's
+   delivery log has the full reason. The HTTP response stays generic).
 2. **DNS / SPF / DKIM / DMARC** — for ESPs and mailbox providers, the
    sending domain must have valid SPF and DKIM records pointing at the
    provider, plus a DMARC policy. Without alignment, Gmail and Outlook

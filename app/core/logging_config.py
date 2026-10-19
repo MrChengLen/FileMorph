@@ -56,6 +56,27 @@ class JsonLogFormatter(logging.Formatter):
         return json.dumps(payload, default=str)
 
 
+class _AccessLogPathOnly(logging.Filter):
+    """Drop the query string from uvicorn's access-log line.
+
+    The privacy notice lists the URL path among the logged fields, not the
+    query — and a query can carry personal data (email links used to put
+    their token there). uvicorn passes the request path as one of
+    ``record.args`` and its AccessFormatter unpacks that tuple, so the tuple
+    keeps its shape and only the argument that is a path loses its query."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if isinstance(record.args, tuple):
+            record.args = tuple(
+                arg.split("?", 1)[0] if isinstance(arg, str) and arg.startswith("/") else arg
+                for arg in record.args
+            )
+        return True
+
+
+_ACCESS_LOG_PATH_ONLY = _AccessLogPathOnly()
+
+
 def configure_logging(debug: bool = False) -> None:
     handler = logging.StreamHandler()
     handler.setFormatter(JsonLogFormatter())
@@ -64,3 +85,6 @@ def configure_logging(debug: bool = False) -> None:
         handlers=[handler],
         force=True,
     )
+    # addFilter skips an instance that is already attached, so the second
+    # call at startup does not stack it.
+    logging.getLogger("uvicorn.access").addFilter(_ACCESS_LOG_PATH_ONLY)
