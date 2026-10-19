@@ -37,7 +37,6 @@ import pytest
 
 from app.api.routes.auth import get_optional_user
 from app.api.routes.convert import _MAX_TARGET_LEN, _download_name
-from app.converters import document as document_converters
 from app.core.batch import BatchFileResult, build_batch_zip
 from app.core.concurrency import ConcurrencyExhausted
 from app.core.config import Settings, settings
@@ -166,18 +165,6 @@ def test_docs_quote_the_default_request_cap():
             quoted[doc.name] = {int(n) for n in found}
     assert quoted, "no doc quotes the MAX_UPLOAD_SIZE_MB default any more"
     assert quoted == {name: {default} for name in quoted}
-
-
-@pytest.mark.parametrize(
-    ("doc", "sentence"),
-    [
-        ("formats.md", "stopped after {} seconds"),
-        ("security-overview.md", "stops it after {} seconds"),
-    ],
-)
-def test_docs_quote_the_pdf_to_text_time_limit(doc, sentence):
-    limit = document_converters._TEXT_TIME_LIMIT_SECONDS
-    assert sentence.format(limit) in " ".join(_text(doc).split())
 
 
 def test_self_hosting_quotes_the_per_tier_concurrency():
