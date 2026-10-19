@@ -261,6 +261,12 @@ FileMorph's own PDF/A re-render resolves Ghostscript in the app process and
 keeps working, as does the pure-Python (mammoth) path. This is in the same
 spirit as the Pillow setting that keeps WeasyPrint from reaching Ghostscript
 (`app/core/image_hardening.py`).
+
+The PDF/A re-render runs only on an upload whose first non-blank bytes are the
+`%PDF-` header (`_has_pdf_header` in `app/converters/pdfa.py`); any other upload
+is refused with a caller-safe `400` before that stage, so only files that
+present as PDFs reach Ghostscript.
+
 `tests/test_office_gs_isolation.py` pins the subprocess environment, and
 `.github/workflows/docker-pr.yml` exercises a DOCX→PDF conversion on the office
 image.

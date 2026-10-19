@@ -250,11 +250,11 @@ def test_pdfa_still_lets_ghostscript_repair_a_pdf_pikepdf_cannot_open(tmp_path, 
 
 # ── PDF/A: ghostscript only runs on a PDF, and with -dSAFER ───────────────────
 #
-# The converter gates stage 1 on a ``%PDF-`` header (the spec's, within the
-# first 1024 bytes) and refuses anything that does not present as a PDF with a
+# The converter gates stage 1 on a ``%PDF-`` header as the file's first
+# non-blank content and refuses anything that does not present as a PDF with a
 # caller-safe message rather than a 500. A damaged PDF that still carries the
-# header passes the gate so ghostscript can repair it. Ghostscript is faked
-# here, so these hold whether or not it is installed.
+# header passes the gate so ghostscript can repair it. Ghostscript is faked in
+# most of these; the last case runs against the real tool when it is installed.
 
 
 @_PIKEPDF
@@ -311,6 +311,72 @@ def test_pdfa_still_runs_ghostscript_on_a_damaged_pdf_with_a_header(tmp_path, mo
     src.write_bytes(b"%PDF-1.4 damaged beyond what pikepdf can recover")
     PdfToPdfaConverter().convert(src, tmp_path / "out.pdf")
     assert calls, "ghostscript should still run on a damaged PDF that has a header"
+
+
+@pytest.mark.parametrize(
+    "head, accepted",
+    [
+        (b"%PDF-1.7\n1 0 obj", True),
+        (b"%PDF-", True),
+        (b" \r\n\t%PDF-1.4", True),  # PDF white-space before the header is allowed
+        (b"", False),
+        (b"just some bytes, no header", False),
+        (b"%!PS-Adobe-3.0\nshowpage\n", False),
+        # a blank before a %! marker is stripped the way ghostscript strips it,
+        # so the file still presents as PostScript and is refused (a later
+        # %PDF- substring does not save it):
+        (b"\x00%!PS-Adobe-3.0\n% %PDF-1.4 in a comment\nshowpage\n", False),
+        # a byte that is NOT PDF white-space before the header is kept, so the
+        # header is not first and the file is refused:
+        (b"\x01%PDF-1.4\n1 0 obj", False),
+        (b"\xef\xbb\xbf%PDF-1.4", False),  # a UTF-8 BOM is not a PDF ghostscript re-renders
+        (b"GIF89a ... a %PDF- substring later", False),  # header only further in
+    ],
+)
+def test_pdf_header_gate_matches_ghostscripts_view(tmp_path, head, accepted):
+    """``_has_pdf_header`` accepts a file only when ``%PDF-`` is its first
+    content after PDF white-space, so ghostscript reads every accepted file as a
+    PDF and never as PostScript."""
+    from app.converters.pdfa import _has_pdf_header
+
+    src = tmp_path / "in.pdf"
+    src.write_bytes(head)
+    assert _has_pdf_header(src) is accepted
+
+
+@_PIKEPDF
+def test_pdfa_refuses_postscript_behind_leading_whitespace(tmp_path, monkeypatch):
+    """A ``%!`` file is refused even behind leading PDF white-space, not only
+    with ``%!`` at byte zero: the blank is stripped and it still presents as
+    PostScript."""
+    from app.converters import _ghostscript as gs
+    from app.converters.pdfa import PdfToPdfaConverter
+
+    def _must_not_run(*_args, **_kwargs):
+        raise AssertionError("ghostscript ran on a file that presents as PostScript")
+
+    monkeypatch.setattr(gs, "is_available", lambda: True)
+    monkeypatch.setattr(gs, "rerender_to_pdfa", _must_not_run)
+    src = tmp_path / "in.pdf"
+    src.write_bytes(b"\x00%!PS-Adobe-3.0\n% %PDF-1.4 in a comment\nshowpage\n")
+    with pytest.raises(InvalidInputError):
+        PdfToPdfaConverter().convert(src, tmp_path / "out.pdf")
+
+
+@_PIKEPDF
+def test_pdfa_refuses_postscript_with_real_ghostscript(tmp_path):
+    """With a real ghostscript on PATH (CI, where it ships), a file that presents
+    as PostScript is refused by the gate before stage 1 runs: the gate sits ahead
+    of the ghostscript call in the real pipeline, not only with a faked gs."""
+    from app.converters import _ghostscript as gs
+    from app.converters.pdfa import PdfToPdfaConverter
+
+    if not gs.is_available():
+        pytest.skip("needs a real ghostscript on PATH")
+    src = tmp_path / "in.pdf"
+    src.write_bytes(b"\x00%!PS-Adobe-3.0\n% %PDF-1.4 in a comment\nshowpage\n")
+    with pytest.raises(InvalidInputError):
+        PdfToPdfaConverter().convert(src, tmp_path / "out.pdf")
 
 
 @_PIKEPDF
