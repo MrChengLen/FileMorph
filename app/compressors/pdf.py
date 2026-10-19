@@ -316,7 +316,8 @@ def _collect_decoded(pdf: "pikepdf_mod.Pdf") -> list[_DecodedImage]:
             if pil.mode not in ("RGB", "L"):
                 pil = pil.convert("RGB")
         except Exception as exc:  # noqa: BLE001 — any decode failure → skip this image
-            logger.warning("pdf compress: skipping undecodable image (%s)", exc)
+            # The type only: pikepdf puts the image dictionary into the text.
+            logger.warning("pdf compress: skipping undecodable image (%s)", type(exc).__name__)
             continue
         decoded.append(_DecodedImage(obj, pil))
     return decoded

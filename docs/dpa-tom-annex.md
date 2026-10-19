@@ -174,7 +174,9 @@ physical assets of its own.
   tools.
 - Structured logs record operation metadata (operation, format pair,
   byte counts, duration, success flag, tier, data classification) and no
-  file content — regression guard `tests/test_observability_logs.py`.
+  file content; a logged exception keeps its type and traceback but not
+  its text — regression guards `tests/test_observability_logs.py` and
+  `tests/test_log_privacy.py`.
 - `X-Data-Classification` header (BSI-style taxonomy: `public` /
   `internal` / `confidential` / `restricted`) echoed on responses and
   propagated into the convert/compress audit payload —

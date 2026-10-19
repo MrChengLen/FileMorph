@@ -49,6 +49,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from app.core.config import settings
+
 logger = logging.getLogger(__name__)
 
 
@@ -181,7 +183,10 @@ def rerender_to_pdfa(
             raise GhostscriptError(f"ghostscript timed out after {timeout}s") from exc
 
         if result.returncode != 0:
+            # Ghostscript's messages can quote the document; only a
+            # debugging instance (APP_DEBUG) puts them into the error.
             tail = result.stderr.decode("utf-8", errors="replace")[-500:].strip()
-            raise GhostscriptError(f"ghostscript exit {result.returncode}: {tail or '<no stderr>'}")
+            detail = f": {tail or '<no stderr>'}" if settings.app_debug else ""
+            raise GhostscriptError(f"ghostscript exit {result.returncode}{detail}")
 
     return output_path
