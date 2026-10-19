@@ -94,6 +94,9 @@ Every conversion or compression request follows the same path:
    external program runs under a time limit: ffmpeg
    `MEDIA_SUBPROCESS_TIMEOUT_SECONDS` (default 600 s), LibreOffice
    `OFFICE_SUBPROCESS_TIMEOUT_SECONDS` (default 60 s), Ghostscript 60 s.
+   PDF → TXT runs pypdf in a child Python process
+   (`app/converters/_pdf_text.py`) for the same reason: it is stopped after
+   30 s, and on Linux its address space is capped at 1 GiB.
 7. **Output stream + temp cleanup.** Converted bytes are returned via a
    streaming response. Any UUID-named scratch path created during the
    conversion is removed in the request's `finally` block; on app start a

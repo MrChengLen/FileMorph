@@ -7,6 +7,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import zipfile
 from pathlib import Path
 
@@ -15,9 +16,10 @@ from app.converters.base import (
     BaseConverter,
     EncryptedPdfError,
     InvalidInputError,
-    open_pypdf,
+    UnsupportedPdfEncryptionError,
     read_utf8_text,
 )
+from app.converters.pdf_pages import _MAX_SELECTION_PAGES as _TEXT_MAX_PAGES
 from app.converters.registry import register
 
 logger = logging.getLogger(__name__)
@@ -438,29 +440,65 @@ class TxtToPdfConverter(BaseConverter):
 # ---------------------------------------------------------------------------
 # PDF → TXT
 # ---------------------------------------------------------------------------
+# pypdf extracts the text in a child process (app/converters/_pdf_text.py):
+# some PDFs take it a long time, and only a process can be stopped from
+# outside. Past the time limit the child is stopped and the conversion
+# refused; on Linux the child's address space is capped too.
+_TEXT_TIME_LIMIT_SECONDS = 30
+_APP_ROOT = Path(__file__).resolve().parents[2]  # the directory holding the ``app`` package
+
+_TEXT_TOO_MANY_PAGES = (
+    f"This PDF has more than {_TEXT_MAX_PAGES:,} pages, the most a PDF-to-text "
+    f"conversion handles. Extract up to {_TEXT_MAX_PAGES:,} pages at a time with "
+    "/api/v1/pdf/extract and convert each part."
+)
+_TEXT_TOO_LARGE = (
+    "This PDF is too large or complex to extract its text in one go. Extract "
+    "fewer pages with /api/v1/pdf/extract and convert them in parts."
+)
+
+
 @register(("pdf", "txt"))
 class PdfToTxtConverter(BaseConverter):
     def convert(self, input_path: Path, output_path: Path, **kwargs) -> Path:
-        from pypdf.errors import FileNotDecryptedError, PyPdfError
-
-        # PyPdfError covers LimitReachedError (a crafted file tripping one of
-        # pypdf's resource limits), which PdfReadError alone would miss. The
-        # extraction sits inside the try: pypdf reads fonts and content
-        # streams lazily, so a broken one only fails here. open_pypdf raises
-        # UnsupportedPdfEncryptionError, which this except lets through.
+        command = [sys.executable, "-m", "app.converters._pdf_text"]
+        command += [str(input_path.resolve()), str(output_path.resolve()), str(_TEXT_MAX_PAGES)]
         try:
-            reader = open_pypdf(input_path)
-            parts = [page.extract_text() or "" for page in reader.pages]
-        except (PyPdfError, ValueError) as exc:
-            # The class only — pypdf's messages can quote the file.
-            logger.info("unreadable PDF: %s", type(exc).__name__)
-            if isinstance(exc, FileNotDecryptedError):
-                raise EncryptedPdfError() from exc
-            raise InvalidInputError("Could not read the PDF. Verify the file is valid.") from exc
-        # A broken font map can yield an unpaired surrogate, which UTF-8
-        # can't encode: write that character as "?" instead of failing.
-        output_path.write_text("\n\n".join(parts), encoding="utf-8", errors="replace", newline="\n")
-        return output_path
+            result = subprocess.run(  # noqa: S603 — fixed module, our own paths, no shell
+                command,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                # The child's diagnostic output is discarded; it reports its
+                # outcome on stdout.
+                stderr=subprocess.DEVNULL,
+                encoding="utf-8",
+                errors="replace",
+                timeout=_TEXT_TIME_LIMIT_SECONDS,
+                check=False,
+                cwd=_APP_ROOT,
+                # App secrets stay out of the child, as for soffice.
+                env={k: v for k, v in os.environ.items() if not _is_secret_env_name(k)},
+            )
+        except subprocess.TimeoutExpired:
+            logger.info("pdf to txt: stopped after %s s", _TEXT_TIME_LIMIT_SECONDS)
+            raise InvalidInputError(_TEXT_TOO_LARGE) from None
+        outcome, _, detail = (result.stdout.strip().splitlines() or [""])[-1].partition(" ")
+        if outcome == "ok":
+            return output_path
+        if outcome == "encrypted":
+            raise EncryptedPdfError()
+        if outcome == "unsupported_encryption":
+            raise UnsupportedPdfEncryptionError()
+        if outcome == "too_many_pages":
+            raise InvalidInputError(_TEXT_TOO_MANY_PAGES)
+        if outcome == "too_large":
+            raise InvalidInputError(_TEXT_TOO_LARGE)
+        if outcome == "unreadable":
+            logger.info("unreadable PDF: %s", detail)
+            raise InvalidInputError("Could not read the PDF. Verify the file is valid.")
+        raise RuntimeError(
+            f"pdf to txt child failed (status {result.returncode}): {detail or outcome or '-'}"
+        )
 
 
 # ---------------------------------------------------------------------------
