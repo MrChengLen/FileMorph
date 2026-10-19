@@ -559,8 +559,8 @@ account with no link to the deleted one.
 If SMTP is down, the email send fails. The deletion is **not**
 rolled back — the database row is already gone, and the user
 explicitly asked for deletion. The failure is logged via
-`logger.exception(...)`, the same pattern that
-`forgot_password` uses (`auth.py:311`). If a user contacts
+`logger.exception(...)`, the same pattern the password-reset email
+uses (`_send_reset_email_safe` in `app/api/routes/auth.py`). If a user contacts
 support to confirm a deletion they never received an email for,
 the operator can confirm from the audit log (§ 7).
 
