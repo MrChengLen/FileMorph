@@ -89,7 +89,8 @@ configuration help, defect triage and fixes, **priority notification** of
 security advisories (ahead of public disclosure, on request), and guidance on
 the compliance artefacts you are relying on — the audit-log hash chain, the
 CycloneDX SBOM, the cosign image signatures, the PDF/A-2b conformance gate, and
-the [DPA template](./dpa-template.md) / [sub-processor list](./sub-processors.md).
+the [TOM annex](./dpa-tom-annex.md) / [sub-processor list](./sub-processors.md)
+(and the [DPA template](./dpa-template.md) where a DPA is in place).
 
 ### Severity model for a support ticket
 

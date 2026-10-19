@@ -26,7 +26,8 @@ from app.core.i18n import normalize_locale
 #   not_covered   — honest limits (PDF, names/addresses, no guarantee)
 #   how_it_works  — list of (step_label, step_text) for the two-phase flow
 #   when          — "when to use" paragraph
-#   trust         — EU / stateless / open-source / no third-party AI block
+#   trust         — stateless / open-source / no third-party AI block (the
+#                   template appends partials/hosting_note.html)
 #   legal_notice  — persistent inline disclaimer shown next to the result
 #   faq           — list of (question, answer), 3 entries
 REDACT_CONTENT: dict[str, dict] = {
@@ -34,7 +35,7 @@ REDACT_CONTENT: dict[str, dict] = {
         "title": "Redact PII in documents — free preview",
         "meta": (
             "Detect and redact IBANs, emails, phone numbers and more in TXT, DOCX and XLSX. "
-            "Free findings preview — no account. EU-hosted, files deleted right after."
+            "Free findings preview — no account, files deleted right after."
         ),
         "h1": "Redact PII in documents",
         "hero": (
@@ -80,7 +81,7 @@ REDACT_CONTENT: dict[str, dict] = {
             "ranges or card numbers."
         ),
         "trust": (
-            "Processed on EU servers with no third-party AI — detection is deterministic "
+            "Processed with no third-party AI — detection is deterministic "
             "(regex + checksums), not a language model. Your file is held in memory and "
             "deleted right after processing; detected values are never logged or stored. The "
             "redaction engine is commercially licensed, not part of the AGPLv3 core; the "
@@ -118,7 +119,7 @@ REDACT_CONTENT: dict[str, dict] = {
         "title": "PII in Dokumenten schwärzen — Vorschau",
         "meta": (
             "IBANs, E-Mails, Telefonnummern und mehr in TXT, DOCX und XLSX erkennen und "
-            "schwärzen. Kostenlose Vorschau — kein Konto, EU-gehostet, sofort gelöscht."
+            "schwärzen. Kostenlose Vorschau — kein Konto, sofort gelöscht."
         ),
         "h1": "PII in Dokumenten schwärzen",
         "hero": (
@@ -168,7 +169,7 @@ REDACT_CONTENT: dict[str, dict] = {
             "XLSX-Berichte mit internen IP-Bereichen oder Kartennummern."
         ),
         "trust": (
-            "Verarbeitung auf EU-Servern ohne Dritt-KI — die Erkennung ist deterministisch "
+            "Verarbeitung ohne Dritt-KI — die Erkennung ist deterministisch "
             "(Regex + Prüfziffern), kein Sprachmodell. Deine Datei liegt nur im "
             "Arbeitsspeicher und wird direkt nach der Verarbeitung gelöscht; erkannte Werte "
             "werden nie protokolliert oder gespeichert. Die Schwärzungs-Engine ist kommerziell "

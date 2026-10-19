@@ -555,6 +555,10 @@ name, to tell whether a report is present.
 | business   | 500 MB        | 150               | 500 MB     | 6                   | 200,000           |
 | enterprise | 500 MB        | 250               | 500 MB     | 10                  | unlimited         |
 
+"Concurrent requests" is the cap per account (per client IP without one);
+every caller shares the server's global pool on top of it — see
+[Concurrency](#concurrency) below.
+
 The per-minute rate limit is not part of the tier: it is counted per
 client IP and per endpoint, the same for every caller — 10/min on
 `/convert` and `/compress`, 3/min on `/convert/batch` and

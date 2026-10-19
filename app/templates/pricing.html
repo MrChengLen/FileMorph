@@ -12,15 +12,15 @@
 
   {% if not stripe_enabled %}
   <div id="coming-soon-banner" class="max-w-2xl mx-auto bg-brand/10 border border-brand/40 rounded-xl px-5 py-4 text-center space-y-1">
-    <p class="text-sm font-semibold text-brand">{{ _('Paid tiers — coming soon') }}</p>
+    <p class="text-sm font-semibold text-brand">{{ _('Paid plans are currently not available') }}</p>
     <p class="text-xs text-gray-400">
-      {{ _('Free tier is live today. Pro & Business launch shortly — paid checkouts go live once payment processing is fully set up.') }}
+      {{ _('Pro and Business cannot be booked at the moment. Using FileMorph without an account or with a free account works as described below.') }}
     </p>
   </div>
   {% endif %}
 
   <p class="text-center text-xs text-gray-500">
-    {{ _('Using without an account:') }} {{ _('up to') }} {{ anon_plan.max_file_size_mb }} MB {{ _('per file') }} · {{ _('single file at a time') }} · {{ _('10 requests/minute') }} · {{ _('API access without a key') }}
+    {{ _('Using without an account:') }} {{ _('up to') }} {{ anon_plan.max_file_size_mb }} MB {{ _('per file') }} · {{ _('single file at a time') }} · {{ _('API access without a key') }}
   </p>
 
   <p class="text-center text-xs text-gray-500 max-w-3xl mx-auto">
@@ -29,6 +29,8 @@
     {{ _('with a') }}
     <code class="text-gray-400">Retry-After</code>
     {{ _('hint. Large batches are processed sequentially inside the request.') }}
+    {{ _('All plans share the server\'s parallel slots, so no plan runs more requests at once than the server allows.') }}
+    {{ _('The per-minute rate limit is the same for every plan — for example 10 requests per minute to convert or compress a file.') }}
   </p>
 
   <!-- Audience segment toggle (CSP-safe: handlers in /static/js/pricing-segment.js) -->
@@ -64,7 +66,7 @@
         </li>
         <li class="flex items-start gap-2">
           <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span>{{ _('API key — ') }}<strong class="text-white">{{ plans.free.api_calls_display }} {{ _('calls / month') }}</strong>, {{ plans.free.concurrency }} {{ _('concurrent') }}, 10 req/min</span>
+          <span>{{ _('API key — ') }}<strong class="text-white">{{ plans.free.api_calls_display }} {{ _('calls / month') }}</strong>, {{ plans.free.concurrency }} {{ _('concurrent') }}</span>
         </li>
         <li class="flex items-start gap-2">
           <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
@@ -108,7 +110,7 @@
         </li>
         <li class="flex items-start gap-2">
           <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span><strong class="text-white">{{ plans.pro.api_calls_display }} {{ _('API calls / month') }}</strong>, {{ plans.pro.concurrency }} {{ _('concurrent') }}, 10 req/min</span>
+          <span><strong class="text-white">{{ plans.pro.api_calls_display }} {{ _('API calls / month') }}</strong>, {{ plans.pro.concurrency }} {{ _('concurrent') }}</span>
         </li>
         {% if ai_operations_enabled %}<li class="flex items-start gap-2">
           <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
@@ -133,7 +135,7 @@
       <button id="pro-btn" disabled
         class="block w-full text-center py-2.5 rounded-xl bg-gray-800 text-gray-500 cursor-not-allowed text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-600"
         aria-disabled="true">
-        {{ _('Coming soon') }}
+        {{ _('Currently not available') }}
       </button>
       {% endif %}
     </div>
@@ -161,7 +163,7 @@
         </li>
         <li class="flex items-start gap-2">
           <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span><strong class="text-white">{{ plans.business.api_calls_display }} {{ _('API calls / month') }}</strong>, {{ plans.business.concurrency }} {{ _('concurrent') }}, 10 req/min</span>
+          <span><strong class="text-white">{{ plans.business.api_calls_display }} {{ _('API calls / month') }}</strong>, {{ plans.business.concurrency }} {{ _('concurrent') }}</span>
         </li>
         {% if ai_operations_enabled %}<li class="flex items-start gap-2">
           <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
@@ -190,7 +192,7 @@
       <button id="business-btn" disabled
         class="block w-full text-center py-2.5 rounded-xl border border-hairline text-ink-faint cursor-not-allowed text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-600"
         aria-disabled="true">
-        {{ _('Coming soon') }}
+        {{ _('Currently not available') }}
       </button>
       {% endif %}
     </div>
@@ -215,11 +217,11 @@
       <div class="bg-brand/10 border border-brand/30 rounded-xl px-4 py-3 text-sm text-gray-300">
         {{ _('Internal use is already free under AGPL-3.0.') }}
         <a href="{{ localized_url('/enterprise', current_prefix) }}" class="text-brand hover:underline">{{ _('Why →') }}</a>
-        {{ _('The Compliance Edition is for when you need a contract behind it: DPA, support SLA, signed releases, and someone accountable — not "permission".') }}
+        {{ _('The Compliance Edition is for when you need a contract behind it: a commercial license, a support SLA and someone accountable — not "permission".') }}
       </div>
       <ul class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-300">
         <li class="flex items-start gap-2"><span class="text-emerald-400" aria-hidden="true">✓</span> {{ _('Self-hosted (on-prem / air-gap)') }}</li>
-        <li class="flex items-start gap-2"><span class="text-emerald-400" aria-hidden="true">✓</span> {{ _('Art. 28 GDPR DPA template') }}</li>
+        <li class="flex items-start gap-2"><span class="text-emerald-400" aria-hidden="true">✓</span> {{ _('Self-hosted: no data processing on your behalf, no DPA needed') }}</li>
         <li class="flex items-start gap-2"><span class="text-emerald-400" aria-hidden="true">✓</span> {{ _('Tamper-evident SHA-256 audit log') }}</li>
         <li class="flex items-start gap-2"><span class="text-emerald-400" aria-hidden="true">✓</span> {{ _('PDF/A-2b (veraPDF CI gate)') }}</li>
         <li class="flex items-start gap-2"><span class="text-emerald-400" aria-hidden="true">✓</span> {{ _('Signed releases + CycloneDX SBOM') }}</li>
@@ -255,8 +257,7 @@
           <tr class="border-b border-hairline/50"><td class="py-2 pr-3 text-ink-muted">{{ _('Concurrent slots') }}</td><td class="text-center">{{ plans.free.concurrency }}</td><td class="text-center">{{ plans.pro.concurrency }}</td><td class="text-center">{{ plans.business.concurrency }}</td><td class="text-center">{{ _('custom') }}</td></tr>
           <tr class="border-b border-hairline/50"><td class="py-2 pr-3 text-ink-muted">{{ _('All formats + smart-tech') }}</td><td class="text-center text-emerald-400">✓</td><td class="text-center text-emerald-400">✓</td><td class="text-center text-emerald-400">✓</td><td class="text-center text-emerald-400">✓</td></tr>
           <tr class="border-b border-hairline/50"><td class="py-2 pr-3 text-ink-muted">{{ _('Self-hosted') }}</td><td class="text-center text-ink-faint">—</td><td class="text-center text-ink-faint">—</td><td class="text-center text-ink-faint">—</td><td class="text-center text-emerald-400">✓</td></tr>
-          <tr class="border-b border-hairline/50"><td class="py-2 pr-3 text-ink-muted">{{ _('Art. 28 DPA template') }}</td><td class="text-center text-ink-faint">—</td><td class="text-center text-ink-faint">—</td><td class="text-center text-ink-faint">—</td><td class="text-center text-emerald-400">✓</td></tr>
-          <tr class="border-b border-hairline/50"><td class="py-2 pr-3 text-ink-muted">{{ _('Audit log + signed releases') }}</td><td class="text-center text-ink-faint">—</td><td class="text-center text-ink-faint">—</td><td class="text-center text-ink-faint">—</td><td class="text-center text-emerald-400">✓</td></tr>
+          <tr class="border-b border-hairline/50"><td class="py-2 pr-3 text-ink-muted">{{ _('Audit log + signed releases') }}</td><td class="text-center text-emerald-400">✓</td><td class="text-center text-emerald-400">✓</td><td class="text-center text-emerald-400">✓</td><td class="text-center text-emerald-400">✓</td></tr>
           <tr class="border-b border-hairline/50"><td class="py-2 pr-3 text-ink-muted">{{ _('Commercial license') }}</td><td class="text-center text-ink-faint">—</td><td class="text-center text-ink-faint">—</td><td class="text-center text-ink-faint">—</td><td class="text-center text-emerald-400">✓</td></tr>
           <tr><td class="py-2 pr-3 text-ink-muted">{{ _('Support') }}</td><td class="text-center text-ink-faint">—</td><td class="text-center">{{ _('e-mail') }}</td><td class="text-center">{{ _('priority') }}</td><td class="text-center">{{ _('SLA') }}</td></tr>
         </tbody>
@@ -270,9 +271,9 @@
   <div class="space-y-4">
     <p class="font-semibold text-ink">{{ _('What you can verify today') }}</p>
     <ul class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm text-gray-300">
-      <li class="flex items-start gap-2"><span class="text-emerald-400" aria-hidden="true">✓</span> {{ _('EU hosting, German imprint') }}</li>
+      <li class="flex items-start gap-2"><span class="text-emerald-400" aria-hidden="true">✓</span> <span>{% include "partials/hosting_note.html" %}</span></li>
       <li class="flex items-start gap-2"><span class="text-emerald-400" aria-hidden="true">✓</span> {{ _('Full source on GitHub (AGPLv3)') }}</li>
-      <li class="flex items-start gap-2"><span class="text-emerald-400" aria-hidden="true">✓</span> {{ _('GDPR + Art. 28 DPA template') }}</li>
+      <li class="flex items-start gap-2"><span class="text-emerald-400" aria-hidden="true">✓</span> {{ _('EU vendor with German imprint') }}</li>
       <li class="flex items-start gap-2"><span class="text-emerald-400" aria-hidden="true">✓</span> {{ _('CycloneDX SBOM per release') }}</li>
       <li class="flex items-start gap-2"><span class="text-emerald-400" aria-hidden="true">✓</span> {{ _('Signed releases (cosign + GPG)') }}</li>
       <li class="flex items-start gap-2"><span class="text-emerald-400" aria-hidden="true">✓</span> {{ _('Tamper-evident audit log') }}</li>

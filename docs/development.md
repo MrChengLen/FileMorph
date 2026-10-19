@@ -314,11 +314,11 @@ compressor format — each is pinned by a test, so a missed one fails the build:
 - `_FORMAT_CATEGORY` in `app/api/routes/pages.py` — `tests/test_formats_categories.py`
   fails for a source format without a category (it would land in the "Other"
   bucket on `/formats`).
-- If the format supports exact-size compression, `TARGET_SIZE_FORMATS` in
+- If the format supports target-size compression, `TARGET_SIZE_FORMATS` in
   `app/compressors/image.py` **and** the matching `TARGET_SIZE_FORMATS` array
   in `app/static/js/app.js` — `tests/test_target_size_formats_parity.py`
   fails the build if the two disagree, and also pins the hand-written claims about
-  which formats hit an exact target (homepage FAQ, `/formats`, `/llms.txt`, the
+  which formats take a target size (homepage FAQ, `/formats`, `/llms.txt`, the
   OpenAPI form-field docs, the `/tools` card); the `/compress` page copy is pinned
   by `tests/test_compress_page.py`.
 - A test per new format/pair (Step 5 above / the equivalent for compressors).

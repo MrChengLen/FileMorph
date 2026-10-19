@@ -318,9 +318,10 @@ def test_pricing_route_renders_when_pricing_enabled(client, monkeypatch):
 
 
 def test_pricing_renders_coming_soon_when_stripe_disabled(client, monkeypatch):
-    """Coming-Soon mode: pricing page must surface a clear 'coming soon'
-    message and disable the upgrade buttons so visitors don't click into
-    a checkout that 503s."""
+    """Without Stripe the pricing page says plainly that the paid plans are
+    not available (no "coming soon" promise — paid plans are on hold) and
+    disables the upgrade buttons so visitors don't click into a checkout
+    that 503s."""
     from app.core.config import settings
 
     monkeypatch.setattr(settings, "pricing_page_enabled", True)
@@ -328,15 +329,18 @@ def test_pricing_renders_coming_soon_when_stripe_disabled(client, monkeypatch):
     # Re-render globals (they're set at module import) — pull fresh from settings
     from app.main import templates
 
-    templates.env.globals["stripe_enabled"] = False
+    monkeypatch.setitem(templates.env.globals, "stripe_enabled", False)
 
-    # Hit /en/pricing — the "coming soon" wording is English. The DE
-    # variant says "demnächst verfügbar" (also asserted by separate test).
-    r = client.get("/en/pricing")
-    assert r.status_code == 200
-    body = r.text.lower()
-    assert "coming soon" in body, "Coming-Soon banner missing when Stripe disabled"
-    assert "disabled" in body, "upgrade buttons must be disabled in Coming-Soon mode"
+    for locale, banner in (
+        ("en", "paid plans are currently not available"),
+        ("de", "bezahlte tarife sind derzeit nicht verfügbar"),
+    ):
+        r = client.get(f"/{locale}/pricing")
+        assert r.status_code == 200
+        body = r.text.lower()
+        assert banner in body, f"/{locale}/pricing: not-available banner missing"
+        assert "coming soon" not in body and "demnächst" not in body, locale
+        assert "disabled" in body, "upgrade buttons must be disabled without Stripe"
 
 
 def test_pricing_renders_live_buttons_with_waiver_gate_when_stripe_enabled(client, monkeypatch):

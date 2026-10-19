@@ -1,7 +1,7 @@
 # FileMorph — Data Protection & GDPR Analysis
 
 **Original analysis date:** 2026-04-20
-**Last refreshed:** 2026-09-28
+**Last refreshed:** 2026-10-19
 **Scope:** Community Edition (current `main` branch), Cloud Edition (live), planned Compliance Edition.
 **Analyst:** Automated compliance review
 **Reviewer note:** This document is a technical privacy analysis intended for engineering and legal review. It does not constitute legal advice. Engage a qualified data protection lawyer before launching any paid SaaS tier in the EU.
@@ -37,6 +37,7 @@ historical reasoning trail.
 | `X-Data-Classification` propagation | Closed — BSI-style taxonomy validated in middleware; echoed on responses; recorded in audit-log | `app/core/data_classification.py` |
 | Concurrency limiter (NEU-D.1) | Closed — global semaphore + per-actor tier-bound semaphore; 503 vs 429 with `Retry-After` | `app/core/concurrency.py` |
 | Cosign-signed images + GPG-signed tags | Closed — keyless OIDC sign on image push; the maintainer GPG-signs release tags locally, and `.github/workflows/release.yml` verifies the signature before it publishes a release | `.github/workflows/docker.yml`, `release.yml` |
+| Self-service data export (Art. 20), email change (Art. 16) and a dashboard showing file history or usage (C-7, recommendation 14, and §7 of the recommended policy below) | Not built: access, rectification and portability requests go to privacy@filemorph.io, as the live policy says (§5). The dashboard shows neither file history nor usage counts. The C-7 passage and the recommended policy below describe the 2026-04 design, not the running service | `app/templates/privacy.html` §5, `app/templates/dashboard.html` |
 | localStorage keys written without disclosure (ePrivacy Dir. / § 25 TDDDG — the "Cookie notice ⚠️" row in the compliance matrix below, and T-8) | Closed — `/privacy` §6 now enumerates every key the app writes (`fm_access_token`, `fm_refresh_token`, `filemorph_api_key`, `fm_cookie_notice_dismissed`) with purpose and legal basis, and an informational bar deep-links there on first visit. Deliberately **not** a consent dialog: no cookies are set, no third-party resources load, and every key is strictly necessary, so § 25 Abs. 2 Nr. 2 TDDDG exempts them — a fake Accept/Reject choice would misrepresent that. `test_notice_is_not_a_consent_dialog` pins it | `app/templates/privacy.html` §6, `app/templates/partials/cookie_notice.html`, `app/static/js/cookie-notice.js`, `tests/test_cookie_notice.py` |
 
 The items once listed here as in flight have since landed or
@@ -250,7 +251,7 @@ This dual role creates complexity:
 - Subscription details.
 
 **GDPR obligations triggered:**
-- **Art. 15 Right of access:** The dashboard implicitly fulfills this for file history and usage. Ensure a machine-readable export option (Art. 20) is also available.
+- **Art. 15 Right of access:** The dashboard implicitly fulfills this for file history and usage. Ensure a machine-readable export option (Art. 20) is also available. *(As built, the dashboard shows neither; access and portability are handled on request — see the status table at the top.)*
 - **Art. 17 Erasure:** Account deletion UI must be available in Settings. Must trigger cascading deletion of all personal data across all tables and R2 storage.
 - **Session security:** Dashboard pages require authentication. Implement CSRF protection on all state-changing actions. Session tokens must be transmitted over HTTPS only (`Secure` cookie flag).
 
@@ -357,10 +358,11 @@ The privacy policy at `https://filemorph.io/privacy` must cover the following se
 - The web interface stores your API key in browser localStorage for convenience. This data never leaves your browser and is not transmitted to our servers (except as the API key in request headers when you initiate a conversion).
 
 ### 7. Your Rights (EU/EEA users)
-- **Access (Art. 15):** Request a copy of your personal data via the dashboard export feature or by emailing privacy@filemorph.io.
-- **Rectification (Art. 16):** Update your email in Settings.
-- **Erasure (Art. 17):** Delete your account in Settings → Danger Zone. Files are deleted immediately; financial records are retained per legal obligation.
-- **Portability (Art. 20):** Download your data via Settings → Export My Data.
+> **As operated (2026-10):** there is no self-service export and no self-service email change — requests go to privacy@filemorph.io. The live text is `app/templates/privacy.html` §5.
+- **Access (Art. 15):** Request a copy of your personal data by emailing privacy@filemorph.io.
+- **Rectification (Art. 16):** Ask for a correction (e.g. a new email address) by emailing privacy@filemorph.io.
+- **Erasure (Art. 17):** Delete your account in the dashboard ("Delete account" in the Danger zone) or by emailing privacy@filemorph.io. Uploaded files are never stored; financial records are retained per legal obligation.
+- **Portability (Art. 20):** Request your data in a machine-readable format by emailing privacy@filemorph.io.
 - **Objection (Art. 21):** Object to processing based on legitimate interest by contacting privacy@filemorph.io.
 - **Lodge a complaint:** Contact your national data protection authority. For Germany: Bundesbeauftragte für den Datenschutz und die Informationsfreiheit (BfDI).
 

@@ -87,7 +87,7 @@ templates.env.globals["site_jsonld"] = _SITE_JSONLD
 # via SECURITY_CONTACT_EMAIL env-var on each deployment.
 templates.env.globals["security_contact_email"] = settings.security_contact_email
 # Pricing visibility: self-hosters default to off; SaaS turns it on. Two
-# flags so we can run a "Coming Soon" page between launch and Stripe live.
+# flags so the plans can show while the paid ones are not bookable.
 templates.env.globals["pricing_enabled"] = bool(settings.pricing_page_enabled)
 templates.env.globals["stripe_enabled"] = bool(settings.stripe_secret_key)
 # AI/redaction visibility: commercial EE add-on, inert (and UI-less) unless enabled.

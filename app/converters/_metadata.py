@@ -16,8 +16,8 @@ compression. There is no per-request opt-out: a caller who
 genuinely needs the metadata kept (forensic-photography pipelines,
 some archival workflows) can hold the original — FileMorph's job is
 to deliver a clean output. Compliance-edition self-hosters get this
-behaviour automatically, with no configuration; the ISO 27001 A.8.2
-("classification of information") and BSI APP.5.1 ("Allgemeine
+behaviour automatically, with no configuration; the ISO/IEC 27001:2022
+A.5.12 ("classification of information") and BSI APP.5.1 ("Allgemeine
 Anwendungssoftware") expectations around metadata cleaning are met
 by code, not policy.
 

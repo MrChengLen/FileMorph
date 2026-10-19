@@ -1,0 +1,9 @@
+{# The one sentence that says where FileMorph runs (decision 2026-10-14:
+   Cloudflare stays in front of the server and is named, the same way,
+   everywhere the hosting comes up). Include it instead of writing a new
+   "EU-hosted" line; tests/test_public_claims.py pins the wording and the
+   link to § 4 of the privacy policy. It describes filemorph.io, so pages
+   that every deployment serves only include it when pricing_enabled is
+   set (the commercial surface, off for self-hosters). Lives in partials/
+   (not _components/) so babel extracts its strings. #}
+{{ _('Server at Hetzner in the EU, connections via Cloudflare (USA)') }} — <a href="{{ localized_url('/privacy', current_prefix) }}#hosting" class="text-brand hover:underline">{{ _('privacy policy § 4') }}</a>

@@ -164,8 +164,8 @@ physical assets of its own.
   account's events, and the chain still verifies afterwards. The
   `verify_chain` helper, or `VERIFY_CHAIN_SQL` (the same check in plain
   Postgres SQL, no application code needed), detects retroactive edits
-  to the hashed fields from a SQL dump alone. Compatible with ISO 27001
-  A.12.4.1 / BORA §50 / BeurkG §39a. It records registration,
+  to the hashed fields from a SQL dump alone. Compatible with ISO/IEC
+  27001:2022 A.8.15 (logging). It records registration,
   login, email verification, password reset and account deletion;
   subscription and payment events, including the withdrawal waiver at
   checkout; single-file conversions and compressions; contact-form

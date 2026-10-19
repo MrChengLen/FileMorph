@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Compliance Edition: tamper-evident audit log with SHA-256 hash chain.
 
-ISO 27001 A.12.4.1 / BORA §50 / BeurkG §39a / BSI OPS.1.1.5 all expect
+ISO/IEC 27001:2022 A.8.15 (logging) and BSI OPS.1.1.5 both expect
 operations on regulated data to leave a record that is provably
 unaltered. This module provides that record. The chain is intentionally
 simple — a forward SHA-256 chain over each event's record —

@@ -68,19 +68,22 @@ def build_site_jsonld(app_base_url: str) -> tuple[str, str]:
     # AVIF is a real conversion format, but there is no AVIF/WebP auto-routing
     # and no pre-upload size-preview. The "Convert …" lists must match the
     # converter registry (tests/test_format_lists_match_registry.py).
+    # No hosting location here: this block is compiled once for every
+    # deployment (self-hosters included) and can't carry the Cloudflare
+    # half or the link to privacy § 4 — the visible pages say where
+    # filemorph.io runs (partials/hosting_note.html, tests/test_public_claims.py).
     feature_list = [
         "Convert images (HEIC, HEIF, JPG, PNG, WebP, AVIF, BMP, TIFF, GIF, ICO)",
         "Convert documents (DOCX, PDF, TXT, Markdown, HTML, EML)",
         "Convert spreadsheets (XLSX, CSV, JSON)",
         "Convert audio (MP3, WAV, FLAC, OGG, M4A, AAC, WMA, Opus)",
         "Convert video (MP4, MOV, AVI, MKV, WebM, FLV, WMV)",
-        "Compress images to an exact target size",
+        "Compress images to a target size",
         "Split, extract and compress PDF files",
         "Convert PDF to PDF/A-2b",
         "No account required",
         "Self-hostable via Docker",
         "REST API for programmatic conversion",
-        "EU-hosted, GDPR-friendly",
     ]
     data: list[dict] = [
         {
@@ -115,7 +118,7 @@ def build_site_jsonld(app_base_url: str) -> tuple[str, str]:
             "logo": f"{base}/static/og-image.png",
             "description": (
                 "Open-source, privacy-respecting file conversion and compression — "
-                "AGPLv3, self-hostable, EU-hosted."
+                "AGPLv3, self-hostable."
             ),
             "sameAs": [GITHUB_URL],
         },

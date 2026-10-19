@@ -2,7 +2,7 @@
 
 > **Open-source file conversion & compression you can read, run, and self-host.**
 
-Convert images, documents, audio, video, and spreadsheets; compress to an exact
+Convert images, documents, audio, video, and spreadsheets; compress images to a
 target size. AGPL-3.0, EU-hostable, stateless. Web UI + REST API. The full engine
 is free with **no feature gates** — self-host it via Docker, or use the hosted
 instance at [filemorph.io](https://filemorph.io). Integrable by any service via REST API.
@@ -84,8 +84,10 @@ FileMorph runs in three editions, all built from this repository:
 PDF/A-2b output, the default-on EXIF/XMP/IPTC strip and the `X-Output-SHA256`
 header are part of the AGPL engine and work in every edition; the hash-chained
 audit log is AGPL code too and records whenever `DATABASE_URL` is set (Cloud
-overlay). What the Compliance Edition adds is the commercial licence, a DPA, a
+overlay). What the Compliance Edition adds is the commercial licence, a
 support SLA and a liable contact — see [`COMMERCIAL-LICENSE.md`](COMMERCIAL-LICENSE.md).
+Self-hosted, you run FileMorph yourself: there is no data processing on
+your behalf, so no DPA is needed ([`docs/dpa-template.md`](docs/dpa-template.md) § 1).
 
 The README and `docs/` are written for the **Community** edition. The
 Cloud-Edition features (account registration, Stripe checkout, admin
@@ -108,14 +110,19 @@ gates. Hosted plans on [filemorph.io](https://filemorph.io) add convenience
 plus contracts for regulated administration.
 
 **Hosted plans (filemorph.io)** — prices without VAT (the operator is a small
-business under §19 UStG, Germany). Pre-launch: the Free tier is live; paid
-checkout goes live once payment processing is set up. Self-hosting is always free.
+business under §19 UStG, Germany). Paid plans are currently not available: Pro
+and Business can't be booked; anonymous use and the Free plan work. Self-hosting
+is always free.
 
 | Plan | Price | File size | Batch | API calls/mo | Concurrency |
 |---|---|---|---|---|---|
 | Free | €0 | 100 MB | 10 | 1,000 | 1 |
 | Pro | €3/mo | 250 MB | 50 | 25,000 | 3 |
-| Business | €9/mo | 500 MB | 150 | 200,000 | 6 |
+| Business | €9/mo | 500 MB | 150 | 200,000 | 4 |
+
+All plans share the server's parallel slots (`MAX_GLOBAL_CONCURRENCY`), so no
+plan runs more requests at once than that; the per-minute rate limit is the
+same for every plan.
 
 **Compliance Edition** (self-hosted + commercial licence) — for DACH Behörden,
 Krankenhäuser, Anwaltskanzleien; data stays behind your firewall.
@@ -126,13 +133,14 @@ Krankenhäuser, Anwaltskanzleien; data stays behind your firewall.
 | Standard | 3 servers, ≤ 2,000 staff | €7,490 |
 | Enterprise | unlimited servers, custom SLA | from €24,900 |
 
-Includes the commercial licence, an Art. 28 GDPR DPA template, the SHA-256 audit
-log, PDF/A-2b (veraPDF CI-gated), default-on EXIF/XMP strip, and signed images
-(cosign) + SBOM. See [`/enterprise`](https://filemorph.io/enterprise) and
+Includes the commercial licence, the SHA-256 audit log, PDF/A-2b (veraPDF
+CI-gated), default-on EXIF/XMP strip, and signed images (cosign) + SBOM. See
+[`/enterprise`](https://filemorph.io/enterprise) and
 [`COMMERCIAL-LICENSE.md`](COMMERCIAL-LICENSE.md). Internal use by an authority is
-already free under AGPL — the Compliance Edition sells accountability (DPA, SLA,
-a liable EU contact), not permission. The audit log, PDF/A-2b and the EXIF/XMP
-strip in that list are the same AGPL code every edition runs.
+already free under AGPL — the Compliance Edition sells accountability (SLA,
+a liable EU contact), not permission. The audit log, PDF/A-2b, the EXIF/XMP
+strip and the signed images in that list are the same AGPL code and builds
+every edition runs.
 
 > **Honest maturity:** no external audit or ISO 27001 certification yet (both a
 > Year-2 roadmap item). The newest tagged release is v1.2.0 (October 2026),
@@ -160,7 +168,7 @@ Images: JPG, PNG, WebP, AVIF, TIFF · Video: MP4, MOV, AVI, MKV, WebM
 Compress mode supports both *by quality %* and *by target size MB*.
 Target-size compression covers the lossy image formats (JPEG, WebP, AVIF); AVIF/AV1 encode is more CPU-intensive than JPEG/WebP.
 
-**PDF tools:** split a PDF into single-page files, extract a page range, or compress toward a target size — via the web UI (`/pdf/split`, `/pdf/extract`, `/pdf/compress`) or the API; see [docs/formats.md](docs/formats.md#pdf-structural-operations). Image compression to an exact target size (video too, by quality) has its own page at `/compress`. All tool pages are listed at `/tools`.
+**PDF tools:** split a PDF into single-page files, extract a page range, or compress toward a target size — via the web UI (`/pdf/split`, `/pdf/extract`, `/pdf/compress`) or the API; see [docs/formats.md](docs/formats.md#pdf-structural-operations). Image compression to a target size (video too, by quality) has its own page at `/compress`. All tool pages are listed at `/tools`.
 
 <sup>†</sup> Full PDF/A-2b conformance (passes
 [veraPDF](https://verapdf.org/) validation) requires
@@ -323,9 +331,10 @@ open http://localhost:8000/docs
 
 For **procurement reviewers and DPOs** evaluating the Compliance Edition:
 [`COMMERCIAL-LICENSE.md`](COMMERCIAL-LICENSE.md) (dual-license model, tiers,
-licensing-vs-AGPL boundary) and
-[`docs/dpa-template.md`](docs/dpa-template.md) (Article 28 GDPR DPA
-skeleton) are the canonical entry points — both link out to the supporting
+licensing-vs-AGPL boundary) is the canonical entry point. A self-hosted
+deployment involves no data processing on your behalf; the Article 28 DPA
+skeleton in [`docs/dpa-template.md`](docs/dpa-template.md) applies only where
+it does (its §1). The supporting
 artefacts: [`docs/dpa-tom-annex.md`](docs/dpa-tom-annex.md) (Art. 32 TOMs),
 [`docs/records-of-processing-template.md`](docs/records-of-processing-template.md)
 (Art. 30 RoPA), [`docs/sub-processors.md`](docs/sub-processors.md),

@@ -128,8 +128,8 @@ def test_compress_page_honest_limits_and_faq_render(client):
 
 
 def test_compress_page_states_which_formats_support_target_size(client):
-    """Claims-discipline guard (project motto: never overclaim). Exact
-    target-size compression works for JPEG/WebP/AVIF — verified against
+    """Claims-discipline guard (project motto: never overclaim).
+    Target-size compression works for JPEG/WebP/AVIF — verified against
     TARGET_SIZE_FORMATS in app/compressors/image.py and the JS constant in
     app/static/js/app.js (tests/test_target_size_formats_parity.py pins the
     two equal), and app/compressors/video.py (no target_bytes parameter at
@@ -148,7 +148,7 @@ def test_compress_page_states_which_formats_support_target_size(client):
     assert "so a large photo can take a minute or more" in en
     assert "PNG, TIFF and video" in en and "take a target size" in en
     assert "no byte-exact target" in en
-    assert "AVIF-Bilder; die erreichte Größe" in de  # limits
+    assert "AVIF-Bilder. Das Ergebnis kann bis zu 3 %" in de  # limits
     assert "AVIF-Bilder — die Engine" in de  # FAQ
     assert "daher kann ein großes Foto eine Minute oder länger brauchen" in de
     assert "PNG, TIFF und Video nehmen keine Zielgröße entgegen" in de

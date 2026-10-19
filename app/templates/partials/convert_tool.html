@@ -63,17 +63,17 @@
          On the homepage both lists must match /api/v1/formats — enforced
          by tests/test_homepage_drop_zone_modes.py. #}
       {% if preset_source %}
-      <p id="supported-convert" class="text-xs text-gray-700 mt-2">
+      <p id="supported-convert" class="text-xs text-ink-muted mt-2">
         {{ _('Supported:') }} {{ preset_source|upper }}
       </p>
       {% else %}
-      <p id="supported-convert" class="text-xs text-gray-700 mt-2">
+      <p id="supported-convert" class="text-xs text-ink-muted mt-2">
         {{ _('Supported:') }} HEIC · HEIF · JPG · PNG · WebP · AVIF · BMP · TIFF · GIF · ICO<br>
         DOCX · PDF · TXT · MD · HTML · EML · XLSX · CSV · JSON<br>
         MP4 · MOV · AVI · MKV · WebM · FLV · WMV<br>
         MP3 · WAV · FLAC · OGG · M4A · AAC · WMA · OPUS
       </p>
-      <p id="supported-compress" class="hidden text-xs text-gray-700 mt-2">
+      <p id="supported-compress" class="hidden text-xs text-ink-muted mt-2">
         {{ _('Supported:') }} JPG · PNG · WebP · AVIF · TIFF<br>
         MP4 · MOV · AVI · MKV · WebM
       </p>
@@ -189,9 +189,9 @@
     </label>
     <input id="target-size-input" type="number" min="0.05" step="0.1" value="2.0"
       class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-brand" />
-    <div class="flex justify-between text-xs text-gray-600">
+    <div class="flex justify-between text-xs text-ink-muted">
       <span>{{ _('min 0.05 MB') }}</span>
-      <span>{{ _('±3% tolerance') }}</span>
+      <span>{{ _('result can be up to 3 % above') }}</span>
     </div>
     <p id="target-size-avif-hint" class="hidden text-xs text-sky-300 bg-sky-950/40 border border-sky-900/50 rounded-lg px-3 py-2 leading-relaxed">{{ _('AVIF takes noticeably longer — a large photo can take a minute or more, so keep AVIF batches small.') }}</p>
   </div>

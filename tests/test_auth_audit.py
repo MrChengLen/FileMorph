@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """NEU-B.3 (slice a): auth events land in the audit chain.
 
-ISO 27001 A.9.4.2 ("Secure log-on procedures") and A.9.2.1
-("User registration and de-registration") expect successful and
+ISO/IEC 27001:2022 A.8.5 ("Secure authentication") and A.5.16
+("Identity management") expect successful and
 failed authentication events to leave a tamper-evident trail.
 NEU-B.1 shipped the chain itself; this slice wires four routes —
 ``/auth/register``, ``/auth/login``, ``/auth/forgot-password``,

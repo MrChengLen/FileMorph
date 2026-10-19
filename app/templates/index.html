@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ _('Free Online File Converter & Compressor') }} | FileMorph{% endblock %}
-{% block meta_description %}{{ _('Convert & compress files online free — HEIC, JPG, PNG, WebP, PDF, DOCX, MP4 & more. Hit an exact target size. No account, open source.') }}{% endblock %}
+{% block meta_description %}{{ _('Convert & compress files online free — HEIC, JPG, PNG, WebP, PDF, DOCX, MP4 & more. Shrink images to a target size. No account, open source.') }}{% endblock %}
 {% block content %}
 
 <div class="min-h-full flex flex-col">
@@ -20,11 +20,12 @@
       <!-- Interactive convert/compress tool (shared partial — see convert_pair.html) -->
       {% include "partials/convert_tool.html" %}
 
-      <!-- Footer note -->
-      <p class="text-center text-xs text-gray-700">
+      <!-- Footer note — text-ink-muted keeps it at WCAG AA (≈ 7.9 : 1 on the
+           page background; pinned by tests/test_public_claims.py). -->
+      <p class="text-center text-xs text-ink-muted">
         {{ _('Files are processed server-side and deleted immediately after conversion.') }}
         <a href="https://github.com/MrChengLen/FileMorph" target="_blank"
-          class="text-gray-600 hover:text-gray-400 transition-colors ml-1">{{ _('GitHub ↗') }}</a>
+          class="text-ink-muted underline hover:text-ink transition-colors ml-1">{{ _('GitHub ↗') }}</a>
       </p>
 
       <!-- Self-Hosted / Open-Source promotion — the canonical product
@@ -51,7 +52,7 @@
           <li class="flex items-start gap-1.5"><span class="text-emerald-400 shrink-0" aria-hidden="true">✓</span> {{ _('Signed releases + CycloneDX SBOM') }}</li>
           <li class="flex items-start gap-1.5"><span class="text-emerald-400 shrink-0" aria-hidden="true">✓</span> {{ _('Tamper-evident audit-log hash chain') }}</li>
           <li class="flex items-start gap-1.5"><span class="text-emerald-400 shrink-0" aria-hidden="true">✓</span> {{ _('PDF/A-2b (veraPDF-validated)') }}</li>
-          <li class="flex items-start gap-1.5"><span class="text-emerald-400 shrink-0" aria-hidden="true">✓</span> {{ _('EU hosting, German imprint') }}</li>
+          <li class="flex items-start gap-1.5"><span class="text-emerald-400 shrink-0" aria-hidden="true">✓</span> {{ _('EU vendor with German imprint') }}</li>
         </ul>
         <div class="flex flex-wrap items-center gap-3 pt-1">
           <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/self-hosting.md"
@@ -61,7 +62,7 @@
           </a>
           {% if pricing_enabled %}
           <a href="{{ localized_url('/enterprise', current_prefix) }}"
-             class="text-xs text-brand hover:underline">{{ _('Need a DPA & SLA? Compliance Edition →') }}</a>
+             class="text-xs text-brand hover:underline">{{ _('Need a commercial license & SLA? Compliance Edition →') }}</a>
           {% endif %}
         </div>
       </section>
@@ -135,9 +136,8 @@
               <tr class="border-b border-gray-800/60"><td class="py-1.5 pr-2 text-gray-400">{{ _('Open source (AGPLv3)') }}</td><td class="text-center text-emerald-400">✓</td><td class="text-center text-gray-600">{{ _('rare') }}</td></tr>
               <tr class="border-b border-gray-800/60"><td class="py-1.5 pr-2 text-gray-400">{{ _('Self-hostable (Docker)') }}</td><td class="text-center text-emerald-400">✓</td><td class="text-center text-gray-600">{{ _('rare') }}</td></tr>
               <tr class="border-b border-gray-800/60"><td class="py-1.5 pr-2 text-gray-400">{{ _('No account required') }}</td><td class="text-center text-emerald-400">✓</td><td class="text-center text-gray-600">{{ _('often required') }}</td></tr>
-              <tr class="border-b border-gray-800/60"><td class="py-1.5 pr-2 text-gray-400">{{ _('EU hosting, GDPR-friendly') }}</td><td class="text-center text-emerald-400">✓</td><td class="text-center text-gray-600">{{ _('varies') }}</td></tr>
               <tr class="border-b border-gray-800/60"><td class="py-1.5 pr-2 text-gray-400">{{ _('Files deleted right after conversion') }}</td><td class="text-center text-emerald-400">✓</td><td class="text-center text-gray-600">{{ _('varies') }}</td></tr>
-              <tr class="border-b border-gray-800/60"><td class="py-1.5 pr-2 text-gray-400">{{ _('Compress to an exact target size') }}</td><td class="text-center text-emerald-400">✓</td><td class="text-center text-gray-600">{{ _('rare') }}</td></tr>
+              <tr class="border-b border-gray-800/60"><td class="py-1.5 pr-2 text-gray-400">{{ _('Compress images to a target size') }}</td><td class="text-center text-emerald-400">✓</td><td class="text-center text-gray-600">{{ _('varies') }}</td></tr>
               <tr><td class="py-1.5 pr-2 text-gray-400">{{ _('REST API included') }}</td><td class="text-center text-emerald-400">✓</td><td class="text-center text-gray-600">{{ _('often paid') }}</td></tr>
             </tbody>
           </table>
@@ -160,7 +160,7 @@
           </div>
           <div>
             <h3 class="font-semibold text-gray-200">{{ _('Are my files private?') }}</h3>
-            <p class="text-gray-400">{{ _('Files are processed server-side and deleted immediately after conversion — temporary files use random names and are swept within minutes. Hosting is in the EU, there are no trackers, and no account is required.') }}</p>
+            <p class="text-gray-400">{{ _('Files are processed server-side and deleted immediately after conversion — temporary files use random names and are swept within minutes.') }}{% if pricing_enabled %} {% include "partials/hosting_note.html" %}.{% endif %} {{ _('There are no trackers, and no account is required.') }}</p>
           </div>
           <div>
             {# The format list must match the converter registry — pinned (EN + DE)
@@ -169,8 +169,8 @@
             <p class="text-gray-400">{{ _('Images (HEIC, HEIF, JPG, PNG, WebP, AVIF, BMP, TIFF, GIF, ICO), documents (DOCX, PDF, TXT, Markdown, HTML, EML), spreadsheets (XLSX, CSV, JSON), audio (MP3, WAV, FLAC, OGG, M4A, AAC, WMA, Opus) and video (MP4, MOV, AVI, MKV, WebM, FLV, WMV).') }}</p>
           </div>
           <div>
-            <h3 class="font-semibold text-gray-200">{{ _('Can I compress a file to an exact size?') }}</h3>
-            <p class="text-gray-400">{{ _('Yes. FileMorph can compress JPEG, WebP and AVIF images to a target size (for example 5 MB) using a binary search, hitting the target within about ±3 %.') }}</p>
+            <h3 class="font-semibold text-gray-200">{{ _('Can I compress a file to a target size?') }}</h3>
+            <p class="text-gray-400">{{ _('Yes. FileMorph can compress JPEG, WebP and AVIF images to a target size (for example 5 MB) using a binary search. The result can end up to 3 % above the target — a 5 MB target can give up to 5.15 MB — so leave a little room below a hard upload limit. An image that can\'t get that small comes back as small as it gets.') }}</p>
           </div>
           <div>
             <h3 class="font-semibold text-gray-200">{{ _('Can I self-host FileMorph or use it as an API?') }}</h3>

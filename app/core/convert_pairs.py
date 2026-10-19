@@ -52,7 +52,7 @@ PAIR_CONTENT: dict[tuple[str, str], dict[str, dict]] = {
     ("heic", "jpg"): {
         "en": {
             "title": "Convert HEIC to JPG online — free",
-            "meta": "Convert iPhone HEIC photos to JPG online for free, no account. Universal compatibility for sharing and editing. Files deleted right after conversion, EU-hosted.",
+            "meta": "Convert iPhone HEIC photos to JPG online for free, no account. Universal compatibility for sharing and editing. Files deleted right after conversion.",
             "h1": "Convert HEIC to JPG",
             "hero": "Turn iPhone & Apple HEIC photos into universally compatible JPG.",
             "when": "HEIC is Apple's efficient default photo format, but many websites, Windows apps and older programs can't open it. Convert to JPG when you need a photo that opens everywhere — for uploads, email attachments or editing in software that rejects HEIC.",
@@ -74,7 +74,7 @@ PAIR_CONTENT: dict[tuple[str, str], dict[str, dict]] = {
         },
         "de": {
             "title": "HEIC in JPG umwandeln — kostenlos",
-            "meta": "iPhone-HEIC-Fotos kostenlos online in JPG umwandeln, ohne Konto. Universell kompatibel zum Teilen und Bearbeiten. Dateien sofort gelöscht, EU-gehostet.",
+            "meta": "iPhone-HEIC-Fotos kostenlos online in JPG umwandeln, ohne Konto. Universell kompatibel zum Teilen und Bearbeiten. Dateien sofort gelöscht.",
             "h1": "HEIC in JPG umwandeln",
             "hero": "iPhone- & Apple-HEIC-Fotos in universell kompatibles JPG umwandeln.",
             "when": "HEIC ist Apples effizientes Standard-Fotoformat, aber viele Websites, Windows-Programme und ältere Software können es nicht öffnen. Wandle in JPG um, wenn du ein Foto brauchst, das überall funktioniert — für Uploads, E-Mail-Anhänge oder die Bearbeitung in Programmen, die HEIC ablehnen.",
@@ -98,7 +98,7 @@ PAIR_CONTENT: dict[tuple[str, str], dict[str, dict]] = {
     ("jpg", "pdf"): {
         "en": {
             "title": "Convert JPG to PDF online — free",
-            "meta": "Convert JPG images to PDF online for free, no account. Turn photos and scans into a tidy PDF document. Files deleted right after conversion, EU-hosted.",
+            "meta": "Convert JPG images to PDF online for free, no account. Turn photos and scans into a tidy PDF document. Files deleted right after conversion.",
             "h1": "Convert JPG to PDF",
             "hero": "Turn a JPG photo or scan into a single-page PDF document.",
             "when": "Convert JPG to PDF when you need to submit a photo or scan as a document — for forms, applications, receipts or archiving. PDF opens identically on every device and is the expected format for official paperwork.",
@@ -120,7 +120,7 @@ PAIR_CONTENT: dict[tuple[str, str], dict[str, dict]] = {
         },
         "de": {
             "title": "JPG in PDF umwandeln — kostenlos",
-            "meta": "JPG-Bilder kostenlos online in PDF umwandeln, ohne Konto. Fotos und Scans in ein sauberes PDF-Dokument verwandeln. Dateien sofort gelöscht, EU-gehostet.",
+            "meta": "JPG-Bilder kostenlos online in PDF umwandeln, ohne Konto. Fotos und Scans in ein sauberes PDF-Dokument verwandeln. Dateien sofort gelöscht.",
             "h1": "JPG in PDF umwandeln",
             "hero": "Ein JPG-Foto oder einen Scan in ein einseitiges PDF-Dokument umwandeln.",
             "when": "Wandle JPG in PDF um, wenn du ein Foto oder einen Scan als Dokument einreichen musst — für Formulare, Anträge, Belege oder die Archivierung. PDF öffnet sich auf jedem Gerät gleich und ist das erwartete Format für offizielle Unterlagen.",
@@ -144,7 +144,7 @@ PAIR_CONTENT: dict[tuple[str, str], dict[str, dict]] = {
     ("png", "pdf"): {
         "en": {
             "title": "Convert PNG to PDF online — free",
-            "meta": "Convert PNG images to PDF online for free, no account. Ideal for screenshots, diagrams and logos. Files deleted right after conversion, EU-hosted, open source.",
+            "meta": "Convert PNG images to PDF online for free, no account. Ideal for screenshots, diagrams and logos. Files deleted right after conversion, open source.",
             "h1": "Convert PNG to PDF",
             "hero": "Turn a PNG screenshot, diagram or logo into a PDF document.",
             "when": "Convert PNG to PDF when you want to share a screenshot, diagram or logo as a clean, printable document that looks the same everywhere. PDF is ideal for attaching crisp graphics to emails or submitting them as paperwork.",
@@ -166,7 +166,7 @@ PAIR_CONTENT: dict[tuple[str, str], dict[str, dict]] = {
         },
         "de": {
             "title": "PNG in PDF umwandeln — kostenlos",
-            "meta": "PNG-Bilder kostenlos online in PDF umwandeln, ohne Konto. Ideal für Screenshots, Diagramme und Logos. Dateien sofort gelöscht, EU-gehostet, Open Source.",
+            "meta": "PNG-Bilder kostenlos online in PDF umwandeln, ohne Konto. Ideal für Screenshots, Diagramme und Logos. Dateien sofort gelöscht, Open Source.",
             "h1": "PNG in PDF umwandeln",
             "hero": "Einen PNG-Screenshot, ein Diagramm oder Logo in ein PDF-Dokument umwandeln.",
             "when": "Wandle PNG in PDF um, wenn du einen Screenshot, ein Diagramm oder Logo als sauberes, druckbares Dokument teilen willst, das überall gleich aussieht. PDF eignet sich ideal, um gestochen scharfe Grafiken an E-Mails zu hängen oder als Unterlage einzureichen.",
@@ -190,7 +190,7 @@ PAIR_CONTENT: dict[tuple[str, str], dict[str, dict]] = {
     ("heic", "pdf"): {
         "en": {
             "title": "Convert HEIC to PDF online — free",
-            "meta": "Convert iPhone HEIC photos to PDF online for free, no account. Submit photos as documents without the HEIC→JPG detour. Files deleted right after, EU-hosted.",
+            "meta": "Convert iPhone HEIC photos to PDF online for free, no account. Submit photos as documents without the HEIC→JPG detour. Files deleted right after.",
             "h1": "Convert HEIC to PDF",
             "hero": "Turn an iPhone HEIC photo straight into a PDF document.",
             "when": "Convert HEIC to PDF when you need to submit an iPhone photo as a document — a receipt, an ID scan, a form — without first converting to JPG. PDF is what most upload portals and offices expect.",
@@ -212,7 +212,7 @@ PAIR_CONTENT: dict[tuple[str, str], dict[str, dict]] = {
         },
         "de": {
             "title": "HEIC in PDF umwandeln — kostenlos",
-            "meta": "iPhone-HEIC-Fotos kostenlos online in PDF umwandeln, ohne Konto. Fotos als Dokument einreichen — ohne Umweg über JPG. Dateien sofort gelöscht, EU-gehostet.",
+            "meta": "iPhone-HEIC-Fotos kostenlos online in PDF umwandeln, ohne Konto. Fotos als Dokument einreichen — ohne Umweg über JPG. Dateien sofort gelöscht.",
             "h1": "HEIC in PDF umwandeln",
             "hero": "Ein iPhone-HEIC-Foto direkt in ein PDF-Dokument umwandeln.",
             "when": "Wandle HEIC in PDF um, wenn du ein iPhone-Foto als Dokument einreichen musst — einen Beleg, einen Ausweis-Scan, ein Formular — ohne den Umweg über JPG. PDF erwarten die meisten Upload-Portale und Behörden.",
@@ -236,7 +236,7 @@ PAIR_CONTENT: dict[tuple[str, str], dict[str, dict]] = {
     ("png", "jpg"): {
         "en": {
             "title": "Convert PNG to JPG online — free",
-            "meta": "Convert PNG to JPG online for free, no account. Shrink screenshots and photos for web and email. Files deleted right after conversion, EU-hosted, open source.",
+            "meta": "Convert PNG to JPG online for free, no account. Shrink screenshots and photos for web and email. Files deleted right after conversion, open source.",
             "h1": "Convert PNG to JPG",
             "hero": "Shrink a PNG into a smaller, widely compatible JPG.",
             "when": "Convert PNG to JPG when file size matters more than transparency — photos and screenshots for email, web pages or uploads with size limits. JPG's lossy compression makes the file far smaller.",
@@ -258,7 +258,7 @@ PAIR_CONTENT: dict[tuple[str, str], dict[str, dict]] = {
         },
         "de": {
             "title": "PNG in JPG umwandeln — kostenlos",
-            "meta": "PNG kostenlos online in JPG umwandeln, ohne Konto. Screenshots und Fotos für Web und E-Mail verkleinern. Dateien sofort gelöscht, EU-gehostet, Open Source.",
+            "meta": "PNG kostenlos online in JPG umwandeln, ohne Konto. Screenshots und Fotos für Web und E-Mail verkleinern. Dateien sofort gelöscht, Open Source.",
             "h1": "PNG in JPG umwandeln",
             "hero": "Ein PNG in ein kleineres, breit kompatibles JPG verkleinern.",
             "when": "Wandle PNG in JPG um, wenn die Dateigröße wichtiger ist als Transparenz — Fotos und Screenshots für E-Mail, Webseiten oder Uploads mit Größenlimit. Die verlustbehaftete JPG-Kompression macht die Datei deutlich kleiner.",
@@ -282,7 +282,7 @@ PAIR_CONTENT: dict[tuple[str, str], dict[str, dict]] = {
     ("jpg", "png"): {
         "en": {
             "title": "Convert JPG to PNG online — free",
-            "meta": "Convert JPG to PNG online for free, no account. Lossless format for editing and transparency. Note: PNG files are larger. EU-hosted, files deleted right after.",
+            "meta": "Convert JPG to PNG online for free, no account. Lossless format for editing and transparency. Note: PNG files are larger. Files deleted right after.",
             "h1": "Convert JPG to PNG",
             "hero": "Convert a JPG into a lossless PNG for editing or transparency.",
             "when": "Convert JPG to PNG when you need a lossless copy for further editing, or a format that supports transparency. Useful before layering graphics, adding a transparent background in an editor, or when a tool requires PNG input.",
@@ -304,7 +304,7 @@ PAIR_CONTENT: dict[tuple[str, str], dict[str, dict]] = {
         },
         "de": {
             "title": "JPG in PNG umwandeln — kostenlos",
-            "meta": "JPG kostenlos online in PNG umwandeln, ohne Konto. Verlustfreies Format für Bearbeitung und Transparenz. Hinweis: PNG ist größer. EU-gehostet, sofort gelöscht.",
+            "meta": "JPG kostenlos online in PNG umwandeln, ohne Konto. Verlustfreies Format für Bearbeitung und Transparenz. Hinweis: PNG ist größer. Sofort gelöscht.",
             "h1": "JPG in PNG umwandeln",
             "hero": "Ein JPG in ein verlustfreies PNG für Bearbeitung oder Transparenz umwandeln.",
             "when": "Wandle JPG in PNG um, wenn du eine verlustfreie Kopie zum Weiterbearbeiten oder ein Format mit Transparenz brauchst. Praktisch vor dem Überlagern von Grafiken, dem Freistellen im Editor oder wenn ein Tool PNG verlangt.",
@@ -350,7 +350,7 @@ PAIR_CONTENT: dict[tuple[str, str], dict[str, dict]] = {
         },
         "de": {
             "title": "WebP in JPG umwandeln — kostenlos",
-            "meta": "WebP kostenlos online in JPG umwandeln, ohne Konto. Universell kompatibel für Apps und Software ohne WebP-Unterstützung. Sofort gelöscht, EU-gehostet.",
+            "meta": "WebP kostenlos online in JPG umwandeln, ohne Konto. Universell kompatibel für Apps und Software ohne WebP-Unterstützung. Sofort gelöscht.",
             "h1": "WebP in JPG umwandeln",
             "hero": "Ein modernes WebP-Bild in ein universell unterstütztes JPG umwandeln.",
             "when": "Wandle WebP in JPG um, wenn eine App, ein Editor oder ein älteres Programm WebP nicht öffnet. Viele Downloads kommen heute als WebP; JPG ist der sichere Fallback, der praktisch überall funktioniert.",
@@ -374,7 +374,7 @@ PAIR_CONTENT: dict[tuple[str, str], dict[str, dict]] = {
     ("jpg", "webp"): {
         "en": {
             "title": "Convert JPG to WebP online — free",
-            "meta": "Convert JPG to WebP online for free, no account. Smaller files for faster websites at the same quality. Files deleted right after conversion, EU-hosted.",
+            "meta": "Convert JPG to WebP online for free, no account. Smaller files for faster websites at the same quality. Files deleted right after conversion.",
             "h1": "Convert JPG to WebP",
             "hero": "Convert a JPG to WebP for smaller, faster-loading web images.",
             "when": "Convert JPG to WebP when you're optimising images for the web. WebP delivers the same visual quality at a noticeably smaller size, which speeds up page loads and saves bandwidth.",
@@ -396,7 +396,7 @@ PAIR_CONTENT: dict[tuple[str, str], dict[str, dict]] = {
         },
         "de": {
             "title": "JPG in WebP umwandeln — kostenlos",
-            "meta": "JPG kostenlos online in WebP umwandeln, ohne Konto. Kleinere Dateien für schnellere Websites bei gleicher Qualität. Dateien sofort gelöscht, EU-gehostet.",
+            "meta": "JPG kostenlos online in WebP umwandeln, ohne Konto. Kleinere Dateien für schnellere Websites bei gleicher Qualität. Dateien sofort gelöscht.",
             "h1": "JPG in WebP umwandeln",
             "hero": "Ein JPG in WebP für kleinere, schneller ladende Web-Bilder umwandeln.",
             "when": "Wandle JPG in WebP um, wenn du Bilder fürs Web optimierst. WebP liefert die gleiche sichtbare Qualität bei spürbar kleinerer Größe, was Ladezeiten verkürzt und Bandbreite spart.",
@@ -420,7 +420,7 @@ PAIR_CONTENT: dict[tuple[str, str], dict[str, dict]] = {
     ("png", "webp"): {
         "en": {
             "title": "Convert PNG to WebP online — free",
-            "meta": "Convert PNG to WebP online for free, no account. Much smaller web images that keep transparency. Files deleted right after conversion, EU-hosted, open source.",
+            "meta": "Convert PNG to WebP online for free, no account. Much smaller web images that keep transparency. Files deleted right after conversion, open source.",
             "h1": "Convert PNG to WebP",
             "hero": "Convert a PNG to WebP for smaller web images that keep transparency.",
             "when": "Convert PNG to WebP when you want smaller web graphics without giving up transparency. WebP supports an alpha channel like PNG but compresses far better — ideal for logos, icons and UI assets on a website.",
@@ -442,7 +442,7 @@ PAIR_CONTENT: dict[tuple[str, str], dict[str, dict]] = {
         },
         "de": {
             "title": "PNG in WebP umwandeln — kostenlos",
-            "meta": "PNG kostenlos online in WebP umwandeln, ohne Konto. Viel kleinere Web-Bilder mit erhaltener Transparenz. Dateien sofort gelöscht, EU-gehostet, Open Source.",
+            "meta": "PNG kostenlos online in WebP umwandeln, ohne Konto. Viel kleinere Web-Bilder mit erhaltener Transparenz. Dateien sofort gelöscht, Open Source.",
             "h1": "PNG in WebP umwandeln",
             "hero": "Ein PNG in WebP für kleinere Web-Bilder mit erhaltener Transparenz umwandeln.",
             "when": "Wandle PNG in WebP um, wenn du kleinere Web-Grafiken willst, ohne auf Transparenz zu verzichten. WebP unterstützt wie PNG einen Alphakanal, komprimiert aber deutlich besser — ideal für Logos, Icons und UI-Elemente auf einer Website.",
@@ -466,7 +466,7 @@ PAIR_CONTENT: dict[tuple[str, str], dict[str, dict]] = {
     ("docx", "pdf"): {
         "en": {
             "title": "Convert DOCX to PDF online — free",
-            "meta": "Convert Word DOCX to PDF online for free, no account. Lock the layout for sharing, printing and archiving. Files deleted right after conversion, EU-hosted.",
+            "meta": "Convert Word DOCX to PDF online for free, no account. Lock the layout for sharing, printing and archiving. Files deleted right after conversion.",
             "h1": "Convert DOCX to PDF",
             "hero": "Turn a Word document into a fixed-layout PDF for sharing.",
             "when": "Convert DOCX to PDF when you need to share or submit a Word document that looks identical on every device — CVs, contracts, reports and official forms. PDF prevents the layout from shifting between Word versions.",
@@ -488,7 +488,7 @@ PAIR_CONTENT: dict[tuple[str, str], dict[str, dict]] = {
         },
         "de": {
             "title": "DOCX in PDF umwandeln — kostenlos",
-            "meta": "Word-DOCX kostenlos online in PDF umwandeln, ohne Konto. Layout fixieren zum Teilen, Drucken und Archivieren. Dateien sofort gelöscht, EU-gehostet.",
+            "meta": "Word-DOCX kostenlos online in PDF umwandeln, ohne Konto. Layout fixieren zum Teilen, Drucken und Archivieren. Dateien sofort gelöscht.",
             "h1": "DOCX in PDF umwandeln",
             "hero": "Ein Word-Dokument in ein layouttreues PDF zum Teilen umwandeln.",
             "when": "Wandle DOCX in PDF um, wenn du ein Word-Dokument teilen oder einreichen musst, das auf jedem Gerät identisch aussieht — Lebensläufe, Verträge, Berichte und offizielle Formulare. PDF verhindert, dass das Layout zwischen Word-Versionen verrutscht.",
@@ -534,7 +534,7 @@ PAIR_CONTENT: dict[tuple[str, str], dict[str, dict]] = {
         },
         "de": {
             "title": "HTML in PDF umwandeln — kostenlos",
-            "meta": "HTML kostenlos online in PDF umwandeln, ohne Konto. Eine Webseite oder einen Bericht als layouttreues PDF archivieren. Keine externen Ressourcen. EU-gehostet.",
+            "meta": "HTML kostenlos online in PDF umwandeln, ohne Konto. Eine Webseite oder einen Bericht als layouttreues PDF archivieren. Keine externen Ressourcen.",
             "h1": "HTML in PDF umwandeln",
             "hero": "Eine HTML-Datei in ein layouttreues PDF-Dokument rendern.",
             "when": "Wandle HTML in PDF um, wenn du eine Webseite, Rechnung oder einen Bericht als stabiles, teilbares Dokument archivieren willst. Praktisch für Belege, Offline-Lesen und das Anhängen gerenderter Ausgaben an E-Mails.",
@@ -558,7 +558,7 @@ PAIR_CONTENT: dict[tuple[str, str], dict[str, dict]] = {
     ("eml", "pdf"): {
         "en": {
             "title": "Convert EML email to PDF — free",
-            "meta": "Convert .eml email to PDF online for free, no account. Archive emails as PDF with headers and body for records. No tracking pixels fetched. EU-hosted.",
+            "meta": "Convert .eml email to PDF online for free, no account. Archive emails as PDF with headers and body for records. No tracking pixels fetched.",
             "h1": "Convert EML (email) to PDF",
             "hero": "Save an .eml email as a PDF with its headers and body.",
             "when": "Convert EML to PDF when you need to archive or submit an email as a document — for records, expense claims, legal evidence or compliance. PDF is the stable format reviewers and archives expect.",
@@ -580,7 +580,7 @@ PAIR_CONTENT: dict[tuple[str, str], dict[str, dict]] = {
         },
         "de": {
             "title": "EML-E-Mail in PDF umwandeln — gratis",
-            "meta": ".eml-E-Mails kostenlos online in PDF umwandeln, ohne Konto. E-Mails mit Kopfzeilen und Text als PDF archivieren. Keine Tracking-Pixel. EU-gehostet.",
+            "meta": ".eml-E-Mails kostenlos online in PDF umwandeln, ohne Konto. E-Mails mit Kopfzeilen und Text als PDF archivieren. Keine Tracking-Pixel.",
             "h1": "EML (E-Mail) in PDF umwandeln",
             "hero": "Eine .eml-E-Mail mit Kopfzeilen und Text als PDF speichern.",
             "when": "Wandle EML in PDF um, wenn du eine E-Mail als Dokument archivieren oder einreichen musst — für Akten, Spesenabrechnungen, Beweismittel oder Compliance. PDF ist das stabile Format, das Prüfstellen und Archive erwarten.",

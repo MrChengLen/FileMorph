@@ -217,7 +217,7 @@ deliberately.
 
 | Library | What it does | Why this | Alternative |
 |---|---|---|---|
-| **stripe** | Stripe Python SDK — Checkout sessions, webhook signature verification, Customer Portal | Stripe is the obvious default for a EU-hosted SaaS in 2026; the Python SDK is the canonical surface. Webhook signatures are verified via `stripe.Webhook.construct_event(...)`. | Paddle (Merchant of Record — handles EU VAT for you, but takes a higher cut; trade-off-discussion not duplicated here), LemonSqueezy (newer MoR, smaller reach) |
+| **stripe** | Stripe Python SDK — Checkout sessions, webhook signature verification, Customer Portal | Stripe is the obvious default for an EU-based SaaS in 2026; the Python SDK is the canonical surface. Webhook signatures are verified via `stripe.Webhook.construct_event(...)`. | Paddle (Merchant of Record — handles EU VAT for you, but takes a higher cut; trade-off-discussion not duplicated here), LemonSqueezy (newer MoR, smaller reach) |
 
 **Webhook coverage status.** `customer.subscription.created`,
 `customer.subscription.updated`, `customer.subscription.deleted` and
