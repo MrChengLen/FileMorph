@@ -76,27 +76,29 @@ logger = logging.getLogger(__name__)
 _PDFA_NAMESPACE = "http://www.aiim.org/pdfa/ns/id/"
 
 
+# The white-space bytes the PDF spec lists (and that Ghostscript skips) before
+# the ``%PDF-`` header: NUL, tab, line feed, form feed, carriage return, space.
+# Stripping exactly these — and no other control bytes — before the header check
+# keeps an accepted file to ``<white-space>* %PDF-``, which Ghostscript also
+# reads as a PDF. See ``_has_pdf_header``.
+_PDF_LEADING_WHITESPACE = b"\x00\t\n\f\r "
+
+
 def _has_pdf_header(path: Path) -> bool:
-    """True if the file presents as a PDF within its first 1024 bytes.
+    """True only if the file's first non-white-space bytes are the ``%PDF-`` header.
 
-    The PDF spec puts the ``%PDF-`` header at the very start of the file;
-    Acrobat accepts it anywhere in the first 1024 bytes, and some generators
-    emit a few leading bytes (a BOM, whitespace) before it, so we scan that
-    window rather than only byte 0. A damaged-but-repairable PDF still carries
-    this header — it is what any reader (Ghostscript included) needs to treat
-    the bytes as a PDF at all.
-
-    Ghostscript in the stage below chooses how to read a file from its leading
-    bytes, so it must only be handed files that present as PDFs: a file that
-    begins (after an optional BOM / whitespace) with the ``%!`` marker presents
-    as PostScript and is refused even if a ``%PDF-`` substring appears further
-    down the window; a file without the header at all is not a PDF this
-    converter can process."""
+    Stage 1 hands the file to Ghostscript, which reads it as a PDF or as a
+    PostScript program from its leading bytes, not from the upload's name. A real
+    PDF carries ``%PDF-`` first, optionally behind the white-space bytes the PDF
+    spec permits there (``_PDF_LEADING_WHITESPACE``). This gate strips exactly
+    those bytes and requires ``%PDF-`` immediately after, so every accepted file
+    is one Ghostscript also reads as a PDF. A file that places any other byte —
+    or a UTF-8 BOM — before the header, or carries no header, is refused even if
+    ``%PDF-`` appears later in the window. A damaged PDF keeps the header at the
+    front, so Ghostscript still gets its repair pass."""
     with path.open("rb") as fh:
         head = fh.read(1024)
-    if head.lstrip(b"\xef\xbb\xbf \t\r\n\f\v")[:2] == b"%!":
-        return False
-    return b"%PDF-" in head
+    return head.lstrip(_PDF_LEADING_WHITESPACE)[:5] == b"%PDF-"
 
 
 def _srgb_icc_bytes() -> bytes:
