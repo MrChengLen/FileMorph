@@ -228,6 +228,11 @@ app = FastAPI(
     ),
     version=settings.app_version,
     lifespan=lifespan,
+    # The built-in /docs and /redoc load their UI from a CDN with an inline
+    # start script, which the CSP blocks. /docs is served by the pages router
+    # from vendored files instead; /redoc is not offered.
+    docs_url=None,
+    redoc_url=None,
 )
 
 # ── Middleware ────────────────────────────────────────────────────────────────
@@ -365,7 +370,6 @@ _PAGE_VIEW_IGNORED_PREFIXES: tuple[str, ...] = (
     "/api/",
     "/docs",
     "/openapi",
-    "/redoc",
     "/robots.txt",
     "/sitemap.xml",
     "/favicon",
@@ -514,6 +518,7 @@ app.include_router(cockpit_route.router, prefix="/api/v1")
 app.include_router(pages.router)  # /, /pricing, /enterprise, ...
 app.include_router(pages.router, prefix="/de")  # /de/, /de/pricing, ...
 app.include_router(pages.router, prefix="/en")  # /en/, /en/pricing, ...
+app.include_router(pages.docs_router)  # /docs only: no /de or /en copy
 
 
 # ── Observability ───────────────────────────────────────────────────────────────

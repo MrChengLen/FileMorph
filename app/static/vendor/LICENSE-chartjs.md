@@ -45,4 +45,5 @@ python -c "import hashlib, pathlib; \
   print(hashlib.sha256(pathlib.Path('app/static/vendor/chart.umd.min.js').read_bytes()).hexdigest())"
 ```
 
-Update both the version number and the SHA-256 above.
+Update both the version number and the SHA-256 above and in
+[`manifest.json`](manifest.json); `tests/test_vendor_manifest.py` checks them.

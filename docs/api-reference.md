@@ -726,8 +726,7 @@ identical figures; this gate is the runtime side of that promise.
 
 FileMorph auto-generates interactive API documentation:
 
-- **Swagger UI**: `http://localhost:8000/docs`
-- **ReDoc**: `http://localhost:8000/redoc`
+- **Swagger UI**: `http://localhost:8000/docs` (served from FileMorph's own origin — a pinned, unmodified copy in `app/static/vendor/`, no CDN)
 - **OpenAPI JSON**: `http://localhost:8000/openapi.json`
 
 The Swagger UI lets you test all endpoints directly in the browser.
