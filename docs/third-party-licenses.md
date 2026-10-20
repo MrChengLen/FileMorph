@@ -227,7 +227,10 @@ BSD-2-Clause, BSD-3-Clause, ISC).
 - **Vendored browser code:** not part of the Python SBOM. Check it against
   [`app/static/vendor/manifest.json`](../app/static/vendor/manifest.json)
   (version, source, licence, SHA-256 per file); `pytest
-  tests/test_vendor_manifest.py` recomputes the hashes.
+  tests/test_vendor_manifest.py` recomputes the hashes, and
+  `python scripts/check_vendor_advisories.py` checks the listed packages,
+  plus the libraries a file's `bundles` field names, against the OSV
+  advisory database, as CI does on every build.
 
 **As of 2026-09-30** a scan of the locked dependency set on `main`
 (`requirements.lock`, with `cyclonedx-py environment --PEP-639` as the release

@@ -71,6 +71,11 @@ your change touches before you push:
   `python scripts/i18n.py drift-check`.
 - **Dependency audit** — `pip-audit -r requirements.lock` (CI adds the
   `--ignore-vuln` flags listed in `ci.yml`).
+- **Vendored browser code audit** — `python scripts/check_vendor_advisories.py`
+  asks the OSV database about every package in
+  `app/static/vendor/manifest.json`, plus the libraries a file's `bundles`
+  field names. An advisory blocks unless the script's `ACCEPTED` list names it
+  for that version with a reason and a review date.
 - **Tests** — `pytest tests/`. CI runs them on Python 3.14 with
   `requirements-dev.txt` constrained to the versions pinned in
   `requirements.lock`, so they test what the Docker image ships.
@@ -98,7 +103,9 @@ workflows passed for it. That counts all of `ci.yml`, not only the required
 checks: `lockfile-drift`, which does not block the merge, holds the deploy
 back while it is red on `main`, and so does a newly published `pip-audit`
 advisory, which can turn `lint-and-test` red on `main` after a green pull
-request.
+request. The vendored-browser-code audit can do the same, and an accepted
+advisory whose review date has passed fails every build, holding the deploy
+back until the update lands.
 
 ---
 

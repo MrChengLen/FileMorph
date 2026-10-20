@@ -185,6 +185,15 @@ jobs:
       - name: Dependency vulnerability scan (pip-audit)
         run: pip-audit -r requirements.lock
 
+      # The vendored browser code in app/static/vendor/ (listed in its
+      # manifest.json, plus the libraries a file's "bundles" field names) is
+      # invisible to pip-audit and Dependabot. Same rule as pip-audit:
+      # blocking; an advisory passes only when ACCEPTED in the script names it
+      # for that version with a reason and a review date, and it fails again
+      # once that date has passed. deps-latest.yml re-runs it weekly.
+      - name: Vendored browser code vulnerability scan (OSV)
+        run: python scripts/check_vendor_advisories.py
+
       # The WeasyPrint tests, the SSRF guard's included, skip where WeasyPrint
       # cannot render (no Pango, e.g. on Windows), and pytest still passes.
       # This runner installs Pango above, so they have to run here: fail now
