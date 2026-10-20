@@ -19,6 +19,9 @@ Pins, in German (the authoritative text) and in English:
 6. The German page addresses the reader as "du" throughout, and none of
    the new English sentences leaks onto it (a fuzzy or missing
    translation falls back to English silently).
+7. The processor docs say what § 6 says — the pages load nothing from
+   another domain — instead of "no third-party CDN", since every request
+   to filemorph.io passes Cloudflare.
 """
 
 from __future__ import annotations
@@ -239,3 +242,10 @@ def test_processor_docs_name_the_same_entities():
         assert "Stripe Payments Europe" in text, name
         assert "Indian group company" in text, name
         assert "Zoho EU, data centres in Amsterdam (NL) and Dublin (IE) |" not in text, name
+
+
+def test_processor_docs_drop_the_no_cdn_claim():
+    # Like § 6: the pages load nothing from another domain, but on
+    # filemorph.io every request passes Cloudflare — so no "no third-party CDN".
+    for name in ("sub-processors.md", "vendor-security-questionnaire.md", "dpa-tom-annex.md"):
+        assert "third-party CDN" not in (DOCS / name).read_text(encoding="utf-8"), name

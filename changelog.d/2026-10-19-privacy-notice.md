@@ -42,6 +42,10 @@ say what Cloudflare does with a request. Now:
 
 `docs/sub-processors.md`, `docs/vendor-security-questionnaire.md`,
 `docs/records-of-processing-template.md` and `docs/security-overview.md` name
-the same entities and transfer bases; `docs/gdpr-privacy-analysis.md` marks
-its April recommendation (Cloudflare R2 storage, the federal BfDI) as
-superseded. `tests/test_privacy_notice.py` pins all of it in both languages.
+the same entities and transfer bases. Like § 6, `docs/sub-processors.md`,
+`docs/vendor-security-questionnaire.md` and `docs/dpa-tom-annex.md` no longer
+say "no third-party CDN": the pages load nothing from another domain, but
+on filemorph.io every request passes through Cloudflare.
+`docs/gdpr-privacy-analysis.md` marks its April recommendation (Cloudflare
+R2 storage, the federal BfDI) as superseded. `tests/test_privacy_notice.py`
+pins all of it in both languages.

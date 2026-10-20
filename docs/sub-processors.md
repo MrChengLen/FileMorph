@@ -43,9 +43,11 @@ calls in the application code are:
   and responses to Stripe's signed webhooks (Cloud Edition, paid tiers).
 
 There is no analytics beacon, no telemetry endpoint, no "phone home" call,
-and no third-party CDN for static assets — Tailwind, fonts, and the
-Chart.js library used by the admin cockpit are all served from the
-deployment's own origin.
+and the pages load nothing from another domain — Tailwind, fonts, the
+Chart.js library used by the admin cockpit, and the Swagger UI behind
+`/docs` are all served from the deployment's own origin. If a proxy such
+as Cloudflare sits in front of that origin (as on filemorph.io), these
+requests pass through it like every other request — see the table above.
 
 ## Adding a sub-processor
 

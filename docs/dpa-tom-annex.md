@@ -228,8 +228,8 @@ physical assets of its own.
   change]`.
 - Privacy by design / by default (Art. 25 GDPR): metadata stripped by
   default, processing ephemeral by default (`RETENTION_HOURS=0`), no
-  analytics, no telemetry, no third-party CDN — see `security-overview.md`
-  § Data Privacy.
+  analytics, no telemetry, and the pages load nothing from other domains
+  — see [`sub-processors.md`](sub-processors.md#what-filemorph-itself-does-not-send-out).
 - Data-subject rights: self-service account deletion at
   `DELETE /api/v1/auth/account` (Art. 17) with multi-field
   re-confirmation; data export available on request (Art. 20) — see
