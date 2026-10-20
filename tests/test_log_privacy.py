@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Server logs leave out the personal data the privacy notice says they leave out.
 
-Pins five properties:
+Pins six properties:
 
 1. Email links carry their token in the URL fragment, and both landing
    pages read it from there — the browser never sends it to the server.
@@ -14,12 +14,21 @@ Pins five properties:
 4. The concurrency limiter logs the actor kind only — no IP, no account id.
 5. A tripped contact-form honeypot logs no IP, and a database error's text
    carries no statement values.
+6. A logged exception keeps its types and traceback but not its text; the
+   loggers of WeasyPrint, fontTools and pypdf and library warnings are
+   silent; uvicorn's own exception line drops the text too; and the tools'
+   stderr reaches an error only with APP_DEBUG — all of these can quote the
+   uploaded file.
 """
 
 from __future__ import annotations
 
 import asyncio
+import errno
 import logging
+import shutil
+import subprocess
+import sys
 import threading
 import time
 import urllib.request
@@ -285,3 +294,199 @@ def test_database_errors_hide_statement_values():
         encoding="utf-8"
     )
     assert "hide_parameters=True" in source
+
+
+# ── 6. Error texts from tools and libraries ──────────────────────────────────
+
+
+def _logged_failure(exception_text: bool) -> str:
+    # Built at runtime: the traceback quotes this file's source lines, and
+    # those must not contain the marker themselves.
+    cause_text, failure_text = "SECRET" + "-CAUSE", "SECRET" + "-FRAGMENT"
+    try:
+        try:
+            raise ValueError(cause_text)
+        except ValueError as cause:
+            raise RuntimeError(failure_text) from cause
+    except RuntimeError:
+        record = logging.getLogger("t").makeRecord(
+            "t",
+            logging.ERROR,
+            __file__,
+            0,
+            "Conversion error: %s -> %s",
+            ("pdf", "txt"),
+            sys.exc_info(),
+        )
+    return JsonLogFormatter(exception_text=exception_text).format(record)
+
+
+def test_logged_failure_keeps_types_and_frames_but_not_text():
+    line = _logged_failure(exception_text=False)
+    assert "RuntimeError" in line and "ValueError" in line
+    assert "test_log_privacy.py" in line  # the frames stay
+    assert "direct cause of the following exception" in line
+    assert "SECRET" not in line
+
+
+def _text_free(exc: BaseException) -> str:
+    from app.core.logging_config import _exception_without_text
+
+    return _exception_without_text(exc)
+
+
+def test_implicit_context_and_from_none_follow_python():
+    secret = "SECRET" + "-CONTEXT"
+    try:
+        try:
+            raise KeyError(secret)
+        except KeyError:
+            raise ValueError(secret)  # noqa: B904 — the implicit context is the point
+    except ValueError as exc:
+        implicit = _text_free(exc)
+    try:
+        try:
+            raise KeyError(secret)
+        except KeyError:
+            raise ValueError(secret) from None
+    except ValueError as exc:
+        suppressed = _text_free(exc)
+    assert "During handling of the above exception" in implicit and "KeyError" in implicit
+    assert "KeyError" not in suppressed
+    assert secret not in implicit + suppressed
+
+
+def test_oserror_keeps_its_errno_name():
+    line = _text_free(OSError(errno.ENOSPC, "SECRET" + "-PATH"))
+    assert "OSError [ENOSPC]" in line and "SECRET" not in line
+
+
+def test_app_debug_logs_the_failure_text():
+    line = _logged_failure(exception_text=True)
+    assert "SECRET-FRAGMENT" in line and "SECRET-CAUSE" in line
+
+
+def test_document_libraries_are_silenced(client):
+    # configure_logging() ran at import and at startup.
+    for name in ("weasyprint", "fontTools", "pypdf", "py.warnings"):
+        assert logging.getLogger(name).level == logging.CRITICAL, name
+
+
+def test_uvicorn_exception_line_drops_the_text(client):
+    from app.core.logging_config import _UVICORN_EXCEPTION_WITHOUT_TEXT
+
+    assert _UVICORN_EXCEPTION_WITHOUT_TEXT in logging.getLogger("uvicorn.error").filters
+    marker = "SECRET" + "-ASGI"  # the traceback quotes the raise line below
+    try:
+        raise RuntimeError(marker)
+    except RuntimeError:
+        record = logging.getLogger("uvicorn.error").makeRecord(
+            "uvicorn.error",
+            logging.ERROR,
+            __file__,
+            0,
+            "Exception in ASGI application\n",
+            (),
+            sys.exc_info(),
+        )
+    assert _UVICORN_EXCEPTION_WITHOUT_TEXT.filter(record) is True
+    assert record.exc_info is None
+    assert "RuntimeError" in record.getMessage() and "SECRET" not in record.getMessage()
+
+
+def _malformed_pdf(marker: str) -> bytes:
+    # A page dictionary with a stray word where a key belongs: pypdf warns
+    # about it and quotes the raw bytes around it.
+    objs = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] "
+        b"/PieceInfo << /Note Patient " + marker.encode() + b" DOB 1980 >> /Contents 4 0 R >>",
+        b"<< /Length 0 >>\nstream\n\nendstream",
+    ]
+    out = bytearray(b"%PDF-1.4\n")
+    offsets = []
+    for number, body in enumerate(objs, start=1):
+        offsets.append(len(out))
+        out += b"%d 0 obj\n" % number + body + b"\nendobj\n"
+    xref = len(out)
+    out += b"xref\n0 %d\n0000000000 65535 f \n" % (len(objs) + 1)
+    for offset in offsets:
+        out += b"%010d 00000 n \n" % offset
+    out += b"trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n" % (
+        len(objs) + 1,
+        xref,
+    )
+    return bytes(out)
+
+
+def test_malformed_pdf_quotes_nothing_into_the_log(client, tmp_path, caplog):
+    from app.converters.pdf_pages import extract_pages
+
+    marker = "Muster" + "mann"
+    src = tmp_path / "in.pdf"
+    src.write_bytes(_malformed_pdf(marker))
+    with caplog.at_level(logging.DEBUG):
+        extract_pages(src, tmp_path / "out.pdf", "1")
+    assert marker not in caplog.text
+
+
+def _failed_run(*args, **kwargs):
+    return subprocess.CompletedProcess(args, 1, b"", b"title : SECRET-METADATA\nboom")
+
+
+@pytest.mark.parametrize("debug", [False, True])
+def test_tool_errors_quote_stderr_only_with_app_debug(monkeypatch, tmp_path, debug):
+    import ffmpeg
+
+    from app.converters import _ffmpeg, _ghostscript, document
+
+    monkeypatch.setattr(settings, "app_debug", debug)
+    monkeypatch.setattr(subprocess, "run", _failed_run)
+    monkeypatch.setattr(shutil, "which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(_ghostscript, "_GS_BINARY", "gs")
+    errors = []
+    with pytest.raises(_ffmpeg.FFmpegError) as excinfo:
+        _ffmpeg.run_ffmpeg(ffmpeg.input("in.mp3").output("out.wav"))
+    errors.append(str(excinfo.value))
+    with pytest.raises(_ghostscript.GhostscriptError) as excinfo:
+        _ghostscript.rerender_to_pdfa(tmp_path / "in.pdf", tmp_path / "out.pdf", icc_bytes=b"icc")
+    errors.append(str(excinfo.value))
+    with pytest.raises(RuntimeError) as excinfo:
+        document._convert_via_libreoffice(tmp_path / "in.docx", tmp_path / "out.pdf", 5)
+    errors.append(str(excinfo.value))
+    assert all(("SECRET-METADATA" in error) is debug for error in errors), errors
+    assert all("exit" in error or "status" in error for error in errors), errors
+    # soffice exits 0 but writes no PDF: the same rule for its stderr.
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        lambda *a, **k: subprocess.CompletedProcess(a, 0, b"", b"SECRET-METADATA"),
+    )
+    with pytest.raises(RuntimeError) as excinfo:
+        document._convert_via_libreoffice(tmp_path / "in.docx", tmp_path / "out.pdf", 5)
+    assert ("SECRET-METADATA" in str(excinfo.value)) is debug
+
+
+def _weasyprint_works() -> bool:
+    try:
+        import weasyprint
+
+        weasyprint.HTML(string="<p>probe</p>").write_pdf()
+        return True
+    except Exception:
+        return False
+
+
+@pytest.mark.skipif(
+    not _weasyprint_works(),
+    reason="WeasyPrint native deps (libgobject/pango) unavailable on this host",
+)
+def test_refused_url_from_an_html_upload_is_not_logged(client, tmp_path, caplog):
+    from app.converters.document import HtmlToPdfConverter
+
+    src = tmp_path / "in.html"
+    src.write_text('<p>x</p><img src="https://marker.invalid/SECRET-URL.png">', encoding="utf-8")
+    with caplog.at_level(logging.DEBUG):
+        HtmlToPdfConverter().convert(src, tmp_path / "out.pdf")
+    assert "SECRET-URL" not in caplog.text

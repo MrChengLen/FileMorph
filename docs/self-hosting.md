@@ -957,7 +957,7 @@ sudo systemctl status filemorph
 ## Security checklist
 
 - [ ] Set `CORS_ORIGINS` to your specific domain(s), not `*`
-- [ ] Set `APP_DEBUG=false` in production
+- [ ] Set `APP_DEBUG=false` in production (with `true`, error texts — which can quote uploaded files — go into the log)
 - [ ] Cloud Edition: set `JWT_SECRET` to a generated value of at least 32 characters (see [JWT secret](#jwt-secret-cloud-edition))
 - [ ] Keep `data/api_keys.json` out of version control (it is in `.gitignore`)
 - [ ] Use HTTPS (see Caddy or nginx above)

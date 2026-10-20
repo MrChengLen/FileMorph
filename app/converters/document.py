@@ -280,16 +280,19 @@ def _convert_via_libreoffice(input_path: Path, output_path: Path, timeout_s: int
             # real Ghostscript on PATH. See _soffice_child_env.
             env=_soffice_child_env(shim_dir),
         )
+        # soffice's stderr can quote the document; it goes into the error
+        # (and so into a log line) only on a debugging instance (APP_DEBUG).
+        from app.core.config import settings
+
+        stderr = result.stderr.decode("utf-8", errors="replace")
         if result.returncode != 0:
-            stderr = result.stderr.decode("utf-8", errors="replace")[:500]
-            raise RuntimeError(
-                f"soffice exited with status {result.returncode}: {stderr.strip() or '(no stderr)'}"
-            )
+            detail = f": {stderr[:500].strip() or '(no stderr)'}" if settings.app_debug else ""
+            raise RuntimeError(f"soffice exited with status {result.returncode}{detail}")
         produced = work_dir / f"{input_path.stem}.pdf"
         if not produced.exists():
+            detail = f" stderr: {stderr[:200]!r}" if settings.app_debug else ""
             raise RuntimeError(
-                f"soffice reported success but produced no PDF at {produced}. "
-                f"stderr: {result.stderr.decode('utf-8', errors='replace')[:200]!r}"
+                f"soffice reported success but produced no PDF at {produced}.{detail}"
             )
         shutil.move(str(produced), str(output_path))
     finally:

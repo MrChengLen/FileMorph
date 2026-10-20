@@ -179,9 +179,9 @@ def run_ffmpeg(stream, *, timeout: int | None = None) -> None:
     """Compile an ffmpeg-python stream and run it with a hard timeout.
 
     Raises :class:`FFmpegError` on every failure mode (binary missing,
-    non-zero exit, timeout). The stderr tail lands in the exception
-    message for the server-side log only — the routes catch broadly and
-    return a generic message to the client (A-3).
+    non-zero exit, timeout). ffmpeg's stderr echoes the upload's metadata,
+    so its tail lands in the exception message only with APP_DEBUG; the
+    routes catch broadly and return a generic message to the client (A-3).
     """
     if shutil.which("ffmpeg") is None:
         raise FFmpegError("ffmpeg binary not found on PATH")
@@ -198,4 +198,5 @@ def run_ffmpeg(stream, *, timeout: int | None = None) -> None:
         tail = result.stderr.decode("utf-8", errors="replace")[-500:].strip()
         if "not on whitelist" in tail:  # a container media_input doesn't accept
             raise InvalidInputError(_NOT_A_SUPPORTED_MEDIA_FORMAT)
-        raise FFmpegError(f"ffmpeg exit {result.returncode}: {tail or '<no stderr>'}")
+        detail = f": {tail or '<no stderr>'}" if settings.app_debug else ""
+        raise FFmpegError(f"ffmpeg exit {result.returncode}{detail}")

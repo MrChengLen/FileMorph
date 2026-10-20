@@ -210,7 +210,8 @@ async def _do_convert(
                 headers={"X-FileMorph-Error-Code": code},
             )
         except Exception:
-            # A-3: Log full exception server-side, return generic message to client
+            # A-3: log the failure server-side (type and traceback; the text only
+            # with APP_DEBUG — it can quote the upload), generic message to client
             logger.exception("Conversion error: %s -> %s", src_ext, tgt_ext)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
