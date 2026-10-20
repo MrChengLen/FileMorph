@@ -72,5 +72,12 @@ stripe>=15.6.1,<16
 # request middleware + endpoint live in app/core/observability.py.
 prometheus-client>=0.26.0
 
+# ── Security floors (transitive) ─────────────────────────────────
+# certifi comes in through requests. Before 2026.10.19 its CA bundle trusts
+# the emSign ECC Root CA - G3, whose intermediates had compromised keys
+# (GHSA-6q48-6c7w-9gw2, critical). A re-lock keeps existing pins, so this
+# floor is what moves certifi past the advisory and keeps it there.
+certifi>=2026.10.19
+
 # ── Future: Storage ───────────────────────────────────────────────
 # boto3>=1.34
