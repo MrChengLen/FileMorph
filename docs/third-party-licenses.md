@@ -158,11 +158,17 @@ converters need:
 
 ## Vendored frontend assets
 
-Two non-Python assets ship in `app/static/`, both permissive:
+Three non-Python assets ship in `app/static/`, all permissive. The files
+vendored under `app/static/vendor/` are listed with version, source, licence
+and SHA-256 in [`app/static/vendor/manifest.json`](../app/static/vendor/manifest.json);
+`tests/test_vendor_manifest.py` fails if one of them changes, a file appears
+unlisted, or its licence is not on the allow-list (MIT, Apache-2.0,
+BSD-2-Clause, BSD-3-Clause, ISC).
 
 | Component | Licence | Notes |
 |---|---|---|
 | **Chart.js** `v4.4.0` (`app/static/vendor/chart.umd.min.js`) | MIT | Vendored unmodified from the upstream `dist/chart.umd.min.js` build; full upstream licence text, source URL and a SHA-256 of the vendored copy live in [`app/static/vendor/LICENSE-chartjs.md`](../app/static/vendor/LICENSE-chartjs.md). Used read-only by the admin cockpit's dashboard charts. |
+| **Swagger UI** `v5.33.1` (`app/static/vendor/swagger-ui-bundle.js`, `swagger-ui.css`) | Apache-2.0 (bundled libraries permissive: mostly MIT, also BSD-3-Clause, Apache-2.0, Unlicense; DOMPurify used under Apache-2.0) | Vendored unmodified from the npm package `swagger-ui-dist@5.33.1`; the tarball was checked against the registry's SHA-512 integrity and carries an SLSA provenance attestation. Powers the API explorer at `/docs`. NOTICE, the bundled libraries' notices, the full licence text and SHA-256s of the vendored files live in [`app/static/vendor/LICENSE-swagger-ui.md`](../app/static/vendor/LICENSE-swagger-ui.md). |
 | **Tailwind CSS** (`app/static/css/tailwind.<sha>.css`) | MIT (Tailwind Labs) | Self-hosted, not loaded from `cdn.tailwindcss.com`: `scripts/build-tailwind.sh` runs the official standalone Tailwind CLI against `tailwind.config.js` and the app's own templates, producing a purged, minified, content-hashed bundle that is committed under `app/static/css/` and ships from the deployment's own origin; CI only checks that the committed bundle is up to date. See [`docs/tailwind-build-setup.md`](./tailwind-build-setup.md). |
 
 ## What this means for the Compliance Edition / commercial licence
@@ -218,6 +224,10 @@ Two non-Python assets ship in `app/static/`, both permissive:
   in a bundled file — `pillow-heif`'s GPLv2 `x265` — appears in neither; see
   the [`pillow-heif` note](#pillow-heif--bsd-3-clause-metadata-gplv2-binary-wheel).
 - **Per-dependency rationale:** [`tech-stack-rationale.md` § License Map](./tech-stack-rationale.md#license-map).
+- **Vendored browser code:** not part of the Python SBOM. Check it against
+  [`app/static/vendor/manifest.json`](../app/static/vendor/manifest.json)
+  (version, source, licence, SHA-256 per file); `pytest
+  tests/test_vendor_manifest.py` recomputes the hashes.
 
 **As of 2026-09-30** a scan of the locked dependency set on `main`
 (`requirements.lock`, with `cyclonedx-py environment --PEP-639` as the release

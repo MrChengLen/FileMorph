@@ -44,7 +44,7 @@ filemorph/
 │   ├── ee/                      # Commercial-licensed add-ons (PII redaction) — inert by default
 │   ├── models/
 │   │   └── schemas.py           # Pydantic response schemas
-│   ├── static/                  # CSS, JavaScript and vendored assets (Chart.js)
+│   ├── static/                  # CSS, JavaScript and vendored assets (Chart.js, Swagger UI)
 │   └── templates/               # Jinja2 HTML templates
 ├── alembic/                     # Cloud Edition schema migrations
 ├── tests/
