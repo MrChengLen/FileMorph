@@ -264,6 +264,13 @@ physical assets of its own.
   `--ignore-vuln` entry justified in a comment —
   `.github/workflows/ci.yml`; regression guard for the audit target:
   `tests/test_supply_chain_hygiene.py`.
+- `scripts/check_vendor_advisories.py` is the matching gate for the
+  browser code vendored under `app/static/vendor/`, which pip-audit does
+  not see: it checks the versions listed in
+  `app/static/vendor/manifest.json` against the OSV database, and a
+  finding passes only if accepted for that version with a reason and a
+  review date — `.github/workflows/ci.yml` (weekly also in
+  `deps-latest.yml`); regression guard: `tests/test_vendor_advisories.py`.
 - A CycloneDX SBOM (`filemorph-{version}.cdx.json`) is attached to each
   release; container images are cosign-signed (keyless OIDC); Git tags
   are GPG-signed; patch timelines per [`patch-policy.md`](patch-policy.md)

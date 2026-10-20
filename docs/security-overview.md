@@ -799,16 +799,27 @@ Self-hosters who fork this repository should recompile
 
 ### Accepted advisories
 
-No advisory is currently allow-listed in CI. A finding that is
+No Python advisory is currently allow-listed in CI. A finding that is
 genuinely unfixable upstream and not reachable here would be
 allow-listed with `--ignore-vuln` in `.github/workflows/ci.yml`, with
 its reasoning next to the `pip-audit` step and a row here naming the
 reason and a re-evaluation trigger.
 
+The vendored browser code is checked against OSV by
+`scripts/check_vendor_advisories.py`. Its `ACCEPTED` list holds these
+advisories, each for one version and only until its review date:
+
+| Advisory | Affected component | Reason | Re-evaluate |
+|---|---|---|---|
+| GHSA-6688-9rhm-gjv2 | DOMPurify 3.4.13, bundled in Swagger UI 5.33.1 (`/docs`) | Low; needs DOMPurify's `IN_PLACE` mode, which Swagger UI does not use | 2026-11-02: Swagger UI 5.34.0 (bundles the fixed DOMPurify 3.4.16) is then two weeks old |
+| GHSA-p98j-92pf-mc4p | DOMPurify 3.4.13, bundled in Swagger UI 5.33.1 (`/docs`) | Low; needs DOMPurify's `IN_PLACE` mode, which Swagger UI does not use | 2026-11-02, as above |
+
 ### Update cadence
 
 - `pip-audit -r requirements.lock` runs in CI as a blocking gate
   (Operational Hardening, item 5).
+- `scripts/check_vendor_advisories.py` checks the vendored browser code
+  against OSV, as a blocking gate in CI and weekly in `deps-latest`.
 - Dependabot opens weekly update PRs for the Python requirements,
   GitHub Actions and the Docker base image (`.github/dependabot.yml`).
   It does not touch `requirements.lock`, so a Python update reaches
@@ -844,7 +855,7 @@ For readers who want to jump directly to the code:
 
 ---
 
-*Last revised 2026-10-09. The findings synthesised here are
+*Last revised 2026-10-20. The findings synthesised here are
 sourced from the static code review dated 2026-04-19 and the
 current state of the repository. The 2026-09-28 revision corrects
 drift against the code: the account-deletion section now reflects
@@ -858,4 +869,7 @@ CVE-2026-106443 (`weasyprint`) and the office-image LibreOffice
 subprocess hardening, and drop CVE-2026-85394 and PYSEC-2026-1325
 with the move from `python-jose` to PyJWT; the 2026-10-09 revision
 drops CVE-2026-55073 and CVE-2026-106443 with the upgrade to
-WeasyPrint 70, which leaves no advisory allow-listed.*
+WeasyPrint 70, which leaves no advisory allow-listed; the 2026-10-20
+revision adds the OSV check of the vendored browser code and its two
+accepted DOMPurify advisories (GHSA-6688-9rhm-gjv2,
+GHSA-p98j-92pf-mc4p).*

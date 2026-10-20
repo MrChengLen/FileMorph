@@ -35,6 +35,13 @@ def test_vendored_file_licence_is_allowed(entry):
 
 
 @pytest.mark.parametrize("entry", _ENTRIES, ids=_IDS)
+def test_vendored_file_version_matches_its_source(entry):
+    # scripts/check_vendor_advisories.py asks OSV about this version; a label
+    # that drifted from the source would check the wrong release.
+    assert entry["version"] in entry["source"]
+
+
+@pytest.mark.parametrize("entry", _ENTRIES, ids=_IDS)
 def test_vendored_file_notice_names_the_same_sha256(entry):
     # Notice files are exempt from the listing check below, so only a
     # LICENSE-<name>.md may be named here — never a file the browser runs.

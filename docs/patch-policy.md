@@ -92,6 +92,16 @@ the base image and `apt` (FFmpeg, Ghostscript, LibreOffice) are not
 in it. Use it for vulnerability scanning against your existing CVE
 pipeline.
 
+The browser code vendored under `app/static/vendor/` is not in that
+SBOM, and pip-audit and Dependabot do not see it either.
+`scripts/check_vendor_advisories.py` runs on every CI build (and weekly
+in `deps-latest`) and asks the [OSV](https://osv.dev) database about
+every package and version in `app/static/vendor/manifest.json`, plus the
+libraries a file's `bundles` field names. It blocks the same way as
+pip-audit: a finding passes only when the script's `ACCEPTED` list names
+it for that version with a reason and a review date, and it fails again
+once that date has passed.
+
 ## Release announcements
 
 | Channel | Content |
