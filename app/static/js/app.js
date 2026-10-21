@@ -837,7 +837,7 @@ async function submitForm() {
         } else if (errCode === 'input_too_large') {
           msg = i18n.errorInputTooLarge || data.detail;
         } else {
-          msg = data.detail || 'File too large for your plan.';
+          msg = data.detail || 'File too large.';
         }
         showError(msg, errCode);
       } else if (res.status === 429) {

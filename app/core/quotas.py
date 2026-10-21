@@ -125,6 +125,38 @@ def get_quota(tier: str) -> TierQuota:
     return QUOTAS.get(tier, QUOTAS["anonymous"])
 
 
+def file_too_large_message(tier: str, limit_bytes: int) -> str:
+    """The input-size message of every file route, single and batch, with the
+    free way past the limit (see ``higher_cap_hint``)."""
+    limit_mb = limit_bytes // _MB
+    if tier == "anonymous":
+        free_mb = QUOTAS["free"].max_file_size_bytes // _MB
+        return f"File too large ({limit_mb} MB max for anonymous). Register free to upload up to {free_mb} MB."
+    return (
+        f"File too large ({limit_mb} MB max for your plan). Self-host FileMorph for larger files."
+    )
+
+
+def higher_cap_hint(tier: str) -> str:
+    """The free way past an output cap, as a sentence for a limit message.
+
+    Free path first (product rule): anonymous callers can register for the free
+    tier; everyone else can run FileMorph themselves and set their own limits.
+    The hosted service has no paid plan to upgrade to.
+    """
+    if tier == "anonymous":
+        return "Register free for a higher cap."
+    return "Self-host FileMorph for a higher cap."
+
+
+def larger_batches_hint(tier: str) -> str:
+    """The free way past the batch-size limit (see ``higher_cap_hint``)."""
+    if tier == "anonymous":
+        free_batch = QUOTAS["free"].max_files_per_batch
+        return f"Register free to send up to {free_batch} files per request."
+    return "Self-host FileMorph for larger batches."
+
+
 def tier_for(user: "User | None") -> str:
     """Return the tier string for a User (or 'anonymous' if None)."""
     if user is None:

@@ -57,7 +57,7 @@ from app.core.concurrency import acquire_slot
 from app.core.metrics import increment as metric_increment
 from app.core.observability import record_conversion
 from app.core.processing import BLOCKED_MAGIC, actor_id
-from app.core.quotas import _MB, get_quota
+from app.core.quotas import _MB, file_too_large_message, get_quota, higher_cap_hint
 from app.core.rate_limit import limiter
 from app.core.usage import enforce_monthly_quota, record_usage
 from app.core.utils import safe_download_name
@@ -86,14 +86,7 @@ def _write_upload_and_check_magic(upload: UploadFile, input_path: Path) -> int:
 def _enforce_input_size(file: UploadFile, quota, tier: str) -> None:
     """Tier-based input-size cap — identical semantics to /convert."""
     if file.size is not None and file.size > quota.max_file_size_bytes:
-        limit_mb = quota.max_file_size_bytes // _MB
-        if tier == "anonymous":
-            detail = (
-                f"File too large ({limit_mb} MB max for anonymous). "
-                "Register free to upload larger files."
-            )
-        else:
-            detail = f"File too large ({limit_mb} MB max for your plan). Upgrade for larger files."
+        detail = file_too_large_message(tier, quota.max_file_size_bytes)
         raise HTTPException(
             status_code=status.HTTP_413_CONTENT_TOO_LARGE,
             detail=detail,
@@ -354,11 +347,7 @@ def _output_cap_error(output_size: int | None, quota, tier: str) -> HTTPExceptio
         too_large = f"Output too large (over the {cap_mb} MB cap)."
     else:
         too_large = f"Output too large ({output_size // _MB} MB > {cap_mb} MB cap)."
-    hint = (
-        "Extract a smaller page range or register for a higher cap."
-        if tier == "anonymous"
-        else "Extract a smaller page range or upgrade your plan."
-    )
+    hint = f"Extract a smaller page range. {higher_cap_hint(tier)}"
     return HTTPException(
         status_code=status.HTTP_413_CONTENT_TOO_LARGE,
         detail=f"{too_large} {hint}",
@@ -423,7 +412,7 @@ async def _do_compress(
             status_code=status.HTTP_413_CONTENT_TOO_LARGE,
             detail=(
                 f"Target size {target_kb} KB exceeds tier output cap of {cap_kb} KB. "
-                "Upgrade your plan for larger outputs."
+                f"{higher_cap_hint(tier)}"
             ),
             headers={"X-FileMorph-Error-Code": "target_size_exceeds_cap"},
         )

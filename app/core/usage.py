@@ -143,8 +143,8 @@ async def enforce_monthly_quota(
         retry_after_seconds = max(int((retry_at - now).total_seconds()), 1)
         detail = (
             f"Monthly API call limit reached ({quota.api_calls_per_month} per month "
-            f"for tier '{tier}'). Quota resets {retry_at.isoformat()}. Upgrade your plan "
-            "or wait until the reset to continue."
+            f"for tier '{tier}'). Quota resets {retry_at.isoformat()}. Wait until the "
+            "reset, or self-host FileMorph without a monthly limit."
         )
         # 429 is the conventional rate-limit code; Retry-After is in
         # seconds per RFC 9110 § 10.2.3.

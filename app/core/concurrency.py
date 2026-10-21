@@ -98,7 +98,8 @@ class ConcurrencyExhausted(HTTPException):
             sc = status.HTTP_429_TOO_MANY_REQUESTS
             detail = (
                 "Concurrency limit reached for this account, or for this IP address "
-                "when no account is used. Lower the parallelism or upgrade the plan."
+                "when no account is used. Lower the parallelism, or self-host FileMorph "
+                "for more parallel requests."
             )
         super().__init__(
             status_code=sc, detail=detail, headers={"Retry-After": str(retry_after_seconds)}
