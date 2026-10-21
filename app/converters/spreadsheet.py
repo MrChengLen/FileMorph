@@ -82,6 +82,8 @@ def _load_cells_only(upload: BinaryIO) -> "Workbook":
 
 @register(("xlsx", "csv"))
 class XlsxToCsvConverter(BaseConverter):
+    isolated = True
+
     def convert(self, input_path: Path, output_path: Path, **kwargs) -> Path:
         limit = kwargs.get("max_output_bytes")
         # Closed on every path: an upload that is still open can't be deleted on Windows.
@@ -109,11 +111,15 @@ class XlsxToCsvConverter(BaseConverter):
 
 @register(("csv", "xlsx"))
 class CsvToXlsxConverter(BaseConverter):
+    isolated = True
+
     def convert(self, input_path: Path, output_path: Path, **kwargs) -> Path:
         import openpyxl
 
-        wb = openpyxl.Workbook()
-        ws = wb.active
+        # Write-only: rows go straight to a temporary file instead of staying in
+        # memory as cells.
+        wb = openpyxl.Workbook(write_only=True)
+        ws = wb.create_sheet()
         for row in csv.reader(io.StringIO(read_utf8_text(input_path), newline="")):
             ws.append(row)
         wb.save(str(output_path))
@@ -122,6 +128,8 @@ class CsvToXlsxConverter(BaseConverter):
 
 @register(("csv", "json"))
 class CsvToJsonConverter(BaseConverter):
+    isolated = True
+
     def convert(self, input_path: Path, output_path: Path, **kwargs) -> Path:
         rows = csv.DictReader(io.StringIO(read_utf8_text(input_path), newline=""))
         # Row by row, the same text json.dumps(list(rows), indent=2) would give.
@@ -141,6 +149,8 @@ class CsvToJsonConverter(BaseConverter):
 
 @register(("json", "csv"))
 class JsonToCsvConverter(BaseConverter):
+    isolated = True
+
     def convert(self, input_path: Path, output_path: Path, **kwargs) -> Path:
         data = json.loads(read_utf8_text(input_path))
         if not isinstance(data, list) or not data:

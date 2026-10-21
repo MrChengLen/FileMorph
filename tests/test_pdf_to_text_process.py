@@ -18,7 +18,7 @@ import sys
 import pytest
 from pypdf import PdfWriter
 
-from app.converters import _pdf_text, document
+from app.converters import _isolated, _pdf_text, document
 from app.converters.base import (
     EncryptedPdfError,
     InvalidInputError,
@@ -159,6 +159,14 @@ def test_an_unreadable_pdf_logs_the_error_class_only(tmp_path, monkeypatch, capl
     assert "unreadable PDF: LimitReachedError" in caplog.messages
 
 
+def test_a_child_stopped_by_a_limit_gets_400(tmp_path, monkeypatch):
+    # Stopped by a signal (the CPU limit, the kernel's OOM killer): no outcome.
+    monkeypatch.setattr(document.subprocess, "run", _fake_child("", returncode=-9))
+    with pytest.raises(InvalidInputError) as caught:
+        document.PdfToTxtConverter().convert(tmp_path / "in.pdf", tmp_path / "out.txt")
+    assert str(caught.value) == document._TEXT_TOO_LARGE
+
+
 @pytest.mark.parametrize("stdout", ["", "failed KeyError", "something else"])
 def test_any_other_child_outcome_is_a_server_error(tmp_path, monkeypatch, stdout):
     monkeypatch.setattr(document.subprocess, "run", _fake_child(stdout, returncode=1))
@@ -184,28 +192,31 @@ def test_the_child_writes_no_diagnostics(tmp_path):
         [sys.executable, "-m", "app.converters._pdf_text", str(src), str(tmp_path / "o"), "10"],
         capture_output=True,
         encoding="utf-8",
-        cwd=document._APP_ROOT,
+        cwd=_isolated._APP_ROOT,
         check=True,
     )
     assert res.stdout.strip() == "ok"
     assert res.stderr == ""
 
 
-@pytest.mark.skipif(sys.platform != "linux", reason="the address-space cap applies on Linux")
-def test_the_child_caps_its_address_space(tmp_path):
+@pytest.mark.skipif(sys.platform != "linux", reason="the limits apply on Linux")
+def test_the_child_caps_its_memory_and_cpu_time(tmp_path):
     src, out = tmp_path / "in.pdf", tmp_path / "out.txt"
     src.write_bytes(_pdf(1))
     probe = (
-        "import resource, runpy, sys; "
+        "import ctypes, resource, runpy, sys; "
         f"sys.argv = ['x', {str(src)!r}, {str(out)!r}, '10']; "
         "runpy.run_module('app.converters._pdf_text', run_name='__main__'); "
-        "print(resource.getrlimit(resource.RLIMIT_AS)[0])"
+        "print(*(resource.getrlimit(limit)[0] for limit in "
+        "(resource.RLIMIT_AS, resource.RLIMIT_CPU, resource.RLIMIT_CORE)), "
+        "ctypes.CDLL(None).prctl(3, 0, 0, 0, 0))"  # PR_GET_DUMPABLE
     )
     res = subprocess.run(
         [sys.executable, "-c", probe],
         capture_output=True,
         encoding="utf-8",
-        cwd=document._APP_ROOT,
+        cwd=_isolated._APP_ROOT,
         check=True,
     )
-    assert res.stdout.split() == ["ok", str(1024 * _MIB)]
+    limits = [str(1024 * _MIB), str(_pdf_text._CPU_LIMIT_SECONDS), "0", "0"]
+    assert res.stdout.split() == ["ok", *limits]
