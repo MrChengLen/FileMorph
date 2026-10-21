@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph 1.2.0\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-21 16:30+0200\n"
+"POT-Creation-Date: 2026-10-21 15:46+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -933,11 +933,6 @@ msgid "File conversion and compression — open source, self-hostable."
 msgstr ""
 
 msgid "File conversion mode"
-msgstr ""
-
-msgid ""
-"File too large. Use a smaller file or self-host FileMorph — there you set"
-" the limits."
 msgstr ""
 
 msgid ""
@@ -2493,12 +2488,6 @@ msgstr ""
 msgid ""
 "The result would be larger than allowed. Try a more efficient target "
 "format or a lower quality, or self-host FileMorph — there you set the "
-"limits."
-msgstr ""
-
-msgid ""
-"The result would be larger than allowed. Try a more efficient target "
-"format or a lower quality, or self-host FileMorph — there you set the "
 "limits. No account yet? Register free for a higher limit."
 msgstr ""
 
@@ -2510,11 +2499,6 @@ msgid ""
 msgstr ""
 
 msgid "The target size is above the allowed maximum of 2 GB."
-msgstr ""
-
-msgid ""
-"The target size is above the output limit. Choose a smaller target size "
-"or self-host FileMorph — there you set the limits."
 msgstr ""
 
 msgid ""
@@ -2618,17 +2602,6 @@ msgid "Too many attempts. Please try again in a minute."
 msgstr ""
 
 msgid "Too many attempts. Please try again later."
-msgstr ""
-
-msgid ""
-"Too many files at once. Select fewer files or self-host FileMorph — there"
-" you set the limits. No account yet? Then it's one file at a time — "
-"register free for up to 10 at once."
-msgstr ""
-
-msgid ""
-"Too many files at once. Select one file at a time or self-host FileMorph "
-"— there you set the limits."
 msgstr ""
 
 msgid "Too many requests. Please wait a moment and try again."
