@@ -271,6 +271,7 @@ libheif) caveats, and the machine-readable SBOM — is in
 | email-validator | The Unlicense | Public-domain-equivalent. |
 | aiosmtplib | MIT | Permissive. |
 | stripe | MIT | Permissive. |
+| certifi | MPL-2.0 | File-level (weak) copyleft, shipped unmodified; the CA bundle Stripe calls verify against (`app/core/billing.py`). |
 | Babel | BSD-3-Clause | Permissive (i18n message catalogs). |
 | prometheus-client | Apache-2.0 AND BSD-2-Clause | Permissive (`/api/v1/metrics`). |
 
