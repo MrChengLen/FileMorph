@@ -35,8 +35,9 @@ surface while another keeps the old sentence fails here.
 10. Privacy policy: no "usage in your dashboard" (the dashboard has no counter).
 11. Design partners: an anonymised case study, not a logo mention.
 12. docs/gdpr-privacy-analysis.md: no self-service export or email change.
-13. The homepage privacy note reaches WCAG AA contrast through a design token,
-    and no visible template text uses the ~1.95 : 1 grey any more.
+13. The location hint under every processing button (it replaced the homepage
+    privacy note) reaches WCAG AA contrast through a design token, and no
+    visible template text uses the ~1.95 : 1 grey any more.
 
 /pricing (and the homepage teaser) has two variants: "free" (no Stripe, as on
 filemorph.io) and "plans" (Stripe configured). ``every_page`` renders both;
@@ -653,7 +654,7 @@ def test_gdpr_analysis_describes_the_running_service():
     assert "there is no self-service export and no self-service email change" in text
 
 
-# ── 13. Contrast of the homepage privacy note ────────────────────────────────
+# ── 13. Contrast of the location hint (formerly the homepage privacy note) ──
 
 # Tailwind's default palette (v3.4) for the classes these notes may use; the
 # ink tokens are read from tailwind.config.js so a token change is caught.
@@ -691,19 +692,20 @@ def _text_colour(classes: str) -> str:
     return colours[0]
 
 
-@pytest.mark.parametrize("template", ["index.html", "convert_pair.html"])
-def test_privacy_note_meets_wcag_aa_contrast(template):
+def test_location_hint_meets_wcag_aa_contrast():
+    """The hint sits under each processing button, inside the tool card: it has
+    to read at WCAG AA on the card surface and on the page background."""
     assert 'class="h-full bg-gray-950' in (TEMPLATES / "base.html").read_text(encoding="utf-8")
-    source = (TEMPLATES / template).read_text(encoding="utf-8")
-    note = re.search(
-        r'<p class="([^"]*)">\s*\{\{ _\(\'Files are processed server-side and deleted immediately after conversion\.\'\) \}\}'
-        r'\s*<a [^>]*class="([^"]*)"',
-        source,
-    )
-    assert note, f"{template}: privacy note not found"
-    for classes in note.groups():
-        ratio = _contrast(_text_colour(classes), _TAILWIND_DEFAULTS["gray-950"])
-        assert ratio >= 4.5, f"{template}: {classes!r} has {ratio:.2f} : 1 (WCAG AA needs 4.5 : 1)"
+    card = (TEMPLATES / "_components" / "card.html").read_text(encoding="utf-8")
+    assert "bg-surface-raised" in card, "the tool card no longer uses the raised surface"
+    source = (TEMPLATES / "partials" / "location_hint.html").read_text(encoding="utf-8")
+    hint = re.search(r'<p class="([^"]*)" data-component="location-hint"', source)
+    assert hint, "location hint not found"
+    config = (ROOT / "tailwind.config.js").read_text(encoding="utf-8")
+    raised = re.search(r"raised:\s*'(#[0-9a-fA-F]{6})'", config).group(1)
+    for background in (_TAILWIND_DEFAULTS["gray-950"], raised):
+        ratio = _contrast(_text_colour(hint.group(1)), background)
+        assert ratio >= 4.5, f"{hint.group(1)!r}: {ratio:.2f} : 1 on {background} (AA: 4.5 : 1)"
 
 
 def test_no_visible_template_text_uses_the_low_contrast_grey():

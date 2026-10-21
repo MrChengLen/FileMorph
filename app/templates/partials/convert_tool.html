@@ -197,7 +197,10 @@
   </div>
 
   <!-- Convert Button -->
-  {{ ub.button(_('Convert'), id='convert-btn', full_width=True) }}
+  <div class="space-y-2">
+    {{ ub.button(_('Convert'), id='convert-btn', full_width=True) }}
+    {% include "partials/location_hint.html" %}
+  </div>
 
   <!-- Progress / Result -->
   <div id="progress-section" class="hidden text-center space-y-2">

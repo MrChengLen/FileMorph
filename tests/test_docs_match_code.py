@@ -43,6 +43,7 @@ from app.converters.pdf_pages import _MAX_SELECTION_CHARS
 from app.core.batch import BatchFileResult, build_batch_zip
 from app.core.concurrency import ConcurrencyExhausted
 from app.core.config import Settings, settings
+from app.core.engine import ENGINE_DIR
 from app.core.processing import BLOCKED_MAGIC, actor_id
 from app.core.quotas import _MB, QUOTAS
 from app.core.request_limits import SMALL_BODY_LIMIT_BYTES
@@ -339,6 +340,15 @@ def test_docs_name_the_api_keys_file_tier_setting():
     guide = " ".join(_text("api-usage-guide.md").split())
     assert "raise it if the larger tier limits should apply" not in guide
     assert "`API_KEYS_FILE_TIER`" in guide
+
+
+def test_docs_name_the_local_tools_setting_and_the_hash_recipe():
+    default = Settings.model_fields["local_tools_enabled"].default
+    env_example = (DOCS.parent / ".env.example").read_text(encoding="utf-8")
+    assert re.findall(r"^LOCAL_TOOLS_ENABLED=(\w+)$", env_example, re.M) == [str(default).lower()]
+    # The engine URLs carry the git tree id of the engine directory.
+    engine = ENGINE_DIR.relative_to(DOCS.parent).as_posix()
+    assert f"git rev-parse <tag>:{engine}" in _text("self-hosting.md")
 
 
 def test_api_guide_duplicate_name_example_matches_build_batch_zip():
