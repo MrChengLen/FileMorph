@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph 1.2.0\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-21 15:46+0200\n"
+"POT-Creation-Date: 2026-10-21 15:52+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1037,9 +1037,6 @@ msgid ""
 "— temporary files use random names and are swept within minutes."
 msgstr ""
 
-msgid "Files are processed server-side and deleted immediately after conversion."
-msgstr ""
-
 msgid "Files deleted right after conversion"
 msgstr ""
 
@@ -1150,9 +1147,6 @@ msgid "Get API Key →"
 msgstr ""
 
 msgid "Get started free"
-msgstr ""
-
-msgid "GitHub ↗"
 msgstr ""
 
 msgid ""
@@ -2055,6 +2049,11 @@ msgstr ""
 msgid ""
 "Runs behind your firewall — citizen, patient and client data never leaves"
 " your infrastructure. EU vendor, German imprint."
+msgstr ""
+
+msgid ""
+"Runs via our server — files are uploaded and deleted right after "
+"processing."
 msgstr ""
 
 msgid "SHA-256 audit log"
