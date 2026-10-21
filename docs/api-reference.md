@@ -716,7 +716,7 @@ next calendar month, and a body explaining the limit:
 
 ```json
 {
-  "detail": "Monthly API call limit reached (25000 per month for tier 'pro'). Quota resets 2026-06-01T00:00:00+00:00. Upgrade your plan or wait until the reset to continue."
+  "detail": "Monthly API call limit reached (1000 per month for tier 'free'). Quota resets 2026-06-01T00:00:00+00:00. Wait until the reset, or self-host FileMorph without a monthly limit."
 }
 ```
 

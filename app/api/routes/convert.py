@@ -34,7 +34,13 @@ from app.core.data_classification import DEFAULT_CLASSIFICATION as DATA_CLASSIFI
 from app.core.metrics import increment as metric_increment
 from app.core.observability import record_conversion
 from app.core.processing import BLOCKED_MAGIC, actor_id, sha256_file
-from app.core.quotas import _MB, get_quota
+from app.core.quotas import (
+    _MB,
+    file_too_large_message,
+    get_quota,
+    higher_cap_hint,
+    larger_batches_hint,
+)
 from app.core.rate_limit import limiter
 from app.core.usage import enforce_monthly_quota, record_usage
 from app.core.utils import safe_download_name
@@ -119,21 +125,13 @@ async def _do_convert(
     # caller is.
     quota = get_quota(tier)
     if file.size is not None and file.size > quota.max_file_size_bytes:
-        limit_mb = quota.max_file_size_bytes // (1024 * 1024)
-        if tier == "anonymous":
-            free_mb = get_quota("free").max_file_size_bytes // _MB
-            detail = (
-                f"File too large ({limit_mb} MB max for anonymous). "
-                f"Register free to upload up to {free_mb} MB."
-            )
-        else:
-            detail = f"File too large ({limit_mb} MB max for your plan). Upgrade for larger files."
+        detail = file_too_large_message(tier, quota.max_file_size_bytes)
         # Structured code in a response header lets the UI distinguish
         # "your upload was too big" (this site) from
         # "the rendered output exceeded the cap" (further down, after
         # conversion completed). Both currently return 413; without the
         # disambiguator the client cannot tell whether to apologise for
-        # the user's input or to suggest the LibreOffice/upgrade path.
+        # the user's input or to suggest a more efficient target format.
         raise HTTPException(
             status_code=status.HTTP_413_CONTENT_TOO_LARGE,
             detail=detail,
@@ -227,10 +225,7 @@ async def _do_convert(
                 tip = "Split the table into smaller files and convert them one by one"
             else:
                 tip = "Try a more efficient target (WebP/AVIF for images, FLAC for audio)"
-            if tier == "anonymous":
-                hint = f"{tip} or register for a higher cap."
-            else:
-                hint = f"{tip} or upgrade your plan."
+            hint = f"{tip}. {higher_cap_hint(tier)}"
             # S4-foundation: record the rejection so dashboards can count
             # cap-hits per tier / format-pair. Success log alone would miss
             # this outcome entirely.
@@ -414,7 +409,7 @@ async def _do_convert_batch(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=(
                 f"Batch size {len(files)} exceeds tier limit of {quota.max_files_per_batch}. "
-                "Upgrade your plan for larger batches."
+                f"{larger_batches_hint(tier)}"
             ),
         )
 
@@ -461,8 +456,7 @@ async def _do_convert_batch(
             if not src_ext:
                 raise BatchFileError("Cannot determine source format from filename.")
             if size_in > quota.max_file_size_bytes:
-                limit_mb = quota.max_file_size_bytes // (1024 * 1024)
-                raise BatchFileError(f"File too large ({limit_mb} MB max for your plan).")
+                raise BatchFileError(file_too_large_message(tier, quota.max_file_size_bytes))
             converter = get_converter(src_ext, tgt_ext)
 
             tmp_dir = tempfile.mkdtemp(prefix="fm_")
@@ -494,12 +488,10 @@ async def _do_convert_batch(
 
                 # S1-B: Output-cap check — reject before loading into memory.
                 if output_disk_size is None or output_disk_size > quota.output_cap_bytes:
-                    if tgt_ext in _TABLE_TARGETS:
-                        tip = "Split the table or upgrade your plan."
-                    else:
-                        tip = "Try WebP/AVIF or upgrade your plan."
+                    tip = "Split the table" if tgt_ext in _TABLE_TARGETS else "Try WebP/AVIF"
                     raise BatchFileError(
-                        f"{_output_too_large(output_disk_size, quota.output_cap_bytes)} {tip}"
+                        f"{_output_too_large(output_disk_size, quota.output_cap_bytes)} "
+                        f"{tip}. {higher_cap_hint(tier)}"
                     )
 
                 content = output_path.read_bytes()

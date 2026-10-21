@@ -31,7 +31,7 @@ from app.api.routes import convert as convert_routes
 from app.api.routes import pdf_pages as pdf_routes
 from app.core.config import Settings, settings
 from app.core.processing import actor_id
-from app.core.quotas import _MB, QUOTAS
+from app.core.quotas import QUOTAS, _MB, higher_cap_hint
 from app.db import base as db_base
 from app.db.base import get_db
 from app.db.models import TierEnum
@@ -178,7 +178,7 @@ def test_caller_tier_needs_a_valid_key_file_key(key_tier, auth_headers):
     assert tier(auth_headers, SimpleNamespace(tier=TierEnum.pro)) == "pro"
 
 
-def test_key_tier_output_cap_hint_speaks_of_the_plan(
+def test_key_tier_output_cap_hint_points_to_self_hosting(
     client, auth_headers, sample_jpg, key_tier, monkeypatch
 ):
     """The output-cap hint picks its wording by tier too: a lifted key is not
@@ -191,10 +191,10 @@ def test_key_tier_output_cap_hint_speaks_of_the_plan(
         data={"target_format": "png"},
     )
     assert res.status_code == 413, res.text
-    assert res.json()["detail"].endswith("or upgrade your plan.")
+    assert res.json()["detail"].endswith(higher_cap_hint("free"))
     with pytest.raises(HTTPException) as exc:
         pdf_routes._enforce_output_cap(2, SimpleNamespace(output_cap_bytes=1), "free")
-    assert exc.value.detail.endswith("or upgrade your plan.")
+    assert exc.value.detail.endswith(higher_cap_hint("free"))
 
 
 def test_key_tier_does_not_unlock_paid_ai(client, auth_headers, redact_enabled, monkeypatch):

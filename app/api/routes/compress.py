@@ -36,7 +36,13 @@ from app.core.data_classification import DEFAULT_CLASSIFICATION as DATA_CLASSIFI
 from app.core.metrics import increment as metric_increment
 from app.core.observability import record_conversion
 from app.core.processing import BLOCKED_MAGIC, actor_id, sha256_file
-from app.core.quotas import _MB, get_quota
+from app.core.quotas import (
+    _MB,
+    file_too_large_message,
+    get_quota,
+    higher_cap_hint,
+    larger_batches_hint,
+)
 from app.core.rate_limit import limiter
 from app.core.usage import enforce_monthly_quota, record_usage
 from app.core.utils import safe_download_name
@@ -95,15 +101,7 @@ async def _do_compress(
     # and capacity-accounting agree on the caller's tier.
     quota = get_quota(tier)
     if file.size is not None and file.size > quota.max_file_size_bytes:
-        limit_mb = quota.max_file_size_bytes // (1024 * 1024)
-        if tier == "anonymous":
-            free_mb = get_quota("free").max_file_size_bytes // _MB
-            detail = (
-                f"File too large ({limit_mb} MB max for anonymous). "
-                f"Register free to upload up to {free_mb} MB."
-            )
-        else:
-            detail = f"File too large ({limit_mb} MB max for your plan). Upgrade for larger files."
+        detail = file_too_large_message(tier, quota.max_file_size_bytes)
         raise HTTPException(
             status_code=status.HTTP_413_CONTENT_TOO_LARGE,
             detail=detail,
@@ -129,7 +127,7 @@ async def _do_compress(
                 status_code=status.HTTP_413_CONTENT_TOO_LARGE,
                 detail=(
                     f"Target size {target_size_kb} KB exceeds tier output cap of {cap_kb} KB. "
-                    "Upgrade your plan for larger outputs."
+                    f"{higher_cap_hint(tier)}"
                 ),
                 headers={"X-FileMorph-Error-Code": "target_size_exceeds_cap"},
             )
@@ -233,7 +231,7 @@ async def _do_compress(
                 status_code=status.HTTP_413_CONTENT_TOO_LARGE,
                 detail=(
                     f"Output too large ({out_mb} MB > {cap_mb} MB cap). "
-                    "Lower the quality or upgrade your plan."
+                    f"Lower the quality. {higher_cap_hint(tier)}"
                 ),
                 headers={"X-FileMorph-Error-Code": "output_cap_exceeded"},
             )
@@ -385,7 +383,7 @@ async def _do_compress_batch(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=(
                 f"Batch size {len(files)} exceeds tier limit of {quota.max_files_per_batch}. "
-                "Upgrade your plan for larger batches."
+                f"{larger_batches_hint(tier)}"
             ),
         )
 
@@ -397,7 +395,7 @@ async def _do_compress_batch(
                 status_code=status.HTTP_413_CONTENT_TOO_LARGE,
                 detail=(
                     f"Target size {target_size_kb} KB exceeds tier output cap of {cap_kb} KB. "
-                    "Upgrade your plan for larger outputs."
+                    f"{higher_cap_hint(tier)}"
                 ),
                 headers={"X-FileMorph-Error-Code": "target_size_exceeds_cap"},
             )
@@ -423,8 +421,7 @@ async def _do_compress_batch(
             if ext not in IMAGE_FMTS and ext not in VIDEO_FMTS:
                 raise BatchFileError(f"Compression not supported for '.{ext}'.")
             if size_in > quota.max_file_size_bytes:
-                limit_mb = quota.max_file_size_bytes // (1024 * 1024)
-                raise BatchFileError(f"File too large ({limit_mb} MB max for your plan).")
+                raise BatchFileError(file_too_large_message(tier, quota.max_file_size_bytes))
 
             tmp_dir = tempfile.mkdtemp(prefix="fm_")
             try:
@@ -468,7 +465,7 @@ async def _do_compress_batch(
                     out_mb = output_disk_size // _MB
                     raise BatchFileError(
                         f"Output too large ({out_mb} MB > {cap_mb} MB cap). "
-                        "Lower the quality or upgrade your plan."
+                        f"Lower the quality. {higher_cap_hint(tier)}"
                     )
 
                 content = output_path.read_bytes()

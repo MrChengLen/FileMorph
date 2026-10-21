@@ -304,18 +304,26 @@ def _js_i18n_strings(_: gettext.GNUTranslations.gettext) -> dict[str, str]:
         # 413 disambiguation — distinguishes "your upload was too big"
         # (before any work) from "the rendered output exceeded the cap"
         # (after conversion). Same status code; very different remediation.
+        # The free paths only — the hosted service has no paid plan to upgrade
+        # to. The UI doesn't know the caller's tier here, so the texts name
+        # self-hosting for everyone and the free account for visitors without one
+        # (the server's own messages pick one path per tier).
         "errorInputTooLarge": _(
-            "File too large for your plan. Use a smaller file — or upgrade for larger uploads."
+            "File too large. Use a smaller file or self-host FileMorph — there you "
+            "set the limits. No account yet? Register free for larger files."
         ),
         "errorOutputCapExceeded": _(
-            "Conversion succeeded but the rendered output exceeded your "
-            "plan's output cap. Try a more efficient target format, lower "
-            "quality, or upgrade for a larger output cap."
+            "The result would be larger than allowed. Try a more efficient target "
+            "format or a lower quality, or self-host FileMorph — there you set the "
+            "limits. No account yet? Register free for a higher limit."
         ),
         "errorTargetSizeExceedsCap": _(
-            "Target size exceeds your plan's output cap. Lower the target "
-            "size or upgrade your plan."
+            "The target size is above the output limit. Choose a smaller target "
+            "size or self-host FileMorph — there you set the limits. No account "
+            "yet? Register free for a higher limit."
         ),
+        # pdf-tools.js — the 2 GB form ceiling no account or self-host lifts
+        "errorTargetSizeTooHigh": _("The target size is above the allowed maximum of 2 GB."),
         # P2-1 — batch result summary on /batch responses. The template
         # placeholders are kept stable across translations so the JS can
         # do a token substitution without per-locale parsing.

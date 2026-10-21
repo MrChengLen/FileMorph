@@ -484,19 +484,23 @@ the 422 body leaves out `size_out`:
   "files": [
     { "name": "one.png",   "status": "ok",    "size_in": 1048576,   "size_out": 786432, "error_message": "" },
     { "name": "two.png",   "status": "ok",    "size_in": 2097152,   "size_out": 786432, "error_message": "" },
-    { "name": "three.jpg", "status": "error", "size_in": 157286400, "size_out": 0,      "error_message": "Output too large (412 MB > 400 MB cap). Try WebP/AVIF or upgrade your plan." }
+    { "name": "three.jpg", "status": "error", "size_in": 157286400, "size_out": 0,      "error_message": "Output too large (412 MB > 400 MB cap). Try WebP/AVIF. Self-host FileMorph for a higher cap." }
   ]
 }
 ```
 
 Common per-file `error_message` values:
 
-- `"Output too large (N MB > M MB cap). Try WebP/AVIF or upgrade your
-  plan."` — the output (N MB) exceeded your tier's output cap (M MB).
-  On `/compress/batch` the hint reads `"Lower the quality or upgrade
-  your plan."`
-- `"Output too large (over the M MB cap). Split the table or upgrade your
-  plan."` — XLSX → CSV, JSON → CSV and CSV → JSON stop writing as soon as
+- `"Output too large (N MB > M MB cap). Try WebP/AVIF. Self-host
+  FileMorph for a higher cap."` — the output (N MB) exceeded your tier's
+  output cap (M MB). Without an account the last sentence points to the
+  free tier instead: `"Output too large (N MB > M MB cap). Try WebP/AVIF.
+  Register free for a higher cap."` On `/compress/batch` the hint starts
+  with `"Lower the quality."` instead of "Try WebP/AVIF.".
+- `"Output too large (over the M MB cap). Split the table. Self-host
+  FileMorph for a higher cap."` (without an account: `"Output too large
+  (over the M MB cap). Split the table. Register free for a higher
+  cap."`) — XLSX → CSV, JSON → CSV and CSV → JSON stop writing as soon as
   their output passes the cap (M MB).
 - `"Conversion from 'docx' to 'mp4' is not supported."` — no
   converter for that pair.
@@ -603,14 +607,19 @@ mint it.
 ### What happens at each cap
 
 - **File size exceeded** → `413 Request Entity Too Large` with
-  `"File too large (N MB max for your plan). Upgrade for larger
-  files."` (anonymous callers are pointed to the free tier instead).
+  `"File too large (N MB max for your plan). Self-host FileMorph for
+  larger files."` There are no paid plans to upgrade to, so every limit
+  message names the free way past it: callers without an account are
+  pointed to the free tier ("Register free …"), everyone else to
+  self-hosting.
 - **Batch size exceeded** → `400 Bad Request` with
   `"Batch size N exceeds tier limit of M."`
 - **Output cap exceeded** → `413` with `"Output too large (N MB > M MB
   cap)."` plus a hint — on `/convert`, try a more efficient target
-  (WebP/AVIF for images, FLAC for audio) or upgrade; on `/compress`,
-  `"Lower the quality or upgrade your plan."` Note this is checked
+  (WebP/AVIF for images, FLAC for audio); on `/compress`,
+  `"Lower the quality. Self-host FileMorph for a higher cap."` (without
+  an account: `"Lower the quality. Register free for a higher cap."`).
+  Note this is checked
   **after** the conversion runs, so the server has already spent the
   CPU time; the request counts toward the per-minute rate limit but
   not toward your monthly API calls. XLSX → CSV, JSON → CSV and
@@ -670,7 +679,7 @@ array describing each invalid field. Two responses look different:
 | `401` | An `X-API-Key` that isn't valid, or a missing or expired JWT on an account endpoint (`/auth/me`, `/keys`, `/billing/*`). File endpoints never answer `401` for a missing or expired JWT — they run anonymously | No — check the key or refresh the JWT |
 | `403` | Authenticated but not allowed (admin-only routes) | No |
 | `409` | Conflict — email already registered, or the account already has 25 active API keys (revoke one first) | No |
-| `413` | Request, file or output exceeds a cap | No — reduce size or upgrade |
+| `413` | Request, file or output exceeds a cap | No — reduce size, register free or self-host |
 | `415` | `target_size_kb` on a lossless format (PNG/TIFF), or a form body declared in a charset other than UTF-8 | No — use `quality` instead, or send the form as UTF-8 |
 | `422` | Missing or invalid field, `target_formats` count ≠ `files` count, unsupported format pair, or batch where every file failed | No — fix the request (for a batch, check each file's `error_message`) |
 | `429` | Rate limit, concurrent-request cap, monthly API calls used up, or too many rejected API keys | Yes — after `Retry-After` if sent (monthly quota: from the 1st of next month); rejected keys: fix the key instead |
