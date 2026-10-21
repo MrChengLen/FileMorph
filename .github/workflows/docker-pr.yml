@@ -175,6 +175,33 @@ jobs:
           # dump, first in line for the OOM killer.
           docker exec filemorph python -c "import ctypes, resource; from app.converters._isolated import limit_resources; limit_resources(2**30, 95); assert [resource.getrlimit(r)[0] for r in (resource.RLIMIT_AS, resource.RLIMIT_CPU, resource.RLIMIT_CORE)] == [2**30, 95, 0]; assert ctypes.CDLL(None).prctl(3, 0, 0, 0, 0) == 0; assert open('/proc/self/oom_score_adj').read().strip() == '1000'"
 
+      # Outgoing TLS other than Stripe's (the app's mail through aiosmtplib,
+      # anything on ssl.create_default_context()) trusts the system CA store:
+      # Debian's ca-certificates from the base image. The emSign ECC Root CA -
+      # G3 must not be in it (GHSA-6q48-6c7w-9gw2; Debian dropped it in
+      # ca-certificates 20250419+deb13u1, DSA-6572-1). Every certificate file
+      # on OpenSSL's default paths is loaded the way a TLS client loads it;
+      # ISRG Root X1 proves the check saw the store at all.
+      - name: Check the system CA store
+        run: |
+          docker exec -i filemorph python - <<'PY'
+          import pathlib, ssl
+          paths = ssl.get_default_verify_paths()
+          files = [pathlib.Path(paths.cafile)] if paths.cafile else []
+          if paths.capath:
+              files += [p for p in pathlib.Path(paths.capath).iterdir() if p.is_file()]
+          ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+          for path in files:
+              try:
+                  ctx.load_verify_locations(cafile=path)
+              except ssl.SSLError:
+                  pass  # not a certificate file
+          names = {v for c in ctx.get_ca_certs() for rdn in c["subject"] for k, v in rdn if k == "commonName"}
+          assert "ISRG Root X1" in names, f"no CA store found ({len(files)} files read)"
+          assert "emSign ECC Root CA - G3" not in names, "the system CA store trusts emSign ECC Root CA - G3"
+          print(f"ok: {len(ctx.get_ca_certs())} CA certificates, emSign ECC Root CA - G3 not among them")
+          PY
+
       # What the office image adds, driven the way the DOCX converter drives
       # it: headless, with a throwaway profile, through Writer to PDF.
       - name: Check that LibreOffice converts

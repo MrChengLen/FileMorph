@@ -9,7 +9,6 @@ re-lock keeps existing pins, so this floor is what moves certifi past the
 advisory and keeps it there; no other dependency changes.
 
 This fixes certifi itself. Its only user in FileMorph is `requests`, which
-comes in through the Stripe SDK, and the Stripe SDK checks certificates
-against its own CA file, which still contains this root. Deployments that
-configure Stripe keep trusting it for Stripe calls until a follow-up points
-the SDK at certifi's bundle.
+comes in through the Stripe SDK, and the Stripe SDK checked certificates
+against its own CA file, which still contains this root; the entry above
+points the SDK at certifi's bundle.
