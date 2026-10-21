@@ -1,0 +1,11 @@
+{# Says where the action above runs, as text and not only as an icon. Every
+   tool runs on the server, so each tool's start button gets this hint right
+   below it. Lives in partials/ (not _components/) so babel extracts its
+   string; text-ink-muted keeps it at WCAG AA on the card surface (pinned by
+   tests/test_public_claims.py). #}
+<p class="flex items-center justify-center gap-1.5 text-xs text-ink-muted" data-component="location-hint" data-location="server">
+  <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M7 18h10a4 4 0 0 0 .5-7.97A6 6 0 0 0 6.1 9.3 4.5 4.5 0 0 0 7 18z"/>
+  </svg>
+  <span>{{ _('Runs via our server — files are uploaded and deleted right after processing.') }}</span>
+</p>

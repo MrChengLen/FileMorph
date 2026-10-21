@@ -20,14 +20,6 @@
       <!-- Interactive convert/compress tool (shared partial — see convert_pair.html) -->
       {% include "partials/convert_tool.html" %}
 
-      <!-- Footer note — text-ink-muted keeps it at WCAG AA (≈ 7.9 : 1 on the
-           page background; pinned by tests/test_public_claims.py). -->
-      <p class="text-center text-xs text-ink-muted">
-        {{ _('Files are processed server-side and deleted immediately after conversion.') }}
-        <a href="https://github.com/MrChengLen/FileMorph" target="_blank"
-          class="text-ink-muted underline hover:text-ink transition-colors ml-1">{{ _('GitHub ↗') }}</a>
-      </p>
-
       <!-- Self-Hosted / Open-Source promotion — the canonical product
            truth (see docs-internal/pricing-overhaul-konzept.md §1).
            Always rendered: the OSS story holds for self-hosters too, and

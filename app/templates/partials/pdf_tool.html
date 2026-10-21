@@ -61,7 +61,10 @@
     <p class="text-xs text-gray-600">{{ _('Returns a ZIP with one PDF per page (page_1.pdf, page_2.pdf, …), capped at 10,000 pages.') }}</p>
     {% endif %}
 
-    {{ ub.button(content.cta, id='pdf-submit', full_width=True) }}
+    <div class="space-y-2">
+      {{ ub.button(content.cta, id='pdf-submit', full_width=True) }}
+      {% include "partials/location_hint.html" %}
+    </div>
   </div>
 
   <!-- Progress -->
