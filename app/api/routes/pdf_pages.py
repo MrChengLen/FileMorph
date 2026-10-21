@@ -43,8 +43,8 @@ from starlette.background import BackgroundTask
 
 from app.api.deps import caller_tier, require_api_key
 from app.api.routes.auth import get_optional_user
-from app.compressors.pdf import compress_pdf_to_target
-from app.converters.base import EncryptedPdfError, OutputTooLargeError
+from app.converters._isolated import run_isolated
+from app.converters.base import EncryptedPdfError, InvalidInputError, OutputTooLargeError
 from app.converters.pdf_pages import (
     PageSelectionError,
     TooManyPagesError,
@@ -370,6 +370,10 @@ def _output_cap_error(output_size: int | None, quota, tier: str) -> HTTPExceptio
 # is a clean 400 instead of a pointless full-document compress that can
 # never undershoot it. 2 GB comfortably exceeds every tier's input cap.
 _MAX_TARGET_KB = 2 * 1024 * 1024  # 2 GB in KB
+_TOO_LARGE_TO_COMPRESS = (
+    "This PDF is too large or complex to compress in one go. Split it with "
+    "/api/v1/pdf/split and compress the parts one by one."
+)
 
 
 @router.post("/pdf/compress", tags=["Compress"], dependencies=[Depends(require_api_key)])
@@ -436,12 +440,16 @@ async def _do_compress(
         input_size_bytes = _write_upload_and_check_magic(file, input_path)
 
         try:
-            # pikepdf parse + Pillow re-encode off the event loop (sync,
-            # C-accelerated, and CPU-heavy for image-rich PDFs).
+            # pikepdf parse + Pillow re-encode in a child process with memory
+            # and time limits (app/converters/_isolated.py), waited for off
+            # the event loop.
             result = await asyncio.to_thread(
-                compress_pdf_to_target,
-                input_path,
-                output_path,
+                run_isolated,
+                "pdf-compress",
+                too_large=_TOO_LARGE_TO_COMPRESS,
+                tmp_dir=Path(tmp_dir),
+                input_path=input_path,
+                output_path=output_path,
                 target_bytes=target_bytes,
             )
         except HTTPException:
@@ -452,6 +460,13 @@ async def _do_compress(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(exc),
                 headers={"X-FileMorph-Error-Code": exc.error_code},
+            )
+        except InvalidInputError as exc:
+            logger.info("pdf compress rejected: %s", exc)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(exc),
+                headers={"X-FileMorph-Error-Code": "invalid_input"},
             )
         except Exception:
             # security.md: no pikepdf/Pillow internals to the client — a

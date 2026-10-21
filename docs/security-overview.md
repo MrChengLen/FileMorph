@@ -235,17 +235,28 @@ attachment) through all four call sites and fails if any of them
 loads; CI fails if WeasyPrint cannot render on the test runner, so
 that test cannot skip there. Self-hosters should not disable this.
 
-### PDF → TXT in a child process
+### PDF → TXT, table conversions and PDF compression in a child process
 
 pypdf's text extraction runs in a child Python process
 (`app/converters/_pdf_text.py`), started by `PdfToTxtConverter` in
 `app/converters/document.py`. The parent stops it after 30 seconds and the
 conversion gets a `400`; on Linux the child caps its own address space at
-1 GiB. Like the LibreOffice subprocess below, the child gets the environment
-without application secrets; it reads no stdin, its diagnostic output is
-discarded, and it reports its outcome on stdout (for an unreadable PDF with
-the exception class). `tests/test_pdf_to_text_process.py` pins the page cap,
-the time limit, the environment and the memory cap.
+1 GiB and its CPU time at 35 seconds. Like the LibreOffice subprocess below,
+the child gets the environment without application secrets; it reads no
+stdin, its diagnostic output is discarded, and it reports its outcome on
+stdout (for an unreadable PDF with the exception class).
+`tests/test_pdf_to_text_process.py` pins the page cap, the time limit, the
+environment and the memory and CPU caps.
+
+The table conversions (XLSX → CSV, CSV → XLSX, CSV → JSON, JSON → CSV) and
+PDF compression run the same way, through `app/converters/_isolated.py`:
+stopped after 90 seconds, on Linux capped at 1 GiB of address space (PDF
+compression: 3 GiB) and slightly more CPU time than the time limit. On Linux
+none of these children writes a core dump. A file over these limits gets a
+`400` (`invalid_input`) whose message names the next step. The child's
+temporary files go to the request's own temp folder, which the route removes.
+`tests/test_isolated_conversions.py` pins the limits, the environment and how
+the child's errors come back.
 
 ### Office image: LibreOffice subprocess hardening
 

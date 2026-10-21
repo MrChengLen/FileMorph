@@ -7,7 +7,6 @@ import os
 import re
 import shutil
 import subprocess
-import sys
 import zipfile
 from pathlib import Path
 
@@ -446,9 +445,8 @@ class TxtToPdfConverter(BaseConverter):
 # pypdf extracts the text in a child process (app/converters/_pdf_text.py):
 # some PDFs take it a long time, and only a process can be stopped from
 # outside. Past the time limit the child is stopped and the conversion
-# refused; on Linux the child's address space is capped too.
+# refused; on Linux the child's address space and CPU time are capped too.
 _TEXT_TIME_LIMIT_SECONDS = 30
-_APP_ROOT = Path(__file__).resolve().parents[2]  # the directory holding the ``app`` package
 
 _TEXT_TOO_MANY_PAGES = (
     f"This PDF has more than {_TEXT_MAX_PAGES:,} pages, the most a PDF-to-text "
@@ -464,23 +462,15 @@ _TEXT_TOO_LARGE = (
 @register(("pdf", "txt"))
 class PdfToTxtConverter(BaseConverter):
     def convert(self, input_path: Path, output_path: Path, **kwargs) -> Path:
-        command = [sys.executable, "-m", "app.converters._pdf_text"]
-        command += [str(input_path.resolve()), str(output_path.resolve()), str(_TEXT_MAX_PAGES)]
+        from app.converters._isolated import spawn
+
+        args = ["app.converters._pdf_text", str(input_path.resolve()), str(output_path.resolve())]
         try:
-            result = subprocess.run(  # noqa: S603 — fixed module, our own paths, no shell
-                command,
-                stdin=subprocess.DEVNULL,
-                stdout=subprocess.PIPE,
-                # The child's diagnostic output is discarded; it reports its
-                # outcome on stdout.
-                stderr=subprocess.DEVNULL,
-                encoding="utf-8",
-                errors="replace",
+            # App secrets stay out of the child, as for soffice.
+            result = spawn(
+                [*args, str(_TEXT_MAX_PAGES)],
                 timeout=_TEXT_TIME_LIMIT_SECONDS,
-                check=False,
-                cwd=_APP_ROOT,
-                # App secrets stay out of the child, as for soffice.
-                env={k: v for k, v in os.environ.items() if not _is_secret_env_name(k)},
+                tmp_dir=output_path.parent,
             )
         except subprocess.TimeoutExpired:
             logger.info("pdf to txt: stopped after %s s", _TEXT_TIME_LIMIT_SECONDS)
@@ -499,6 +489,9 @@ class PdfToTxtConverter(BaseConverter):
         if outcome == "unreadable":
             logger.info("unreadable PDF: %s", detail)
             raise InvalidInputError("Could not read the PDF. Verify the file is valid.")
+        if result.returncode < 0:  # stopped by a signal: out of memory or CPU time
+            logger.info("pdf to txt: stopped by a limit (status %s)", result.returncode)
+            raise InvalidInputError(_TEXT_TOO_LARGE)
         raise RuntimeError(
             f"pdf to txt child failed (status {result.returncode}): {detail or outcome or '-'}"
         )
