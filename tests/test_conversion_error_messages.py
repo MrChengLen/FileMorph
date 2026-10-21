@@ -27,7 +27,9 @@ import pytest
 from PIL import Image
 
 from app.api.routes.auth import get_optional_user
+from app.converters.base import InvalidInputError
 from app.converters.registry import get_converter
+from app.converters.spreadsheet import CsvToJsonConverter, CsvToXlsxConverter
 from app.core import quotas as quotas_module
 from app.core.quotas import QUOTAS
 from app.main import app
@@ -52,12 +54,18 @@ _skip_no_weasyprint = pytest.mark.skipif(
 # default "CSV (Comma delimited)" export write.
 _NON_UTF8_MD = "# Überschrift\n\nGrüße aus Hamburg — äöüß\n".encode("cp1252")
 _NON_UTF8_CSV = "Name,Stadt\nMüller,Köln\n".encode("cp1252")
+# UTF-8 for 280 KB, then one windows-1252 row: the invalid byte comes late.
+_LATE_NON_UTF8_CSV = b"".join(
+    ["Name,Stadt\n".encode(), "Müller,Köln\n".encode() * 20_000, "Weiß,Köln\n".encode("cp1252")]
+)
 _NON_UTF8_JSON = '[{"name": "Müller"}]'.encode("cp1252")
 _NON_UTF8_CASES = [
     pytest.param("notes.md", _NON_UTF8_MD, "html", id="md-html"),
     pytest.param("notes.md", _NON_UTF8_MD, "pdf", id="md-pdf", marks=_skip_no_weasyprint),
     pytest.param("excel.csv", _NON_UTF8_CSV, "json", id="csv-json"),
     pytest.param("excel.csv", _NON_UTF8_CSV, "xlsx", id="csv-xlsx"),
+    pytest.param("excel.csv", _LATE_NON_UTF8_CSV, "json", id="csv-json-late"),
+    pytest.param("excel.csv", _LATE_NON_UTF8_CSV, "xlsx", id="csv-xlsx-late"),
     pytest.param("data.json", _NON_UTF8_JSON, "csv", id="json-csv"),
 ]
 _UTF8_HINT = "not UTF-8 text"
@@ -146,6 +154,16 @@ def test_convert_non_utf8_text_returns_400_with_hint(client, auth_headers, name,
     detail = r.json()["detail"]
     _assert_no_decoder_internals(detail)
     assert _UTF8_HINT in detail
+
+
+@pytest.mark.parametrize("converter", [CsvToJsonConverter, CsvToXlsxConverter])
+def test_csv_with_a_late_invalid_byte_is_refused_before_converting(tmp_path, converter):
+    src, out = tmp_path / "excel.csv", tmp_path / "out"
+    src.write_bytes(_LATE_NON_UTF8_CSV)
+    with pytest.raises(InvalidInputError, match=_UTF8_HINT):
+        converter().convert(src, out)
+    assert not out.exists()
+    src.unlink()  # closed again: Windows can't delete an open file
 
 
 def test_csv_utf8_with_bom_converts_cleanly(client, auth_headers):

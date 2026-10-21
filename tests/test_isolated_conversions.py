@@ -13,6 +13,7 @@ import json
 import logging
 import subprocess
 import sys
+import tracemalloc
 
 import pytest
 
@@ -23,7 +24,11 @@ from app.converters.base import (
     OutputTooLargeError,
     UnsupportedPdfEncryptionError,
 )
-from app.converters.spreadsheet import CsvToJsonConverter, JsonToCsvConverter
+from app.converters.spreadsheet import (
+    CsvToJsonConverter,
+    CsvToXlsxConverter,
+    JsonToCsvConverter,
+)
 
 _TOO_LARGE = "Too large; split it."
 
@@ -128,6 +133,27 @@ def test_the_child_hardens_pillow_and_caps_itself(tmp_path):
     if sys.platform == "linux":
         assert lines[3].split() == [str(256 * 1024 * 1024), "65", "0", "0"]
     assert json.loads(out.read_text(encoding="utf-8")) == [{"a": "1"}]
+
+
+# ── Within the child's memory limit ──────────────────────────────────────────
+
+
+@pytest.mark.parametrize("converter", [CsvToJsonConverter, CsvToXlsxConverter])
+def test_a_csv_is_read_row_by_row(tmp_path, converter):
+    """A CSV is converted row by row: the memory taken grows with the longest
+    row, not with the file."""
+    src, tiny = tmp_path / "in.csv", tmp_path / "tiny.csv"
+    # 8 MB in 16,000 cells, every row different
+    src.write_bytes(b"a,b\n" + b"".join((b"%07d" % i) * 143 + b",1\n" for i in range(8000)))
+    tiny.write_bytes(b"a,b\n1,2\n")
+    converter().convert(tiny, tmp_path / "warm-up")  # lazy imports happen here
+    tracemalloc.start()
+    try:
+        converter().convert(src, tmp_path / "out")
+        peak = tracemalloc.get_traced_memory()[1]
+    finally:
+        tracemalloc.stop()
+    assert peak < src.stat().st_size // 4
 
 
 # ── The parent's side, with a stand-in child ─────────────────────────────────
