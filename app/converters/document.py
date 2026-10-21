@@ -492,9 +492,12 @@ class PdfToTxtConverter(BaseConverter):
         if result.returncode < 0:  # stopped by a signal: out of memory or CPU time
             logger.info("pdf to txt: stopped by a limit (status %s)", result.returncode)
             raise InvalidInputError(_TEXT_TOO_LARGE)
-        raise RuntimeError(
-            f"pdf to txt child failed (status {result.returncode}): {detail or outcome or '-'}"
-        )
+        # A logged error shows its type, not its text: name the child's here,
+        # and nothing that isn't a name.
+        failure = detail or outcome
+        failure = failure if failure.isidentifier() else "-"
+        logger.warning("pdf to txt child failed (status %s): %s", result.returncode, failure)
+        raise RuntimeError(f"pdf to txt child failed (status {result.returncode}): {failure}")
 
 
 # ---------------------------------------------------------------------------

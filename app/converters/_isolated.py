@@ -136,9 +136,12 @@ def run_isolated(step: str, *, too_large: str, tmp_dir: Path, **kwargs):
     if error == "out_of_memory" or result.returncode < 0:
         logger.info("isolated %s: out of memory or CPU time (status %s)", step, result.returncode)
         raise InvalidInputError(too_large)
-    raise RuntimeError(
-        f"isolated {step} failed (status {result.returncode}): {outcome.get('type', '-')}"
-    )
+    # A logged error shows its type and traceback, not its text: name the
+    # child's error type here, and nothing that isn't a name.
+    error_type = outcome.get("type")
+    error_type = error_type if isinstance(error_type, str) and error_type.isidentifier() else "-"
+    logger.warning("isolated %s failed (status %s): %s", step, result.returncode, error_type)
+    raise RuntimeError(f"isolated {step} failed (status {result.returncode}): {error_type}")
 
 
 def _convert(converter: str, input_path: Path, output_path: Path, **kwargs) -> None:
