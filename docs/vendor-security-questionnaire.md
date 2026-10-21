@@ -124,26 +124,36 @@ outbound calls in the application code are:
   and responses to Stripe's signed webhooks (paid tiers only).
 
 There is no analytics beacon, no telemetry endpoint, no "phone home"
-call, no third-party CDN for static assets. Tailwind, fonts, and the
-Chart.js library used by the admin cockpit are all served from the
-deployment's own origin.
+call, and the pages load nothing from another domain. Tailwind, fonts,
+the Chart.js library used by the admin cockpit, and the Swagger UI
+behind `/docs` are all served from the deployment's own origin. On
+filemorph.io that origin sits behind Cloudflare, so these requests pass
+through it like every other request (§2.3).
 
 ### 2.3 Are there third-country transfers?
 
 For the SaaS:
 
-- Payment processing for paid subscriptions transits **Stripe Inc.** in
-  the United States, covered by the Stripe DPA and EU Standard
-  Contractual Clauses (SCCs). Card data is collected by Stripe directly
-  and never reaches FileMorph.
-- Transactional email transits **Zoho Corporation B.V.**, EU data
-  centres in Amsterdam (NL) and Dublin (IE) — no third-country transfer.
+- Payment processing for paid subscriptions (none offered at present):
+  the contracting entity is **Stripe Payments Europe, Ltd.** (Ireland);
+  Stripe also processes data in the United States — Stripe, LLC is
+  certified under the EU-U.S. Data Privacy Framework, and the Stripe DPA
+  contains the EU Standard Contractual Clauses (SCCs). Card data is
+  collected by Stripe directly and never reaches FileMorph.
+- Transactional email and the operator's mailbox sit with **Zoho
+  Corporation GmbH** (contracting entity for Germany), EU data centres in
+  Amsterdam (NL) and Dublin (IE).
+  In rare cases staff of Zoho's Indian group company may access data
+  remotely for technical support — a third-country transfer covered by
+  the EU SCCs.
 - Server hosting sits on Hetzner Online GmbH, data centre in the EU —
   no third-country transfer.
-- DNS and the edge proxy are **Cloudflare Inc.** (United States). The
+- DNS and the edge proxy are **Cloudflare, Inc.** (United States). The
   edge terminates TLS, so every request — uploaded files included — and
   every response passes through Cloudflare's network, which is global;
-  covered by the Cloudflare DPA and EU Standard Contractual Clauses.
+  covered by Cloudflare's EU-U.S. Data Privacy Framework certification
+  (adequacy decision); the EU Standard Contractual Clauses in its DPA
+  apply if the certification lapses.
 
 For a self-hoster: their own configuration governs. The application
 defaults emit no third-country traffic unless the operator wires Stripe,
@@ -1067,7 +1077,7 @@ prior-notice rule.
 | Imprint (TMG § 5 / DDG § 5) | `https://filemorph.io/impressum` and `app/templates/impressum.html` |
 | Terms of service | `https://filemorph.io/terms` and `app/templates/terms.html` |
 | Public contact form (DDG § 5 second channel) | `https://filemorph.io/contact` |
-| Cookie / consent posture | No consent banner needed and none shown — the application sets no HTTP cookies at all and uses no analytics, no third-party CDN, no advertising cookies. A dismissible, purely informational notice states this to first-time visitors; its dismissal flag and the signed-in JWT tokens live in browser localStorage and are strictly-necessary, not subject to consent under TDDDG § 25(2) (formerly TTDSG). The reasoning is documented in `app/templates/privacy.html`. |
+| Cookie / consent posture | No consent banner needed and none shown — the application sets no HTTP cookies at all, uses no analytics and no advertising cookies, and its pages load nothing from other domains. A dismissible, purely informational notice states this to first-time visitors; its dismissal flag and the signed-in JWT tokens live in browser localStorage and are strictly-necessary, not subject to consent under TDDDG § 25(2) (formerly TTDSG). On filemorph.io, Cloudflare may set its `cf_clearance` cookie once a visitor passes a security check — strictly necessary as well (TDDDG § 25(2) no. 2). The reasoning is documented in `app/templates/privacy.html`. |
 | Sub-processors | [`docs/sub-processors.md`](./sub-processors.md) |
 | DPA template | [`docs/dpa-template.md`](./dpa-template.md) + [`docs/dpa-tom-annex.md`](./dpa-tom-annex.md) |
 | Records of processing | [`docs/records-of-processing-template.md`](./records-of-processing-template.md) |

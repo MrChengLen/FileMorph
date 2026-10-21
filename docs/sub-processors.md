@@ -22,9 +22,9 @@ a starting template, not as a binding statement about your deployment.
 | Service | Purpose | Data category | Region | Toggle |
 |---|---|---|---|---|
 | **Hetzner Online GmbH** | Server hosting | Whatever the server holds: uploads while they are processed, the database if configured (accounts, usage records, audit log), and the logs — access logs with client IPs are written by the reverse proxy and by the application's uvicorn server. | Data centre in the EU. | Inherent to the deployment; switch hosting provider to opt out. |
-| **Cloudflare Inc.** | DNS, DDoS protection, edge caching | All traffic to the service: the edge terminates TLS, so it handles request metadata (client IP, URL, headers) and, in transit, request and response bodies — uploaded and converted files included. FileMorph uses no Cloudflare storage. | Distributed (operator may set a regional preference). | Optional; remove the proxy and serve the origin directly. |
-| **Stripe Inc.** | Payment processing (Cloud Edition only) | Customer email and an internal user identifier; card data is collected by Stripe directly and never reaches FileMorph. | United States (EU SCCs apply via Stripe DPA). | Disabled when `STRIPE_SECRET_KEY` is empty. |
-| **Zoho Corporation B.V.** | Transactional email (email verification, password reset, payment-failure notices, account-deletion confirmation) and delivery of contact-form messages to the operator | Recipient address and the email body (e.g. a reset link); for a contact-form message, the sender's name, email address, subject and message. | EU data centres in Amsterdam (NL) and Dublin (IE). | Disabled when `SMTP_HOST` is empty. |
+| **Cloudflare, Inc.** | DNS, DDoS protection, edge caching | All traffic to the service: the edge terminates TLS, so it handles request metadata (client IP, URL, headers) and, in transit, request and response bodies — uploaded and converted files included. FileMorph uses no Cloudflare storage. | United States; global network. Transfer basis: EU-U.S. Data Privacy Framework certification (adequacy decision); the EU SCCs in Cloudflare's DPA apply if the certification lapses. Keeping processing inside the EU (Data Localization Suite) is an Enterprise add-on. | Optional; remove the proxy and serve the origin directly. |
+| **Stripe Payments Europe, Ltd.** | Payment processing (Cloud Edition only) | Customer email and an internal user identifier; card data is collected by Stripe directly and never reaches FileMorph. Stripe processes payment data partly as an independent controller (e.g. fraud prevention). | Ireland (contracting entity); Stripe also processes data in the United States — EU SCCs in Stripe's DPA. | Disabled when `STRIPE_SECRET_KEY` is empty. |
+| **Zoho Corporation GmbH** (contracting entity for Germany) | Transactional email (email verification, password reset, payment-failure notices, account-deletion confirmation), delivery of contact-form messages to the operator, and the operator's mailbox | Recipient address and the email body (e.g. a reset link); for a contact-form message, the sender's name, email address, subject and message; emails people send to the operator. | EU data centres in Amsterdam (NL) and Dublin (IE). In rare cases staff of Zoho's Indian group company may access data remotely for technical support — a third-country transfer covered by the EU SCCs. | Disabled when `SMTP_HOST` is empty. |
 | **GitHub Inc.** | Source distribution and issue tracking | Public repository metadata only; not in the request path of any deployment. | United States. | Inherent to the open-source distribution model. |
 
 ## What FileMorph itself does NOT send out
@@ -43,9 +43,11 @@ calls in the application code are:
   and responses to Stripe's signed webhooks (Cloud Edition, paid tiers).
 
 There is no analytics beacon, no telemetry endpoint, no "phone home" call,
-and no third-party CDN for static assets — Tailwind, fonts, and the
-Chart.js library used by the admin cockpit are all served from the
-deployment's own origin.
+and the pages load nothing from another domain — Tailwind, fonts, the
+Chart.js library used by the admin cockpit, and the Swagger UI behind
+`/docs` are all served from the deployment's own origin. If a proxy such
+as Cloudflare sits in front of that origin (as on filemorph.io), these
+requests pass through it like every other request — see the table above.
 
 ## Adding a sub-processor
 

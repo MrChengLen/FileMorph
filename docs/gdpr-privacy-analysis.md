@@ -239,7 +239,7 @@ This dual role creates complexity:
 | Art. 6(1)(b) Legal basis | Contract performance — billing data is necessary to process payment for the service. |
 | Art. 17 Erasure | Stripe customer data: Stripe retains financial transaction records for compliance with financial regulations (typically 7 years). The right to erasure does not override legal retention obligations (Art. 17(3)(b)). Document this exception in the privacy policy. |
 | SCA (Strong Customer Authentication) | EU requires SCA (PSD2). Stripe Checkout handles SCA automatically — verify the integration uses Stripe Checkout or Payment Element, not the legacy Charges API. |
-| Standard Contractual Clauses | Stripe Inc. is a US company. Stripe's DPA includes SCCs for EU-US data transfer. Verify the current version covers the post-Schrems II framework (EU SCCs 2021). |
+| Standard Contractual Clauses | Stripe's EU contracting entity is Stripe Payments Europe, Ltd.; Stripe also processes data in the US. Stripe's DPA includes SCCs for EU-US data transfer. Verify the current version covers the post-Schrems II framework (EU SCCs 2021). |
 
 **Webhook security:** `POST /api/v1/billing/webhook` must verify Stripe's webhook signature (`stripe.Webhook.construct_event`) before processing. This is not mentioned in the requirements but is critical — an unverified webhook endpoint allows any actor to simulate payment events.
 
@@ -313,6 +313,8 @@ This dual role creates complexity:
 ---
 
 ## Recommended Privacy Policy Sections
+
+> **Superseded (2026-10-19):** the published policy is `app/templates/privacy.html` (German text authoritative). The sections below are the April 2026 recommendation: the Cloudflare R2 file storage they describe was never built, and the authority responsible for filemorph.io is the Hamburg Commissioner for Data Protection and Freedom of Information (HmbBfDI), not the federal BfDI.
 
 The privacy policy at `https://filemorph.io/privacy` must cover the following sections. Engage a lawyer admitted in an EU member state to draft the final document.
 
@@ -475,7 +477,7 @@ Add a dismissible notice (not a cookie banner, since no cookies are set) informi
 ## EU-Specific Considerations
 
 ### Cloudflare R2 EU Data Residency
-R2 supports an `eu` jurisdiction configuration. Creating a bucket with `--location-hint eu` restricts data to Cloudflare's EU data centers. This must be a hard requirement for the Cloud Edition, not an optional configuration. Document the bucket creation command in the deployment runbook.
+*Not built — file storage (Phase 2) does not exist; see the note above "Recommended Privacy Policy Sections".* R2 supports an `eu` jurisdiction configuration. Creating a bucket with `--location-hint eu` restricts data to Cloudflare's EU data centers. This must be a hard requirement for the Cloud Edition, not an optional configuration. Document the bucket creation command in the deployment runbook.
 
 ### Standard Contractual Clauses (SCCs)
 - **Stripe:** Transfer to the US is covered by Stripe's DPA which incorporates the 2021 EU SCCs. Verify Stripe's DPA version at https://stripe.com/legal/dpa is current.
