@@ -3,7 +3,8 @@
 
 The table conversions run in a child process with memory and time limits,
 and the child reports its result or error on stdout. PDF compression uses the
-same child; its route tests are in ``tests/test_pdf_compress.py``.
+same child; its route tests are in ``tests/test_pdf_compress.py`` and, with a
+stand-in child, ``tests/test_pdf_error_messages.py``.
 """
 
 from __future__ import annotations
@@ -58,7 +59,7 @@ def test_a_child_over_its_time_is_stopped(tmp_path, monkeypatch):
     _step_limits(monkeypatch, "convert", seconds=0.01)
     src = tmp_path / "in.csv"
     src.write_text("a,b\n1,2\n", encoding="utf-8")
-    with pytest.raises(InvalidInputError, match="too large or complex to convert"):
+    with pytest.raises(_isolated.TooComplexError, match="too large or complex to convert"):
         CsvToJsonConverter().run(src, tmp_path / "out.json")
 
 
@@ -166,8 +167,8 @@ def test_the_child_gets_no_secrets_and_the_request_temp_folder(tmp_path, monkeyp
         ('{"error": "encrypted"}', 0, EncryptedPdfError, "password"),
         ('{"error": "unsupported_encryption"}', 0, UnsupportedPdfEncryptionError, "certificate"),
         ('{"error": "invalid", "message": "Fix it."}', 0, InvalidInputError, "Fix it."),
-        ('{"error": "out_of_memory"}', 0, InvalidInputError, _TOO_LARGE),
-        ("", -9, InvalidInputError, _TOO_LARGE),  # stopped by a limit
+        ('{"error": "out_of_memory"}', 0, _isolated.TooComplexError, _TOO_LARGE),
+        ("", -9, _isolated.TooComplexError, _TOO_LARGE),  # stopped by a limit
         ('{"error": "failed", "type": "KeyError"}', 0, RuntimeError, "KeyError"),
         ("not json", 1, RuntimeError, "status 1"),
     ],
@@ -178,6 +179,7 @@ def test_child_outcomes_map_to_the_usual_errors(
     monkeypatch.setattr(subprocess, "run", _fake_child(stdout, returncode))
     with pytest.raises(error) as excinfo:
         _isolated.run_isolated("convert", too_large=_TOO_LARGE, tmp_dir=tmp_path)
+    assert type(excinfo.value) is error  # e.g. the child's own message is no TooComplexError
     assert message in str(excinfo.value)
 
 

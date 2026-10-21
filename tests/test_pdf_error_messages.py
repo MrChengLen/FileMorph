@@ -11,7 +11,7 @@ puts that message in the per-file ``error_message``. A PDF with only an *owner*
 password (restrictions, no user password) opens without one and must keep
 working; those tests catch a future "reject every encrypted PDF" shortcut.
 
-Four neighbouring fixes are pinned here too:
+Five neighbouring fixes are pinned here too:
 
 * a PDF without pages sent ``invalid_page_selection`` from /pdf/extract, so the
   web page blamed the user's selection; it is ``invalid_pdf`` now;
@@ -20,6 +20,9 @@ Four neighbouring fixes are pinned here too:
 * a PDF to split, or a selection to extract, over that cap was called unreadable
   (``invalid_pdf``) or badly written (``invalid_page_selection``); both are
   ``pdf_too_many_pages`` now, and the split page links on to the extract tool;
+* a PDF too large or complex to compress within the child process's memory and
+  time limits got ``invalid_input`` with an English text naming an API path; it
+  is ``pdf_too_complex`` now, and the compress page links on to the extract tool;
 * the server code is useless unless both UIs map it to the localized text: the
   catalog needs the German string (a *fuzzy* entry silently serves English while
   the CI drift check stays green) and both scripts must handle the code.
@@ -37,6 +40,7 @@ import json
 import logging
 import pickle
 import re
+import subprocess
 import sys
 import zipfile
 from pathlib import Path
@@ -46,6 +50,7 @@ from pypdf import PdfReader, PdfWriter
 from pypdf.constants import UserAccessPermissions as Perm
 from pypdf.errors import FileNotDecryptedError
 
+from app.api.routes import pdf_pages as pdf_routes
 from app.converters import pdf_pages
 from app.converters.base import EncryptedPdfError, InvalidInputError
 from app.converters.document import PdfToTxtConverter
@@ -547,6 +552,55 @@ def test_extract_exactly_at_the_page_cap_still_extracts(client, auth_headers, tw
     assert len(PdfReader(io.BytesIO(r.content)).pages) == 2
 
 
+# ── compress past the child's limits ─────────────────────────────────────────
+# A stand-in child, so no pikepdf: these run on Windows too.
+
+
+def _stand_in_child(monkeypatch, child):
+    def run(command, **kwargs):
+        if isinstance(child, BaseException):
+            raise child
+        return child
+
+    monkeypatch.setattr(subprocess, "run", run)
+
+
+@pytest.mark.parametrize(
+    "child",
+    [
+        pytest.param(subprocess.TimeoutExpired("python", 90), id="time"),
+        pytest.param(
+            subprocess.CompletedProcess("python", 0, '{"error": "out_of_memory"}', None),
+            id="memory",
+        ),
+        pytest.param(subprocess.CompletedProcess("python", -9, "", None), id="signal"),
+    ],
+)
+def test_compress_past_the_childs_limits_answers_pdf_too_complex(
+    client, auth_headers, monkeypatch, child
+):
+    """The PDF is readable, it just needs more memory or time than the
+    compress child may use: neither ``invalid_pdf`` nor the generic
+    ``invalid_input``."""
+    _stand_in_child(monkeypatch, child)
+    r = _post(client, auth_headers, "/api/v1/pdf/compress", {"target_kb": "200"}, _pdf(1))
+    assert r.status_code == 400, r.text
+    assert r.headers.get("X-FileMorph-Error-Code") == "pdf_too_complex"
+    assert r.json()["detail"] == pdf_routes._TOO_LARGE_TO_COMPRESS
+    assert "/api/v1/pdf/extract" in r.json()["detail"]
+
+
+def test_compress_keeps_invalid_input_for_the_childs_own_message(client, auth_headers, monkeypatch):
+    child = subprocess.CompletedProcess(
+        "python", 0, '{"error": "invalid", "message": "Fix it."}', None
+    )
+    _stand_in_child(monkeypatch, child)
+    r = _post(client, auth_headers, "/api/v1/pdf/compress", {"target_kb": "200"}, _pdf(1))
+    assert r.status_code == 400, r.text
+    assert r.headers.get("X-FileMorph-Error-Code") == "invalid_input"
+    assert r.json()["detail"] == "Fix it."
+
+
 # ── the UIs ──────────────────────────────────────────────────────────────────
 
 _I18N_BLOB = re.compile(
@@ -623,30 +677,63 @@ def test_js_strings_carry_the_page_cap_messages_in_each_language(client, lang, k
     assert json.loads(blob.group(1)).get(key) == expected
 
 
+@pytest.mark.parametrize(
+    ("lang", "expected"),
+    [
+        pytest.param(
+            "en",
+            "This PDF is too large or complex to compress in one go. "
+            "Extract fewer pages at a time with “Extract PDF pages”, "
+            "then compress each part.",
+            id="en",
+        ),
+        pytest.param(
+            "de",
+            "Dieses PDF ist zu groß oder zu komplex, um es auf einmal zu verkleinern. "
+            "Extrahiere jeweils weniger Seiten mit „PDF-Seiten extrahieren“ "
+            "und verkleinere dann jeden Teil.",
+            id="de",
+        ),
+    ],
+)
+def test_js_strings_carry_the_too_complex_message_in_each_language(client, lang, expected):
+    page = client.get(f"/{lang}/")
+    assert page.status_code == 200, page.text
+    blob = _I18N_BLOB.search(page.text)
+    assert blob, f"/{lang}/ has no FM_I18N script tag"
+    assert json.loads(blob.group(1)).get("pdfTooComplex") == expected
+
+
 def test_pdf_tools_script_maps_the_page_cap_code_to_the_localized_texts():
     js = (_STATIC_JS / "pdf-tools.js").read_text(encoding="utf-8")
     assert "'pdf_too_many_pages'" in js, "pdf-tools.js ignores the pdf_too_many_pages error code"
     for key in ("pdfTooManyPagesSplit", "pdfTooManyPagesExtract"):
         assert key in js, f"pdf-tools.js never shows the localized {key} text"
     assert "'pdf-error-extract'" in js, "pdf-tools.js never looks up the link to the extract tool"
-    assert "setExtractLinkVisible(code === 'pdf_too_many_pages')" in js, (
-        "showError never reveals the link to the extract tool"
-    )
+    assert (
+        "setExtractLinkVisible(code === 'pdf_too_many_pages' || code === 'pdf_too_complex')" in js
+    ), "showError never reveals the link to the extract tool"
 
 
+def test_pdf_tools_script_maps_the_too_complex_code_to_the_localized_text():
+    js = (_STATIC_JS / "pdf-tools.js").read_text(encoding="utf-8")
+    assert "'pdf_too_complex'" in js, "pdf-tools.js ignores the pdf_too_complex error code"
+    assert "pdfTooComplex" in js, "pdf-tools.js never shows the localized pdfTooComplex text"
+
+
+@pytest.mark.parametrize("tool", ["split", "compress"])
 @pytest.mark.parametrize("prefix", ["", "/en", "/de"])
-def test_split_page_offers_the_extract_tool_as_the_next_step(client, prefix):
-    page = client.get(f"{prefix}/pdf/split")
+def test_split_and_compress_pages_offer_the_extract_tool_as_the_next_step(client, prefix, tool):
+    page = client.get(f"{prefix}/pdf/{tool}")
     assert page.status_code == 200, page.text
     link = re.search(r'<a\b[^>]*\sid="pdf-error-extract"[^>]*>', page.text)
-    assert link, f"{prefix}/pdf/split has no #pdf-error-extract link"
+    assert link, f"{prefix}/pdf/{tool} has no #pdf-error-extract link"
     attrs = dict(re.findall(r'([\w-]+)="([^"]*)"', link.group(0)))
     assert attrs["href"] == f"{prefix}/pdf/extract"
-    assert "hidden" in attrs["class"].split()  # pdf-tools.js reveals it for this error only
+    assert "hidden" in attrs["class"].split()  # pdf-tools.js reveals it for its error only
 
 
-@pytest.mark.parametrize("tool", ["extract", "compress"])
-def test_only_the_split_page_has_the_extract_link(client, tool):
-    page = client.get(f"/en/pdf/{tool}")
+def test_the_extract_page_has_no_extract_link(client):
+    page = client.get("/en/pdf/extract")
     assert page.status_code == 200, page.text
     assert "pdf-error-extract" not in page.text

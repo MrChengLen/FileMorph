@@ -8,8 +8,8 @@
 with a time limit and stops it when it runs over. On Linux the child also caps
 its address space and CPU time (``limit_resources``). It prints one JSON line
 on stdout, the step's result or the error it raised, and the parent raises
-that error again. A child that runs out of memory or time becomes an
-``InvalidInputError`` with the caller's message. Its temporary files go to the
+that error again. A child that runs out of memory or time becomes a
+``TooComplexError`` with the caller's message. Its temporary files go to the
 request's own temp folder, so they are cleaned up with it.
 """
 
@@ -44,6 +44,12 @@ _STEPS: dict[str, tuple[str, str, int, float]] = {
     # about 2.2 GB, the decoded images and the document.
     "pdf-compress": ("app.compressors.pdf", "compress_pdf_to_target", 3 * _GIB, 90),
 }
+
+
+class TooComplexError(InvalidInputError):
+    """The child ran out of memory or time; the message is the caller's
+    ``too_large``. ``/pdf/compress`` answers it with ``pdf_too_complex``,
+    ``/convert`` like any other ``InvalidInputError``."""
 
 
 def limit_resources(memory_bytes: int, cpu_seconds: int) -> None:
@@ -105,7 +111,7 @@ def run_isolated(step: str, *, too_large: str, tmp_dir: Path, **kwargs):
 
     The child's ``OutputTooLargeError``, ``EncryptedPdfError`` (and its
     subclass) and ``InvalidInputError`` are raised here again;
-    ``InvalidInputError(too_large)`` when it runs out of memory or time, and a
+    ``TooComplexError(too_large)`` when it runs out of memory or time, and a
     ``RuntimeError`` naming the exception class for anything else.
     """
     _, _, memory, seconds = _STEPS[step]
@@ -114,7 +120,7 @@ def run_isolated(step: str, *, too_large: str, tmp_dir: Path, **kwargs):
         result = spawn(args, timeout=seconds, tmp_dir=tmp_dir)
     except subprocess.TimeoutExpired:
         logger.info("isolated %s: stopped after %s s", step, seconds)
-        raise InvalidInputError(too_large) from None
+        raise TooComplexError(too_large) from None
     try:
         outcome = json.loads((result.stdout.strip().splitlines() or ["{}"])[-1])
     except ValueError:
@@ -135,7 +141,7 @@ def run_isolated(step: str, *, too_large: str, tmp_dir: Path, **kwargs):
     # Out of memory, or stopped by a limit (a signal: negative status).
     if error == "out_of_memory" or result.returncode < 0:
         logger.info("isolated %s: out of memory or CPU time (status %s)", step, result.returncode)
-        raise InvalidInputError(too_large)
+        raise TooComplexError(too_large)
     # A logged error shows its type and traceback, not its text: name the
     # child's error type here, and nothing that isn't a name.
     error_type = outcome.get("type")
