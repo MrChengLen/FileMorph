@@ -249,6 +249,8 @@ def test_batch_route_reports_a_table_that_passes_the_cap(
         headers=auth_headers,
     )
     assert resp.status_code == 422
+    # The suite runs without a database, so without accounts to register.
     assert resp.json()["files"][0]["error_message"] == (
-        "Output too large (over the 1 MB cap). Split the table. Register free for a higher cap."
+        "Output too large (over the 1 MB cap). Split the table. "
+        "Self-host FileMorph for a higher cap."
     )

@@ -21,10 +21,10 @@ let presetTarget = '';
 const TARGET_SIZE_FORMATS = ['jpg', 'jpeg', 'webp', 'avif'];
 
 // Upsell link (Upsell-Regeln, docs-internal/ia-navigation-konzept.md): only
-// next to the three quota-error codes below, only when pricing_enabled —
+// next to the quota-error codes below, only when pricing_enabled —
 // #convert-error-upsell then doesn't exist in the DOM at all on a self-host
 // build without a pricing surface, hence the null-guard.
-const UPSELL_ERROR_CODES = ['input_too_large', 'output_cap_exceeded', 'target_size_exceeds_cap'];
+const UPSELL_ERROR_CODES = ['input_too_large', 'output_cap_exceeded', 'target_size_exceeds_cap', 'batch_too_large'];
 
 function setConvertErrorUpsell(visible) {
   const link = document.getElementById('convert-error-upsell');
@@ -808,18 +808,20 @@ async function submitForm() {
           || 'All files failed.';
         showError(`Batch failed: ${data.summary.failed}/${data.summary.total} files. First error: ${first}`);
       } else if (res.status === 400 && data.detail) {
-        // Batch-size over tier limit lands here with a clear server message;
-        // so does a password-protected PDF, or one with a certificate / an
-        // unsupported encryption (both localized, fall back to detail)
+        // A batch over the tier's files per request lands here, so does a
+        // password-protected PDF, or one with a certificate / an unsupported
+        // encryption (all localized, fall back to detail)
         const errCode = res.headers.get('X-FileMorph-Error-Code');
         const i18n = window.FM_I18N || {};
         let msg = data.detail;
-        if (errCode === 'pdf_encrypted') {
+        if (errCode === 'batch_too_large') {
+          msg = i18n.errorBatchTooLarge || data.detail;
+        } else if (errCode === 'pdf_encrypted') {
           msg = i18n.pdfEncrypted || data.detail;
         } else if (errCode === 'pdf_encryption_unsupported') {
           msg = i18n.pdfEncryptionUnsupported || data.detail;
         }
-        showError(msg);
+        showError(msg, errCode);
       } else if (res.status === 401) {
         showError('Invalid API key. Check your key and try again.');
       } else if (res.status === 413) {

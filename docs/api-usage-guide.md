@@ -494,7 +494,9 @@ Common per-file `error_message` values:
 - `"Output too large (N MB > M MB cap). Try WebP/AVIF. Self-host
   FileMorph for a higher cap."` — the output (N MB) exceeded your tier's
   output cap (M MB). Without an account the last sentence points to the
-  free tier instead: `"Output too large (N MB > M MB cap). Try WebP/AVIF.
+  free tier instead, where the instance has accounts (see
+  [What happens at each cap](#what-happens-at-each-cap)):
+  `"Output too large (N MB > M MB cap). Try WebP/AVIF.
   Register free for a higher cap."` On `/compress/batch` the hint starts
   with `"Lower the quality."` instead of "Try WebP/AVIF.".
 - `"Output too large (over the M MB cap). Split the table. Self-host
@@ -606,6 +608,10 @@ mint it.
 
 ### What happens at each cap
 
+On an instance without accounts (a Community Edition instance has no
+database), every message below names self-hosting instead of
+"Register free …".
+
 - **File size exceeded** → `413 Request Entity Too Large` with
   `"File too large (N MB max for your plan). Self-host FileMorph for
   larger files."` There are no paid plans to upgrade to, so every limit
@@ -613,7 +619,10 @@ mint it.
   pointed to the free tier ("Register free …"), everyone else to
   self-hosting.
 - **Batch size exceeded** → `400 Bad Request` with
-  `"Batch size N exceeds tier limit of M."`
+  `X-FileMorph-Error-Code: batch_too_large` and `"Batch size N exceeds
+  tier limit of M. Self-host FileMorph for larger batches."` (without an
+  account: `"Batch size N exceeds tier limit of M. Register free to send
+  up to 10 files per request."`).
 - **Output cap exceeded** → `413` with `"Output too large (N MB > M MB
   cap)."` plus a hint — on `/convert`, try a more efficient target
   (WebP/AVIF for images, FLAC for audio); on `/compress`,
