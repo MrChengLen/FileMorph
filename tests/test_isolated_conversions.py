@@ -9,6 +9,7 @@ same child; its route tests are in ``tests/test_pdf_compress.py``.
 from __future__ import annotations
 
 import json
+import logging
 import subprocess
 import sys
 
@@ -178,3 +179,15 @@ def test_child_outcomes_map_to_the_usual_errors(
     with pytest.raises(error) as excinfo:
         _isolated.run_isolated("convert", too_large=_TOO_LARGE, tmp_dir=tmp_path)
     assert message in str(excinfo.value)
+
+
+@pytest.mark.parametrize(("error_type", "logged"), [("KeyError", "KeyError"), ("a b/c", "-")])
+def test_an_unexpected_child_error_is_logged_by_type(
+    tmp_path, monkeypatch, caplog, error_type, logged
+):
+    stdout = json.dumps({"error": "failed", "type": error_type})
+    monkeypatch.setattr(subprocess, "run", _fake_child(stdout))
+    with caplog.at_level(logging.WARNING, logger="app.converters._isolated"):
+        with pytest.raises(RuntimeError):
+            _isolated.run_isolated("convert", too_large=_TOO_LARGE, tmp_dir=tmp_path)
+    assert f"isolated convert failed (status 0): {logged}" in caplog.messages
