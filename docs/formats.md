@@ -205,8 +205,8 @@ formats page — it is plumbing, not a conversion a user picks.
   (`FILEMORPH_IMAGE_MAX_MEGAPIXELS`): they stay as they are. A document whose
   images are too large in aggregate to decode safely is also left unchanged
   rather than risking the worker (a denial-of-service guard). The compression
-  runs in its own process with memory and time limits; a PDF too large or
-  complex for them gets a `400` (`pdf_too_complex`): extract fewer pages with
+  runs in its own process with memory, time and file size limits; a PDF too
+  large or complex for them gets a `400` (`pdf_too_complex`): extract fewer pages with
   `/api/v1/pdf/extract` and compress them in parts.
 - **Split is capped at 10 000 pages.** A larger document is rejected with a
   clean `400` before any work — splitting it would explode into too many
@@ -233,9 +233,9 @@ formats page — it is plumbing, not a conversion a user picks.
 | **CSV** | JSON | Headers become keys. Result is a JSON array of objects. The file must be UTF-8 text. Stops at your tier's output cap (`413`). |
 | **JSON** | CSV | Input must be a JSON array of objects with consistent keys. Nested values are flattened as strings. The file must be UTF-8 text. Stops at your tier's output cap (`413`). |
 
-All four run in their own process with memory and time limits; a table too
-large or complex for them gets a `400` (`invalid_input`): split it into smaller
-files.
+All four run in their own process with memory, time and file size limits; a
+table too large or complex for them gets a `400` (`invalid_input`): split it
+into smaller files.
 
 **Common use cases**:
 - Export Excel data for Python/pandas analysis (XLSX → CSV)

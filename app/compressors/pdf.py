@@ -48,7 +48,7 @@ Same Windows DLL-load ordering issue documented in
 module load (before FastAPI has finished bootstrapping the auth route's
 native deps) can segfault on Windows local-dev. Deferring the import to
 call time sidesteps it. The route runs the compression in a child process
-with memory and time limits (``app/converters/_isolated.py``).
+with memory, time and file size limits (``app/converters/_isolated.py``).
 """
 
 from __future__ import annotations

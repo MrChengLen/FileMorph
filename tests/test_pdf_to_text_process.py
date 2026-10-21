@@ -208,16 +208,17 @@ def test_the_child_writes_no_diagnostics(tmp_path):
 
 
 @pytest.mark.skipif(sys.platform != "linux", reason="the limits apply on Linux")
-def test_the_child_caps_its_memory_and_cpu_time(tmp_path):
+def test_the_child_caps_its_memory_cpu_time_and_file_size(tmp_path):
     src, out = tmp_path / "in.pdf", tmp_path / "out.txt"
     src.write_bytes(_pdf(1))
     probe = (
-        "import ctypes, resource, runpy, sys; "
+        "import ctypes, resource, runpy, signal, sys; "
         f"sys.argv = ['x', {str(src)!r}, {str(out)!r}, '10']; "
         "runpy.run_module('app.converters._pdf_text', run_name='__main__'); "
-        "print(*(resource.getrlimit(limit)[0] for limit in "
-        "(resource.RLIMIT_AS, resource.RLIMIT_CPU, resource.RLIMIT_CORE)), "
-        "ctypes.CDLL(None).prctl(3, 0, 0, 0, 0))"  # PR_GET_DUMPABLE
+        "print(*(resource.getrlimit(limit)[0] for limit in (resource.RLIMIT_AS, "
+        "resource.RLIMIT_CPU, resource.RLIMIT_FSIZE, resource.RLIMIT_CORE)), "
+        "ctypes.CDLL(None).prctl(3, 0, 0, 0, 0), "  # PR_GET_DUMPABLE
+        "signal.getsignal(signal.SIGXFSZ) == signal.SIG_DFL)"
     )
     res = subprocess.run(
         [sys.executable, "-c", probe],
@@ -226,5 +227,5 @@ def test_the_child_caps_its_memory_and_cpu_time(tmp_path):
         cwd=_isolated._APP_ROOT,
         check=True,
     )
-    limits = [str(1024 * _MIB), str(_pdf_text._CPU_LIMIT_SECONDS), "0", "0"]
-    assert res.stdout.split() == ["ok", *limits]
+    limits = [str(1024 * _MIB), str(_pdf_text._CPU_LIMIT_SECONDS), str(1024 * _MIB), "0", "0"]
+    assert res.stdout.split() == ["ok", *limits, "True"]

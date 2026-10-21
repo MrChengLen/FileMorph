@@ -103,8 +103,8 @@
       }
       return t('pdfTooManyPagesExtract', 'You can extract at most 10,000 pages at once. Select fewer pages, or extract them in several parts.');
     }
-    // /pdf/compress past the child process's memory or time limits; the
-    // compress page links on to the extract tool (#pdf-error-extract).
+    // /pdf/compress past the child process's memory, time or file size
+    // limits; the compress page links on to the extract tool (#pdf-error-extract).
     if (code === 'pdf_too_complex') {
       return t('pdfTooComplex', 'This PDF is too large or complex to compress in one go. Extract fewer pages at a time with “Extract PDF pages”, then compress each part.');
     }

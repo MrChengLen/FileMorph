@@ -509,8 +509,9 @@ def test_route_compress_past_the_limits_names_the_next_step(client, auth_headers
     them the route answers 400 and points to extracting fewer pages."""
     from app.converters import _isolated
 
-    module, function, memory, _ = _isolated._STEPS["pdf-compress"]
-    monkeypatch.setitem(_isolated._STEPS, "pdf-compress", (module, function, memory, 0.01))
+    module, function, memory, _, file_bytes = _isolated._STEPS["pdf-compress"]
+    limits = (module, function, memory, 0.01, file_bytes)
+    monkeypatch.setitem(_isolated._STEPS, "pdf-compress", limits)
     res = client.post(
         "/api/v1/pdf/compress",
         headers=auth_headers,

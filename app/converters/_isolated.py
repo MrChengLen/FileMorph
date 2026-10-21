@@ -1,14 +1,15 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Run a conversion step in a child process with memory and time limits.
+"""Run a conversion step in a child process with memory, time and file size limits.
 
 ``run_isolated`` starts
 
-``python -m app.converters._isolated <step> <memory-bytes> <seconds> <json-kwargs>``
+``python -m app.converters._isolated <step> <memory-bytes> <seconds> <file-bytes> <json-kwargs>``
 
 with a time limit and stops it when it runs over. On Linux the child also caps
-its address space and CPU time (``limit_resources``). It prints one JSON line
-on stdout, the step's result or the error it raised, and the parent raises
-that error again. A child that runs out of memory or time becomes a
+its address space, its CPU time and the size of each file it writes
+(``limit_resources``). It prints one JSON line on stdout, the step's result or
+the error it raised, and the parent raises that error again. A child that runs
+out of memory or time, or writes a file past its limit, becomes a
 ``TooComplexError`` with the caller's message. Its temporary files go to the
 request's own temp folder, so they are cleaned up with it.
 """
@@ -35,40 +36,53 @@ logger = logging.getLogger(__name__)
 _APP_ROOT = Path(__file__).resolve().parents[2]  # the directory holding the ``app`` package
 _GIB = 1024 * 1024 * 1024
 
-# What a child may run: step → (module, function, memory limit, time limit in s).
-# 90 s stays under the 100 s a CDN in front of the app may wait for an answer,
-# so the caller gets the 400 that names the next step, not a gateway timeout.
-_STEPS: dict[str, tuple[str, str, int, float]] = {
-    "convert": ("app.converters._isolated", "_convert", _GIB, 90),
+# What a child may run: step → (module, function, memory limit, time limit in
+# s, size limit of each file it writes). 90 s stays under the 100 s a CDN in
+# front of the app may wait for an answer, so the caller gets the 400 that
+# names the next step, not a gateway timeout.
+_STEPS: dict[str, tuple[str, str, int, float, int]] = {
+    # 2 GiB per file: CSV → XLSX writes its sheet as XML before zipping it,
+    # and sheets of close to 1 GiB finish within the 90 s. The other
+    # conversions stop at the output cap (at most 500 MB, app/core/quotas.py).
+    "convert": ("app.converters._isolated", "_convert", _GIB, 90, 2 * _GIB),
     # 3 GiB: at its decode limit (500 megapixels) compress_pdf_to_target holds
-    # about 2.2 GB, the decoded images and the document.
-    "pdf-compress": ("app.compressors.pdf", "compress_pdf_to_target", 3 * _GIB, 90),
+    # about 2.2 GB, the decoded images and the document. 1 GiB per file: it
+    # writes only the output, at most about the size of the upload.
+    "pdf-compress": ("app.compressors.pdf", "compress_pdf_to_target", 3 * _GIB, 90, _GIB),
 }
 
 
 class TooComplexError(InvalidInputError):
-    """The child ran out of memory or time; the message is the caller's
-    ``too_large``. ``/pdf/compress`` answers it with ``pdf_too_complex``,
-    ``/convert`` like any other ``InvalidInputError``."""
+    """The child ran out of memory or time, or wrote a file past its limit;
+    the message is the caller's ``too_large``. ``/pdf/compress`` answers it
+    with ``pdf_too_complex``, ``/convert`` like any other
+    ``InvalidInputError``."""
 
 
-def limit_resources(memory_bytes: int, cpu_seconds: int) -> None:
-    """Cap this process's address space and CPU time and turn off its core
-    dump (Linux), and make it the first process the kernel stops when the host
-    runs short of memory."""
+def limit_resources(memory_bytes: int, cpu_seconds: int, file_bytes: int) -> None:
+    """Cap this process's address space, CPU time and the size of each file
+    it writes and turn off its core dump (Linux), and make it the first
+    process the kernel stops when the host runs short of memory. A write past
+    the file size limit ends the process, as running out of CPU time does."""
     if sys.platform != "linux":
         return
     import resource
+    import signal
 
     limits = (
         (resource.RLIMIT_AS, memory_bytes),
         (resource.RLIMIT_CPU, cpu_seconds),
+        (resource.RLIMIT_FSIZE, file_bytes),
         (resource.RLIMIT_CORE, 0),  # a dump would copy the file's data to disk
     )
     for limit, value in limits:
         hard = resource.getrlimit(limit)[1]
         soft = value if hard == resource.RLIM_INFINITY else min(hard, value)
         resource.setrlimit(limit, (soft, hard))
+    # Python ignores SIGXFSZ, which turns a write past RLIMIT_FSIZE into an
+    # error, and not always an OSError (openpyxl writes through lxml, which
+    # raises its own). With the default action the signal ends the process.
+    signal.signal(signal.SIGXFSZ, signal.SIG_DFL)
     try:
         Path("/proc/self/oom_score_adj").write_text("1000", encoding="utf-8")
     except OSError:
@@ -111,11 +125,13 @@ def run_isolated(step: str, *, too_large: str, tmp_dir: Path, **kwargs):
 
     The child's ``OutputTooLargeError``, ``EncryptedPdfError`` (and its
     subclass) and ``InvalidInputError`` are raised here again;
-    ``TooComplexError(too_large)`` when it runs out of memory or time, and a
-    ``RuntimeError`` naming the exception class for anything else.
+    ``TooComplexError(too_large)`` when it runs out of memory or time or
+    writes a file past its limit, and a ``RuntimeError`` naming the exception
+    class for anything else.
     """
-    _, _, memory, seconds = _STEPS[step]
-    args = [__name__, step, str(memory), str(seconds), json.dumps(kwargs, default=str)]
+    _, _, memory, seconds, file_bytes = _STEPS[step]
+    limits = [str(memory), str(seconds), str(file_bytes)]
+    args = [__name__, step, *limits, json.dumps(kwargs, default=str)]
     try:
         result = spawn(args, timeout=seconds, tmp_dir=tmp_dir)
     except subprocess.TimeoutExpired:
@@ -138,9 +154,14 @@ def run_isolated(step: str, *, too_large: str, tmp_dir: Path, **kwargs):
         raise EncryptedPdfError()
     if error == "invalid":
         raise InvalidInputError(str(outcome.get("message", "")))
-    # Out of memory, or stopped by a limit (a signal: negative status).
+    # Out of memory, or stopped by a limit (a signal: negative status): CPU
+    # time, file size, or the kernel's OOM killer.
     if error == "out_of_memory" or result.returncode < 0:
-        logger.info("isolated %s: out of memory or CPU time (status %s)", step, result.returncode)
+        logger.info(
+            "isolated %s: out of memory, CPU time or file size (status %s)",
+            step,
+            result.returncode,
+        )
         raise TooComplexError(too_large)
     # A logged error shows its type and traceback, not its text: name the
     # child's error type here, and nothing that isn't a name.
@@ -161,9 +182,9 @@ def _convert(converter: str, input_path: Path, output_path: Path, **kwargs) -> N
 
 def _main(argv: list[str]) -> dict:
     """The child's side: run the step and report its result or error."""
-    step, memory, seconds, raw = argv
-    module, function, _, _ = _STEPS[step]
-    limit_resources(int(memory), int(float(seconds)) + 5)
+    step, memory, seconds, file_bytes, raw = argv
+    module, function, *_ = _STEPS[step]
+    limit_resources(int(memory), int(float(seconds)) + 5, int(file_bytes))
     from app.core.image_hardening import apply_hardening
 
     apply_hardening()  # the server applies it at startup; a child starts afresh

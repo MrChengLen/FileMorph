@@ -171,9 +171,10 @@ jobs:
           docker exec filemorph python -c "import json, pathlib, tempfile; from app.converters.spreadsheet import CsvToJsonConverter; d = pathlib.Path(tempfile.mkdtemp()); (d / 'in.csv').write_text('a,b\n1,2\n'); CsvToJsonConverter().run(d / 'in.csv', d / 'out.json'); assert json.loads((d / 'out.json').read_text()) == [{'a': '1', 'b': '2'}]"
           docker exec filemorph python -c "import pathlib, tempfile; from pypdf import PdfWriter; from app.converters._isolated import run_isolated; d = pathlib.Path(tempfile.mkdtemp()); w = PdfWriter(); w.add_blank_page(width=200, height=200); w.write(d / 'in.pdf'); r = run_isolated('pdf-compress', too_large='-', tmp_dir=d, input_path=d / 'in.pdf', output_path=d / 'out.pdf', target_bytes=100000); assert r['achieved_bytes'] > 0 and (d / 'out.pdf').read_bytes()[:4] == b'%PDF', r"
           # The limits these children set on themselves hold in the container
-          # too, with all capabilities dropped: address space, CPU time, no core
-          # dump, first in line for the OOM killer.
-          docker exec filemorph python -c "import ctypes, resource; from app.converters._isolated import limit_resources; limit_resources(2**30, 95); assert [resource.getrlimit(r)[0] for r in (resource.RLIMIT_AS, resource.RLIMIT_CPU, resource.RLIMIT_CORE)] == [2**30, 95, 0]; assert ctypes.CDLL(None).prctl(3, 0, 0, 0, 0) == 0; assert open('/proc/self/oom_score_adj').read().strip() == '1000'"
+          # too, with all capabilities dropped: address space, CPU time, file
+          # size (a write past it ends the process), no core dump, first in
+          # line for the OOM killer.
+          docker exec filemorph python -c "import ctypes, resource, signal; from app.converters._isolated import limit_resources; limit_resources(2**30, 95, 2**30); assert [resource.getrlimit(r)[0] for r in (resource.RLIMIT_AS, resource.RLIMIT_CPU, resource.RLIMIT_FSIZE, resource.RLIMIT_CORE)] == [2**30, 95, 2**30, 0]; assert signal.getsignal(signal.SIGXFSZ) == signal.SIG_DFL; assert ctypes.CDLL(None).prctl(3, 0, 0, 0, 0) == 0; assert open('/proc/self/oom_score_adj').read().strip() == '1000'"
 
       # Outgoing TLS other than Stripe's (the app's mail through aiosmtplib,
       # anything on ssl.create_default_context()) trusts the system CA store:
