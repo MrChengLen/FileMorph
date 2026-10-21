@@ -397,7 +397,27 @@ Caddy, which provisions and renews certificates automatically.
 
 ### Content Security Policy
 
-The CSP is built in `app/main.py::_build_csp_header`. Highlights:
+The CSP is built in `app/main.py::_build_csp_header`, once per
+profile, and each route picks its profile (`app/core/csp.py`):
+
+- **`default`** — every page today, as described below.
+- **`hybrid`** — adds `img-src blob:` for previews of files the
+  browser processed itself.
+- **`local`** — for strict pages; also sent with every file of the
+  browser engine under `/static/engine/` (it governs a file that runs
+  as a worker; a module a page imports runs under that page's
+  profile). The browser refuses fetch, XHR, WebSocket, EventSource,
+  beacons and form posts (`connect-src 'none'`,
+  `form-action 'none'`), plugins and frames. It does not stop
+  navigation, pop-up windows (they load under their own profile) or
+  WebRTC, and the page may still request images, scripts and styles
+  from this origin: `local` keeps the app's own code from uploading,
+  it does not contain a hostile script.
+
+`script-src` allows the whole origin (`'self'`), not `/static/`
+only: a path needs the origin written out, and behind some proxies
+the app cannot know the origin the browser sees. Regression guards:
+`tests/test_csp_profiles.py`. Highlights of `default`:
 
 - `default-src 'self'` — no third-party content by default.
 - `script-src 'self' 'sha256-…'` — all executable JavaScript ships
@@ -857,7 +877,8 @@ For readers who want to jump directly to the code:
 | WeasyPrint SSRF hardening | `app/converters/document.py` (search `_deny_url_fetcher`) |
 | Office image: hardened LibreOffice subprocess env | `app/converters/document.py` (search `_soffice_child_env`) |
 | Security-headers middleware (HSTS, Permissions-Policy, CSP, etc.) | `app/main.py::security_headers` |
-| CSP and CORS middleware | `app/main.py::_build_csp_header` |
+| CSP and CORS middleware | `app/main.py::_build_csp_header`, profiles in `app/core/csp.py` |
+| Browser-engine delivery (tree hash, MIME type, `local` CSP) | `app/core/engine.py` |
 | Per-tier quotas and output cap | `app/core/quotas.py` |
 | Filename sanitisation | `app/core/utils.py::safe_download_name` |
 | Auth resolution (Bearer + API key) | `app/api/routes/auth.py::get_optional_user` |
