@@ -102,10 +102,11 @@
 
   <div id="pdf-error" class="hidden text-center space-y-2">
     <p id="pdf-error-text" class="text-red-400 text-sm text-center bg-red-950 rounded-lg py-3 px-4"></p>
-    {# Next step for a PDF over the page cap (rule: never a dead end): the
-       split text names the Extract tool, this makes it one click. Split page
-       only; un-hidden by pdf-tools.js for pdf_too_many_pages only. #}
-    {% if tool == 'split' %}
+    {# Next step (rule: never a dead end) for a PDF over the page cap on the
+       split page, or too large or complex on the compress page: the error
+       text names the Extract tool, this makes it one click. Un-hidden by
+       pdf-tools.js for pdf_too_many_pages / pdf_too_complex only. #}
+    {% if tool in ('split', 'compress') %}
     <a id="pdf-error-extract" href="{{ localized_url('/pdf/extract', current_prefix) }}"
       class="hidden inline-block text-xs px-3 py-1.5 rounded-lg border border-gray-700 text-gray-200 hover:border-brand hover:text-white transition-colors">{{ _('Extract PDF pages') }} →</a>
     {% endif %}
