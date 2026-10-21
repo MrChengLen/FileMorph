@@ -66,7 +66,6 @@
     const lDashboard = I18N.dashboard || 'Dashboard';
     const lSignOut = I18N.signOut || 'Sign Out';
     const lSignIn = I18N.signIn || 'Sign In';
-    const lRegister = I18N.register || 'Register';
     // Keep dynamic nav links in the user's currently-active locale namespace
     // (matches the server-side ``localized_url(..., current_prefix)`` rule
     // in base.html — clicking from /de/x stays in /de/, from /en/x stays
@@ -100,13 +99,13 @@
         mobile.querySelector('[data-action="signout-mobile"]').addEventListener('click', () => window.FM.logout());
       }
     } else {
+      // Same markup as the server-rendered links in base.html (Sign In only;
+      // registering is not in the main navigation).
       desktop.innerHTML = `
-        <a href="${localePrefix}/login" class="text-sm text-gray-300 hover:text-white transition-colors">${lSignIn}</a>
-        <a href="${localePrefix}/register" class="text-sm px-4 py-1.5 rounded-lg bg-brand hover:bg-brand-dark text-white font-semibold transition-colors">${lRegister}</a>`;
+        <a href="${localePrefix}/login" class="text-sm text-gray-300 hover:text-white transition-colors">${lSignIn}</a>`;
       if (mobile) {
         mobile.innerHTML = `
-          <a href="${localePrefix}/login" class="block text-gray-400 hover:text-white transition-colors py-1">${lSignIn}</a>
-          <a href="${localePrefix}/register" class="block text-brand hover:text-white py-1">${lRegister}</a>`;
+          <a href="${localePrefix}/login" class="block text-gray-400 hover:text-white transition-colors py-2.5">${lSignIn}</a>`;
       }
     }
   }

@@ -52,10 +52,11 @@ class Settings(BaseSettings):
     stripe_pro_price_id: str = ""
     stripe_business_price_id: str = ""
 
-    # Whether to expose /pricing — independent of Stripe availability so the
-    # SaaS deployment can show its plans while the paid ones are not bookable
-    # (no Stripe keys: the page marks them "currently not available").
-    # Self-hosters default to off (no commercial offer to advertise).
+    # Whether to expose /pricing — independent of Stripe availability. With
+    # Stripe keys the page shows the bookable plans; without them it shows the
+    # free variant (our server with fair limits, self-hosting, the commercial
+    # license), which is what filemorph.io runs. Self-hosters default to off
+    # (no hosted offer to describe).
     pricing_page_enabled: bool = False
 
     # Displayed prices (deployment-agnostic). These are DISPLAY-ONLY strings
@@ -63,7 +64,8 @@ class Settings(BaseSettings):
     # price IDs above remain the source of truth for the actual charge. Empty
     # by default so a self-hoster who flips PRICING_PAGE_ENABLED on does NOT
     # inherit filemorph.io's amounts; the tiers then render without a price
-    # ("Contact us"). filemorph.io sets these in its own deployment env.
+    # ("Contact us" on the plan cards, which need Stripe; "on request" for the
+    # Compliance tiers). An operator sets these in its own deployment env.
     # Plain numbers, no currency symbol (the € is rendered by the template).
     price_currency: str = "EUR"
     price_pro_display: str = ""

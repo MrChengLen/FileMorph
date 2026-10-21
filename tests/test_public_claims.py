@@ -26,15 +26,22 @@ surface while another keeps the old sentence fails here.
    link (meta descriptions, JSON-LD, the social-preview image) says nothing
    about the hosting location.
 6. /compress runs on the server, so its hero doesn't say "in your browser".
-7. Pricing table: audit log and signed releases exist for every plan.
+7. Pricing table (plan variant): audit log and signed releases exist for every plan.
 8. No plan shows more parallel requests than the global pool runs, and the
-   pages don't print the pool size; the per-minute limit is not a plan feature.
-9. No "live today" / "coming soon": the paid plans are currently not available.
+   pages don't print the pool size; the per-minute limit is not a plan feature
+   (and in the free variant the same for everyone).
+9. No "live today" / "coming soon": without Stripe the pricing page says
+   there are no paid plans instead of announcing ones that can't be booked.
 10. Privacy policy: no "usage in your dashboard" (the dashboard has no counter).
 11. Design partners: an anonymised case study, not a logo mention.
 12. docs/gdpr-privacy-analysis.md: no self-service export or email change.
 13. The homepage privacy note reaches WCAG AA contrast through a design token,
     and no visible template text uses the ~1.95 : 1 grey any more.
+
+/pricing (and the homepage teaser) has two variants: "free" (no Stripe, as on
+filemorph.io) and "plans" (Stripe configured). ``every_page`` renders both;
+tests about one variant switch Stripe explicitly instead of relying on the
+environment the suite runs in.
 """
 
 from __future__ import annotations
@@ -107,7 +114,23 @@ def pricing_on(monkeypatch):
 
 
 @pytest.fixture
-def every_page(client, pricing_on):
+def stripe_on(monkeypatch):
+    """Plans can be booked: /pricing and the homepage show the plan variant
+    (cards, comparison table) instead of the free one."""
+    monkeypatch.setattr(settings, "stripe_secret_key", "sk_test_dummy")  # gitleaks:allow
+    monkeypatch.setitem(templates.env.globals, "stripe_enabled", True)
+
+
+@pytest.fixture
+def stripe_off(monkeypatch):
+    """No plan can be booked: the free variant, whatever the suite's env says."""
+    monkeypatch.setattr(settings, "stripe_secret_key", "")
+    monkeypatch.setitem(templates.env.globals, "stripe_enabled", False)
+
+
+@pytest.fixture(params=["stripe_off", "stripe_on"], ids=["free", "plans"])
+def every_page(request, client, pricing_on):
+    request.getfixturevalue(request.param)
     return {(loc, path): _page(client, loc, path) for loc in LOCALES for path in PAGES}
 
 
@@ -168,12 +191,16 @@ def test_no_template_or_catalog_entry_promises_a_dpa():
         ("/pricing", "de", "Selbst gehostet: keine Auftragsverarbeitung, kein AVV nötig"),
     ],
 )
-def test_self_hosting_pages_say_no_dpa_is_needed(client, pricing_on, path, locale, sentence):
+@pytest.mark.parametrize("variant", ["stripe_off", "stripe_on"], ids=["free", "plans"])
+def test_self_hosting_pages_say_no_dpa_is_needed(
+    request, client, pricing_on, variant, path, locale, sentence
+):
+    request.getfixturevalue(variant)
     assert sentence in _page(client, locale, path)
 
 
 @pytest.mark.parametrize("locale", LOCALES)
-def test_pricing_table_has_no_dpa_row(client, pricing_on, locale):
+def test_pricing_table_has_no_dpa_row(client, pricing_on, stripe_on, locale):
     """The row ticked the DPA only for the self-hosted column. Self-hosting needs
     none (its panel says so); whether a hosted plan needs one is an open legal
     question, so the table makes no DPA statement at all."""
@@ -495,7 +522,7 @@ def test_compress_page_does_not_claim_browser_side_processing(client):
     [("en", "Audit log + signed releases"), ("de", "Audit-Log + signierte Releases")],
 )
 def test_pricing_table_shows_audit_log_and_signed_releases_for_every_plan(
-    client, pricing_on, locale, label
+    client, pricing_on, stripe_on, locale, label
 ):
     assert _row(_page(client, locale, "/pricing"), label) == ["✓", "✓", "✓", "✓"]
 
@@ -512,7 +539,9 @@ def test_no_plan_shows_more_parallel_requests_than_the_global_pool(monkeypatch):
             assert plan.concurrency <= pool, (plan.tier, plan.concurrency, pool)
 
 
-def test_pricing_page_explains_the_shared_pool_and_the_shared_rate_limit(client, pricing_on):
+def test_pricing_page_explains_the_shared_pool_and_the_shared_rate_limit(
+    client, pricing_on, stripe_on
+):
     en, de = _page(client, "en", "/pricing"), _page(client, "de", "/pricing")
     assert "parallel slots, so no plan runs more requests at once than the server allows" in en
     assert "kein Tarif bekommt mehr gleichzeitige Anfragen, als der Server zulässt" in de
@@ -531,17 +560,46 @@ def test_pricing_page_explains_the_shared_pool_and_the_shared_rate_limit(client,
         )
 
 
+def test_free_pricing_explains_the_shared_pool_and_the_shared_rate_limit(
+    client, pricing_on, stripe_off
+):
+    """The free variant says the same without plans: one limit for everyone."""
+    en, de = _page(client, "en", "/pricing"), _page(client, "de", "/pricing")
+    assert "per account (per IP address without an account)" in en
+    assert "pro Konto (ohne Konto: pro IP-Adresse)" in de
+    assert (
+        "parallel slots, and the per-minute rate limit is the same for everyone — "
+        "for example 10 requests" in en
+    )
+    assert (
+        "parallelen Plätze des Servers, und das Minuten-Limit ist für alle gleich – "
+        "zum Beispiel 10 Anfragen" in de
+    )
+    pool = settings.max_global_concurrency
+    assert f"at most {pool} requests" not in en and f"höchstens {pool} Anfragen" not in de
+    for page in (en, de):
+        assert "req/min" not in page and "10 requests/minute" not in page
+
+
 def test_readme_plan_table_shows_the_concurrency_an_account_can_use():
-    """The table names what one account can get on the hosted server; the
-    prose doesn't print the pool size."""
+    """The table names what one request can get on the hosted server, with and
+    without an account — size, batch and concurrency straight from quotas.py;
+    the prose doesn't print the pool size."""
     from app.core.quotas import QUOTAS
 
     pool = Settings.model_fields["max_global_concurrency"].default
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    for tier in ("free", "pro", "business"):
-        row = re.search(rf"^\| {tier.title()} \|.*\| (\d+) \|$", readme, re.MULTILINE)
-        assert row, f"README plan table lost its {tier} row"
-        assert int(row.group(1)) == min(QUOTAS[tier].concurrency, pool), tier
+    for label, tier in (("Without an account", "anonymous"), ("Free account", "free")):
+        row = re.search(
+            rf"^\| {label} \| (\d+) MB \| (\d+) \| ([^|]+) \| (\d+) \|$", readme, re.MULTILINE
+        )
+        assert row, f"README table lost its {label!r} row"
+        quota = QUOTAS[tier]
+        calls = f"{quota.api_calls_per_month:,}" if quota.api_calls_per_month else "not metered"
+        assert int(row.group(1)) == quota.max_file_size_bytes // (1024 * 1024), tier
+        assert int(row.group(2)) == quota.max_files_per_batch, tier
+        assert row.group(3).strip() == calls, tier
+        assert int(row.group(4)) == min(quota.concurrency, pool), tier
 
 
 # ── 9. No launch promises ────────────────────────────────────────────────────
@@ -553,12 +611,16 @@ _LAUNCH = re.compile(
 )
 
 
-def test_pricing_says_paid_plans_are_not_available(client, pricing_on, monkeypatch):
+def test_pricing_says_there_are_no_paid_plans(client, pricing_on, monkeypatch):
     monkeypatch.setattr(settings, "stripe_secret_key", "")
     monkeypatch.setitem(templates.env.globals, "stripe_enabled", False)
     en, de = _page(client, "en", "/pricing"), _page(client, "de", "/pricing")
-    assert "Paid plans are currently not available" in en
-    assert "Bezahlte Tarife sind derzeit nicht verfügbar" in de
+    assert "Our server costs nothing:" in en and "Unser Server kostet nichts:" in de
+    assert "Will there be paid plans?" in en and "Not at the moment." in en
+    assert "Wird es bezahlte Tarife geben?" in de and "Derzeit nicht." in de
+    for page in (en, de):  # no plan card (the button labels also sit in FM_I18N)
+        for plan_marker in ('id="pro-btn"', 'id="business-btn"', "Contact us", "Most popular"):
+            assert plan_marker not in page, plan_marker
     for page in (en, de):
         assert not _LAUNCH.search(page), _LAUNCH.search(page).group(0)
     assert not _LAUNCH.search((ROOT / "README.md").read_text(encoding="utf-8"))

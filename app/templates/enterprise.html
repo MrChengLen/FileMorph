@@ -97,9 +97,13 @@
     <p class="text-xs text-gray-500">
       {{ _('KRITIS and air-gap variants on request. All tiers include commercial license, signed Docker image and support SLA.') }}
     </p>
+    {# Only when at least one tier shows a price (PRICE_COMPLIANCE_*_DISPLAY);
+       with every tier "on request" there is nothing to qualify. #}
+    {% if compliance_plans | selectattr('price_display') | list %}
     <p class="text-xs text-gray-600">
       {{ _('Prices per year. Kleinunternehmer gemäß §19 UStG — keine Umsatzsteuer ausgewiesen (no VAT charged, small-business rule, §19 German VAT Act).') }}
     </p>
+    {% endif %}
   </section>
 
   <!-- Why this exists -->
