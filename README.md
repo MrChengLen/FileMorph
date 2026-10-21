@@ -71,7 +71,7 @@ FileMorph runs in three editions, all built from this repository:
 | Edition | Where | What you get |
 |---|---|---|
 | **Community** | Self-hosted (Docker, source) | File conversion + compression, REST API, single-user API-key auth |
-| **Cloud SaaS** | [filemorph.io](https://filemorph.io) | Community features + user accounts (JWT), tier quotas, Stripe billing, admin cockpit |
+| **Cloud SaaS** | [filemorph.io](https://filemorph.io) | Community features + user accounts (JWT), tier quotas, admin cockpit; Stripe billing ships too, but filemorph.io has no paid plans |
 | **Compliance** | Self-hosted with commercial licence | Cloud-Edition features + tamper-evident audit log (SHA-256 hash chain), `X-Output-SHA256` integrity header, PDF/A-2b output (CI gate validated against veraPDF for a worst-case fixture), default-on EXIF/XMP/IPTC strip, `X-Data-Classification` header, self-service account deletion, signed images (cosign) + cryptographically signed releases. For DACH Behörden, Krankenhäuser, and Anwaltskanzleien. |
 
 > **PII redaction** (commercial add-on, `app/ee/`, inert unless
@@ -105,33 +105,31 @@ and [`COMMERCIAL-LICENSE.md`](COMMERCIAL-LICENSE.md).
 ## Pricing & positioning
 
 FileMorph is **free and self-hostable forever** under AGPL-3.0, with no feature
-gates. Hosted plans on [filemorph.io](https://filemorph.io) add convenience
-(accounts, volume quotas, API); the Compliance Edition adds a commercial licence
-plus contracts for regulated administration.
+gates. The hosted service on [filemorph.io](https://filemorph.io) is free as
+well; the Compliance Edition adds a commercial licence plus contracts for
+regulated administration.
 
-**Hosted plans (filemorph.io)** — prices without VAT (the operator is a small
-business under §19 UStG, Germany). Paid plans are currently not available: Pro
-and Business can't be booked; anonymous use and the Free plan work. Self-hosting
-is always free.
+**Hosted service (filemorph.io)** — free, with fair limits. There are no paid
+plans; a free account adds larger files, batches and an API key. Self-hosting
+is always free, with the limits you set.
 
-| Plan | Price | File size | Batch | API calls/mo | Concurrency |
-|---|---|---|---|---|---|
-| Free | €0 | 100 MB | 10 | 1,000 | 1 |
-| Pro | €3/mo | 250 MB | 50 | 25,000 | 3 |
-| Business | €9/mo | 500 MB | 150 | 200,000 | 4 |
+| Use | File size | Batch | API calls/mo | Concurrency |
+|---|---|---|---|---|
+| Without an account | 30 MB | 1 | not metered | 1 |
+| Free account | 100 MB | 10 | 1,000 | 1 |
 
-All plans share the server's parallel slots (`MAX_GLOBAL_CONCURRENCY`), so no
-plan runs more requests at once than that; the per-minute rate limit is the
-same for every plan.
+Everyone shares the server's parallel slots (`MAX_GLOBAL_CONCURRENCY`), and the
+per-minute rate limit is the same with or without an account.
 
 **Compliance Edition** (self-hosted + commercial licence) — for DACH Behörden,
-Krankenhäuser, Anwaltskanzleien; data stays behind your firewall.
+Krankenhäuser, Anwaltskanzleien; data stays behind your firewall. Prices on
+request.
 
-| Tier | Scope | Price/year |
-|---|---|---|
-| Starter | 1 server, ≤ 50 staff | €990 |
-| Standard | 3 servers, ≤ 2,000 staff | €7,490 |
-| Enterprise | unlimited servers, custom SLA | from €24,900 |
+| Tier | Scope |
+|---|---|
+| Starter | 1 server, ≤ 50 staff |
+| Standard | 3 servers, ≤ 2,000 staff |
+| Enterprise | unlimited servers, custom SLA |
 
 Includes the commercial licence, the SHA-256 audit log, PDF/A-2b (veraPDF
 CI-gated), default-on EXIF/XMP strip, and signed images (cosign) + SBOM. See

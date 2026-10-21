@@ -308,7 +308,7 @@ def test_pricing_route_returns_404_when_pricing_disabled(client, monkeypatch):
 
 def test_pricing_route_renders_when_pricing_enabled(client, monkeypatch):
     """When pricing_page_enabled is on, the page renders (200) — even if
-    Stripe itself is disabled (Coming-Soon mode)."""
+    Stripe itself is disabled (then as the free variant)."""
     from app.core.config import settings
 
     monkeypatch.setattr(settings, "pricing_page_enabled", True)
@@ -317,11 +317,11 @@ def test_pricing_route_renders_when_pricing_enabled(client, monkeypatch):
     assert r.status_code == 200
 
 
-def test_pricing_renders_coming_soon_when_stripe_disabled(client, monkeypatch):
-    """Without Stripe the pricing page says plainly that the paid plans are
-    not available (no "coming soon" promise — paid plans are on hold) and
-    disables the upgrade buttons so visitors don't click into a checkout
-    that 503s."""
+def test_pricing_renders_the_free_variant_when_stripe_disabled(client, monkeypatch):
+    """Without Stripe no plan can be booked, so the pricing page is the free
+    variant: it says there are no plans (no "coming soon" promise — paid
+    plans are on hold) and renders no upgrade button or checkout script that
+    could lead into a checkout that 503s."""
     from app.core.config import settings
 
     monkeypatch.setattr(settings, "pricing_page_enabled", True)
@@ -331,16 +331,17 @@ def test_pricing_renders_coming_soon_when_stripe_disabled(client, monkeypatch):
 
     monkeypatch.setitem(templates.env.globals, "stripe_enabled", False)
 
-    for locale, banner in (
-        ("en", "paid plans are currently not available"),
-        ("de", "bezahlte tarife sind derzeit nicht verfügbar"),
+    for locale, no_plans in (
+        ("en", "our server costs nothing:"),
+        ("de", "unser server kostet nichts:"),
     ):
         r = client.get(f"/{locale}/pricing")
         assert r.status_code == 200
         body = r.text.lower()
-        assert banner in body, f"/{locale}/pricing: not-available banner missing"
+        assert no_plans in body, f"/{locale}/pricing: the free variant is missing"
         assert "coming soon" not in body and "demnächst" not in body, locale
-        assert "disabled" in body, "upgrade buttons must be disabled without Stripe"
+        for absent in ('id="pro-btn"', 'id="business-btn"', "/static/js/pricing.js"):
+            assert absent not in body, f"/{locale}/pricing renders {absent} without Stripe"
 
 
 def test_pricing_renders_live_buttons_with_waiver_gate_when_stripe_enabled(client, monkeypatch):
@@ -396,7 +397,7 @@ def test_navbar_omits_pricing_link_when_pricing_disabled(client, monkeypatch):
     from app.main import templates
 
     monkeypatch.setattr(settings, "pricing_page_enabled", False)
-    templates.env.globals["pricing_enabled"] = False
+    monkeypatch.setitem(templates.env.globals, "pricing_enabled", False)
 
     r = client.get("/")
     assert r.status_code == 200
@@ -410,7 +411,7 @@ def test_navbar_shows_pricing_link_when_pricing_enabled(client, monkeypatch):
     from app.main import templates
 
     monkeypatch.setattr(settings, "pricing_page_enabled", True)
-    templates.env.globals["pricing_enabled"] = True
+    monkeypatch.setitem(templates.env.globals, "pricing_enabled", True)
 
     r = client.get("/")
     assert r.status_code == 200
@@ -479,7 +480,7 @@ def test_navbar_omits_enterprise_link_when_pricing_disabled(client, monkeypatch)
     from app.main import templates
 
     monkeypatch.setattr(settings, "pricing_page_enabled", False)
-    templates.env.globals["pricing_enabled"] = False
+    monkeypatch.setitem(templates.env.globals, "pricing_enabled", False)
 
     r = client.get("/")
     assert r.status_code == 200
@@ -491,7 +492,7 @@ def test_navbar_shows_enterprise_link_when_pricing_enabled(client, monkeypatch):
     from app.main import templates
 
     monkeypatch.setattr(settings, "pricing_page_enabled", True)
-    templates.env.globals["pricing_enabled"] = True
+    monkeypatch.setitem(templates.env.globals, "pricing_enabled", True)
 
     r = client.get("/")
     assert r.status_code == 200
@@ -613,7 +614,7 @@ def test_og_image_carries_no_saas_specific_text():
 # every deployment (incl. self-host) so the OSS story is always visible;
 # only the Compliance-Edition CTA inside it is gated by
 # ``pricing_page_enabled`` because /enterprise 404s on self-host. The
-# navbar entry "Self-Hosted" points at the section anchor and is ungated
+# navbar entry "Self-host" points at the section anchor and is ungated
 # for the same reason — the anchor target always exists.
 
 
@@ -625,7 +626,7 @@ def test_homepage_self_hosted_section_rendered_when_pricing_disabled(client, mon
     from app.main import templates
 
     monkeypatch.setattr(settings, "pricing_page_enabled", False)
-    templates.env.globals["pricing_enabled"] = False
+    monkeypatch.setitem(templates.env.globals, "pricing_enabled", False)
 
     r = client.get("/")
     assert r.status_code == 200
@@ -641,7 +642,7 @@ def test_homepage_self_hosted_section_rendered_when_pricing_enabled(client, monk
     from app.main import templates
 
     monkeypatch.setattr(settings, "pricing_page_enabled", True)
-    templates.env.globals["pricing_enabled"] = True
+    monkeypatch.setitem(templates.env.globals, "pricing_enabled", True)
 
     r = client.get("/")
     assert r.status_code == 200
@@ -669,7 +670,7 @@ def test_navbar_self_hosted_link_present_when_pricing_disabled(client, monkeypat
     from app.main import templates
 
     monkeypatch.setattr(settings, "pricing_page_enabled", False)
-    templates.env.globals["pricing_enabled"] = False
+    monkeypatch.setitem(templates.env.globals, "pricing_enabled", False)
 
     r = client.get("/")
     assert r.status_code == 200
@@ -684,7 +685,7 @@ def test_navbar_self_hosted_link_present_when_pricing_enabled(client, monkeypatc
     from app.main import templates
 
     monkeypatch.setattr(settings, "pricing_page_enabled", True)
-    templates.env.globals["pricing_enabled"] = True
+    monkeypatch.setitem(templates.env.globals, "pricing_enabled", True)
 
     r = client.get("/")
     assert r.status_code == 200
@@ -699,7 +700,7 @@ def test_homepage_compliance_cta_hidden_when_pricing_disabled(client, monkeypatc
     from app.main import templates
 
     monkeypatch.setattr(settings, "pricing_page_enabled", False)
-    templates.env.globals["pricing_enabled"] = False
+    monkeypatch.setitem(templates.env.globals, "pricing_enabled", False)
 
     r = client.get("/")
     assert r.status_code == 200
@@ -713,7 +714,7 @@ def test_homepage_compliance_cta_shown_when_pricing_enabled(client, monkeypatch)
     from app.main import templates
 
     monkeypatch.setattr(settings, "pricing_page_enabled", True)
-    templates.env.globals["pricing_enabled"] = True
+    monkeypatch.setitem(templates.env.globals, "pricing_enabled", True)
 
     r = client.get("/")
     assert r.status_code == 200
@@ -735,7 +736,8 @@ def test_homepage_teaser_renders_configured_pro_price(client, monkeypatch):
     from app.main import templates
 
     monkeypatch.setattr(settings, "pricing_page_enabled", True)
-    templates.env.globals["pricing_enabled"] = True
+    monkeypatch.setitem(templates.env.globals, "pricing_enabled", True)
+    monkeypatch.setitem(templates.env.globals, "stripe_enabled", True)
     monkeypatch.setattr(settings, "price_pro_display", "3")
     monkeypatch.setattr(settings, "price_business_display", "9")
 
@@ -746,6 +748,28 @@ def test_homepage_teaser_renders_configured_pro_price(client, monkeypatch):
     assert "€9" in body, "teaser must show the configured Business price (€9)"
 
 
+def test_homepage_free_teaser_without_stripe(client, monkeypatch):
+    """Without Stripe the homepage shows the free teaser instead of the plan
+    chips: no price even where PRICE_*_DISPLAY is still set, and the anonymous
+    and free-account limits read from the same pricing module."""
+    from app.core.config import settings
+    from app.core.pricing import anonymous_plan, saas_plans
+    from app.main import templates
+
+    monkeypatch.setattr(settings, "pricing_page_enabled", True)
+    monkeypatch.setitem(templates.env.globals, "pricing_enabled", True)
+    monkeypatch.setitem(templates.env.globals, "stripe_enabled", False)
+    monkeypatch.setattr(settings, "price_pro_display", "3")
+    monkeypatch.setattr(settings, "price_business_display", "9")
+
+    body = client.get("/en/").text
+    assert "€3" not in body and "€9" not in body
+    assert ">Plans</h2>" not in body
+    anon, free = anonymous_plan("en"), saas_plans("en")[0]
+    assert f"{anon.max_file_size_mb} MB without an account" in body
+    assert f"{free.max_file_size_mb} MB with a free account" in body
+
+
 def test_homepage_teaser_omits_price_when_unconfigured(client, monkeypatch):
     """Self-host enabled the pricing page but didn't set PRICE_*_DISPLAY:
     the teaser must render the tier names + limits without inheriting the
@@ -754,7 +778,8 @@ def test_homepage_teaser_omits_price_when_unconfigured(client, monkeypatch):
     from app.main import templates
 
     monkeypatch.setattr(settings, "pricing_page_enabled", True)
-    templates.env.globals["pricing_enabled"] = True
+    monkeypatch.setitem(templates.env.globals, "pricing_enabled", True)
+    monkeypatch.setitem(templates.env.globals, "stripe_enabled", True)
     monkeypatch.setattr(settings, "price_pro_display", "")
     monkeypatch.setattr(settings, "price_business_display", "")
 
@@ -777,7 +802,8 @@ def test_homepage_teaser_no_legacy_hardcoded_prices(client, monkeypatch):
     from app.main import templates
 
     monkeypatch.setattr(settings, "pricing_page_enabled", True)
-    templates.env.globals["pricing_enabled"] = True
+    monkeypatch.setitem(templates.env.globals, "pricing_enabled", True)
+    monkeypatch.setitem(templates.env.globals, "stripe_enabled", True)
     monkeypatch.setattr(settings, "price_pro_display", "3")
     monkeypatch.setattr(settings, "price_business_display", "9")
 

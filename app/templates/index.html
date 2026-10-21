@@ -67,13 +67,15 @@
         </div>
       </section>
 
-      {% if pricing_enabled %}
+      {% if pricing_enabled and stripe_enabled %}
       <!-- Tier teaser — commercial offer surface. Limits come from
            quotas.py and the price strings from PRICE_*_DISPLAY env via
            app/core/pricing.py — the same display contract /pricing
            renders, so the two surfaces can't drift. When a price isn't
            configured (e.g. self-host enabled the page without setting
-           PRICE_PRO_DISPLAY), the chip shows only the tier name + limits. -->
+           PRICE_PRO_DISPLAY), the chip shows only the tier name + limits.
+           Only with Stripe configured: without it no plan can be booked,
+           so the free teaser below takes its place (same rule as /pricing). -->
       <div class="border border-gray-800 rounded-xl px-5 py-4 space-y-3">
         <div class="flex items-center justify-between">
           <h2 class="text-xs font-semibold uppercase tracking-wider text-gray-500">{{ _('Plans') }}</h2>
@@ -99,6 +101,31 @@
         </div>
         <p class="text-center text-xs text-gray-600 pt-1">
           {{ _('Using anonymously: up to') }} {{ anon_plan.max_file_size_mb }} {{ _('MB per file.') }}
+          <a href="{{ localized_url('/register', current_prefix) }}" class="text-brand hover:underline">{{ _('Register free for more →') }}</a>
+        </p>
+      </div>
+      {% elif pricing_enabled %}
+      <!-- Free teaser — what the hosted service costs when no plan can be
+           booked (filemorph.io): our server with the anonymous and
+           free-account limits from quotas.py, and self-hosting. Details on
+           /pricing. Text tokens chosen for WCAG AA on this surface. -->
+      <div class="border border-gray-800 rounded-xl px-5 py-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="text-xs font-semibold uppercase tracking-wider text-ink-muted">{{ _('Free') }}</h2>
+          <a href="{{ localized_url('/pricing', current_prefix) }}" class="text-xs text-brand hover:underline">{{ _('Costs and limits →') }}</a>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-center text-xs">
+          <div class="bg-gray-800 rounded-lg px-2 py-2.5">
+            <p class="font-semibold text-gray-300">{{ _('On our server') }}</p>
+            <p class="text-ink-muted mt-0.5">{{ anon_plan.max_file_size_mb }} MB {{ _('without an account') }} · {{ plans.free.max_file_size_mb }} MB {{ _('with a free account') }}</p>
+          </div>
+          <div class="bg-gray-800 rounded-lg px-2 py-2.5">
+            <p class="font-semibold text-gray-300">{{ _('On your own server') }}</p>
+            <p class="text-ink-muted mt-0.5">{{ _('Open source (AGPL-3.0), no feature gates') }}</p>
+          </div>
+        </div>
+        <p class="text-center text-xs text-ink-muted pt-1">
+          {{ _('Files are deleted immediately after processing.') }}
           <a href="{{ localized_url('/register', current_prefix) }}" class="text-brand hover:underline">{{ _('Register free for more →') }}</a>
         </p>
       </div>
@@ -156,7 +183,8 @@
         <div class="space-y-3 text-xs leading-relaxed">
           <div>
             <h3 class="font-semibold text-gray-200">{{ _('Is FileMorph free?') }}</h3>
-            <p class="text-gray-400">{{ _('Yes. The conversion and compression engine is free and open source (AGPLv3). You can convert files without an account, and self-host it at no cost. Paid hosted plans only add higher volume, larger files and API quota.') }}</p>
+            {# The paid-plans sentence only where a plan can be booked (Stripe configured). #}
+            <p class="text-gray-400">{% if stripe_enabled %}{{ _('Yes. The conversion and compression engine is free and open source (AGPLv3). You can convert files without an account, and self-host it at no cost. Paid hosted plans only add higher volume, larger files and API quota.') }}{% else %}{{ _('Yes. The conversion and compression engine is free and open source (AGPLv3). You can convert files without an account, and self-host it at no cost. Our server has no paid plans.') }}{% endif %}</p>
           </div>
           <div>
             <h3 class="font-semibold text-gray-200">{{ _('Are my files private?') }}</h3>

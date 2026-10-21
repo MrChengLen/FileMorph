@@ -325,7 +325,7 @@ Germany, to the extent permitted by law.
 | Tier | `[Starter / Standard / Enterprise / KRITIS–air-gap / OEM]` |
 | Number of servers licensed | `[N]` |
 | Employee band | `[≤ 50 / ≤ 2 000 / unlimited / as agreed]` |
-| Annual Fee (no VAT charged while the Licensor applies §19 UStG — see §6.2) | `[€ … — per COMMERCIAL-LICENSE.md, or as negotiated for Enterprise / KRITIS / OEM]` |
+| Annual Fee (no VAT charged while the Licensor applies §19 UStG — see §6.2) | `[€ … — as quoted / negotiated]` |
 | Multi-year discount, if any | `[…]` |
 | OEM redistribution terms (OEM tier only) | `[…]` |
 | Licensed version line | `[e.g. v1.x — see docs/patch-policy.md]` |

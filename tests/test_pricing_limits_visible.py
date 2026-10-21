@@ -10,9 +10,10 @@ hit unexpected 429s. A tier's cap only counts up to the global pool
 (``MAX_GLOBAL_CONCURRENCY``), so the page shows the smaller of the two —
 Business's 6 is 4 on a default deployment.
 
-The test renders the pricing template via ``stripe_enabled=True``
-so the full feature list is shown (the Coming-Soon banner replaces
-the buttons in the OFF case but the bullet lists stay either way).
+The test renders the pricing template via ``stripe_enabled=True``:
+only then can plans be booked, so only then do the plan cards render.
+Without Stripe the page is the free variant, whose numbers are pinned in
+tests/test_pricing_centralized.py.
 """
 
 from __future__ import annotations
@@ -21,6 +22,7 @@ import pytest
 
 from app.core.concurrency import _PER_TIER_CONCURRENCY
 from app.core.config import settings
+from app.core.templates import templates
 from app.main import app
 
 
@@ -32,6 +34,7 @@ def pricing_html(client, monkeypatch):
     # Stripe is configured in the dev env that runs the test suite.
     app.state  # access only — no mutation needed
     monkeypatch.setattr(settings, "stripe_secret_key", "sk_test_placeholder")  # gitleaks:allow
+    monkeypatch.setitem(templates.env.globals, "stripe_enabled", True)
     # Hit /en/pricing so the EN copy ("25,000 API calls / month", "3 concurrent")
     # is asserted deterministically. The DE catalog uses German number
     # formatting ("25.000" with dot) and "gleichzeitig" — the limiter

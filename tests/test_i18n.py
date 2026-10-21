@@ -450,3 +450,19 @@ def test_fm_i18n_json_blob_localises_per_request(client):
     # English render: msgid is already English so the value stays English.
     assert en_strings.get("convert") == "Convert"
     assert en_strings.get("compress") == "Compress"
+
+
+def test_german_catalog_translates_every_message():
+    """Every message has a German translation that compiles. scripts/i18n.py
+    drift-check compares only the .pot, so a German string lost while two
+    pull requests' catalogs are merged — or left fuzzy, which compiling skips —
+    would fall back to English silently; this catches it."""
+    from pathlib import Path
+
+    from babel.messages.pofile import read_po
+
+    po = Path(__file__).resolve().parents[1] / "locale" / "de" / "LC_MESSAGES" / "messages.po"
+    with po.open("rb") as f:
+        catalog = read_po(f)
+    untranslated = [m.id for m in catalog if m.id and (not m.string or m.fuzzy)]
+    assert not untranslated, f"German catalog: empty or fuzzy entries {untranslated[:5]}"

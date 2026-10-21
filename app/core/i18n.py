@@ -354,7 +354,6 @@ def _js_i18n_strings(_: gettext.GNUTranslations.gettext) -> dict[str, str]:
         "upgradeToPro": _("Upgrade to Pro"),
         # auth.js — dynamic nav after login
         "dashboard": _("Dashboard"),
-        "register": _("Register"),
         "signOut": _("Sign Out"),
         # redact.js — PII redaction tool (/redact). Entity labels are keyed by the
         # stable detector IDs (redactEntity<TYPE>) so the JS maps them directly.

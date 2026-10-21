@@ -79,7 +79,7 @@ License. Each file under `app/ee/` carries the SPDX tag
 
 ---
 
-## Pricing (indicative — final terms per contract)
+## Pricing (on request — terms per contract)
 
 The commercial-license offer is structured as a **Compliance Edition** with
 volume-based tiers. Procurement-driven buyers (Behörden, Krankenhäuser,
@@ -91,9 +91,9 @@ for a back-end file-conversion service.
 
 | Tier | Scope | Annual |
 |---|---|---|
-| **Compliance Starter** | 1 server, ≤ 50 staff | € 990 |
-| **Compliance Standard** | 3 servers, ≤ 2.000 staff | € 7.490 |
-| **Compliance Enterprise** | unlimited servers, dedicated onboarding, custom SLA | from € 24.900 |
+| **Compliance Starter** | 1 server, ≤ 50 staff | on request |
+| **Compliance Standard** | 3 servers, ≤ 2.000 staff | on request |
+| **Compliance Enterprise** | unlimited servers, dedicated onboarding, custom SLA | on request |
 | **OEM / white-label** | Embed + redistribute inside your own product | Case-by-case |
 
 What "dedicated onboarding" (and the lighter onboarding at the other
@@ -110,8 +110,8 @@ quoted before an external pen-test report is on file — see
 patching cadence, and [`docs/support-sla.md`](docs/support-sla.md) for the
 support framework (the SLA itself is set per agreement, not published).
 
-> Note: the SaaS plans on [filemorph.io/pricing](https://filemorph.io/pricing) (Pro / Business)
-> are a separate offering — usage of the hosted API. The tiers above license the
+> Note: the hosted service on [filemorph.io](https://filemorph.io/pricing) is a separate
+> offering, and it is free — it has no paid plans. The tiers above license the
 > *source code* for self-hosted closed-source, compliance, and OEM use.
 
 Kleinunternehmer gemäß §19 UStG — no VAT is charged (small-business regulation,

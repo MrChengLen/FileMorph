@@ -82,9 +82,9 @@
       {# Ungated: points to the always-rendered #self-hosted section on the
          homepage, so the OSS/self-host story is reachable on every
          deployment (incl. self-host where /enterprise 404s). #}
-      <a href="{{ localized_url('/', current_prefix) }}#self-hosted" class="text-gray-400 hover:text-white transition-colors">{{ _('Self-Hosted') }}</a>
+      <a href="{{ localized_url('/', current_prefix) }}#self-hosted" class="text-gray-400 hover:text-white transition-colors">{{ _('Self-host') }}</a>
       {% if pricing_enabled %}<a href="{{ localized_url('/pricing', current_prefix) }}" class="text-gray-400 hover:text-white transition-colors">{{ _('Pricing') }}</a>{% endif %}
-      {% if pricing_enabled %}<a href="{{ localized_url('/enterprise', current_prefix) }}" class="text-gray-400 hover:text-white transition-colors">{{ _('Enterprise') }}</a>{% endif %}
+      {% if pricing_enabled %}<a href="{{ localized_url('/enterprise', current_prefix) }}" class="text-gray-400 hover:text-white transition-colors">{{ _('For organizations') }}</a>{% endif %}
       <a href="/docs" target="_blank" class="text-gray-400 hover:text-white transition-colors">{{ _('API Docs') }}</a>
       <a href="https://github.com/MrChengLen/FileMorph" target="_blank"
          class="text-gray-400 hover:text-white transition-colors">GitHub</a>
@@ -103,9 +103,10 @@
            class="text-xs uppercase tracking-wider {% if locale == 'en' %}text-white font-semibold{% else %}text-gray-500 hover:text-gray-300{% endif %} transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand rounded">EN</a>
       </div>
       {% if not minimal_chrome %}
+      {# Sign In only: registering is reachable from the login page, the
+         pricing page and the developer teaser, not from the main navigation. #}
       <div id="nav-auth-desktop" class="flex items-center gap-3">
         <a href="{{ localized_url('/login', current_prefix) }}" class="text-sm text-gray-300 hover:text-white transition-colors">{{ _('Sign In') }}</a>
-        <a href="{{ localized_url('/register', current_prefix) }}" class="text-sm px-4 py-1.5 rounded-lg bg-brand hover:bg-brand-dark text-white font-semibold transition-colors">{{ _('Register') }}</a>
       </div>
       {% endif %}
     </div>
@@ -113,9 +114,9 @@
   {% if not minimal_chrome %}
   <div id="nav-mobile-menu" class="hidden md:hidden border-t border-gray-800 bg-gray-950 px-6 py-4 space-y-3 text-sm print:hidden">
     <a href="{{ localized_url('/tools', current_prefix) }}" class="block text-gray-400 hover:text-white transition-colors py-2.5">{{ _('Tools') }}</a>
-    <a href="{{ localized_url('/', current_prefix) }}#self-hosted" class="block text-gray-400 hover:text-white transition-colors py-2.5">{{ _('Self-Hosted') }}</a>
+    <a href="{{ localized_url('/', current_prefix) }}#self-hosted" class="block text-gray-400 hover:text-white transition-colors py-2.5">{{ _('Self-host') }}</a>
     {% if pricing_enabled %}<a href="{{ localized_url('/pricing', current_prefix) }}" class="block text-gray-400 hover:text-white transition-colors py-2.5">{{ _('Pricing') }}</a>{% endif %}
-    {% if pricing_enabled %}<a href="{{ localized_url('/enterprise', current_prefix) }}" class="block text-gray-400 hover:text-white transition-colors py-2.5">{{ _('Enterprise') }}</a>{% endif %}
+    {% if pricing_enabled %}<a href="{{ localized_url('/enterprise', current_prefix) }}" class="block text-gray-400 hover:text-white transition-colors py-2.5">{{ _('For organizations') }}</a>{% endif %}
     <a href="/docs" target="_blank" class="block text-gray-400 hover:text-white transition-colors py-2.5">{{ _('API Docs') }}</a>
     <a href="https://github.com/MrChengLen/FileMorph" target="_blank"
        class="block text-gray-400 hover:text-white transition-colors py-2.5">GitHub ↗</a>
@@ -134,7 +135,6 @@
     </div>
     <div id="nav-auth-mobile">
       <a href="{{ localized_url('/login', current_prefix) }}" class="block text-gray-400 hover:text-white transition-colors py-2.5">{{ _('Sign In') }}</a>
-      <a href="{{ localized_url('/register', current_prefix) }}" class="block text-brand hover:text-white py-2.5">{{ _('Register') }}</a>
     </div>
   </div>
   {% endif %}
@@ -183,9 +183,9 @@
           <div class="space-y-2">
             <p class="font-semibold uppercase tracking-wider text-gray-600">{{ _('Product') }}</p>
             <nav class="flex flex-col space-y-1" aria-label="{{ _('Product') }}">
-              <a href="{{ localized_url('/', current_prefix) }}#self-hosted" class="text-gray-500 hover:text-gray-300 transition-colors">{{ _('Self-Hosted') }}</a>
+              <a href="{{ localized_url('/', current_prefix) }}#self-hosted" class="text-gray-500 hover:text-gray-300 transition-colors">{{ _('Self-host') }}</a>
               {% if pricing_enabled %}<a href="{{ localized_url('/pricing', current_prefix) }}" class="text-gray-500 hover:text-gray-300 transition-colors">{{ _('Pricing') }}</a>{% endif %}
-              {% if pricing_enabled %}<a href="{{ localized_url('/enterprise', current_prefix) }}" class="text-gray-500 hover:text-gray-300 transition-colors">{{ _('Enterprise') }}</a>{% endif %}
+              {% if pricing_enabled %}<a href="{{ localized_url('/enterprise', current_prefix) }}" class="text-gray-500 hover:text-gray-300 transition-colors">{{ _('For organizations') }}</a>{% endif %}
               <a href="/docs" target="_blank" class="text-gray-500 hover:text-gray-300 transition-colors">{{ _('API Docs') }}</a>
               <a href="https://github.com/MrChengLen/FileMorph" target="_blank" class="text-gray-500 hover:text-gray-300 transition-colors">GitHub ↗</a>
             </nav>

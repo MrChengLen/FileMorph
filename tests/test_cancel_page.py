@@ -321,9 +321,11 @@ def test_homepage_chrome_is_unchanged_with_pricing_on(client, stripe_on, pricing
         "/en/pricing",
         "/en/enterprise",
         "/en/login",
-        "/en/register",
         "/de/",
     } <= header_links
+    # Registering is reachable from login, pricing and the developer teaser,
+    # not from the main navigation.
+    assert "/en/register" not in header_links
     for present in ("nav-toggle", "nav-mobile-menu", "nav-auth-desktop", "nav-auth-mobile"):
         assert soup.find(id=present) is not None, f"#{present} missing on the homepage"
     assert "md:flex" in header.find(id="nav-menu")["class"]

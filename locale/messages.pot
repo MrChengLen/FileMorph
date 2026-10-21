@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph 1.2.0\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-19 15:41+0200\n"
+"POT-Creation-Date: 2026-10-21 10:46+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -693,6 +693,9 @@ msgstr ""
 msgid "Copy this key now — it will not be shown again."
 msgstr ""
 
+msgid "Costs and limits →"
+msgstr ""
+
 #, python-brace-format
 msgid "Costs {n} credit per file"
 msgstr ""
@@ -737,9 +740,6 @@ msgid "Credit-card number"
 msgstr ""
 
 msgid "Criterion"
-msgstr ""
-
-msgid "Currently not available"
 msgstr ""
 
 msgid "CycloneDX SBOM per release"
@@ -888,9 +888,6 @@ msgstr ""
 msgid "Enter your password:"
 msgstr ""
 
-msgid "Enterprise"
-msgstr ""
-
 msgid ""
 "Entries written up to and including 12 October 2026 may still contain a "
 "SHA-256 hash of an email address or, for an account deletion, the domain "
@@ -924,6 +921,12 @@ msgid "Extraordinary cancellation (for good cause)"
 msgstr ""
 
 msgid "Failure rate (today)"
+msgstr ""
+
+msgid ""
+"Fair use for everyone: a concurrency cap per account (per IP address "
+"without an account) keeps one batch from starving the server — requests "
+"past the cap return"
 msgstr ""
 
 msgid "Feature"
@@ -983,6 +986,11 @@ msgid ""
 msgstr ""
 
 msgid ""
+"FileMorph is free: our server converts your files with fair limits, or "
+"you self-host the open-source engine without feature gates."
+msgstr ""
+
+msgid ""
 "FileMorph is open source and the converter registry is plugin-based — new"
 " formats are added with a small Python module. Request one or contribute "
 "it on"
@@ -1025,6 +1033,9 @@ msgstr ""
 msgid ""
 "FileMorph — Free online file converter & compressor. Convert images, "
 "documents, audio and video. Privacy-respecting, no account required."
+msgstr ""
+
+msgid "Files are deleted immediately after processing."
 msgstr ""
 
 msgid ""
@@ -1078,6 +1089,22 @@ msgstr ""
 msgid "For developers & SaaS"
 msgstr ""
 
+msgid ""
+"For larger files, batch uploads of several files and an API key. Single "
+"files work without an account — on the website and via the API."
+msgstr ""
+
+msgid ""
+"For larger files, run FileMorph on your own server — there you set the "
+"limits."
+msgstr ""
+
+msgid "For organizations"
+msgstr ""
+
+msgid "For public authorities, hospitals and law firms"
+msgstr ""
+
 msgid "For public sector & compliance"
 msgstr ""
 
@@ -1102,7 +1129,10 @@ msgstr ""
 msgid "Free engine. Pay only for hosting or a license."
 msgstr ""
 
-msgid "Free tier forever — upgrade only when you need more"
+msgid "Free — for larger files, batch uploads and an API key"
+msgstr ""
+
+msgid "Free. On our server or on your own."
 msgstr ""
 
 msgid "Frequently asked questions"
@@ -1240,6 +1270,11 @@ msgstr ""
 msgid ""
 "If you have discovered a security issue in FileMorph or in this "
 "deployment, please email"
+msgstr ""
+
+msgid ""
+"If you need a contract behind it — a commercial license, a named contact,"
+" agreed response times — ask us."
 msgstr ""
 
 msgid ""
@@ -1389,10 +1424,10 @@ msgstr ""
 msgid "Language"
 msgstr ""
 
-msgid "Last updated: 2026-10-01 · Community + Cloud Edition"
+msgid "Last updated: 2026-10-19 · Community + Cloud Edition"
 msgstr ""
 
-msgid "Last updated: 2026-10-19 · Community + Cloud Edition"
+msgid "Last updated: 2026-10-21 · Community + Cloud Edition"
 msgstr ""
 
 msgid "Last used"
@@ -1522,6 +1557,11 @@ msgstr ""
 msgid "No credit card required"
 msgstr ""
 
+msgid ""
+"Not at the moment. If that changes, it will be announced here in advance "
+"— never as a surprise."
+msgstr ""
+
 msgid "Not covered yet"
 msgstr ""
 
@@ -1544,12 +1584,18 @@ msgstr ""
 msgid "On a later date"
 msgstr ""
 
+msgid "On our server"
+msgstr ""
+
 msgid ""
 "On the way to our server and back, they pass through Cloudflare (see § "
 "4). Legal basis: Art. 6(1)(b) GDPR — we carry out the conversion you ask "
 "for under our terms of use, with or without an account; for personal data"
 " of other people in a file, Art. 6(1)(f) GDPR — your and our legitimate "
 "interest in that conversion."
+msgstr ""
+
+msgid "On your own server"
 msgstr ""
 
 msgid "One click and you're done"
@@ -1574,6 +1620,9 @@ msgid "Open Source · Self-Hosted"
 msgstr ""
 
 msgid "Open dashboard"
+msgstr ""
+
+msgid "Open source (AGPL-3.0), no feature gates"
 msgstr ""
 
 msgid "Open source (AGPLv3)"
@@ -1606,6 +1655,11 @@ msgid ""
 msgstr ""
 
 msgid "Our response"
+msgstr ""
+
+msgid ""
+"Our server costs nothing: it processes your files with fair limits — or "
+"you run the open-source engine yourself, with no feature gates."
 msgstr ""
 
 msgid ""
@@ -1683,9 +1737,6 @@ msgid ""
 "pricing page at the time of your order, and renew automatically until "
 "cancelled. You may cancel at any time, without logging in, through the "
 "“Cancel contracts here” link at the bottom of every page, or by emailing"
-msgstr ""
-
-msgid "Paid plans are currently not available"
 msgstr ""
 
 msgid "Password"
@@ -1775,6 +1826,9 @@ msgstr ""
 msgid "Pricing"
 msgstr ""
 
+msgid "Pricing — FileMorph is free"
+msgstr ""
+
 msgid "Pricing — free converter, paid plans"
 msgstr ""
 
@@ -1791,11 +1845,6 @@ msgid "Privacy tools"
 msgstr ""
 
 msgid "Pro"
-msgstr ""
-
-msgid ""
-"Pro and Business cannot be booked at the moment. Using FileMorph without "
-"an account or with a free account works as described below."
 msgstr ""
 
 msgid "Process another file"
@@ -1833,6 +1882,9 @@ msgid ""
 msgstr ""
 
 msgid "Quality"
+msgstr ""
+
+msgid "Questions about cost and limits"
 msgstr ""
 
 #, python-format
@@ -1913,9 +1965,6 @@ msgid ""
 "Refunds are not issued for partial billing periods. In the event of a "
 "documented service outage exceeding 24 hours within a single billing "
 "period, you may request a discretionary credit by contacting:"
-msgstr ""
-
-msgid "Register"
 msgstr ""
 
 msgid "Register free"
@@ -2094,7 +2143,7 @@ msgstr ""
 msgid "Select one or more files to convert or compress"
 msgstr ""
 
-msgid "Self-Hosted"
+msgid "Self-host"
 msgstr ""
 
 msgid "Self-hostable (Docker)"
@@ -2660,6 +2709,11 @@ msgid ""
 msgstr ""
 
 msgid ""
+"We currently offer no paid plans. Sections 8 and 9 apply only once paid "
+"plans are offered."
+msgstr ""
+
+msgid ""
 "We have not appointed a data protection officer; the law does not require"
 " one for a business of our size (§ 38 BDSG)."
 msgstr ""
@@ -2733,6 +2787,9 @@ msgid ""
 " you (valid for 7 days):"
 msgstr ""
 
+msgid "What do I need an account for?"
+msgstr ""
+
 msgid "What does the Edition cost?"
 msgstr ""
 
@@ -2740,6 +2797,9 @@ msgid "What does the data export look like if we migrate?"
 msgstr ""
 
 msgid "What happens if we cancel?"
+msgstr ""
+
+msgid "What if my file is too large?"
 msgstr ""
 
 msgid "What is this about?"
@@ -2856,6 +2916,18 @@ msgstr ""
 msgid "Why →"
 msgstr ""
 
+msgid "Will there be paid plans?"
+msgstr ""
+
+msgid "With a free account our server takes files up to"
+msgstr ""
+
+msgid "With a free account:"
+msgstr ""
+
+msgid "Without an account:"
+msgstr ""
+
 msgid "Word to PDF"
 msgstr ""
 
@@ -2871,6 +2943,12 @@ msgid ""
 "Yes. FileMorph is open source (AGPLv3) and ships as a one-command Docker "
 "deployment with no feature gates, so your files never leave your own "
 "infrastructure. A REST API is included for programmatic conversion."
+msgstr ""
+
+msgid ""
+"Yes. The conversion and compression engine is free and open source "
+"(AGPLv3). You can convert files without an account, and self-host it at "
+"no cost. Our server has no paid plans."
 msgstr ""
 
 msgid ""
@@ -3144,6 +3222,13 @@ msgstr ""
 msgid "here is why ↗"
 msgstr ""
 
+msgid ""
+"hint, and large batches are processed one file after another. All "
+"requests share the server's parallel slots, and the per-minute rate limit"
+" is the same for everyone — for example 10 requests per minute to convert"
+" or compress a file."
+msgstr ""
+
 msgid "hint. Large batches are processed sequentially inside the request."
 msgstr ""
 
@@ -3292,10 +3377,16 @@ msgid ""
 "if needed."
 msgstr ""
 
+msgid "with a free account"
+msgstr ""
+
 msgid "within 7 days, including a severity assessment."
 msgstr ""
 
 msgid "within 72 hours of receipt."
+msgstr ""
+
+msgid "without an account"
 msgstr ""
 
 msgid "your JWT session tokens; strictly necessary to keep you signed in."
