@@ -102,9 +102,9 @@
       }
       return t('pdfTooManyPagesExtract', 'You can extract at most 10,000 pages at once. Select fewer pages, or extract them in several parts.');
     }
-    if (code === 'input_too_large') return t('errorInputTooLarge', 'File too large.');
-    if (code === 'output_cap_exceeded') return t('errorOutputCapExceeded', 'The result would be larger than allowed.');
-    if (code === 'target_size_exceeds_cap') return t('errorTargetSizeExceedsCap', 'The target size is above the output limit.');
+    if (code === 'input_too_large') return t('errorInputTooLarge', 'File too large for your plan.');
+    if (code === 'output_cap_exceeded') return t('errorOutputCapExceeded', 'Output would exceed your plan cap.');
+    if (code === 'target_size_exceeds_cap') return t('errorTargetSizeExceedsCap', 'Target size exceeds your plan cap.');
     const detail = data && data.detail;
     // Pydantic validation 422s carry an array detail — not user-friendly text.
     if (res.status === 422 && !Array.isArray(detail)) return t('pdfNotAPdf', 'Please select a PDF file.');
@@ -273,7 +273,7 @@
       // No error code passed: this is a hard form ceiling no plan can lift,
       // so the plans upsell must NOT appear (Upsell-Regeln).
       if (mb > 2048) {
-        showError(t('errorTargetSizeTooHigh', 'The target size is above the allowed maximum of 2 GB.'));
+        showError(t('errorTargetSizeExceedsCap', 'Target size exceeds the allowed maximum.'));
         return;
       }
       targetKb = Math.max(1, Math.round(mb * 1024));

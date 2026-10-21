@@ -246,5 +246,5 @@ def test_batch_route_reports_a_table_that_passes_the_cap(
     )
     assert resp.status_code == 422
     assert resp.json()["files"][0]["error_message"] == (
-        "Output too large (over the 1 MB cap). Split the table. Register free for a higher cap."
+        "Output too large (over the 1 MB cap). Split the table or upgrade your plan."
     )
