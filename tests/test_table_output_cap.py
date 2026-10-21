@@ -186,11 +186,15 @@ def test_csv_to_json_stops_writing_at_the_cap(tmp_path):
         "k\nline\u2028one\n",
         "k\nline\u2029two\n",
         "k\nline\x85three\n",
+        pytest.param(
+            "k,v\r\n" + "".join(f'{i},"\u20ac{i} \U0001f600\r\n\u00fc"\r\n' for i in range(5_000)),
+            id="rows-past-the-read-buffer",
+        ),
     ],
 )
 def test_csv_to_json_writes_what_json_dumps_would(tmp_path, text):
     src, out = tmp_path / "in.csv", tmp_path / "out.json"
-    src.write_text(text, encoding="utf-8")
+    src.write_bytes(text.encode("utf-8"))  # line endings as given, on Windows too
     CsvToJsonConverter().convert(src, out)
     rows = list(csv.DictReader(io.StringIO(text, newline="")))
     assert out.read_text(encoding="utf-8") == json.dumps(rows, indent=2, ensure_ascii=False)
