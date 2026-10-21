@@ -424,6 +424,14 @@ def _js_i18n_strings(_: gettext.GNUTranslations.gettext) -> dict[str, str]:
             "You can extract at most 10,000 pages at once. "
             "Select fewer pages, or extract them in several parts."
         ),
+        # X-FileMorph-Error-Code: pdf_too_complex — /pdf/compress past the
+        # child process's memory or time limits; the compress page shows the
+        # link to the extract tool next to it.
+        "pdfTooComplex": _(
+            "This PDF is too large or complex to compress in one go. "
+            "Extract fewer pages at a time with “Extract PDF pages”, "
+            "then compress each part."
+        ),
         "pdfRateLimited": _("Too many requests. Please wait a moment and try again."),
         "pdfCompressAchieved": _("Compressed to {size} MB"),
         "pdfCompressNotConverged": _(

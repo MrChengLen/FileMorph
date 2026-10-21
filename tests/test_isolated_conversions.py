@@ -3,7 +3,8 @@
 
 The table conversions run in a child process with memory and time limits,
 and the child reports its result or error on stdout. PDF compression uses the
-same child; its route tests are in ``tests/test_pdf_compress.py``.
+same child; its route tests are in ``tests/test_pdf_compress.py`` and, with a
+stand-in child, ``tests/test_pdf_error_messages.py``.
 """
 
 from __future__ import annotations
@@ -12,6 +13,7 @@ import json
 import logging
 import subprocess
 import sys
+import tracemalloc
 
 import pytest
 
@@ -22,7 +24,11 @@ from app.converters.base import (
     OutputTooLargeError,
     UnsupportedPdfEncryptionError,
 )
-from app.converters.spreadsheet import CsvToJsonConverter, JsonToCsvConverter
+from app.converters.spreadsheet import (
+    CsvToJsonConverter,
+    CsvToXlsxConverter,
+    JsonToCsvConverter,
+)
 
 _TOO_LARGE = "Too large; split it."
 
@@ -58,7 +64,7 @@ def test_a_child_over_its_time_is_stopped(tmp_path, monkeypatch):
     _step_limits(monkeypatch, "convert", seconds=0.01)
     src = tmp_path / "in.csv"
     src.write_text("a,b\n1,2\n", encoding="utf-8")
-    with pytest.raises(InvalidInputError, match="too large or complex to convert"):
+    with pytest.raises(_isolated.TooComplexError, match="too large or complex to convert"):
         CsvToJsonConverter().run(src, tmp_path / "out.json")
 
 
@@ -129,6 +135,27 @@ def test_the_child_hardens_pillow_and_caps_itself(tmp_path):
     assert json.loads(out.read_text(encoding="utf-8")) == [{"a": "1"}]
 
 
+# ── Within the child's memory limit ──────────────────────────────────────────
+
+
+@pytest.mark.parametrize("converter", [CsvToJsonConverter, CsvToXlsxConverter])
+def test_a_csv_is_read_row_by_row(tmp_path, converter):
+    """A CSV is converted row by row: the memory taken grows with the longest
+    row, not with the file."""
+    src, tiny = tmp_path / "in.csv", tmp_path / "tiny.csv"
+    # 8 MB in 16,000 cells, every row different
+    src.write_bytes(b"a,b\n" + b"".join((b"%07d" % i) * 143 + b",1\n" for i in range(8000)))
+    tiny.write_bytes(b"a,b\n1,2\n")
+    converter().convert(tiny, tmp_path / "warm-up")  # lazy imports happen here
+    tracemalloc.start()
+    try:
+        converter().convert(src, tmp_path / "out")
+        peak = tracemalloc.get_traced_memory()[1]
+    finally:
+        tracemalloc.stop()
+    assert peak < src.stat().st_size // 4
+
+
 # ── The parent's side, with a stand-in child ─────────────────────────────────
 
 
@@ -166,8 +193,8 @@ def test_the_child_gets_no_secrets_and_the_request_temp_folder(tmp_path, monkeyp
         ('{"error": "encrypted"}', 0, EncryptedPdfError, "password"),
         ('{"error": "unsupported_encryption"}', 0, UnsupportedPdfEncryptionError, "certificate"),
         ('{"error": "invalid", "message": "Fix it."}', 0, InvalidInputError, "Fix it."),
-        ('{"error": "out_of_memory"}', 0, InvalidInputError, _TOO_LARGE),
-        ("", -9, InvalidInputError, _TOO_LARGE),  # stopped by a limit
+        ('{"error": "out_of_memory"}', 0, _isolated.TooComplexError, _TOO_LARGE),
+        ("", -9, _isolated.TooComplexError, _TOO_LARGE),  # stopped by a limit
         ('{"error": "failed", "type": "KeyError"}', 0, RuntimeError, "KeyError"),
         ("not json", 1, RuntimeError, "status 1"),
     ],
@@ -178,6 +205,7 @@ def test_child_outcomes_map_to_the_usual_errors(
     monkeypatch.setattr(subprocess, "run", _fake_child(stdout, returncode))
     with pytest.raises(error) as excinfo:
         _isolated.run_isolated("convert", too_large=_TOO_LARGE, tmp_dir=tmp_path)
+    assert type(excinfo.value) is error  # e.g. the child's own message is no TooComplexError
     assert message in str(excinfo.value)
 
 

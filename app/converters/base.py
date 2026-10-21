@@ -1,7 +1,9 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 from abc import ABC, abstractmethod
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TextIO
 
 if TYPE_CHECKING:
     import pikepdf
@@ -117,20 +119,42 @@ def open_pikepdf(path: Path) -> "pikepdf.Pdf":
         raise UnsupportedPdfEncryptionError() from exc
 
 
+_NOT_UTF8 = (
+    "The file is not UTF-8 text. Re-save it as UTF-8 (in Excel: Save As → "
+    "CSV UTF-8; in text editors: Save As → Encoding) and try again."
+)
+
+
 def read_utf8_text(path: Path) -> str:
     """Decode an uploaded text file as UTF-8, or tell the user how to fix it.
 
-    Line endings are kept as-is (the CSV readers rely on that); a leading BOM,
-    as in Excel's "CSV UTF-8", is dropped. A bare ``UnicodeDecodeError`` names
-    codec, byte and offset — no help to a user.
+    Line endings are kept as-is; a leading BOM is dropped. A bare
+    ``UnicodeDecodeError`` names codec, byte and offset — no help to a user.
     """
     try:
         return path.read_bytes().decode("utf-8-sig")
     except UnicodeDecodeError as exc:
-        raise InvalidInputError(
-            "The file is not UTF-8 text. Re-save it as UTF-8 (in Excel: Save As → "
-            "CSV UTF-8; in text editors: Save As → Encoding) and try again."
-        ) from exc
+        raise InvalidInputError(_NOT_UTF8) from exc
+
+
+@contextmanager
+def open_utf8_text(path: Path) -> Iterator[TextIO]:
+    """An uploaded text file, checked like :func:`read_utf8_text` and opened
+    for reading line by line.
+
+    The whole file is decoded once, in chunks, before the caller gets a line,
+    so a file that isn't UTF-8 gets the same ``InvalidInputError`` before
+    anything is converted. Line endings are kept as-is (the CSV readers rely
+    on that); a leading BOM, as in Excel's "CSV UTF-8", is dropped.
+    """
+    with path.open(encoding="utf-8-sig", newline="") as f:
+        try:
+            while f.read(65536):
+                pass
+        except UnicodeDecodeError as exc:
+            raise InvalidInputError(_NOT_UTF8) from exc
+        f.seek(0)
+        yield f
 
 
 _TOO_LARGE_TO_CONVERT = (

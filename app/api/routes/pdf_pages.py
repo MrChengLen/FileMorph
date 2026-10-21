@@ -43,7 +43,7 @@ from starlette.background import BackgroundTask
 
 from app.api.deps import caller_tier, require_api_key
 from app.api.routes.auth import get_optional_user
-from app.converters._isolated import run_isolated
+from app.converters._isolated import TooComplexError, run_isolated
 from app.converters.base import EncryptedPdfError, InvalidInputError, OutputTooLargeError
 from app.converters.pdf_pages import (
     PageSelectionError,
@@ -371,8 +371,8 @@ def _output_cap_error(output_size: int | None, quota, tier: str) -> HTTPExceptio
 # never undershoot it. 2 GB comfortably exceeds every tier's input cap.
 _MAX_TARGET_KB = 2 * 1024 * 1024  # 2 GB in KB
 _TOO_LARGE_TO_COMPRESS = (
-    "This PDF is too large or complex to compress in one go. Split it with "
-    "/api/v1/pdf/split and compress the parts one by one."
+    "This PDF is too large or complex to compress in one go. Extract fewer "
+    "pages with /api/v1/pdf/extract and compress them in parts."
 )
 
 
@@ -463,10 +463,13 @@ async def _do_compress(
             )
         except InvalidInputError as exc:
             logger.info("pdf compress rejected: %s", exc)
+            # Past the child's memory or time limits the code is its own, so
+            # the compress page can link on to the extract tool.
+            code = "pdf_too_complex" if isinstance(exc, TooComplexError) else "invalid_input"
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(exc),
-                headers={"X-FileMorph-Error-Code": "invalid_input"},
+                headers={"X-FileMorph-Error-Code": code},
             )
         except Exception:
             # security.md: no pikepdf/Pillow internals to the client — a

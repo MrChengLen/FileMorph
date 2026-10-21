@@ -206,8 +206,8 @@ formats page — it is plumbing, not a conversion a user picks.
   images are too large in aggregate to decode safely is also left unchanged
   rather than risking the worker (a denial-of-service guard). The compression
   runs in its own process with memory and time limits; a PDF too large or
-  complex for them gets a `400`: split it with `/api/v1/pdf/split` and
-  compress the parts.
+  complex for them gets a `400` (`pdf_too_complex`): extract fewer pages with
+  `/api/v1/pdf/extract` and compress them in parts.
 - **Split is capped at 10 000 pages.** A larger document is rejected with a
   clean `400` before any work — splitting it would explode into too many
   output files. The single-page PDFs must fit your tier's output cap; the

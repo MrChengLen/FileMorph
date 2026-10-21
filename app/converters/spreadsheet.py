@@ -1,6 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 import csv
-import io
 import json
 from pathlib import Path
 from typing import TYPE_CHECKING, BinaryIO, TextIO
@@ -9,6 +8,7 @@ from app.converters.base import (
     BaseConverter,
     InvalidInputError,
     OutputTooLargeError,
+    open_utf8_text,
     read_utf8_text,
 )
 from app.converters.registry import register
@@ -116,12 +116,13 @@ class CsvToXlsxConverter(BaseConverter):
     def convert(self, input_path: Path, output_path: Path, **kwargs) -> Path:
         import openpyxl
 
-        # Write-only: rows go straight to a temporary file instead of staying in
-        # memory as cells.
-        wb = openpyxl.Workbook(write_only=True)
-        ws = wb.create_sheet()
-        for row in csv.reader(io.StringIO(read_utf8_text(input_path), newline="")):
-            ws.append(row)
+        with open_utf8_text(input_path) as src:
+            # Write-only: rows go straight to a temporary file instead of
+            # staying in memory as cells.
+            wb = openpyxl.Workbook(write_only=True)
+            ws = wb.create_sheet()
+            for row in csv.reader(src):
+                ws.append(row)
         wb.save(str(output_path))
         return output_path
 
@@ -131,9 +132,9 @@ class CsvToJsonConverter(BaseConverter):
     isolated = True
 
     def convert(self, input_path: Path, output_path: Path, **kwargs) -> Path:
-        rows = csv.DictReader(io.StringIO(read_utf8_text(input_path), newline=""))
         # Row by row, the same text json.dumps(list(rows), indent=2) would give.
-        with output_path.open("w", encoding="utf-8") as f:
+        with open_utf8_text(input_path) as src, output_path.open("w", encoding="utf-8") as f:
+            rows = csv.DictReader(src)
             out = _capped(f, kwargs.get("max_output_bytes"))
             out.write("[")
             empty = True

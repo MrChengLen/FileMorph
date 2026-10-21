@@ -369,8 +369,8 @@ a value beyond a 2 GB sanity ceiling, or a non-PDF / corrupt input, is a
 `X-FileMorph-Converged: false` and `X-FileMorph-Recompressible-Images: 0`.
 The compression runs in its own process with memory and time limits; a PDF
 too large or complex for them is a `400` with `X-FileMorph-Error-Code:
-invalid_input`, whose `detail` names the next step: split it with
-`/api/v1/pdf/split` and compress the parts.
+pdf_too_complex`, whose `detail` names the next step: extract fewer pages with
+`/api/v1/pdf/extract` and compress them in parts.
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/pdf/compress \
@@ -543,11 +543,12 @@ can branch on (the `detail` text may change):
 | `output_cap_exceeded` | `413` | The result is larger than your tier's output cap. XLSX → CSV, JSON → CSV, CSV → JSON and `/pdf/split` stop writing as soon as they pass it |
 | `target_size_exceeds_cap` | `413` | `target_size_kb` (`/compress`, `/compress/batch`) or `target_kb` (`/pdf/compress`) is above your tier's output cap — rejected before any work |
 | `decompression_bomb` | `400` | The image's dimensions exceed the decoder's safety limit (`/convert`, `/compress`) |
-| `invalid_input` | `400` | A problem you can fix, named in `detail` — e.g. a Markdown, CSV or JSON file that isn't UTF-8, a PDF that can't be read, a PDF → PDF or PDF → TXT conversion of a document over 10 000 pages, a PDF too large or complex to extract its text within 30 seconds, or a table too large or complex to convert within the memory and time limits (`/convert`); a PDF too large or complex to compress within them (`/pdf/compress`); an image that isn't in a supported format or is too damaged to be recognised (`/convert`, `/compress`) |
+| `invalid_input` | `400` | A problem you can fix, named in `detail` — e.g. a Markdown, CSV or JSON file that isn't UTF-8, a PDF that can't be read, a PDF → PDF or PDF → TXT conversion of a document over 10 000 pages, a PDF too large or complex to extract its text within 30 seconds, or a table too large or complex to convert within the memory and time limits (`/convert`); an image that isn't in a supported format or is too damaged to be recognised (`/convert`, `/compress`) |
 | `invalid_page_selection` | `400` | `/pdf/extract`: the `pages` selection is malformed, out of range or longer than 65 536 characters |
 | `invalid_pdf` | `400` | `/pdf/extract`, `/pdf/split`, `/pdf/compress`: the PDF can't be read; `/pdf/extract` and `/pdf/split` also for a PDF with no pages |
 | `pdf_encrypted` | `400` | The PDF needs a password to open (`/pdf/extract`, `/pdf/split`, `/pdf/compress`, `/convert`); remove the password and upload it again |
 | `pdf_encryption_unsupported` | `400` | The PDF is encrypted with a certificate or a method FileMorph can't open, so no password would help (`/pdf/extract`, `/pdf/split`, `/pdf/compress`, `/convert`); remove the protection, e.g. by asking the sender for an unprotected copy |
+| `pdf_too_complex` | `400` | `/pdf/compress`: the PDF is too large or complex to compress within the memory and time limits. Extract fewer pages with `/pdf/extract` and compress them in parts |
 | `pdf_too_many_pages` | `400` | Over the 10 000-page cap: `/pdf/split` for a PDF with more pages, `/pdf/extract` for a selection that covers more. Extract in parts of up to 10 000 pages; for `/pdf/split`, then split each part |
 
 The redaction endpoints add codes of their own, listed under

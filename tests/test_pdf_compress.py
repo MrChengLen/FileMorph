@@ -506,7 +506,7 @@ def test_route_compress_image_pdf(client, auth_headers):
 
 def test_route_compress_past_the_limits_names_the_next_step(client, auth_headers, monkeypatch):
     """The engine runs in a child process with memory and time limits; past
-    them the route answers 400 and points to splitting the PDF."""
+    them the route answers 400 and points to extracting fewer pages."""
     from app.converters import _isolated
 
     module, function, memory, _ = _isolated._STEPS["pdf-compress"]
@@ -518,8 +518,8 @@ def test_route_compress_past_the_limits_names_the_next_step(client, auth_headers
         data={"target_kb": "200"},
     )
     assert res.status_code == 400
-    assert res.headers["X-FileMorph-Error-Code"] == "invalid_input"
-    assert "/api/v1/pdf/split" in res.json()["detail"]
+    assert res.headers["X-FileMorph-Error-Code"] == "pdf_too_complex"
+    assert "/api/v1/pdf/extract" in res.json()["detail"]
 
 
 def test_route_compress_long_name_keeps_suffix(client, auth_headers):
