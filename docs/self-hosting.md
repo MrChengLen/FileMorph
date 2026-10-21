@@ -691,6 +691,52 @@ posture: [`pii-redaction.md`](pii-redaction.md).
 
 ---
 
+## Local tools (browser engine)
+
+FileMorph is getting an engine that processes files in the browser instead of
+uploading them. It is part of the AGPL engine and ships switched off:
+with `LOCAL_TOOLS_ENABLED` unset, every engine URL returns `404` and no page
+loads the engine. For now it holds only a placeholder module.
+
+| Env var | Default | Gates |
+|---|---|---|
+| `LOCAL_TOOLS_ENABLED` | `false` | serving the engine under `/static/engine/<tree-hash>/` |
+
+The engine is plain JavaScript modules in `app/static/engine/`, with no build
+step: what the repository holds is what the browser runs. The app serves them
+only under `/static/engine/<tree-hash>/…`, as `text/javascript`, cached as
+`immutable`; any other hash returns `404`. Every engine response carries the
+strict CSP profile `local` (see
+[security-overview.md](security-overview.md#content-security-policy)).
+
+`<tree-hash>` is the git tree id of `app/static/engine`, so you can check which
+engine a release or commit serves:
+
+```bash
+git rev-parse <tag>:app/static/engine
+```
+
+Without a clone, the same id from the GitHub API:
+
+```bash
+gh api "repos/MrChengLen/FileMorph/contents/app/static?ref=<tag>" --jq '.[] | select(.name=="engine") | .sha'
+```
+
+The id in a URL is what the server says it serves. To check the bytes it
+actually sends, compare a file's blob id with the tag's:
+
+```bash
+curl -s https://<host>/static/engine/<tree-hash>/<file>.js | git hash-object --stdin
+git rev-parse <tag>:app/static/engine/<file>.js
+```
+
+The engine comes from the site's own origin, so `CORS_ORIGINS` and
+`API_BASE_URL` need no change. If your reverse proxy serves `/static/` from
+disk itself, pass `/static/engine/` through to FileMorph: the app checks the
+hash and sets the type and the CSP.
+
+---
+
 ## Operational notes
 
 ### Automatic restart
