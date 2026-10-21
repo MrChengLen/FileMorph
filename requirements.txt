@@ -10,7 +10,10 @@ python-multipart>=0.0.32
 jinja2>=3.1.6
 pydantic>=2.13.5
 pydantic-settings>=2.15.0
-Pillow>=12.3.0
+# 13.0.0 is the first release with the fixes for the nine advisories published
+# 2026-10-20, among them GHSA-8g5g-8vmr-9782 (critical, JPEG decoder) and
+# several in the TIFF and GIF decoders.
+Pillow>=13.0.0
 pillow-heif>=1.8.0
 # AVIF encode+decode via libavif (bundled in the wheel — no system package).
 # Registers the AVIF plugin with Pillow on import; see app/converters/image.py.
@@ -71,6 +74,13 @@ stripe>=15.6.1,<16
 # 1.0.1 fix for PYSEC-2026-161 (Host-header URL-reconstruction). The
 # request middleware + endpoint live in app/core/observability.py.
 prometheus-client>=0.26.0
+
+# ── Security floors (transitive) ─────────────────────────────────
+# certifi comes in through requests. Before 2026.10.19 its CA bundle trusts
+# the emSign ECC Root CA - G3, whose intermediates had compromised keys
+# (GHSA-6q48-6c7w-9gw2, critical). A re-lock keeps existing pins, so this
+# floor is what moves certifi past the advisory and keeps it there.
+certifi>=2026.10.19
 
 # ── Future: Storage ───────────────────────────────────────────────
 # boto3>=1.34

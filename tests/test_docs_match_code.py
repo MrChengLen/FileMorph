@@ -37,6 +37,7 @@ import pytest
 
 from app.api.routes.auth import get_optional_user
 from app.api.routes.convert import _MAX_TARGET_LEN, _download_name
+from app.converters import _isolated, _pdf_text
 from app.converters import document as document_converters
 from app.converters.pdf_pages import _MAX_SELECTION_CHARS
 from app.core.batch import BatchFileResult, build_batch_zip
@@ -206,6 +207,45 @@ def test_docs_quote_the_page_selection_length_limit(doc, pattern):
 def test_docs_quote_the_pdf_to_text_time_limit(doc, sentence):
     limit = document_converters._TEXT_TIME_LIMIT_SECONDS
     assert sentence.format(limit) in " ".join(_text(doc).split())
+
+
+@pytest.mark.parametrize(
+    ("doc", "sentence"),
+    [
+        ("architecture.md", "its CPU time at {} s"),
+        ("security-overview.md", "its CPU time at {} seconds"),
+    ],
+)
+def test_docs_quote_the_pdf_to_text_cpu_limit(doc, sentence):
+    limit = _pdf_text._CPU_LIMIT_SECONDS
+    assert sentence.format(limit) in " ".join(_text(doc).split())
+
+
+@pytest.mark.parametrize(
+    ("doc", "sentence"),
+    [
+        (
+            "architecture.md",
+            "stopped after {seconds} s, on Linux capped at {convert_gib} GiB of address "
+            "space (PDF compression: {compress_gib} GiB)",
+        ),
+        (
+            "security-overview.md",
+            "stopped after {seconds} seconds, on Linux capped at {convert_gib} GiB of "
+            "address space (PDF compression: {compress_gib} GiB)",
+        ),
+    ],
+)
+def test_docs_quote_the_isolated_conversion_limits(doc, sentence):
+    _, _, convert_memory, convert_s = _isolated._STEPS["convert"]
+    _, _, compress_memory, compress_s = _isolated._STEPS["pdf-compress"]
+    assert convert_s == compress_s, "the docs quote one time limit for both steps"
+    expected = sentence.format(
+        seconds=convert_s,
+        convert_gib=convert_memory // _isolated._GIB,
+        compress_gib=compress_memory // _isolated._GIB,
+    )
+    assert expected in " ".join(_text(doc).split())
 
 
 def test_self_hosting_quotes_the_per_tier_concurrency():

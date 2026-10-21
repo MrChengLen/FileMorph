@@ -1,0 +1,25 @@
+{#- /docs — the API explorer. Standalone on purpose (not base.html): Swagger UI
+    brings its own stylesheet, which Tailwind's base reset would fight.
+    Everything loads from this server — the CSP allows no third-party host and
+    no inline script, so the start code lives in /static/js/api-docs.js.
+    The text inside #swagger-ui is replaced once Swagger UI renders; it only
+    stays visible when the explorer cannot load (no dead end). -#}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FileMorph API</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/static/vendor/swagger-ui.css" />
+</head>
+<body>
+  <div id="swagger-ui" data-openapi-url="{{ openapi_url }}">
+    <p>Loading the API explorer… If it does not appear, the API description is
+      available as <a href="{{ openapi_url }}">OpenAPI JSON</a>.
+      <a href="/">Back to FileMorph</a></p>
+  </div>
+  <script src="/static/vendor/swagger-ui-bundle.js"></script>
+  <script src="/static/js/api-docs.js"></script>
+</body>
+</html>

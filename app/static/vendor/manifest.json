@@ -1,0 +1,47 @@
+{
+  "description": "Third-party browser code vendored under app/static/vendor/, shipped unmodified. tests/test_vendor_manifest.py checks each file's SHA-256, that its licence is on the allow-list, and that no vendored file is missing from this list. Licence and notice texts: the LICENSE-*.md file named in 'notices'. 'bundles' names libraries built into a file (today DOMPurify in the Swagger UI bundle, the only one whose version its licence banner states); scripts/check_vendor_advisories.py checks them against OSV as well.",
+  "files": [
+    {
+      "path": "chart.umd.min.js",
+      "package": "chart.js",
+      "version": "4.4.0",
+      "license": "MIT",
+      "source": "https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js",
+      "sha256": "0e2326c6868072bec1592760c6729043caeea2960a2b46cee6a2192aac6abff0",
+      "notices": "LICENSE-chartjs.md"
+    },
+    {
+      "path": "swagger-ui-bundle.js",
+      "package": "swagger-ui-dist",
+      "version": "5.33.1",
+      "license": "Apache-2.0",
+      "source": "https://registry.npmjs.org/swagger-ui-dist/-/swagger-ui-dist-5.33.1.tgz",
+      "npm_integrity": "sha512-H872wWkA53bFIsGgi7OWgmq+CRWw3nFQGdJWRqOB9wNwTm6e5ol34+qPDkV4AJlK+gglM2EsJiOOzsGsEGbluA==",
+      "sha256": "050bc415ee7048dcd881682678f720264e7da5e373f7461d7c58c755305255f7",
+      "notices": "LICENSE-swagger-ui.md",
+      "bundles": {
+        "dompurify": "3.4.13"
+      }
+    },
+    {
+      "path": "swagger-ui.css",
+      "package": "swagger-ui-dist",
+      "version": "5.33.1",
+      "license": "Apache-2.0",
+      "source": "https://registry.npmjs.org/swagger-ui-dist/-/swagger-ui-dist-5.33.1.tgz",
+      "npm_integrity": "sha512-H872wWkA53bFIsGgi7OWgmq+CRWw3nFQGdJWRqOB9wNwTm6e5ol34+qPDkV4AJlK+gglM2EsJiOOzsGsEGbluA==",
+      "sha256": "1ac324f7dcd27e4b9386b4bd6421271ec147e922a22c05ba24b11515e9aa6321",
+      "notices": "LICENSE-swagger-ui.md"
+    },
+    {
+      "path": "swagger-ui-bundle.js.LICENSE.txt",
+      "package": "swagger-ui-dist",
+      "version": "5.33.1",
+      "license": "Apache-2.0",
+      "source": "https://registry.npmjs.org/swagger-ui-dist/-/swagger-ui-dist-5.33.1.tgz",
+      "npm_integrity": "sha512-H872wWkA53bFIsGgi7OWgmq+CRWw3nFQGdJWRqOB9wNwTm6e5ol34+qPDkV4AJlK+gglM2EsJiOOzsGsEGbluA==",
+      "sha256": "63818894e4b04cd0e3180d9cb20761e227a939121e7484f8e1d528227c756f89",
+      "notices": "LICENSE-swagger-ui.md"
+    }
+  ]
+}

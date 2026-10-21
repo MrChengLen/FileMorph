@@ -597,8 +597,11 @@ errors on API routes return "Internal server error."
 
 Structured logs record operation metadata: operation type, format
 pair, byte counts (in / out), duration, success flag, tier, data
-classification. **No file content** is logged. The regression guard is
-`tests/test_observability_logs.py`.
+classification. **No file content** is logged: a logged exception keeps its
+type and traceback but not its text, and the document libraries' own
+loggers are silent (the full text only with `APP_DEBUG=true`). The
+regression guards are `tests/test_observability_logs.py` and
+`tests/test_log_privacy.py`.
 
 ### 7.2 Is there a tamper-evident audit trail?
 

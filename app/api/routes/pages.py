@@ -40,6 +40,9 @@ from app.core.templates import templates
 from app.core.tools_content import get_tools_content
 
 router = APIRouter(include_in_schema=False)
+# /docs (the English-only API explorer) lives on its own router, which
+# app/main.py mounts once at the root — not under /de and /en like `router`.
+docs_router = APIRouter(include_in_schema=False)
 
 
 def _render(request: Request, name: str, **extra):
@@ -408,3 +411,13 @@ async def pdf_tool_page(request: Request, tool: str):
 @router.get("/cockpit")
 async def cockpit_page(request: Request):
     return _render(request, "cockpit.html")
+
+
+@docs_router.get("/docs")
+async def api_docs_page(request: Request):
+    # The API explorer. FastAPI's built-in /docs (switched off in app/main.py)
+    # loaded Swagger UI from a CDN and started it with an inline <script>; the
+    # CSP blocks both, so the page rendered empty. This one serves the vendored
+    # copy from /static/vendor/ and starts it from /static/js/api-docs.js.
+    root_path = request.scope.get("root_path", "").rstrip("/")
+    return _render(request, "api_docs.html", openapi_url=root_path + request.app.openapi_url)

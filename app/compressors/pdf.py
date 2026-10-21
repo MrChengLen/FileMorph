@@ -47,8 +47,8 @@ Same Windows DLL-load ordering issue documented in
 ``app/converters/pdfa.py``: pikepdf bundles libqpdf, and importing it at
 module load (before FastAPI has finished bootstrapping the auth route's
 native deps) can segfault on Windows local-dev. Deferring the import to
-call time sidesteps it. The blocking pikepdf/Pillow work runs under
-``asyncio.to_thread`` in the route, identical to every other converter.
+call time sidesteps it. The route runs the compression in a child process
+with memory and time limits (``app/converters/_isolated.py``).
 """
 
 from __future__ import annotations
@@ -316,7 +316,8 @@ def _collect_decoded(pdf: "pikepdf_mod.Pdf") -> list[_DecodedImage]:
             if pil.mode not in ("RGB", "L"):
                 pil = pil.convert("RGB")
         except Exception as exc:  # noqa: BLE001 — any decode failure → skip this image
-            logger.warning("pdf compress: skipping undecodable image (%s)", exc)
+            # The type only: pikepdf puts the image dictionary into the text.
+            logger.warning("pdf compress: skipping undecodable image (%s)", type(exc).__name__)
             continue
         decoded.append(_DecodedImage(obj, pil))
     return decoded
