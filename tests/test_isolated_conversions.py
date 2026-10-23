@@ -145,7 +145,7 @@ def test_the_child_hardens_pillow_and_caps_itself(tmp_path):
     if sys.platform == "linux":
         probe += (
             "\nimport ctypes, resource, signal"
-            "\nprint(*(resource.getrlimit(limit)[0] for limit in (resource.RLIMIT_AS, "
+            "\nprint(*('%d/%d' % resource.getrlimit(limit) for limit in (resource.RLIMIT_AS, "
             "resource.RLIMIT_CPU, resource.RLIMIT_FSIZE, resource.RLIMIT_CORE)), "
             "ctypes.CDLL(None).prctl(3, 0, 0, 0, 0), "  # PR_GET_DUMPABLE
             "signal.getsignal(signal.SIGXFSZ) == signal.SIG_DFL)"
@@ -161,11 +161,55 @@ def test_the_child_hardens_pillow_and_caps_itself(tmp_path):
     assert json.loads(lines[0]) == {"result": None}
     assert lines[1:3] == ["raised", "False"]  # bomb warnings raise; no Ghostscript
     if sys.platform == "linux":
-        # The limits, no core dump; and SIGXFSZ's default action, so a write
-        # past the file size limit ends the child.
+        # The limits, soft/hard alike so the child can't raise them again; no
+        # core dump; and SIGXFSZ's default action, so a write past the file
+        # size limit ends the child.
         memory, _, file_bytes = limits
-        assert lines[3].split() == [memory, "65", file_bytes, "0", "0", "True"]
+        caps = [f"{cap}/{cap}" for cap in (memory, "65", file_bytes, "0")]
+        assert lines[3].split() == [*caps, "0", "True"]
     assert json.loads(out.read_text(encoding="utf-8")) == [{"a": "1"}]
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="the limits apply on Linux")
+def test_the_child_keeps_a_lower_hard_limit():
+    # A hard limit the host already set lower stays, now as soft and hard limit.
+    probe = (
+        "import resource; from app.converters._isolated import limit_resources; "
+        "resource.setrlimit(resource.RLIMIT_CPU, (80, 80)); "
+        "limit_resources(2**30, 95, 2**30); "
+        "print('%d/%d' % resource.getrlimit(resource.RLIMIT_CPU))"
+    )
+    res = subprocess.run(
+        [sys.executable, "-c", probe],
+        capture_output=True,
+        encoding="utf-8",
+        cwd=_isolated._APP_ROOT,
+        check=True,
+    )
+    assert res.stdout.split() == ["80/80"]
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="the limits apply on Linux")
+def test_a_child_that_ignores_sigxcpu_is_killed_at_its_cpu_limit():
+    probe = "\n".join(
+        [
+            "import signal",
+            "from app.converters._isolated import limit_resources",
+            "limit_resources(2**30, 1, 2**30)",
+            "signal.signal(signal.SIGXCPU, signal.SIG_IGN)",
+            "while True:",
+            "    pass",
+        ]
+    )
+    res = subprocess.run(
+        [sys.executable, "-c", probe],
+        capture_output=True,
+        encoding="utf-8",
+        cwd=_isolated._APP_ROOT,
+        timeout=30,
+        check=False,
+    )
+    assert res.returncode == -signal.SIGKILL, res.stderr
 
 
 # ── Within the child's memory limit ──────────────────────────────────────────
