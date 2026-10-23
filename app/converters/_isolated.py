@@ -61,9 +61,10 @@ class TooComplexError(InvalidInputError):
 
 def limit_resources(memory_bytes: int, cpu_seconds: int, file_bytes: int) -> None:
     """Cap this process's address space, CPU time and the size of each file
-    it writes and turn off its core dump (Linux), and make it the first
-    process the kernel stops when the host runs short of memory. A write past
-    the file size limit ends the process, as running out of CPU time does."""
+    it writes and turn off its core dump (Linux), as hard limits it can't
+    raise again, and make it the first process the kernel stops when the host
+    runs short of memory. A write past the file size limit ends the process,
+    as running out of CPU time does."""
     if sys.platform != "linux":
         return
     import resource
@@ -77,8 +78,10 @@ def limit_resources(memory_bytes: int, cpu_seconds: int, file_bytes: int) -> Non
     )
     for limit, value in limits:
         hard = resource.getrlimit(limit)[1]
-        soft = value if hard == resource.RLIM_INFINITY else min(hard, value)
-        resource.setrlimit(limit, (soft, hard))
+        cap = value if hard == resource.RLIM_INFINITY else min(hard, value)
+        # Soft and hard limit alike: a process can raise its soft limit up to
+        # the hard one, and the hard one only with privileges.
+        resource.setrlimit(limit, (cap, cap))
     # Python ignores SIGXFSZ, which turns a write past RLIMIT_FSIZE into an
     # error, and not always an OSError (openpyxl writes through lxml, which
     # raises its own). With the default action the signal ends the process.
