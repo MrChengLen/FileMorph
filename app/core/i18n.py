@@ -50,6 +50,7 @@ from babel.support import Translations
 from fastapi import Request
 
 from app.core.config import settings
+from app.db.base import accounts_enabled
 
 SUPPORTED_LOCALES: tuple[str, ...] = ("de", "en")
 DEFAULT_LOCALE: str = "de"
@@ -257,6 +258,7 @@ def _js_i18n_strings(_: gettext.GNUTranslations.gettext) -> dict[str, str]:
     Sorted alphabetically per-section so a future ``git diff`` stays
     review-friendly.
     """
+    accounts = accounts_enabled()
     return {
         # app.js — convert/compress UI
         "alertInconsistentTarget": _(
@@ -307,20 +309,60 @@ def _js_i18n_strings(_: gettext.GNUTranslations.gettext) -> dict[str, str]:
         # The free paths only — the hosted service has no paid plan to upgrade
         # to. The UI doesn't know the caller's tier here, so the texts name
         # self-hosting for everyone and the free account for visitors without one
-        # (the server's own messages pick one path per tier).
-        "errorInputTooLarge": _(
-            "File too large. Use a smaller file or self-host FileMorph — there you "
-            "set the limits. No account yet? Register free for larger files."
+        # (the server's own messages pick one path per tier) — the account only
+        # where accounts exist: a Community Edition instance has none.
+        "errorInputTooLarge": (
+            _(
+                "File too large. Use a smaller file or self-host FileMorph — there you "
+                "set the limits. No account yet? Register free for larger files."
+            )
+            if accounts
+            else _(
+                "File too large. Use a smaller file or self-host FileMorph — there you "
+                "set the limits."
+            )
         ),
-        "errorOutputCapExceeded": _(
-            "The result would be larger than allowed. Try a more efficient target "
-            "format or a lower quality, or self-host FileMorph — there you set the "
-            "limits. No account yet? Register free for a higher limit."
+        "errorOutputCapExceeded": (
+            _(
+                "The result would be larger than allowed. Try a more efficient target "
+                "format or a lower quality, or self-host FileMorph — there you set the "
+                "limits. No account yet? Register free for a higher limit."
+            )
+            if accounts
+            else _(
+                "The result would be larger than allowed. Try a more efficient target "
+                "format or a lower quality, or self-host FileMorph — there you set the "
+                "limits."
+            )
         ),
-        "errorTargetSizeExceedsCap": _(
-            "The target size is above the output limit. Choose a smaller target "
-            "size or self-host FileMorph — there you set the limits. No account "
-            "yet? Register free for a higher limit."
+        "errorTargetSizeExceedsCap": (
+            _(
+                "The target size is above the output limit. Choose a smaller target "
+                "size or self-host FileMorph — there you set the limits. No account "
+                "yet? Register free for a higher limit."
+            )
+            if accounts
+            else _(
+                "The target size is above the output limit. Choose a smaller target "
+                "size or self-host FileMorph — there you set the limits."
+            )
+        ),
+        # X-FileMorph-Error-Code: batch_too_large — /convert/batch and
+        # /compress/batch over the tier's files per request. The numbers are
+        # the anonymous and free batch sizes in app/core/quotas.py; a test pins
+        # them. Without accounts the web UI is always anonymous (no key field,
+        # no login), so "one file at a time" is exact there.
+        "errorBatchTooLarge": (
+            _(
+                "Too many files at once. Select fewer files or self-host FileMorph — "
+                "there you set the limits. No account yet? Then it's one file at a "
+                "time — register free for up to 10 at once."
+            )
+            if accounts
+            else _(
+                "Too many files at once. Select one file at a time or self-host "
+                "FileMorph — there you set the limits."
+            )
         ),
         # pdf-tools.js — the 2 GB form ceiling no account or self-host lifts
         "errorTargetSizeTooHigh": _("The target size is above the allowed maximum of 2 GB."),

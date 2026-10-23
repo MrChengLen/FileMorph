@@ -102,9 +102,11 @@
            {% if locale == 'en' %}aria-current="true"{% endif %}
            class="text-xs uppercase tracking-wider {% if locale == 'en' %}text-white font-semibold{% else %}text-gray-500 hover:text-gray-300{% endif %} transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand rounded">EN</a>
       </div>
-      {% if not minimal_chrome %}
+      {% if not minimal_chrome and accounts_enabled() %}
       {# Sign In only: registering is reachable from the login page, the
-         pricing page and the developer teaser, not from the main navigation. #}
+         pricing page and the developer teaser, not from the main navigation.
+         Without accounts neither auth container renders, so auth.js has
+         nothing to fill. #}
       <div id="nav-auth-desktop" class="flex items-center gap-3">
         <a href="{{ localized_url('/login', current_prefix) }}" class="text-sm text-gray-300 hover:text-white transition-colors">{{ _('Sign In') }}</a>
       </div>
@@ -133,9 +135,11 @@
          {% if locale == 'en' %}aria-current="true"{% endif %}
          class="text-xs uppercase tracking-wider {% if locale == 'en' %}text-white font-semibold{% else %}text-gray-500{% endif %}">EN</a>
     </div>
+    {% if accounts_enabled() %}
     <div id="nav-auth-mobile">
       <a href="{{ localized_url('/login', current_prefix) }}" class="block text-gray-400 hover:text-white transition-colors py-2.5">{{ _('Sign In') }}</a>
     </div>
+    {% endif %}
   </div>
   {% endif %}
 
@@ -216,8 +220,12 @@
   <script src="/static/js/i18n-bootstrap.js"></script>
   <script src="/static/js/nav.js"></script>
   <script src="/static/js/cookie-notice.js"></script>
+  {# A strict page (CSP profile "local", app/core/csp.py) empties this block: both
+     scripts call the API, app.js on every page (/api/v1/formats). #}
+  {% block core_scripts %}
   <script src="/static/js/auth.js"></script>
   <script src="/static/js/app.js"></script>
+  {% endblock %}
   {% block scripts %}{% endblock %}
 </body>
 </html>

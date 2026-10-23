@@ -59,3 +59,7 @@ docs-internal/
 
 # Claude Code project guide — local dev/server-ops context, not for public repo
 /CLAUDE.md
+
+# Every file in the browser engine is served and counted in its tree hash, so
+# git must see all of them: no rule above (build/, tmp/, ...) may hide one.
+!app/static/engine/**

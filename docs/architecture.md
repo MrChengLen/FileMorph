@@ -47,8 +47,9 @@ Every conversion or compression request follows the same path:
    raw TCP.
 2. **Middleware** (`app/main.py`):
    - **security headers** — sets `X-Content-Type-Options`,
-     `X-Frame-Options`, a strict CSP whose `connect-src` is derived from the
-     configured `API_BASE_URL`, a `Referrer-Policy` of
+     `X-Frame-Options`, a strict CSP in the profile the route picks
+     (`app/core/csp.py`), whose `connect-src` is derived from the configured
+     `API_BASE_URL` (`'none'` in the `local` profile), a `Referrer-Policy` of
      `strict-origin-when-cross-origin`, a `Permissions-Policy`, and HSTS on
      HTTPS;
    - CORS and GZip;

@@ -181,7 +181,7 @@ def test_nav_ai_slot_ids_gone_even_when_ai_enabled(client, redact_enabled):
 # ── mobile nav order = desktop (language switcher last, before auth) ────────
 
 
-def test_mobile_nav_language_switcher_immediately_before_auth_block(client):
+def test_mobile_nav_language_switcher_immediately_before_auth_block(client, accounts_on):
     r = client.get("/en/").text
     menu_start = r.index('id="nav-mobile-menu"')
     tools_pos = r.index(">Tools<", menu_start)
