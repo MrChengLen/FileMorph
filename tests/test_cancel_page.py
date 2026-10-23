@@ -256,7 +256,7 @@ def _imprint(locale: str) -> str:
 
 @pytest.mark.parametrize("locale", ["en", "de"])
 def test_cancel_page_has_no_offer_or_navigation_links_anywhere(
-    client, stripe_on, pricing_on, locale
+    client, stripe_on, pricing_on, accounts_on, locale
 ):
     html = client.get(f"/{locale}/cancel").text
     soup = _soup(html)
@@ -284,7 +284,7 @@ def test_cancel_page_has_no_offer_or_navigation_links_anywhere(
 
 @pytest.mark.parametrize("locale", ["en", "de"])
 def test_cancel_page_chrome_is_logo_language_switcher_and_legal_group_only(
-    client, stripe_on, pricing_on, locale
+    client, stripe_on, pricing_on, accounts_on, locale
 ):
     soup = _soup(client.get(f"/{locale}/cancel").text)
     # Header: logo + language switcher, in that order — the switcher still targets the
@@ -311,7 +311,7 @@ def test_cancel_page_chrome_is_logo_language_switcher_and_legal_group_only(
     assert soup.find(id="cookie-notice") is not None
 
 
-def test_homepage_chrome_is_unchanged_with_pricing_on(client, stripe_on, pricing_on):
+def test_homepage_chrome_is_unchanged_with_pricing_on(client, stripe_on, pricing_on, accounts_on):
     """minimal_chrome is a /cancel-only flag: every other page keeps the full chrome."""
     soup = _soup(client.get("/en/").text)
     header = soup.find("nav")
@@ -345,7 +345,7 @@ def test_homepage_chrome_is_unchanged_with_pricing_on(client, stripe_on, pricing
 
 
 @pytest.mark.parametrize("path", ["/en/", "/en/login", "/en/cancel"])
-def test_site_chrome_is_hidden_when_printing(client, stripe_on, path):
+def test_site_chrome_is_hidden_when_printing(client, stripe_on, accounts_on, path):
     """A printed page shows only <main> — on /cancel that is the receipt, the consumer's
     saved proof — not the navbar, footer or cookie notice."""
     soup = _soup(client.get(path).text)
@@ -408,7 +408,7 @@ def test_footer_links_cancel_page_last_in_legal_group_when_stripe_on(client, str
     "path",
     ["/en/", "/en/login", "/en/contact", "/en/privacy", "/en/terms", "/en/imprint", "/en/cancel"],
 )
-def test_footer_link_is_on_every_page_when_stripe_on(client, stripe_on, path):
+def test_footer_link_is_on_every_page_when_stripe_on(client, stripe_on, accounts_on, path):
     r = client.get(path)
     assert r.status_code == 200
     assert 'href="/en/cancel"' in _footer(r.text)
@@ -426,7 +426,7 @@ def test_footer_has_no_cancel_link_when_stripe_off(client, stripe_off):
 # ── Dashboard billing card ───────────────────────────────────────────────────
 
 
-def test_dashboard_billing_card_renders_when_stripe_on(client, stripe_on):
+def test_dashboard_billing_card_renders_when_stripe_on(client, stripe_on, accounts_on):
     soup = _soup(client.get("/en/dashboard").text)
     main = soup.find("main")
     # The whole card (box included) is hidden until dashboard.js sees a subscription.
@@ -450,8 +450,10 @@ def test_dashboard_billing_card_renders_when_stripe_on(client, stripe_on):
         assert action.get(key), f"{key} missing"
 
 
-def test_dashboard_has_no_billing_card_when_stripe_off(client, stripe_off):
-    html = client.get("/en/dashboard").text
+def test_dashboard_has_no_billing_card_when_stripe_off(client, stripe_off, accounts_on):
+    r = client.get("/en/dashboard")
+    assert r.status_code == 200
+    html = r.text
     assert 'id="manage-billing-btn"' not in html
     assert 'id="billing-card"' not in html
     assert "/en/cancel" not in html
@@ -555,7 +557,7 @@ def test_cancel_page_has_no_text_in_the_other_language(client, stripe_on, path, 
 @pytest.mark.parametrize(
     ("locale", "label"), [("de", "Abrechnung verwalten"), ("en", "Manage billing")]
 )
-def test_dunning_email_names_the_dashboard_button(client, stripe_on, locale, label):
+def test_dunning_email_names_the_dashboard_button(client, stripe_on, accounts_on, locale, label):
     """The dunning email tells users to click the dashboard button by name — both must
     carry the same label in each language."""
     from app.core import email as email_mod

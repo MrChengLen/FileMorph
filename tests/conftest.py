@@ -49,9 +49,10 @@ def auth_headers():
 @pytest.fixture
 def accounts_on(monkeypatch):
     """Run as an instance with user accounts (Cloud Edition): a session factory
-    exists, so the limit messages offer anonymous callers a free account. No
-    database stands behind it — ``get_db`` opens a session that nothing queries,
-    which holds only for requests without credentials (no ``X-API-Key``, no
+    exists, so the limit messages offer anonymous callers a free account, the
+    account pages render and the navigation links Sign In. No database stands
+    behind it — ``get_db`` opens a session that nothing queries, which holds
+    only for requests without credentials (no ``X-API-Key``, no
     ``Authorization``): anonymous ones."""
     from sqlalchemy.ext.asyncio import async_sessionmaker
 
@@ -119,10 +120,11 @@ def redact_enabled():
 
 
 @pytest.fixture
-def every_page_on(monkeypatch, redact_enabled):
-    """Open every gated page as well: /pricing, /enterprise, /cancel and /redact.
-    Same two surfaces as ``redact_enabled``: ``settings`` for the route's 404
-    gate, the Jinja globals for the template."""
+def every_page_on(monkeypatch, redact_enabled, accounts_on):
+    """Open every gated page as well: /pricing, /enterprise, /cancel, /redact and
+    the account pages (/login, /dashboard …, via ``accounts_on``). Same two
+    surfaces as ``redact_enabled``: ``settings`` for the route's 404 gate, the
+    Jinja globals for the template."""
     from app.core.config import settings
     from app.core.templates import templates
 

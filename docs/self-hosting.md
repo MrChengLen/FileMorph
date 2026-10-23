@@ -47,7 +47,8 @@ MAX_UPLOAD_SIZE_MB=100
 CORS_ORIGINS=https://yourapp.example.com,https://portal.example.com
 
 # Public canonical URL — used in the sitemap, canonical/og:url tags,
-# JSON-LD, and (Cloud Edition) the links built into transactional email.
+# JSON-LD, the home page's curl example, and (Cloud Edition) the links
+# built into transactional email.
 APP_BASE_URL=https://yourapp.example.com
 
 # RFC 9116 security.txt / /security contact. Override this to your own
@@ -248,7 +249,10 @@ Two consequences if you build and run without `docker compose`:
 ## Cloud Edition overlay (accounts, billing, admin cockpit)
 
 The setup above is Community Edition: single container, no database,
-no accounts. Layering `docker-compose.cloud.yml` on top adds a
+no accounts. Its web interface has no **Sign In** link, the account
+pages (`/login`, `/register`, `/dashboard`, …) answer 404, and the home
+page's developer section links [API Key management](#api-key-management)
+instead of a sign-up form. Layering `docker-compose.cloud.yml` on top adds a
 Postgres service and switches the app into Cloud-Edition mode
 (registration, JWT login, the admin cockpit, and — with `STRIPE_*`
 set — billing):

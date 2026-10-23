@@ -54,7 +54,7 @@ from app.core.rate_limit import limiter
 from app.core.request_limits import RequestLimitsMiddleware
 from app.core.templates import templates
 from app.converters.registry import _ensure_loaded
-from app.db.base import AsyncSessionLocal, engine
+from app.db.base import AsyncSessionLocal, accounts_enabled, engine
 
 # Make bundled ffmpeg available before anything else loads
 setup_ffmpeg_path()
@@ -92,6 +92,11 @@ templates.env.globals["security_contact_email"] = settings.security_contact_emai
 # flags so the plans can show while the paid ones are not bookable.
 templates.env.globals["pricing_enabled"] = bool(settings.pricing_page_enabled)
 templates.env.globals["stripe_enabled"] = bool(settings.stripe_secret_key)
+# Accounts: the function itself, called per render like the limit messages and
+# the account-page routes, so one switch (app/db/base.py) decides all three.
+# Without accounts (Community Edition) the navigation and the developer teaser
+# link no sign-in or sign-up form.
+templates.env.globals["accounts_enabled"] = accounts_enabled
 # AI/redaction visibility: commercial EE add-on, inert (and UI-less) unless enabled.
 # Gates the /redact page, the footer/homepage/pricing/enterprise links, and the
 # client-hydrated eligible-only nav link — so an inert build advertises nothing.

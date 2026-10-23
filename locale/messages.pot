@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph 1.2.0\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-21 17:31+0200\n"
+"POT-Creation-Date: 2026-10-23 13:53+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1180,6 +1180,9 @@ msgid "How does AGPLv3 behave with citizen-portal integrations?"
 msgstr ""
 
 msgid "How it works"
+msgstr ""
+
+msgid "How to get an API key ↗"
 msgstr ""
 
 msgid ""

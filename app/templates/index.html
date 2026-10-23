@@ -127,13 +127,22 @@
       <div class="border border-gray-800 rounded-xl px-5 py-4 space-y-2">
         <h2 class="text-xs font-semibold uppercase tracking-wider text-gray-500">{{ _('For Developers') }}</h2>
         <p class="text-xs text-gray-400">{{ _('Integrate file conversion into your app via REST API. One endpoint, all formats.') }}</p>
-        <pre class="text-xs text-emerald-400 bg-gray-900 rounded-lg px-3 py-2 overflow-x-auto font-mono">curl -X POST https://filemorph.io/api/v1/convert \
+        {# This instance's own URL (APP_BASE_URL): a key from its key file is valid only here. #}
+        <pre class="text-xs text-emerald-400 bg-gray-900 rounded-lg px-3 py-2 overflow-x-auto font-mono">curl -X POST {{ app_base_url }}/api/v1/convert \
   -H "X-API-Key: YOUR_KEY" \
   -F "file=@photo.heic" \
   -F "target_format=jpg" --output result.jpg</pre>
         <div class="flex gap-3">
           <a href="/docs" target="_blank" class="text-xs text-brand hover:underline">{{ _('API Docs ↗') }}</a>
+          {% if accounts_enabled() %}
           <a href="{{ localized_url('/register', current_prefix) }}" class="text-xs text-gray-400 hover:text-white">{{ _('Get API Key →') }}</a>
+          {% else %}
+          {# No accounts, so no sign-up: keys come from the instance's key file
+             (scripts/generate_api_key.py), which the self-hosting guide explains. #}
+          <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/self-hosting.md#api-key-management"
+             target="_blank" rel="noopener"
+             class="text-xs text-gray-400 hover:text-white">{{ _('How to get an API key ↗') }}</a>
+          {% endif %}
         </div>
       </div>
 

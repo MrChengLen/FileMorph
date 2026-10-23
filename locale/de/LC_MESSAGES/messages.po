@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-21 17:31+0200\n"
+"POT-Creation-Date: 2026-10-23 13:53+0200\n"
 "PO-Revision-Date: 2026-05-08 11:00+0200\n"
 "Last-Translator: FileMorph <hallo@filemorph.io>\n"
 "Language: de\n"
@@ -1415,6 +1415,9 @@ msgstr "Wie verhält sich AGPLv3 bei Bürgerportal-Integrationen?"
 
 msgid "How it works"
 msgstr "So funktioniert es"
+
+msgid "How to get an API key ↗"
+msgstr "So bekommst du einen API-Key ↗"
 
 msgid ""
 "I waive my 14-day right of withdrawal and consent to immediate contract "
