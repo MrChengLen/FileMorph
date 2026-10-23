@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import io
 import logging
+import shutil
+import signal
 import subprocess
 import sys
 
@@ -37,9 +39,10 @@ def _pdf(pages: int) -> bytes:
     return buf.getvalue()
 
 
-def _pdf_with_content(content: bytes) -> bytes:
-    """One page drawing ``content``, with Helvetica as /F1."""
-    stream = b"<< /Length %d >>\nstream\n" % len(content) + content + b"\nendstream"
+def _pdf_with_content(content: bytes, filters: bytes = b"") -> bytes:
+    """One page drawing ``content``, with Helvetica as /F1; ``filters`` goes
+    into the content stream's dictionary as it is."""
+    stream = b"<< /Length %d%s >>\nstream\n" % (len(content), filters) + content + b"\nendstream"
     objects = [
         b"<< /Type /Catalog /Pages 2 0 R >>",
         b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
@@ -192,6 +195,16 @@ def test_the_child_writes_the_text(tmp_path):
     assert (tmp_path / "out.txt").read_text(encoding="utf-8") == "\n\n"
 
 
+@pytest.mark.skipif(shutil.which("jbig2dec") is not None, reason="pypdf would start jbig2dec")
+def test_jbig2_data_without_jbig2dec_is_unreadable(tmp_path):
+    # pypdf decodes JBIG2 data only with the jbig2dec program, which the
+    # image doesn't ship.
+    src = tmp_path / "in.pdf"
+    src.write_bytes(_pdf_with_content(b"\x00" * 16, filters=b" /Filter /JBIG2Decode"))
+    outcome = _pdf_text.extract(src, tmp_path / "out.txt", max_pages=1)
+    assert outcome == "unreadable DependencyError"
+
+
 def test_the_child_writes_no_diagnostics(tmp_path):
     # Content pypdf repairs, with a warning for each operator.
     src = tmp_path / "in.pdf"
@@ -208,17 +221,21 @@ def test_the_child_writes_no_diagnostics(tmp_path):
 
 
 @pytest.mark.skipif(sys.platform != "linux", reason="the limits apply on Linux")
-def test_the_child_caps_its_memory_cpu_time_and_file_size(tmp_path):
+def test_the_child_caps_and_isolates_itself(tmp_path):
     src, out = tmp_path / "in.pdf", tmp_path / "out.txt"
     src.write_bytes(_pdf(1))
     probe = (
         "import ctypes, resource, runpy, signal, sys; "
         f"sys.argv = ['x', {str(src)!r}, {str(out)!r}, '10']; "
         "runpy.run_module('app.converters._pdf_text', run_name='__main__'); "
+        "libc, deathsig = ctypes.CDLL(None), ctypes.c_int(); "
+        "libc.prctl(2, ctypes.byref(deathsig), 0, 0, 0); "  # PR_GET_PDEATHSIG
         "print(*('%d/%d' % resource.getrlimit(limit) for limit in (resource.RLIMIT_AS, "
-        "resource.RLIMIT_CPU, resource.RLIMIT_FSIZE, resource.RLIMIT_CORE)), "
-        "ctypes.CDLL(None).prctl(3, 0, 0, 0, 0), "  # PR_GET_DUMPABLE
-        "signal.getsignal(signal.SIGXFSZ) == signal.SIG_DFL)"
+        "resource.RLIMIT_CPU, resource.RLIMIT_FSIZE, resource.RLIMIT_CORE, "
+        "resource.RLIMIT_NPROC)), "
+        "libc.prctl(3, 0, 0, 0, 0), "  # PR_GET_DUMPABLE
+        "libc.prctl(39, 0, 0, 0, 0), "  # PR_GET_NO_NEW_PRIVS
+        "deathsig.value, signal.getsignal(signal.SIGXFSZ) == signal.SIG_DFL)"
     )
     res = subprocess.run(
         [sys.executable, "-c", probe],
@@ -227,6 +244,9 @@ def test_the_child_caps_its_memory_cpu_time_and_file_size(tmp_path):
         cwd=_isolated._APP_ROOT,
         check=True,
     )
-    # Each limit soft/hard alike, so the child can't raise it again.
-    caps = (1024 * _MIB, _pdf_text._CPU_LIMIT_SECONDS, 1024 * _MIB, 0)
-    assert res.stdout.split() == ["ok", *(f"{cap}/{cap}" for cap in caps), "0", "True"]
+    # Each limit soft/hard alike, so the child can't raise it again; the
+    # isolation of the other children (no new privileges, SIGKILL when the
+    # parent ends) too.
+    caps = (1024 * _MIB, _pdf_text._CPU_LIMIT_SECONDS, 1024 * _MIB, 0, 0)
+    flags = ["0", "1", str(int(signal.SIGKILL)), "True"]
+    assert res.stdout.split() == ["ok", *(f"{cap}/{cap}" for cap in caps), *flags]
