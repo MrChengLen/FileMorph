@@ -45,6 +45,12 @@ reportlab>=5.0.1
 # despite the guard.
 # Lifting the cap also removes its ignore entry in .github/dependabot.yml.
 weasyprint>=70,<71
+# WeasyPrint pulls in brotli (through fonttools, for WOFF2 fonts), and pypdf
+# decodes Brotli-compressed streams with it. Before 1.2.1 its decoder can
+# write out of bounds on a crafted stream (CVE-2026-111497 / PYSEC-2026-4322,
+# critical). A re-lock keeps existing pins, so this floor is what moves it
+# past the advisory.
+brotli>=1.2.1
 markdown>=3.11
 openpyxl>=3.1.5
 ffmpeg-python>=0.2.0

@@ -259,6 +259,7 @@ libheif) caveats, and the machine-readable SBOM — is in
 | reportlab | BSD-3-Clause (Open Source Edition) | Commercial Plus edition exists but we use OSE. |
 | pikepdf | MPL-2.0 (wheels bundle `qpdf`, Apache-2.0) | File-level (weak) copyleft — fine for closed-source embedding; shipped unmodified. Used for PDF/A-2b output. |
 | WeasyPrint | BSD-3-Clause | Permissive. |
+| brotli | MIT | Permissive; WOFF2 fonts (through fonttools) and Brotli-compressed PDF streams (pypdf). |
 | markdown | BSD-3-Clause | Permissive. |
 | openpyxl | MIT | Permissive. |
 | ffmpeg-python | Apache-2.0 (wrapper) over FFmpeg | Wrapper is Apache-2.0; the Docker image ships Debian's **GPL** FFmpeg build, invoked as a *separate program* (does not infect FileMorph's own license). An LGPL-only FFmpeg build is the option for a GPL-free artifact — see [`third-party-licenses.md`](./third-party-licenses.md). |
