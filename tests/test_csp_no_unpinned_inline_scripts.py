@@ -63,7 +63,7 @@ def _executable_inline_scripts(html: str) -> list[str]:
 
 
 @pytest.mark.parametrize("route", _ROUTES)
-def test_no_unpinned_inline_scripts(client, route):
+def test_no_unpinned_inline_scripts(client, accounts_on, route):
     r = client.get(route)
     assert r.status_code == 200, f"{route} did not render"
     csp = r.headers.get("content-security-policy", "")
@@ -87,7 +87,7 @@ def test_csp_hardening_directives_present(client):
     assert "frame-ancestors 'none'" in csp
 
 
-def test_i18n_bootstrap_loads_before_consumers(client):
+def test_i18n_bootstrap_loads_before_consumers(client, accounts_on):
     """The extracted bootstrap must load before nav/auth/app.js, which read
     window.FM_I18N at parse time. Order regression = empty catalogue."""
     html = client.get("/de/dashboard").text

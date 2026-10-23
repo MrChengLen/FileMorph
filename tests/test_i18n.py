@@ -176,7 +176,7 @@ def test_url_prefix_beats_query_param(client):
         "/en/contact",
     ],
 )
-def test_no_cookie_set_on_any_route(client, url):
+def test_no_cookie_set_on_any_route(client, accounts_on, url):
     """The app commits to "no cookies on its own domain" (privacy.html §6).
 
     Programmatic gate against *any* accidental ``Set-Cookie`` — not just the
@@ -317,7 +317,7 @@ def test_switcher_uses_aria_label_not_visible_sr_text(client):
 # ── Sub-router prefix isolation ───────────────────────────────────────────────
 
 
-def test_de_prefix_routes_do_not_collide_with_unprefixed(client):
+def test_de_prefix_routes_do_not_collide_with_unprefixed(client, accounts_on):
     """`/de/login` resolves the login page; `/login` likewise — both work."""
     r_de = client.get("/de/login")
     r_root = client.get("/login")
@@ -326,9 +326,10 @@ def test_de_prefix_routes_do_not_collide_with_unprefixed(client):
 
 
 @pytest.mark.parametrize("locale", SUPPORTED_LOCALES)
-def test_supported_locale_renders_each_page(client, locale):
+def test_supported_locale_renders_each_page(client, accounts_on, locale):
     """Smoke: every page renders 200 in both supported locales (excluding
-    pricing-gated which 404s without PRICING_PAGE_ENABLED)."""
+    pricing-gated which 404s without PRICING_PAGE_ENABLED; the account pages
+    need ``accounts_on``)."""
     pages = [
         "/",
         "/login",
@@ -380,7 +381,7 @@ def test_supported_locale_renders_each_page(client, locale):
         ("/de/account-deleted", "Dein Konto wurde gelöscht"),
     ],
 )
-def test_de_page_renders_german_content(client, path, de_marker):
+def test_de_page_renders_german_content(client, accounts_on, path, de_marker):
     """A DE-marker string must appear in the rendered output. If the .mo
     catalog is missing or corrupt, gettext falls back to the EN msgid and
     this assertion fails — without it the 200-status test passes silently.
@@ -401,7 +402,7 @@ def test_de_page_renders_german_content(client, path, de_marker):
 # ── FM_I18N JS strings — the server-rendered JSON blob in base.html ───────────
 
 
-def test_fm_i18n_json_blob_present_on_every_page(client):
+def test_fm_i18n_json_blob_present_on_every_page(client, accounts_on):
     """Every rendered page must inline the FM_I18N JSON catalogue so the
     front-end JS layer has translated strings available. Missing this blob
     means every alert/button label silently falls back to its English

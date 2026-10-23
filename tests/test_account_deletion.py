@@ -684,10 +684,11 @@ def test_deleted_password_sentinel_is_bcrypt_rejected():
 # ── Dashboard: the "Danger zone" control ──────────────────────────────────────
 
 
-def test_dashboard_renders_danger_zone(client):
+def test_dashboard_renders_danger_zone(client, accounts_on):
     """The Danger Zone card + the three-field confirm form are in the
     /dashboard markup. Server-side /dashboard is unauthenticated (the JS
-    does the auth redirect), so a bare GET returns the rendered template.
+    does the auth redirect), so a bare GET on an instance with accounts
+    returns the rendered template.
     The danger-button recipe is pinned so a macro refactor can't quietly
     re-style the destructive control."""
     res = client.get("/dashboard")
