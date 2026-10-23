@@ -122,6 +122,27 @@ def test_cors_exposes_pdf_compress_honesty_headers():
         )
 
 
+def test_cors_exposes_the_error_code_header():
+    """app.js reads `X-FileMorph-Error-Code` on a failed upload to pick the
+    localized text — the limit 413s, the batch-size 400, encrypted PDFs.
+    Unexposed, the header reads as null cross-origin and the page shows the
+    server's English `detail` instead, on /de/ too."""
+    from starlette.middleware.cors import CORSMiddleware
+
+    from app.main import app
+
+    cors = next(
+        (m for m in app.user_middleware if m.cls is CORSMiddleware),
+        None,
+    )
+    assert cors is not None, "CORSMiddleware no longer registered on the app"
+    expose = cors.kwargs.get("expose_headers") or []
+    assert "X-FileMorph-Error-Code" in expose, (
+        "CORSMiddleware must expose X-FileMorph-Error-Code so the Web UI can "
+        f"read it on cross-origin uploads. Currently expose_headers={expose!r}."
+    )
+
+
 def test_csp_connect_src_extends_to_api_base_when_set():
     """If a deployment ships cross-origin upload POSTs (the S1.5 split),
     the CSP `connect-src` MUST allowlist that origin — browsers refuse

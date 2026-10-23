@@ -385,6 +385,7 @@ async def _do_compress_batch(
                 f"Batch size {len(files)} exceeds tier limit of {quota.max_files_per_batch}. "
                 f"{larger_batches_hint(tier)}"
             ),
+            headers={"X-FileMorph-Error-Code": "batch_too_large"},
         )
 
     if target_size_kb is not None:

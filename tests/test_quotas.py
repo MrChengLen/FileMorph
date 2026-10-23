@@ -58,11 +58,13 @@ def test_anonymous_compress_over_30mb_rejected(client, auth_headers):
 
 # ── 413 hint must name the real free-tier limit, not a stale hardcoded one ──
 #
-# The anonymous-tier 413 on /convert and /compress tells the caller to
-# "Register free to upload up to X MB" — X must come from
-# QUOTAS["free"].max_file_size_bytes, not a number baked into the string.
-# The anonymous cap is shrunk to 1 MB here purely to keep the test payload
-# small; the free-tier number under test is read straight from QUOTAS.
+# Where the instance has accounts, the anonymous-tier 413 on /convert and
+# /compress tells the caller to "Register free to upload up to X MB" — X must
+# come from QUOTAS["free"].max_file_size_bytes, not a number baked into the
+# string. The requests go without credentials: the stand-in accounts have no
+# database to look a key up in. The anonymous cap is shrunk to 1 MB here purely
+# to keep the test payload small; the free-tier number under test is read
+# straight from QUOTAS.
 
 _ENDPOINTS = [
     ("/api/v1/convert", {"target_format": "png"}),
@@ -72,7 +74,7 @@ _ENDPOINTS = [
 
 @pytest.mark.parametrize("endpoint, extra_data", _ENDPOINTS, ids=["convert", "compress"])
 def test_anonymous_413_names_free_tier_limit_from_quotas(
-    client, auth_headers, monkeypatch, endpoint, extra_data
+    client, accounts_on, monkeypatch, endpoint, extra_data
 ):
     monkeypatch.setitem(
         QUOTAS, "anonymous", dataclasses.replace(QUOTAS["anonymous"], max_file_size_bytes=1 * _MB)
@@ -80,7 +82,6 @@ def test_anonymous_413_names_free_tier_limit_from_quotas(
     big = b"\xff\xd8\xff\xe0" + b"\x00" * (2 * _MB)
     res = client.post(
         endpoint,
-        headers=auth_headers,
         files={"file": ("big.jpg", big, "image/jpeg")},
         data=extra_data,
     )
@@ -94,7 +95,7 @@ def test_anonymous_413_names_free_tier_limit_from_quotas(
 
 @pytest.mark.parametrize("endpoint, extra_data", _ENDPOINTS, ids=["convert", "compress"])
 def test_anonymous_413_free_limit_is_derived_not_hardcoded(
-    client, auth_headers, monkeypatch, endpoint, extra_data
+    client, accounts_on, monkeypatch, endpoint, extra_data
 ):
     """Bumping the free-tier limit must change the hint text — proving the
     number is read from QUOTAS at request time, not baked into the string."""
@@ -107,7 +108,6 @@ def test_anonymous_413_free_limit_is_derived_not_hardcoded(
     big = b"\xff\xd8\xff\xe0" + b"\x00" * (2 * _MB)
     res = client.post(
         endpoint,
-        headers=auth_headers,
         files={"file": ("big.jpg", big, "image/jpeg")},
         data=extra_data,
     )

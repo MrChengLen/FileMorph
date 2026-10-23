@@ -391,14 +391,16 @@ def _upload(
     return client.post(path, headers=auth_headers, files=files, data=data)
 
 
-def test_api_guide_quotes_the_output_cap_messages(client, auth_headers, sample_jpg, monkeypatch):
-    # A one-byte cap makes every output too large; the test key is anonymous.
+def test_api_guide_quotes_the_output_cap_messages(client, sample_jpg, monkeypatch, accounts):
+    # A one-byte cap makes every output too large. Requests without credentials
+    # run on the anonymous tier, whose hint depends on the edition.
     tiny = dataclasses.replace(QUOTAS["anonymous"], output_cap_bytes=1)
     monkeypatch.setitem(QUOTAS, "anonymous", tiny)
+    anonymous: dict[str, str] = {}
     jpg = sample_jpg.read_bytes()
-    convert = _upload(client, auth_headers, "/api/v1/convert", jpg, target_format="png")
-    batch = _upload(client, auth_headers, "/api/v1/convert/batch", jpg, target_formats="png")
-    compress = _upload(client, auth_headers, "/api/v1/compress", jpg, quality="85")
+    convert = _upload(client, anonymous, "/api/v1/convert", jpg, target_format="png")
+    batch = _upload(client, anonymous, "/api/v1/convert/batch", jpg, target_formats="png")
+    compress = _upload(client, anonymous, "/api/v1/compress", jpg, quality="85")
     assert (convert.status_code, batch.status_code, compress.status_code) == (413, 422, 413)
 
     guide = _flat("api-usage-guide.md")
@@ -417,7 +419,7 @@ def test_api_guide_quotes_the_output_cap_messages(client, auth_headers, sample_j
     csv_text = b"a,b\n1,2\n"
     table = _upload(
         client,
-        auth_headers,
+        anonymous,
         "/api/v1/convert",
         csv_text,
         name="t.csv",
@@ -426,7 +428,7 @@ def test_api_guide_quotes_the_output_cap_messages(client, auth_headers, sample_j
     )
     table_batch = _upload(
         client,
-        auth_headers,
+        anonymous,
         "/api/v1/convert/batch",
         csv_text,
         name="t.csv",
@@ -456,6 +458,23 @@ def test_api_guide_quotes_the_file_size_message(client, auth_headers, sample_jpg
         app.dependency_overrides.pop(get_optional_user, None)
     assert r.status_code == 413
     assert f'"{_with_placeholders(r.json()["detail"])}"' in _flat("api-usage-guide.md")
+
+
+def test_docs_quote_the_batch_size_message(client, sample_jpg, accounts):
+    # Two files on the anonymous tier, which takes one per request.
+    files = [("files", (f"{i}.jpg", sample_jpg.read_bytes(), "image/jpeg")) for i in range(2)]
+    r = client.post("/api/v1/convert/batch", files=files, data={"target_formats": ["png", "png"]})
+    assert (r.status_code, r.headers.get("X-FileMorph-Error-Code")) == (400, "batch_too_large")
+    message = re.sub(
+        r"^Batch size \d+ exceeds tier limit of \d+\.",
+        "Batch size N exceeds tier limit of M.",
+        r.json()["detail"],
+    )
+    guide = _flat("api-usage-guide.md")
+    assert f'"{message}"' in guide
+    assert "`X-FileMorph-Error-Code: batch_too_large`" in guide
+    codes = _section("api-reference.md", "### Error codes")
+    assert "| `batch_too_large` | `400` |" in codes
 
 
 def test_docs_quote_the_batch_length_mismatch_status(client, auth_headers, sample_jpg):

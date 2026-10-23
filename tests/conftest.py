@@ -47,6 +47,29 @@ def auth_headers():
 
 
 @pytest.fixture
+def accounts_on(monkeypatch):
+    """Run as an instance with user accounts (Cloud Edition): a session factory
+    exists, so the limit messages offer anonymous callers a free account. No
+    database stands behind it — ``get_db`` opens a session that nothing queries,
+    which holds only for requests without credentials (no ``X-API-Key``, no
+    ``Authorization``): anonymous ones."""
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    from app.db import base as db_base
+
+    monkeypatch.setattr(db_base, "AsyncSessionLocal", async_sessionmaker())
+
+
+@pytest.fixture(params=[False, True], ids=["community", "accounts"])
+def accounts(request):
+    """Run a test on both editions: without a database (the suite's default, no
+    accounts) and with accounts (``accounts_on``). The value says which."""
+    if request.param:
+        request.getfixturevalue("accounts_on")
+    return request.param
+
+
+@pytest.fixture
 def sample_jpg(tmp_path) -> Path:
     from PIL import Image
 

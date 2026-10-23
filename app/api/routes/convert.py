@@ -411,6 +411,7 @@ async def _do_convert_batch(
                 f"Batch size {len(files)} exceeds tier limit of {quota.max_files_per_batch}. "
                 f"{larger_batches_hint(tier)}"
             ),
+            headers={"X-FileMorph-Error-Code": "batch_too_large"},
         )
 
     # Mixed-format batches send one target per input file. The Web UI renders
