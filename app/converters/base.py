@@ -178,8 +178,8 @@ class BaseConverter(ABC):
 
     def run(self, input_path: Path, output_path: Path, **kwargs) -> Path:
         """Convert the way the routes do: ``convert()`` in this process, or for
-        an ``isolated`` converter in a child process with memory and time
-        limits (``app/converters/_isolated.py``)."""
+        an ``isolated`` converter in a child process with memory, time and
+        file size limits (``app/converters/_isolated.py``)."""
         if not self.isolated:
             return self.convert(input_path, output_path, **kwargs)
         from app.converters._isolated import run_isolated

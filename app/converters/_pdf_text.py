@@ -5,12 +5,12 @@
 
 ``PdfToTxtConverter`` (``app/converters/document.py``) starts this with a time
 limit and stops it when it runs over: some PDFs take pypdf a long time, and
-only a process can be stopped from outside. On Linux the address space and
-the CPU time are capped as well. The outcome is printed as one word on stdout
-— ``ok``, ``too_many_pages``, ``encrypted``, ``unsupported_encryption``,
-``too_large``, ``unreadable`` or ``failed`` — the last two followed by the
-exception class (pypdf's messages can quote the file). The parent discards
-stderr.
+only a process can be stopped from outside. On Linux the address space, the
+CPU time and the size of the text file are capped as well. The outcome is
+printed as one word on stdout — ``ok``, ``too_many_pages``, ``encrypted``,
+``unsupported_encryption``, ``too_large``, ``unreadable`` or ``failed`` — the
+last two followed by the exception class (pypdf's messages can quote the
+file). The parent discards stderr.
 """
 
 from __future__ import annotations
@@ -21,6 +21,8 @@ from pathlib import Path
 _MEMORY_LIMIT_BYTES = 1024 * 1024 * 1024
 # A little over the parent's 30 s time limit (document.py).
 _CPU_LIMIT_SECONDS = 35
+# The text file it writes holds at most what fits in its memory.
+_FILE_LIMIT_BYTES = 1024 * 1024 * 1024
 
 
 def extract(input_path: Path, output_path: Path, max_pages: int) -> str:
@@ -62,5 +64,5 @@ if __name__ == "__main__":
     warnings.simplefilter("ignore")
     from app.converters._isolated import limit_resources
 
-    limit_resources(_MEMORY_LIMIT_BYTES, _CPU_LIMIT_SECONDS)
+    limit_resources(_MEMORY_LIMIT_BYTES, _CPU_LIMIT_SECONDS, _FILE_LIMIT_BYTES)
     print(extract(Path(sys.argv[1]), Path(sys.argv[2]), int(sys.argv[3])))

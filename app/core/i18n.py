@@ -475,8 +475,8 @@ def _js_i18n_strings(_: gettext.GNUTranslations.gettext) -> dict[str, str]:
             "Select fewer pages, or extract them in several parts."
         ),
         # X-FileMorph-Error-Code: pdf_too_complex — /pdf/compress past the
-        # child process's memory or time limits; the compress page shows the
-        # link to the extract tool next to it.
+        # child process's memory, time or file size limits; the compress page
+        # shows the link to the extract tool next to it.
         "pdfTooComplex": _(
             "This PDF is too large or complex to compress in one go. "
             "Extract fewer pages at a time with “Extract PDF pages”, "

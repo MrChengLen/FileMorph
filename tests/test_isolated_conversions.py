@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import logging
+import signal
 import subprocess
 import sys
 import tracemalloc
@@ -33,9 +34,17 @@ from app.converters.spreadsheet import (
 _TOO_LARGE = "Too large; split it."
 
 
-def _step_limits(monkeypatch, step: str, *, memory: int | None = None, seconds=None):
-    module, function, old_memory, old_seconds = _isolated._STEPS[step]
-    limits = (module, function, memory or old_memory, seconds or old_seconds)
+def _step_limits(
+    monkeypatch, step: str, *, memory: int | None = None, seconds=None, file_bytes=None
+):
+    module, function, old_memory, old_seconds, old_file_bytes = _isolated._STEPS[step]
+    limits = (
+        module,
+        function,
+        memory or old_memory,
+        seconds or old_seconds,
+        file_bytes or old_file_bytes,
+    )
     monkeypatch.setitem(_isolated._STEPS, step, limits)
 
 
@@ -68,6 +77,25 @@ def test_a_child_over_its_time_is_stopped(tmp_path, monkeypatch):
         CsvToJsonConverter().run(src, tmp_path / "out.json")
 
 
+@pytest.mark.skipif(sys.platform != "linux", reason="the limits apply on Linux")
+@pytest.mark.parametrize(
+    "converter",
+    [CsvToXlsxConverter, CsvToJsonConverter],  # the sheet written by lxml, the JSON by Python
+)
+def test_a_file_past_its_size_limit_ends_the_child(tmp_path, monkeypatch, caplog, converter):
+    if converter is CsvToXlsxConverter:
+        from openpyxl.xml import LXML
+
+        assert LXML  # openpyxl writes the sheet through lxml, not Python's files
+    _step_limits(monkeypatch, "convert", file_bytes=2 * 1024 * 1024)
+    src = tmp_path / "in.csv"
+    src.write_text("a,b,c\n" + "1234567890,abcdefghij,klmnopqrst\n" * 100_000, encoding="utf-8")
+    with caplog.at_level(logging.INFO, logger="app.converters._isolated"):
+        with pytest.raises(_isolated.TooComplexError, match="too large or complex to convert"):
+            converter().run(src, tmp_path / "out")
+    assert f"(status {-signal.SIGXFSZ})" in caplog.text
+
+
 def test_the_convert_route_names_the_next_step_past_the_limits(client, auth_headers, monkeypatch):
     _step_limits(monkeypatch, "convert", seconds=0.01)
     res = client.post(
@@ -98,7 +126,8 @@ def test_the_child_hardens_pillow_and_caps_itself(tmp_path):
         "input_path": str(src),
         "output_path": str(out),
     }
-    argv = ["x", "convert", str(256 * 1024 * 1024), "60", json.dumps(kwargs)]
+    limits = [str(256 * 1024 * 1024), "60", str(64 * 1024 * 1024)]
+    argv = ["x", "convert", *limits, json.dumps(kwargs)]
     probe = "\n".join(
         [
             "import runpy, sys, warnings",
@@ -115,10 +144,11 @@ def test_the_child_hardens_pillow_and_caps_itself(tmp_path):
     )
     if sys.platform == "linux":
         probe += (
-            "\nimport ctypes, resource"
-            "\nprint(*(resource.getrlimit(limit)[0] for limit in "
-            "(resource.RLIMIT_AS, resource.RLIMIT_CPU, resource.RLIMIT_CORE)), "
-            "ctypes.CDLL(None).prctl(3, 0, 0, 0, 0))"  # PR_GET_DUMPABLE
+            "\nimport ctypes, resource, signal"
+            "\nprint(*(resource.getrlimit(limit)[0] for limit in (resource.RLIMIT_AS, "
+            "resource.RLIMIT_CPU, resource.RLIMIT_FSIZE, resource.RLIMIT_CORE)), "
+            "ctypes.CDLL(None).prctl(3, 0, 0, 0, 0), "  # PR_GET_DUMPABLE
+            "signal.getsignal(signal.SIGXFSZ) == signal.SIG_DFL)"
         )
     res = subprocess.run(
         [sys.executable, "-c", probe],
@@ -131,7 +161,10 @@ def test_the_child_hardens_pillow_and_caps_itself(tmp_path):
     assert json.loads(lines[0]) == {"result": None}
     assert lines[1:3] == ["raised", "False"]  # bomb warnings raise; no Ghostscript
     if sys.platform == "linux":
-        assert lines[3].split() == [str(256 * 1024 * 1024), "65", "0", "0"]
+        # The limits, no core dump; and SIGXFSZ's default action, so a write
+        # past the file size limit ends the child.
+        memory, _, file_bytes = limits
+        assert lines[3].split() == [memory, "65", file_bytes, "0", "0", "True"]
     assert json.loads(out.read_text(encoding="utf-8")) == [{"a": "1"}]
 
 
@@ -173,10 +206,10 @@ def test_the_child_gets_no_secrets_and_the_request_temp_folder(tmp_path, monkeyp
     seen: dict = {}
     monkeypatch.setattr(subprocess, "run", _fake_child('{"result": 7}', seen=seen))
     assert _isolated.run_isolated("convert", too_large=_TOO_LARGE, tmp_dir=tmp_path) == 7
-    _, _, memory, seconds = _isolated._STEPS["convert"]
-    assert seen["command"][:6] == [
+    _, _, memory, seconds, file_bytes = _isolated._STEPS["convert"]
+    assert seen["command"][:7] == [
         *(sys.executable, "-m", "app.converters._isolated", "convert"),
-        *(str(memory), str(seconds)),
+        *(str(memory), str(seconds), str(file_bytes)),
     ]
     assert "JWT_SECRET" not in seen["env"]
     assert seen["env"]["TMPDIR"] == seen["env"]["TEMP"] == str(tmp_path)

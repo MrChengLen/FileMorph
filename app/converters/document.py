@@ -445,7 +445,8 @@ class TxtToPdfConverter(BaseConverter):
 # pypdf extracts the text in a child process (app/converters/_pdf_text.py):
 # some PDFs take it a long time, and only a process can be stopped from
 # outside. Past the time limit the child is stopped and the conversion
-# refused; on Linux the child's address space and CPU time are capped too.
+# refused; on Linux the child's address space, CPU time and file size are
+# capped too.
 _TEXT_TIME_LIMIT_SECONDS = 30
 
 _TEXT_TOO_MANY_PAGES = (
@@ -489,7 +490,7 @@ class PdfToTxtConverter(BaseConverter):
         if outcome == "unreadable":
             logger.info("unreadable PDF: %s", detail)
             raise InvalidInputError("Could not read the PDF. Verify the file is valid.")
-        if result.returncode < 0:  # stopped by a signal: out of memory or CPU time
+        if result.returncode < 0:  # stopped by a signal: memory, CPU time or file size
             logger.info("pdf to txt: stopped by a limit (status %s)", result.returncode)
             raise InvalidInputError(_TEXT_TOO_LARGE)
         # A logged error shows its type, not its text: name the child's here,

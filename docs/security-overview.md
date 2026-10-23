@@ -241,17 +241,19 @@ pypdf's text extraction runs in a child Python process
 (`app/converters/_pdf_text.py`), started by `PdfToTxtConverter` in
 `app/converters/document.py`. The parent stops it after 30 seconds and the
 conversion gets a `400`; on Linux the child caps its own address space at
-1 GiB and its CPU time at 35 seconds. Like the LibreOffice subprocess below,
-the child gets the environment without application secrets; it reads no
-stdin, its diagnostic output is discarded, and it reports its outcome on
-stdout (for an unreadable PDF with the exception class).
-`tests/test_pdf_to_text_process.py` pins the page cap, the time limit, the
-environment and the memory and CPU caps.
+1 GiB, its CPU time at 35 seconds and the text file it writes at 1 GiB. Like
+the LibreOffice subprocess below, the child gets the environment without
+application secrets; it reads no stdin, its diagnostic output is discarded,
+and it reports its outcome on stdout (for an unreadable PDF with the exception
+class). `tests/test_pdf_to_text_process.py` pins the page cap, the time limit,
+the environment and the memory, CPU and file size caps.
 
 The table conversions (XLSX → CSV, CSV → XLSX, CSV → JSON, JSON → CSV) and
 PDF compression run the same way, through `app/converters/_isolated.py`:
 stopped after 90 seconds, on Linux capped at 1 GiB of address space (PDF
-compression: 3 GiB) and slightly more CPU time than the time limit. On Linux
+compression: 3 GiB), slightly more CPU time than the time limit and 2 GiB per
+file written (PDF compression: 1 GiB), where a write past the limit ends the
+child. On Linux
 none of these children writes a core dump. A file over these limits gets a
 `400` (`invalid_input`; PDF compression: `pdf_too_complex`) whose message
 names the next step. The child's temporary files go to the request's own

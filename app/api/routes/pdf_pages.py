@@ -452,7 +452,7 @@ async def _do_compress(
             )
         except InvalidInputError as exc:
             logger.info("pdf compress rejected: %s", exc)
-            # Past the child's memory or time limits the code is its own, so
+            # Past the child's memory, time or file size limits the code is its own, so
             # the compress page can link on to the extract tool.
             code = "pdf_too_complex" if isinstance(exc, TooComplexError) else "invalid_input"
             raise HTTPException(
