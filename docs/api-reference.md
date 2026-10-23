@@ -542,6 +542,7 @@ can branch on (the `detail` text may change):
 | `input_too_large` | `413` | A file is larger than your tier allows per file |
 | `output_cap_exceeded` | `413` | The result is larger than your tier's output cap. XLSX → CSV, JSON → CSV, CSV → JSON and `/pdf/split` stop writing as soon as they pass it |
 | `target_size_exceeds_cap` | `413` | `target_size_kb` (`/compress`, `/compress/batch`) or `target_kb` (`/pdf/compress`) is above your tier's output cap — rejected before any work |
+| `batch_too_large` | `400` | `/convert/batch`, `/compress/batch`: more files than your tier allows per request — rejected before any work |
 | `decompression_bomb` | `400` | The image's dimensions exceed the decoder's safety limit (`/convert`, `/compress`) |
 | `invalid_input` | `400` | A problem you can fix, named in `detail` — e.g. a Markdown, CSV or JSON file that isn't UTF-8, a PDF that can't be read, a PDF → PDF or PDF → TXT conversion of a document over 10 000 pages, a PDF too large or complex to extract its text within 30 seconds, or a table too large or complex to convert within the memory, time and file size limits (`/convert`); an image that isn't in a supported format or is too damaged to be recognised (`/convert`, `/compress`) |
 | `invalid_page_selection` | `400` | `/pdf/extract`: the `pages` selection is malformed, out of range or longer than 65 536 characters |
@@ -611,7 +612,7 @@ every file failed returns `422` with `{"summary": …, "files": […]}`.
 
 | HTTP Status | Meaning |
 |---|---|
-| `400 Bad Request` | Missing or malformed request data (e.g. filename without extension), or file content that has to be fixed first — e.g. a Markdown, CSV or JSON file that isn't UTF-8 or an image that can't be recognised (`X-FileMorph-Error-Code: invalid_input`; `detail` names the fix), a password-protected PDF (`pdf_encrypted`) or a certificate-encrypted one (`pdf_encryption_unsupported`) |
+| `400 Bad Request` | Missing or malformed request data (e.g. filename without extension), a batch with more files than your tier allows (`X-FileMorph-Error-Code: batch_too_large`), or file content that has to be fixed first — e.g. a Markdown, CSV or JSON file that isn't UTF-8 or an image that can't be recognised (`X-FileMorph-Error-Code: invalid_input`; `detail` names the fix), a password-protected PDF (`pdf_encrypted`) or a certificate-encrypted one (`pdf_encryption_unsupported`) |
 | `401 Unauthorized` | An `X-API-Key` was sent but is not valid, or an endpoint that needs an account (`/auth/me`, `/keys`, `/billing/*`, …) got no valid `Authorization: Bearer` token. The file endpoints need no credentials: without them — or with an expired Bearer token — they run on the anonymous tier (see [Authentication](#authentication)) |
 | `403 Forbidden` | Authenticated but role/tier doesn't permit the action (e.g. non-admin hitting `/cockpit/*`) |
 | `413 Content Too Large` | Request exceeds `MAX_UPLOAD_SIZE_MB` (default: 100 MB) on a file endpoint or 1 MB on any other endpoint, a file exceeds your tier's size cap, or the output exceeds your tier's output cap |

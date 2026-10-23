@@ -6,6 +6,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional
 
+from app.db.base import accounts_enabled
+
 if TYPE_CHECKING:
     from app.db.models import User
 
@@ -129,29 +131,32 @@ def file_too_large_message(tier: str, limit_bytes: int) -> str:
     """The input-size message of every file route, single and batch, with the
     free way past the limit (see ``higher_cap_hint``)."""
     limit_mb = limit_bytes // _MB
-    if tier == "anonymous":
+    if tier != "anonymous":
+        return f"File too large ({limit_mb} MB max for your plan). Self-host FileMorph for larger files."
+    if accounts_enabled():
         free_mb = QUOTAS["free"].max_file_size_bytes // _MB
-        return f"File too large ({limit_mb} MB max for anonymous). Register free to upload up to {free_mb} MB."
-    return (
-        f"File too large ({limit_mb} MB max for your plan). Self-host FileMorph for larger files."
-    )
+        hint = f"Register free to upload up to {free_mb} MB."
+    else:
+        hint = "Self-host FileMorph for larger files."
+    return f"File too large ({limit_mb} MB max for anonymous). {hint}"
 
 
 def higher_cap_hint(tier: str) -> str:
     """The free way past an output cap, as a sentence for a limit message.
 
     Free path first (product rule): anonymous callers can register for the free
-    tier; everyone else can run FileMorph themselves and set their own limits.
-    The hosted service has no paid plan to upgrade to.
+    tier where the instance has accounts; everyone else can run FileMorph
+    themselves and set their own limits. The hosted service has no paid plan to
+    upgrade to, and a Community Edition instance has no accounts to register.
     """
-    if tier == "anonymous":
+    if tier == "anonymous" and accounts_enabled():
         return "Register free for a higher cap."
     return "Self-host FileMorph for a higher cap."
 
 
 def larger_batches_hint(tier: str) -> str:
     """The free way past the batch-size limit (see ``higher_cap_hint``)."""
-    if tier == "anonymous":
+    if tier == "anonymous" and accounts_enabled():
         free_batch = QUOTAS["free"].max_files_per_batch
         return f"Register free to send up to {free_batch} files per request."
     return "Self-host FileMorph for larger batches."

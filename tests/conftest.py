@@ -47,6 +47,30 @@ def auth_headers():
 
 
 @pytest.fixture
+def accounts_on(monkeypatch):
+    """Run as an instance with user accounts (Cloud Edition): a session factory
+    exists, so the limit messages offer anonymous callers a free account, the
+    account pages render and the navigation links Sign In. No database stands
+    behind it — ``get_db`` opens a session that nothing queries, which holds
+    only for requests without credentials (no ``X-API-Key``, no
+    ``Authorization``): anonymous ones."""
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    from app.db import base as db_base
+
+    monkeypatch.setattr(db_base, "AsyncSessionLocal", async_sessionmaker())
+
+
+@pytest.fixture(params=[False, True], ids=["community", "accounts"])
+def accounts(request):
+    """Run a test on both editions: without a database (the suite's default, no
+    accounts) and with accounts (``accounts_on``). The value says which."""
+    if request.param:
+        request.getfixturevalue("accounts_on")
+    return request.param
+
+
+@pytest.fixture
 def sample_jpg(tmp_path) -> Path:
     from PIL import Image
 
@@ -93,3 +117,18 @@ def redact_enabled():
     yield
     s.update(saved_s)
     g.update(saved_g)
+
+
+@pytest.fixture
+def every_page_on(monkeypatch, redact_enabled, accounts_on):
+    """Open every gated page as well: /pricing, /enterprise, /cancel, /redact and
+    the account pages (/login, /dashboard …, via ``accounts_on``). Same two
+    surfaces as ``redact_enabled``: ``settings`` for the route's 404 gate, the
+    Jinja globals for the template."""
+    from app.core.config import settings
+    from app.core.templates import templates
+
+    monkeypatch.setattr(settings, "pricing_page_enabled", True)
+    monkeypatch.setitem(templates.env.globals, "pricing_enabled", True)
+    monkeypatch.setattr(settings, "stripe_secret_key", "configured-for-this-test")
+    monkeypatch.setitem(templates.env.globals, "stripe_enabled", True)

@@ -52,7 +52,12 @@
       </div>
     </div>
 
-    {{ ub.button(_('Scan for PII'), id='redact-scan-btn', full_width=True) }}
+    {# One hint per tool card: the apply step re-uploads the file, and this
+       step stays on screen while it runs (tests/test_location_hint.py). #}
+    <div class="space-y-2">
+      {{ ub.button(_('Scan for PII'), id='redact-scan-btn', full_width=True) }}
+      {% include "partials/location_hint.html" %}
+    </div>
   </div>
 
   <!-- Progress -->

@@ -35,6 +35,14 @@ class Base(DeclarativeBase):
     pass
 
 
+def accounts_enabled() -> bool:
+    """Whether this instance has user accounts. They live in the database, so a
+    Community Edition instance (no ``DATABASE_URL``) has none: signing up
+    (POST /api/v1/auth/register) answers 503 there, and no message may send a
+    caller to it."""
+    return AsyncSessionLocal is not None
+
+
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """FastAPI dependency. Yields None if database is not configured."""
     if AsyncSessionLocal is None:

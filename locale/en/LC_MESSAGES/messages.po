@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FileMorph VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-21 15:46+0200\n"
+"POT-Creation-Date: 2026-10-23 13:53+0200\n"
 "PO-Revision-Date: 2026-05-07 13:43+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -957,6 +957,11 @@ msgstr ""
 
 msgid ""
 "File too large. Use a smaller file or self-host FileMorph — there you set"
+" the limits."
+msgstr ""
+
+msgid ""
+"File too large. Use a smaller file or self-host FileMorph — there you set"
 " the limits. No account yet? Register free for larger files."
 msgstr ""
 
@@ -1077,9 +1082,6 @@ msgstr ""
 "Files are processed server-side and deleted immediately after conversion "
 "— temporary files use random names and are swept within minutes."
 
-msgid "Files are processed server-side and deleted immediately after conversion."
-msgstr ""
-
 msgid "Files deleted right after conversion"
 msgstr ""
 
@@ -1192,9 +1194,6 @@ msgstr ""
 msgid "Get started free"
 msgstr ""
 
-msgid "GitHub ↗"
-msgstr ""
-
 msgid ""
 "Good-faith research in line with this policy will not result in legal "
 "action from the FileMorph project. Please avoid privacy violations, "
@@ -1221,6 +1220,9 @@ msgid "How does AGPLv3 behave with citizen-portal integrations?"
 msgstr ""
 
 msgid "How it works"
+msgstr ""
+
+msgid "How to get an API key ↗"
 msgstr ""
 
 msgid ""
@@ -2126,6 +2128,11 @@ msgid ""
 " your infrastructure. EU vendor, German imprint."
 msgstr ""
 
+msgid ""
+"Runs via our server — files are uploaded and deleted right after "
+"processing."
+msgstr ""
+
 msgid "SHA-256 audit log"
 msgstr ""
 
@@ -2602,6 +2609,12 @@ msgstr ""
 msgid ""
 "The result would be larger than allowed. Try a more efficient target "
 "format or a lower quality, or self-host FileMorph — there you set the "
+"limits."
+msgstr ""
+
+msgid ""
+"The result would be larger than allowed. Try a more efficient target "
+"format or a lower quality, or self-host FileMorph — there you set the "
 "limits. No account yet? Register free for a higher limit."
 msgstr ""
 
@@ -2613,6 +2626,11 @@ msgid ""
 msgstr ""
 
 msgid "The target size is above the allowed maximum of 2 GB."
+msgstr ""
+
+msgid ""
+"The target size is above the output limit. Choose a smaller target size "
+"or self-host FileMorph — there you set the limits."
 msgstr ""
 
 msgid ""
@@ -2716,6 +2734,17 @@ msgid "Too many attempts. Please try again in a minute."
 msgstr ""
 
 msgid "Too many attempts. Please try again later."
+msgstr ""
+
+msgid ""
+"Too many files at once. Select fewer files or self-host FileMorph — there"
+" you set the limits. No account yet? Then it's one file at a time — "
+"register free for up to 10 at once."
+msgstr ""
+
+msgid ""
+"Too many files at once. Select one file at a time or self-host FileMorph "
+"— there you set the limits."
 msgstr ""
 
 msgid "Too many requests. Please wait a moment and try again."

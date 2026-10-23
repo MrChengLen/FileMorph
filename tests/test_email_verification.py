@@ -381,7 +381,7 @@ def test_resend_verification_noop_for_already_verified(client, mock_send_email):
 # ── Email-link landing page (GET /verify-email) ───────────────────────────────
 
 
-def test_verify_email_page_renders(client):
+def test_verify_email_page_renders(client, accounts_on):
     # Hit the /en/ variant so the assertion checks the English heading
     # deterministically — the unprefixed default route now renders DE
     # ("Bestätige deine E-Mail-Adresse") because the operator default

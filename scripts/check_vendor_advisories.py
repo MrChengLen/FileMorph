@@ -38,6 +38,14 @@ _DOMPURIFY_IN_SWAGGER_UI = (
     "(published 2026-10-19), adopted once it is two weeks old "
     "(maintainer decision 2026-10-20)."
 )
+_DOMPURIFY_OPTIONS_IN_SWAGGER_UI = (
+    "Bundled in Swagger UI 5.33.1 (/docs). Needs a DOMPurify option Swagger UI "
+    "does not set: its one sanitize() call passes ADD_ATTR, FORBID_TAGS, "
+    "ALLOW_DATA_ATTR and FORBID_ATTR, so no IN_PLACE, SAFE_FOR_TEMPLATES, "
+    "RETURN_DOM or XHTML parser. Fixed in DOMPurify 3.4.17, which no Swagger UI "
+    "release bundles yet: 5.34.0 ships 3.4.16. Decided again with the Swagger UI "
+    "update (maintainer decision 2026-10-23)."
+)
 ACCEPTED = [
     {
         "id": "GHSA-6688-9rhm-gjv2",
@@ -51,6 +59,27 @@ ACCEPTED = [
         "package": "dompurify",
         "version": "3.4.13",
         "reason": _DOMPURIFY_IN_SWAGGER_UI,
+        "review_by": "2026-11-02",
+    },
+    {
+        "id": "GHSA-c6gr-qvv4-5v3f",
+        "package": "dompurify",
+        "version": "3.4.13",
+        "reason": _DOMPURIFY_OPTIONS_IN_SWAGGER_UI,
+        "review_by": "2026-11-02",
+    },
+    {
+        "id": "GHSA-cg2g-xh64-v4q7",
+        "package": "dompurify",
+        "version": "3.4.13",
+        "reason": _DOMPURIFY_OPTIONS_IN_SWAGGER_UI,
+        "review_by": "2026-11-02",
+    },
+    {
+        "id": "GHSA-mrv2-3pqr-j5jr",
+        "package": "dompurify",
+        "version": "3.4.13",
+        "reason": _DOMPURIFY_OPTIONS_IN_SWAGGER_UI,
         "review_by": "2026-11-02",
     },
 ]

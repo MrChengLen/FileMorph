@@ -32,11 +32,13 @@ from app.api.routes import keys as keys_route
 from app.compat import base_dir, setup_ffmpeg_path
 from app.core.assets import tailwind_css_filename
 from app.core.config import jwt_secret_error, settings
+from app.core.csp import CSP_PROFILES
 from app.core.data_classification import (
     REQUEST_HEADER as _DATA_CLASSIFICATION_HEADER,
     RESPONSE_HEADER as _DATA_CLASSIFICATION_RESPONSE_HEADER,
     normalize_classification as _normalize_data_classification,
 )
+from app.core.engine import ENGINE_DIR, ENGINE_URL_PREFIX, EngineFiles, engine_tree_hash
 from app.core.i18n import (
     SUPPORTED_LOCALES,
     base_path,
@@ -52,7 +54,7 @@ from app.core.rate_limit import limiter
 from app.core.request_limits import RequestLimitsMiddleware
 from app.core.templates import templates
 from app.converters.registry import _ensure_loaded
-from app.db.base import AsyncSessionLocal, engine
+from app.db.base import AsyncSessionLocal, accounts_enabled, engine
 
 # Make bundled ffmpeg available before anything else loads
 setup_ffmpeg_path()
@@ -90,6 +92,11 @@ templates.env.globals["security_contact_email"] = settings.security_contact_emai
 # flags so the plans can show while the paid ones are not bookable.
 templates.env.globals["pricing_enabled"] = bool(settings.pricing_page_enabled)
 templates.env.globals["stripe_enabled"] = bool(settings.stripe_secret_key)
+# Accounts: the function itself, called per render like the limit messages and
+# the account-page routes, so one switch (app/db/base.py) decides all three.
+# Without accounts (Community Edition) the navigation and the developer teaser
+# link no sign-in or sign-up form.
+templates.env.globals["accounts_enabled"] = accounts_enabled
 # AI/redaction visibility: commercial EE add-on, inert (and UI-less) unless enabled.
 # Gates the /redact page, the footer/homepage/pricing/enterprise links, and the
 # client-hydrated eligible-only nav link — so an inert build advertises nothing.
@@ -285,8 +292,8 @@ app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 
 # A-4: Security headers middleware
-def _build_csp_header(api_base_url: str) -> str:
-    """Build the CSP header string.
+def _build_csp_header(api_base_url: str, profile: str = "default") -> str:
+    """Build the CSP header string for one profile (app/core/csp.py).
 
     `connect-src` gates `fetch()` / XHR targets. When the S1.5 upload
     split is active (`API_BASE_URL` set), heavy-upload POSTs go
@@ -299,6 +306,18 @@ def _build_csp_header(api_base_url: str) -> str:
     the cdn.tailwindcss.com allowances and the inline-config SHA-256
     hash. `unsafe-inline` stays on style-src because Tailwind-generated
     utility classes still produce inline style for animations/accents.
+
+    `hybrid` adds `blob:` images, for previews of files the browser
+    processed itself. `local` keeps them and refuses data connections
+    (`connect-src 'none'`, no `API_BASE_URL` either), form posts, plugins
+    and frames (a same-origin frame would bring its own, looser policy);
+    `worker-src` and `manifest-src` are pinned to this origin.
+
+    `script-src` stays `'self'` instead of `/static/` paths only. A path
+    needs the origin spelled out (`'self'` takes none), and the app does
+    not reliably know the origin the browser sees: `APP_BASE_URL` and the
+    `Host` header both differ from it behind some proxies and port
+    mappings, and every script would then be blocked.
     """
     connect_src = "'self'"
     if api_base_url:
@@ -307,18 +326,29 @@ def _build_csp_header(api_base_url: str) -> str:
     # The hash is derived from the same canonical bytes the template renders,
     # so editing app/core/jsonld.py auto-updates both sides.
     script_src = f"'self' {_SITE_JSONLD_CSP_SOURCE}"
+    img_src = "'self' data:" if profile == "default" else "'self' data: blob:"
+    local_only = ""
+    if profile == "local":
+        connect_src = "'none'"
+        local_only = (
+            "form-action 'none'; worker-src 'self'; manifest-src 'self'; "
+            "object-src 'none'; frame-src 'none'; "
+        )
     return (
         "default-src 'self'; "
         f"script-src {script_src}; "
         "style-src 'self' 'unsafe-inline'; "
-        "img-src 'self' data:; "
+        f"img-src {img_src}; "
         f"connect-src {connect_src}; "
+        f"{local_only}"
         "base-uri 'self'; "
         "frame-ancestors 'none';"
     )
 
 
-_CSP_HEADER = _build_csp_header(settings.api_base_url)
+_CSP_HEADERS = {
+    profile: _build_csp_header(settings.api_base_url, profile) for profile in CSP_PROFILES
+}
 
 
 # Permissions-Policy disables browser features the app does not need.
@@ -349,7 +379,10 @@ async def security_headers(request: Request, call_next):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    response.headers["Content-Security-Policy"] = _CSP_HEADER
+    # The route picks the profile (app/core/csp.py); engine files get "local".
+    response.headers["Content-Security-Policy"] = _CSP_HEADERS[
+        getattr(request.state, "csp_profile", "default")
+    ]
     # HSTS is meaningful only over HTTPS — ``request.url.scheme`` reflects
     # the proxy-forwarded protocol when ``X-Forwarded-Proto`` is honoured
     # (Caddy / nginx do this by default). Setting it on plain HTTP would
@@ -467,7 +500,20 @@ async def validation_error_handler(request: Request, exc: RequestValidationError
 _HASHED_ASSET = re.compile(r"[-.][a-f0-9]{8,}\.")
 
 
+_ENGINE_DIR_REAL = ENGINE_DIR.resolve()
+
+
 class CachingStaticFiles(StaticFiles):
+    def lookup_path(self, path: str):
+        full_path, stat_result = super().lookup_path(path)
+        # app/static/engine/ belongs to its own mount below, which wants the
+        # tree hash in the URL. Aliases must not reach the files here without
+        # one: /static/js%2f..%2fengine/… (a browser sends %2f as it is) and,
+        # on Windows, /static/ENGINE/… or /static/engine./….
+        if full_path and Path(full_path).is_relative_to(_ENGINE_DIR_REAL):
+            return "", None
+        return full_path, stat_result
+
     async def get_response(self, path: str, scope):
         response = await super().get_response(path, scope)
         if response.status_code == 200:
@@ -478,6 +524,13 @@ class CachingStaticFiles(StaticFiles):
         return response
 
 
+# The local engine, only under its tree hash (app/core/engine.py). Mounted
+# before /static, which would otherwise answer for the same paths.
+app.mount(
+    ENGINE_URL_PREFIX,
+    EngineFiles(directory=ENGINE_DIR, tree_hash=engine_tree_hash()),
+    name="engine",
+)
 app.mount(
     "/static",
     CachingStaticFiles(directory=str(base_dir() / "app" / "static")),

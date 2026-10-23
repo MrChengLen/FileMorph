@@ -238,6 +238,12 @@ class Settings(BaseSettings):
     # Credits charged per redaction apply. Env-driven so the margin stays opaque.
     ai_credit_cost_redact: int = 1
 
+    # Local tools: the engine that processes files in the browser, served from
+    # app/static/engine/ under /static/engine/<tree-hash>/ (app/core/engine.py).
+    # Part of the AGPL engine, not an add-on, but inert unless enabled like the
+    # flag above: while off, every engine URL is a 404.
+    local_tools_enabled: bool = False
+
     # Hard upper bound for a single ffmpeg invocation (video/audio
     # convert + video compress) before it is killed. Bounds the worker
     # pool the same way the LibreOffice and ghostscript subprocesses

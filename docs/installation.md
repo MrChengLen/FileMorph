@@ -114,7 +114,9 @@ The first boot:
 5. Starts uvicorn
 
 The Web UI at **http://localhost:8000** now exposes `/register`, `/login`,
-`/dashboard`, and (for promoted admin users) `/cockpit`.
+`/dashboard`, and (for promoted admin users) `/cockpit`. Without the database
+(Community Edition) these pages answer 404 and the navigation has no
+**Sign In** link.
 
 ### Stopping the Cloud-mode stack
 
@@ -308,11 +310,13 @@ Audio and video conversion will not work until ffmpeg is installed.
 - **Linux:** `sudo apt install ffmpeg`
 - **Docker:** ffmpeg is bundled in the image — no action needed
 
-### Cloud-mode 503s (`Database not configured.`) on `/auth/register`
+### `/login` answers 404, `/auth/register` 503 (`Database not configured.`)
 
-You started the default community-mode compose, which has no Postgres.
-Either use the community-mode flow (no accounts), or layer the Cloud
-overlay: `docker compose -f docker-compose.yml -f docker-compose.cloud.yml up -d`.
+You started the default community-mode compose, which has no Postgres and
+so no accounts: the account pages (`/login`, `/register`, `/dashboard`, …)
+answer 404 and the account API answers 503. Either use the community-mode
+flow (no accounts), or layer the Cloud overlay:
+`docker compose -f docker-compose.yml -f docker-compose.cloud.yml up -d`.
 
 ### pip times out during installation
 
