@@ -272,6 +272,7 @@ app.add_middleware(
         "X-FileMorph-Recompressible-Images",
         "X-FileMorph-Batch-Failed",
         "X-FileMorph-Batch-Failures",
+        "X-FileMorph-Batch-Notes",
         "X-FileMorph-Batch-Succeeded",
         "X-FileMorph-Batch-Total",
         "X-FileMorph-Error-Code",

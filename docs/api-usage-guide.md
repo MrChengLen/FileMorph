@@ -277,13 +277,13 @@ curl -X POST https://api.filemorph.io/api/v1/compress \
 grep -i x-filemorph headers.txt
 # X-FileMorph-Achieved-Bytes: 489214
 # X-FileMorph-Final-Quality: 72
+# X-FileMorph-Converged: true
 ```
 
-The server runs a binary search on quality (1–100) and stops at the
-first output within ±3 % of the target. The result is never more than
-3 % over the target (except in the below-floor case below), but it can
-be smaller: an image that already fits at quality 95 comes back at
-quality 95, and after eight steps the search returns its best fit.
+The target is an upper bound. The server runs a binary search on quality
+(1–100) for the best output that is at most the target, and stops early
+once one lands within 3 % below it; after eight steps it returns its best
+fit. An image that already fits at quality 95 comes back at quality 95.
 
 **Constraints:**
 
@@ -296,11 +296,13 @@ quality 95, and after eight steps the search returns its best fit.
   both returns `400`.
 - **Tier-capped.** `target_size_kb` larger than your tier's output cap
   returns `413` *before* any encoding work, so a typo doesn't burn CPU.
-- **Below-floor edge case.** If even quality `1` exceeds the target
-  (the input simply can't be that small without resizing), the server
-  returns the smallest possible output anyway — status `200`, and
-  `X-FileMorph-Achieved-Bytes` reveals the actual size so your client
-  can react.
+- **Below-floor case.** If even quality `1` exceeds the target, the
+  server scales the image down and searches again — status `200` with
+  `X-FileMorph-Warnings: resized=<w>x<h>` naming the new pixel size, so
+  your client can tell the user. Only an image whose smallest size (short
+  edge 16 px, quality `1`) still doesn't fit — one carrying a large colour
+  profile, say — comes back above the target: unscaled at quality `1`,
+  with `X-FileMorph-Converged: false` and `target=missed`.
 
 **Python:**
 
@@ -340,9 +342,11 @@ console.log(`Output: ${(achieved / 1024 / 1024).toFixed(2)} MB`);
 ```
 
 The batch endpoint accepts the same parameter and applies the target
-to each file in the request. Only JPEG, WebP and AVIF files can take
-it: any other file in the batch fails on its own (its `error_message`
-says so), and the rest are still compressed:
+to each file in the request; a file scaled down to fit is listed in
+`X-FileMorph-Batch-Notes` and in `manifest.json` (see
+[Manifest schema](#manifest-schema)). Only JPEG, WebP and AVIF files can
+take it: any other file in the batch fails on its own (its
+`error_message` says so), and the rest are still compressed:
 
 ```bash
 curl -X POST https://api.filemorph.io/api/v1/compress/batch \
@@ -466,9 +470,11 @@ async function batchConvert(fileList, targets, apiKey) {
 
 ### Manifest schema
 
-When `manifest.json` is present (partial-success ZIP) or as the body
-of a 422, it has this shape — `name` is the output file's name, and
-the 422 body leaves out `size_out`:
+When `manifest.json` is present (a ZIP in which a file failed or has
+notes) or as the body of a 422, it has this shape — `name` is the output
+file's name, `notes` lists a file's
+[target-size notes](api-reference.md#target-size-notes) (`/compress/batch`
+only, e.g. `"resized=2400x1600"`), and the 422 body leaves out `size_out`:
 
 ```json
 {
@@ -482,9 +488,9 @@ the 422 body leaves out `size_out`:
     "duration_ms": 412
   },
   "files": [
-    { "name": "one.png",   "status": "ok",    "size_in": 1048576,   "size_out": 786432, "error_message": "" },
-    { "name": "two.png",   "status": "ok",    "size_in": 2097152,   "size_out": 786432, "error_message": "" },
-    { "name": "three.jpg", "status": "error", "size_in": 157286400, "size_out": 0,      "error_message": "Output too large (412 MB > 400 MB cap). Try WebP/AVIF. Self-host FileMorph for a higher cap." }
+    { "name": "one.png",   "status": "ok",    "size_in": 1048576,   "size_out": 786432, "error_message": "", "notes": [] },
+    { "name": "two.png",   "status": "ok",    "size_in": 2097152,   "size_out": 786432, "error_message": "", "notes": [] },
+    { "name": "three.jpg", "status": "error", "size_in": 157286400, "size_out": 0,      "error_message": "Output too large (412 MB > 400 MB cap). Try WebP/AVIF. Self-host FileMorph for a higher cap.", "notes": [] }
   ]
 }
 ```

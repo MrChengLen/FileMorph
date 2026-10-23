@@ -1,12 +1,13 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """PDF compress-to-target — a "Morph > Convert" structural operation.
 
-Shrink a PDF toward a caller-given byte budget by **recompressing its
+Shrink a PDF to at most a caller-given byte budget by **recompressing its
 embedded raster images**. Mirrors the shape of
 ``app/compressors/image.py::compress_image_to_target``: a binary-search on
-a single global JPEG quality knob until the whole document fits the target
-(within tolerance) or quality bottoms out. Returns a result dict the route
-layer turns into structured logs + response headers.
+a single global JPEG quality knob for the best quality at which the whole
+document fits the target. When not even the quality floor fits, the images'
+resolution is lowered and the search runs again. Returns a result dict the
+route layer turns into structured logs + response headers.
 
 What it touches — and what it deliberately doesn't
 --------------------------------------------------
@@ -37,9 +38,10 @@ Honest limit for image-poor PDFs
 A text/vector-only PDF (or one whose images are all in the skip set) has
 nothing for this lever to grab. Rather than fail or claim impossible
 compression, the engine re-saves a valid PDF (same pages, same content)
-and reports ``converged=False`` with ``recompressible_images=0``. The
-route surfaces that to the caller via headers/logs so the UI can say
-"already optimal — no large images to shrink" instead of pretending.
+and reports ``recompressible_images=0``, ``converged`` only if the file
+already fits. The route surfaces that to the caller via headers/logs so the
+UI can say "already optimal — no large images to shrink" instead of
+pretending.
 
 Why pikepdf is imported lazily
 ------------------------------
@@ -55,6 +57,7 @@ from __future__ import annotations
 
 import io
 import logging
+import math
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -74,9 +77,20 @@ _MAX_QUALITY = 90
 _MIN_QUALITY = 20
 
 # Below this, JPEG artefacts dominate and further size wins are marginal;
-# the floor keeps a tiny-target request from producing visual mush while
-# still honestly reporting ``converged=False``.
+# below the floor the images' resolution drops instead (see _RESIZE_QUALITY).
 _DEFAULT_FLOOR = _MIN_QUALITY
+
+# Target size is an upper bound (as in app/compressors/image.py). When even
+# the floor doesn't fit, the recompressible images are scaled down to where
+# quality _RESIZE_QUALITY would fit the bytes the rest of the document leaves,
+# with _RESIZE_MARGIN of headroom, and searched again. An image keeps its
+# place and size on the page — only its resolution drops. Each round shrinks
+# to at most _MAX_RESIZE_FACTOR, never below a short edge of _MIN_EDGE_PX.
+_RESIZE_QUALITY = 60
+_RESIZE_MARGIN = 0.9
+_MAX_RESIZE_FACTOR = 0.75
+_MAX_RESIZE_ROUNDS = 2
+_MIN_EDGE_PX = 16
 
 # --- Working-set ceiling (DoS hardening) -------------------------------------
 # ``_collect_decoded`` holds every recompressible image as a decoded
@@ -91,8 +105,8 @@ _DEFAULT_FLOOR = _MIN_QUALITY
 # So before decoding anything we sum the declared ``/Width × /Height`` of the
 # recompressible images (read straight from the XObject dict — no decode) and,
 # if the document is over either ceiling, take the honest no-op path: re-save a
-# valid, unchanged PDF and report ``converged=False`` / ``final_quality=None``
-# rather than decoding everything. Two complementary caps:
+# valid, unchanged PDF and report ``recompressible_images=0`` /
+# ``final_quality=None`` rather than decoding everything. Two complementary caps:
 #
 #   * a total decoded-pixel budget (3 bytes/px RGB → ~1.5 GB peak at the
 #     ceiling, well under a worker's headroom), and
@@ -329,10 +343,14 @@ def _encode_jpeg(pil: Image.Image, quality: int) -> bytes:
     return buf.getvalue()
 
 
-def _apply_quality(decoded: list[_DecodedImage], quality: int) -> None:
-    """Rewrite every decoded image's stream at ``quality`` (in place)."""
+def _apply_quality(decoded: list[_DecodedImage], quality: int) -> int:
+    """Rewrite every decoded image's stream at ``quality`` (in place).
+
+    Returns the bytes of JPEG data written.
+    """
     import pikepdf
 
+    written = 0
     for d in decoded:
         jpeg = _encode_jpeg(d.pil, quality)
         # Replace the stream contents and declare DCTDecode. write() resets
@@ -341,6 +359,96 @@ def _apply_quality(decoded: list[_DecodedImage], quality: int) -> None:
         d.obj.write(jpeg, filter=pikepdf.Name("/DCTDecode"))
         if "/DecodeParms" in d.obj:
             del d.obj["/DecodeParms"]
+        # A scaled-down image declares its new size; the page still draws it
+        # into the same box.
+        d.obj.Width, d.obj.Height = d.pil.size
+        written += len(jpeg)
+    return written
+
+
+def _best_fit(
+    pdf: "pikepdf_mod.Pdf",
+    decoded: list[_DecodedImage],
+    target_bytes: int,
+    tolerance: float,
+    max_iterations: int,
+    quality_floor: int,
+) -> tuple[int | None, bytes | None, int]:
+    """The highest quality at which the document fits ``target_bytes``.
+
+    Returns ``(quality, data, iterations)``; quality and data are ``None``
+    when not even ``quality_floor`` fits. The search stops early on a fit
+    within ``tolerance`` below the target.
+    """
+    # Shortcut: a top-quality re-encode already fits the target.
+    # (Many "target" requests are generous; don't degrade needlessly.)
+    _apply_quality(decoded, _MAX_QUALITY)
+    probe = _save_bytes(pdf)
+    if len(probe) <= target_bytes:
+        return _MAX_QUALITY, probe, 1
+
+    lower = int(target_bytes * (1 - tolerance))
+    low, high = quality_floor, _MAX_QUALITY - 1
+    iterations = 1  # the shortcut probe above counts as iteration 1
+    best_q: int | None = None
+    best: bytes | None = None
+    lowest_tried = _MAX_QUALITY
+    while low <= high and iterations < max_iterations:
+        iterations += 1
+        q = (low + high) // 2
+        _apply_quality(decoded, q)
+        data = _save_bytes(pdf)
+        lowest_tried = min(lowest_tried, q)
+        if len(data) <= target_bytes:
+            best_q, best = q, data
+            if len(data) >= lower:
+                break
+            # Under the band — we can afford higher quality.
+            low = q + 1
+        else:
+            high = q - 1
+
+    if best is None and lowest_tried > quality_floor:
+        # The search ran out of iterations before trying the floor.
+        iterations += 1
+        _apply_quality(decoded, quality_floor)
+        data = _save_bytes(pdf)
+        if len(data) <= target_bytes:
+            best_q, best = quality_floor, data
+    return best_q, best, iterations
+
+
+def _resize_factor(
+    pdf: "pikepdf_mod.Pdf", decoded: list[_DecodedImage], target_bytes: int
+) -> float | None:
+    """Scale factor at which the images would fit at ``_RESIZE_QUALITY``.
+
+    ``None`` when the rest of the document (text, fonts, vector content)
+    alone leaves no room — scaling the images can't reach the target then.
+    """
+    images = _apply_quality(decoded, _RESIZE_QUALITY)
+    rest = len(_save_bytes(pdf)) - images
+    budget = target_bytes * _RESIZE_MARGIN - rest
+    if budget <= 0 or images <= 0:
+        return None
+    return min(_MAX_RESIZE_FACTOR, math.sqrt(budget / images))
+
+
+def _scale_images(decoded: list[_DecodedImage], factor: float) -> bool:
+    """Scale every decoded image by ``factor``, keeping a short edge of at
+    least ``_MIN_EDGE_PX``; False if none could shrink."""
+    scaled = False
+    for d in decoded:
+        own = max(factor, _MIN_EDGE_PX / min(d.pil.size))
+        if own >= 1:
+            continue
+        size = (
+            max(_MIN_EDGE_PX, round(d.pil.width * own)),
+            max(_MIN_EDGE_PX, round(d.pil.height * own)),
+        )
+        d.pil = d.pil.resize(size, Image.Resampling.LANCZOS, reducing_gap=2.0)
+        scaled = True
+    return scaled
 
 
 def _save_bytes(pdf: "pikepdf_mod.Pdf") -> bytes:
@@ -363,14 +471,15 @@ def compress_pdf_to_target(
     max_iterations: int = 7,
     quality_floor: int = _DEFAULT_FLOOR,
 ) -> dict:
-    """Shrink a PDF toward ``target_bytes`` by recompressing its images.
+    """Shrink a PDF to at most ``target_bytes`` by recompressing its images.
 
-    Binary-searches a single global JPEG quality (``_MIN_QUALITY`` ..
+    Binary-searches a single global JPEG quality (``quality_floor`` ..
     ``_MAX_QUALITY``) applied to every recompressible image, re-saving and
-    measuring the whole document each probe, until the output is within
-    ``±tolerance`` of the target (or quality bottoms out at
-    ``quality_floor``). Text, fonts and vector content are preserved; page
-    count is never altered.
+    measuring the whole document each probe, for the highest quality that
+    fits; it stops early on a fit within ``tolerance`` below the target.
+    When not even ``quality_floor`` fits, the images are scaled down and
+    searched again (see ``_RESIZE_QUALITY``). Text, fonts and vector content
+    are preserved; page count and layout are never altered.
 
     Returns (mirrors ``compress_image_to_target`` + PDF-specific fields)::
 
@@ -378,14 +487,17 @@ def compress_pdf_to_target(
             "final_quality": int | None,   # None when nothing to recompress
             "achieved_bytes": int,         # output size on disk
             "iterations": int,
-            "converged": bool,             # reached target within tolerance
+            "converged": bool,             # output is at most target_bytes
             "recompressible_images": int,  # how many images we could touch
+            "image_scale": float | None,   # e.g. 0.62 when images were scaled
         }
 
     Honest limits (see module docstring): a PDF with no recompressible
-    images is re-saved unchanged-in-content and reported
-    ``converged=False`` / ``recompressible_images=0`` — never an error and
-    never a false claim of compression. A PDF that opens only with a
+    images is re-saved unchanged-in-content with ``recompressible_images=0``
+    — never an error and never a false claim of compression; it is
+    ``converged`` only if it already fits. A PDF whose text and fonts alone
+    exceed the target isn't an error either: it gets the smallest output
+    possible, ``converged=False``. A PDF that opens only with a
     password raises :class:`~app.converters.base.EncryptedPdfError`, one
     encrypted with a certificate or an unsupported method its subclass
     :class:`~app.converters.base.UnsupportedPdfEncryptionError`.
@@ -401,8 +513,8 @@ def compress_pdf_to_target(
         # A crafted image-rich PDF whose recompressible images sum past the
         # decode ceiling would OOM the worker in _collect_decoded (which holds
         # every decoded image at once). Treat it like the image-poor case: a
-        # valid, content-unchanged re-save, honestly reported as not converged
-        # with nothing recompressed — never decode the whole document.
+        # valid, content-unchanged re-save with nothing recompressed — never
+        # decode the whole document.
         if _exceeds_working_set(pdf):
             logger.warning("pdf compress: working set exceeds decode ceiling — skipping recompress")
             data = _save_bytes(pdf)
@@ -411,8 +523,9 @@ def compress_pdf_to_target(
                 "final_quality": None,
                 "achieved_bytes": len(data),
                 "iterations": 0,
-                "converged": False,
+                "converged": len(data) <= target_bytes,
                 "recompressible_images": 0,
+                "image_scale": None,
             }
 
         decoded = _collect_decoded(pdf)
@@ -426,78 +539,40 @@ def compress_pdf_to_target(
                 "final_quality": None,
                 "achieved_bytes": len(data),
                 "iterations": 0,
-                "converged": False,
+                "converged": len(data) <= target_bytes,
                 "recompressible_images": 0,
+                "image_scale": None,
             }
 
-        upper = int(target_bytes * (1 + tolerance))
-        lower = int(target_bytes * (1 - tolerance))
-
-        # --- Shortcut: a top-quality re-encode already fits the target. --
-        # (Many "target" requests are generous; don't degrade needlessly.)
-        _apply_quality(decoded, _MAX_QUALITY)
-        probe = _save_bytes(pdf)
-        if len(probe) <= upper:
-            output_path.write_bytes(probe)
-            return {
-                "final_quality": _MAX_QUALITY,
-                "achieved_bytes": len(probe),
-                "iterations": 1,
-                "converged": True,
-                "recompressible_images": n_images,
-            }
-
-        # --- Binary-search the quality knob. -----------------------------
-        low, high = quality_floor, _MAX_QUALITY
-        iterations = 1  # the shortcut probe above counts as iteration 1
-        best_q: int | None = None
-        best_bytes: bytes | None = None
-
-        while low <= high and iterations < max_iterations:
+        quality, data, iterations = _best_fit(
+            pdf, decoded, target_bytes, tolerance, max_iterations, quality_floor
+        )
+        scale = 1.0
+        rounds = 0
+        while data is None and rounds < _MAX_RESIZE_ROUNDS:
+            rounds += 1
             iterations += 1
-            q = (low + high) // 2
-            _apply_quality(decoded, q)
-            data = _save_bytes(pdf)
-            size = len(data)
+            factor = _resize_factor(pdf, decoded, target_bytes)
+            if factor is None or not _scale_images(decoded, factor):
+                break
+            scale *= factor
+            quality, data, probes = _best_fit(
+                pdf, decoded, target_bytes, tolerance, max_iterations, quality_floor
+            )
+            iterations += probes
 
-            if size <= upper:
-                # Acceptable upper bound — record best-so-far.
-                best_q, best_bytes = q, data
-                if size >= lower:
-                    # Inside the tolerance band — done.
-                    output_path.write_bytes(data)
-                    return {
-                        "final_quality": q,
-                        "achieved_bytes": size,
-                        "iterations": iterations,
-                        "converged": True,
-                        "recompressible_images": n_images,
-                    }
-                # Under the band — we can afford higher quality.
-                low = q + 1
-            else:
-                # Over budget — drop quality.
-                high = q - 1
-
-        if best_bytes is not None:
-            output_path.write_bytes(best_bytes)
-            return {
-                "final_quality": best_q,
-                "achieved_bytes": len(best_bytes),
-                "iterations": iterations,
-                "converged": False,
-                "recompressible_images": n_images,
-            }
-
-        # --- Even the quality floor overshot the target. -----------------
-        # Ship the smallest we can honestly produce; report not-converged.
-        _apply_quality(decoded, quality_floor)
-        floor_bytes = _save_bytes(pdf)
-        output_path.write_bytes(floor_bytes)
+        if data is None:
+            # --- Even the quality floor overshot the target. -------------
+            # Ship the smallest we can honestly produce; report not-converged.
+            _apply_quality(decoded, quality_floor)
+            quality, data = quality_floor, _save_bytes(pdf)
+            iterations += 1
+        output_path.write_bytes(data)
         return {
-            "final_quality": quality_floor,
-            "achieved_bytes": len(floor_bytes),
-            "iterations": iterations + 1,
-            "converged": False,
+            "final_quality": quality,
+            "achieved_bytes": len(data),
+            "iterations": iterations,
+            "converged": len(data) <= target_bytes,
             "recompressible_images": n_images,
+            "image_scale": round(scale, 4) if scale < 1 else None,
         }

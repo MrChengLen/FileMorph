@@ -140,7 +140,7 @@ def test_avif_to_png_roundtrip(client, auth_headers, tmp_path):
 
 def test_avif_compress_to_target(client, auth_headers, tmp_path):
     """AVIF is lossy/quality-controlled, so target-size (binary-search-on-
-    quality) compression applies. Output must be <= target * 1.03 and open
+    quality) compression applies. Output must be <= target and open
     as a valid AVIF."""
     src = tmp_path / "photo.avif"
     # Encode at high quality so the q=95 shortcut overshoots and the binary
@@ -157,7 +157,7 @@ def test_avif_compress_to_target(client, auth_headers, tmp_path):
         )
     assert res.status_code == 200, res.text
     achieved = int(res.headers["X-FileMorph-Achieved-Bytes"])
-    assert achieved <= int(target_kb * 1024 * 1.03), f"output {achieved} exceeds {target_kb} KB +3%"
+    assert achieved <= target_kb * 1024, f"output {achieved} exceeds {target_kb} KB"
     out = Image.open(BytesIO(res.content))
     out.load()
     assert out.format == "AVIF"

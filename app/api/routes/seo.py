@@ -187,9 +187,9 @@ async def llms_txt() -> str:
         "ICO), documents (DOCX, PDF, TXT, Markdown, HTML, EML), spreadsheets (XLSX, "
         "CSV, JSON), audio (MP3, WAV, FLAC, OGG, M4A, AAC, WMA, Opus) and video (MP4, "
         "MOV, AVI, MKV, WebM, FLV, WMV). "
-        "It can compress JPEG, WebP and AVIF images to a target size using "
-        "a binary search; the result can end up to 3 % above the target, or larger "
-        "if an image can't get that small. Files are processed server-side and "
+        "It can compress JPEG, WebP and AVIF images to at most a target size: it "
+        "searches for the best quality that fits and scales an image down if even "
+        "the lowest quality is too big. Files are processed server-side and "
         "deleted immediately after conversion, and no account is required." + hosting,
         "",
         f"Open source under AGPLv3: {GITHUB_URL}",
@@ -216,8 +216,9 @@ async def llms_txt() -> str:
                 "one file per page, bundled as a ZIP",
                 f"- [Extract PDF pages]({base}/pdf/extract): keep only a chosen "
                 "page range from a PDF, e.g. pages 1-3,5",
-                f"- [Compress a PDF]({base}/pdf/compress): shrink a PDF toward a "
-                "target size by recompressing its embedded images",
+                f"- [Compress a PDF]({base}/pdf/compress): shrink a PDF to at most a "
+                "target size by recompressing its embedded images, scaling them down "
+                "if needed",
             ]
             break
     # /compress (IA rework PR 4) is a core, always-on OSS feature (image/video
@@ -228,7 +229,7 @@ async def llms_txt() -> str:
             lines.insert(
                 i + 1,
                 f"- [Compress an image or video]({base}/compress): shrink a JPEG, "
-                "WebP or AVIF toward a target size in MB, or a video by quality",
+                "WebP or AVIF to at most a target size in MB, or a video by quality",
             )
             break
     # Per-pair landing pages (Phase 2) — generated from PAIR_CONTENT (the

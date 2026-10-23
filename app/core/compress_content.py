@@ -12,9 +12,10 @@ Claims discipline (project motto: honesty over marketing): every numeric or
 format claim below is verified against the actual compress code before being
 stated, not assumed from the product's own marketing copy elsewhere:
 
-- Target-size compression (binary search on quality, accepting the first
-  result within the ``tolerance=0.03`` default of
-  ``compress_image_to_target()`` — so up to 3 % *above* the target) only
+- Target-size compression (binary search on quality for the best result
+  at most the target, scaling the image down when even quality 1 is too
+  big — ``compress_image_to_target()``; it stays above the target only when
+  the image can't be scaled further) only
   exists for JPEG/WebP/AVIF — see ``TARGET_SIZE_FORMATS`` in
   ``app/compressors/image.py`` *and* the ``TARGET_SIZE_FORMATS`` JS constant
   in ``app/static/js/app.js`` that actually gates the UI; the two sets are
@@ -61,13 +62,15 @@ COMPRESS_CONTENT: dict[str, dict] = {
             "video by quality — free, no account."
         ),
         "limits": (
-            "Target-size compression — pick a size in MB and the engine "
-            "binary-searches quality for a result close to it — works for "
-            "JPEG, WebP and AVIF images only. The result can end up to 3 % "
-            "above the target (a 5 MB target can give up to 5.15 MB), so leave "
-            "a little room below a hard upload limit; if even the lowest quality "
-            "is too big, you get the smallest version possible. The achieved "
-            "size is shown next to the download. AVIF takes noticeably longer: "
+            "Target-size compression — pick a size in MB and the engine finds "
+            "the best quality that stays at or under it — works for JPEG, WebP "
+            "and AVIF images only. The size is a hard ceiling, so the result "
+            "fits an upload limit of the same size. If even the lowest quality "
+            "is too big, the image is scaled down to fewer pixels and the new "
+            "pixel size is shown with the result; only an image that can't get "
+            "that small even then stays above the target, and you're told so. "
+            "The achieved size is shown next to the download. AVIF takes "
+            "noticeably longer: "
             "its encoder is CPU-heavy and the search re-encodes several times, so a large "
             "photo can take a minute or more. PNG, TIFF and video don't take a "
             "target size: they compress by quality instead, where a lower "
@@ -102,10 +105,10 @@ COMPRESS_CONTENT: dict[str, dict] = {
             (
                 "Which files can I compress to a target size?",
                 "Target-size compression currently works for JPEG, WebP "
-                "and AVIF images — the engine binary-searches quality until the "
-                "output is close to your target; it can end up to 3 % above it, or "
-                "larger if the image can't get that small (AVIF takes noticeably "
-                "longer). PNG and "
+                "and AVIF images — the engine searches for the best quality at "
+                "which the output stays at or under your target, and scales the "
+                "image down if even the lowest quality is too big (AVIF takes "
+                "noticeably longer). PNG and "
                 "TIFF images, and every video format, use quality-based "
                 "compression instead: there's no byte-exact target, just a "
                 "slider between smaller and higher-fidelity.",
@@ -139,13 +142,14 @@ COMPRESS_CONTENT: dict[str, dict] = {
         ),
         "limits": (
             "Die Zielgrößen-Kompression — du gibst eine "
-            "Größe in MB vor, die Engine sucht per Binärsuche eine "
-            "Qualität mit einem Ergebnis nahe am Ziel — funktioniert nur "
-            "für JPEG-, WebP- und AVIF-Bilder. Das Ergebnis kann bis zu 3 % "
-            "über dem Ziel liegen (aus 5 MB werden bis zu 5,15 MB); lass "
-            "unter einer harten Upload-Grenze also etwas Luft. Reicht selbst "
-            "die niedrigste Qualität nicht, bekommst du die kleinstmögliche "
-            "Fassung. Die erreichte Größe wird "
+            "Größe in MB vor, die Engine sucht die beste Qualität, bei der "
+            "das Ergebnis höchstens so groß wird — funktioniert nur für JPEG-, "
+            "WebP- und AVIF-Bilder. Die Größe ist eine feste Obergrenze: Das Ergebnis "
+            "passt also unter eine Upload-Grenze gleicher Größe. Reicht "
+            "selbst die niedrigste Qualität nicht, wird das Bild auf weniger "
+            "Pixel verkleinert, und die neue Pixelgröße steht beim Ergebnis. "
+            "Nur ein Bild, das selbst dann nicht so klein wird, bleibt über "
+            "dem Ziel — das wird dir angezeigt. Die erreichte Größe wird "
             "direkt neben dem Download angezeigt. AVIF dauert deutlich "
             "länger: Der Encoder ist rechenintensiv und die Suche kodiert "
             "mehrmals neu, daher kann ein großes Foto eine Minute oder "
@@ -184,10 +188,10 @@ COMPRESS_CONTENT: dict[str, dict] = {
             (
                 "Welche Dateien kann ich auf eine Zielgröße komprimieren?",
                 "Die Zielgrößen-Kompression funktioniert aktuell "
-                "nur für JPEG-, WebP- und AVIF-Bilder — die Engine sucht per "
-                "Binärsuche eine Qualität, bis das Ergebnis nahe am Ziel liegt; es "
-                "kann bis zu 3 % darüber liegen, oder mehr, wenn das Bild nicht so "
-                "klein wird (AVIF dauert deutlich länger). "
+                "nur für JPEG-, WebP- und AVIF-Bilder — die Engine sucht die "
+                "beste Qualität, bei der das Ergebnis höchstens so groß wird wie "
+                "dein Ziel, und verkleinert das Bild, wenn selbst die niedrigste "
+                "Qualität nicht reicht (AVIF dauert deutlich länger). "
                 "PNG- und TIFF-Bilder sowie alle "
                 "Videoformate werden stattdessen per Qualität komprimiert: "
                 "kein exaktes Byte-Ziel, nur ein Regler zwischen kleiner und "
