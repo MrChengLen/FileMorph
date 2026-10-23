@@ -6,7 +6,9 @@
 ``python -m app.converters._isolated <step> <memory-bytes> <seconds> <file-bytes> <json-kwargs>``
 
 with a time limit and stops it when it runs over. On Linux the child also caps
-its address space, its CPU time and the size of each file it writes
+its address space, its CPU time and the size of each file it writes, gains no
+privileges through setuid programs, ends when the process that started it ends
+and, without root privileges, starts no processes or threads of its own
 (``limit_resources``). It prints one JSON line on stdout, the step's result or
 the error it raised, and the parent raises that error again. A child that runs
 out of memory or time, or writes a file past its limit, becomes a
@@ -35,6 +37,8 @@ logger = logging.getLogger(__name__)
 
 _APP_ROOT = Path(__file__).resolve().parents[2]  # the directory holding the ``app`` package
 _GIB = 1024 * 1024 * 1024
+# The environment variable in which spawn tells the child its parent's PID.
+_PARENT_PID_ENV = "FILEMORPH_PARENT_PID"
 
 # What a child may run: step → (module, function, memory limit, time limit in
 # s, size limit of each file it writes). 90 s stays under the 100 s a CDN in
@@ -61,10 +65,12 @@ class TooComplexError(InvalidInputError):
 
 def limit_resources(memory_bytes: int, cpu_seconds: int, file_bytes: int) -> None:
     """Cap this process's address space, CPU time and the size of each file
-    it writes and turn off its core dump (Linux), as hard limits it can't
-    raise again, and make it the first process the kernel stops when the host
-    runs short of memory. A write past the file size limit ends the process,
-    as running out of CPU time does."""
+    it writes and turn off its core dump and, without root privileges, its
+    starting of processes and threads (Linux), as hard limits it can't raise
+    again; keep it from gaining privileges through setuid programs; end it
+    when its parent ends; and make it the first process the kernel stops when
+    the host runs short of memory. A write past the file size limit ends the
+    process, as running out of CPU time does."""
     if sys.platform != "linux":
         return
     import resource
@@ -75,6 +81,11 @@ def limit_resources(memory_bytes: int, cpu_seconds: int, file_bytes: int) -> Non
         (resource.RLIMIT_CPU, cpu_seconds),
         (resource.RLIMIT_FSIZE, file_bytes),
         (resource.RLIMIT_CORE, 0),  # a dump would copy the file's data to disk
+        # No fork, no thread: the steps need neither, and nothing the child
+        # starts can outlive it. The kernel counts every process of the user
+        # against this limit, so only 0 means the same on every host; root
+        # and holders of CAP_SYS_RESOURCE or CAP_SYS_ADMIN are exempt.
+        (resource.RLIMIT_NPROC, 0),
     )
     for limit, value in limits:
         hard = resource.getrlimit(limit)[1]
@@ -90,11 +101,30 @@ def limit_resources(memory_bytes: int, cpu_seconds: int, file_bytes: int) -> Non
         Path("/proc/self/oom_score_adj").write_text("1000", encoding="utf-8")
     except OSError:
         pass
-    # No core dump either where the kernel hands dumps to a program, which
-    # ignores RLIMIT_CORE. Last: afterwards /proc/self belongs to root.
     import ctypes
 
-    ctypes.CDLL(None).prctl(4, 0, 0, 0, 0)  # PR_SET_DUMPABLE, 0
+    libc = ctypes.CDLL(None, use_errno=True)
+
+    def prctl(option: int, value: int) -> None:
+        # A setting the kernel refuses ends the child, rather than letting it
+        # go on without the setting.
+        if libc.prctl(option, value, 0, 0, 0) != 0:
+            raise OSError(ctypes.get_errno(), f"prctl {option} failed")
+
+    # A setuid or setgid program it runs gets no privileges from that, so
+    # the hard limits stay out of reach too. Like them, this can't be undone.
+    prctl(38, 1)  # PR_SET_NO_NEW_PRIVS
+    # End with the parent, whether the child computes or waits. The signal
+    # comes when the parent's thread that started the child ends; spawn waits
+    # for the child in that thread. If the parent ended before this line, the
+    # child has another one now.
+    prctl(1, signal.SIGKILL)  # PR_SET_PDEATHSIG
+    parent = os.environ.get(_PARENT_PID_ENV)
+    if parent is not None and parent != str(os.getppid()):
+        os._exit(1)
+    # No core dump either where the kernel hands dumps to a program, which
+    # ignores RLIMIT_CORE. Last: afterwards /proc/self belongs to root.
+    prctl(4, 0)  # PR_SET_DUMPABLE
 
 
 def spawn(args: list[str], *, timeout: float, tmp_dir: Path) -> subprocess.CompletedProcess:
@@ -108,6 +138,11 @@ def spawn(args: list[str], *, timeout: float, tmp_dir: Path) -> subprocess.Compl
     # glibc gives threads their own heap arenas, which under an address-space
     # cap can use it up before the work does.
     env["MALLOC_ARENA_MAX"] = "2"
+    # The child can't start threads (limit_resources; root aside): tell
+    # OpenBLAS, which openpyxl loads with numpy where numpy is installed, to
+    # start no pool of them as it loads.
+    env["OPENBLAS_NUM_THREADS"] = "1"
+    env[_PARENT_PID_ENV] = str(os.getpid())  # the process the child ends with
     return subprocess.run(  # noqa: S603 — fixed module, our own arguments, no shell
         [sys.executable, "-m", *args],
         stdin=subprocess.DEVNULL,
