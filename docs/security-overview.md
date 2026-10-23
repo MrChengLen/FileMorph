@@ -253,11 +253,12 @@ PDF compression run the same way, through `app/converters/_isolated.py`:
 stopped after 90 seconds, on Linux capped at 1 GiB of address space (PDF
 compression: 3 GiB), slightly more CPU time than the time limit and 2 GiB per
 file written (PDF compression: 1 GiB), where a write past the limit ends the
-child. On Linux
-none of these children writes a core dump. A file over these limits gets a
-`400` (`invalid_input`; PDF compression: `pdf_too_complex`) whose message
-names the next step. The child's temporary files go to the request's own
-temp folder, which the route removes.
+child. On Linux all of these caps, and those of the PDF → TXT child, are
+hard limits, which a child cannot raise again without root privileges, and
+no child writes a core dump. A file over these limits gets a `400`
+(`invalid_input`; PDF compression: `pdf_too_complex`) whose message names the
+next step. The child's temporary files go to the request's own temp folder,
+which the route removes.
 `tests/test_isolated_conversions.py` pins the limits, the environment and how
 the child's errors come back.
 

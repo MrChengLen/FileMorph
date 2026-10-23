@@ -172,9 +172,18 @@ jobs:
           docker exec filemorph python -c "import pathlib, tempfile; from pypdf import PdfWriter; from app.converters._isolated import run_isolated; d = pathlib.Path(tempfile.mkdtemp()); w = PdfWriter(); w.add_blank_page(width=200, height=200); w.write(d / 'in.pdf'); r = run_isolated('pdf-compress', too_large='-', tmp_dir=d, input_path=d / 'in.pdf', output_path=d / 'out.pdf', target_bytes=100000); assert r['achieved_bytes'] > 0 and (d / 'out.pdf').read_bytes()[:4] == b'%PDF', r"
           # The limits these children set on themselves hold in the container
           # too, with all capabilities dropped: address space, CPU time, file
-          # size (a write past it ends the process), no core dump, first in
-          # line for the OOM killer.
-          docker exec filemorph python -c "import ctypes, resource, signal; from app.converters._isolated import limit_resources; limit_resources(2**30, 95, 2**30); assert [resource.getrlimit(r)[0] for r in (resource.RLIMIT_AS, resource.RLIMIT_CPU, resource.RLIMIT_FSIZE, resource.RLIMIT_CORE)] == [2**30, 95, 2**30, 0]; assert signal.getsignal(signal.SIGXFSZ) == signal.SIG_DFL; assert ctypes.CDLL(None).prctl(3, 0, 0, 0, 0) == 0; assert open('/proc/self/oom_score_adj').read().strip() == '1000'"
+          # size (a write past it ends the process) and no core dump, each as
+          # a hard limit the process can't raise again; first in line for the
+          # OOM killer.
+          docker exec filemorph python -c "import ctypes, resource, signal; from app.converters._isolated import limit_resources; limit_resources(2**30, 95, 2**30); assert [resource.getrlimit(r) for r in (resource.RLIMIT_AS, resource.RLIMIT_CPU, resource.RLIMIT_FSIZE, resource.RLIMIT_CORE)] == [(2**30, 2**30), (95, 95), (2**30, 2**30), (0, 0)]; assert signal.getsignal(signal.SIGXFSZ) == signal.SIG_DFL; assert ctypes.CDLL(None).prctl(3, 0, 0, 0, 0) == 0; assert open('/proc/self/oom_score_adj').read().strip() == '1000'"
+          # A write past the file size limit ends the process with SIGXFSZ,
+          # which docker exec reports as status 128 + 25.
+          status=0
+          docker exec filemorph python -c "import pathlib, tempfile; from app.converters._isolated import limit_resources; limit_resources(2**30, 95, 2**20); pathlib.Path(tempfile.mkdtemp(), 'out').write_bytes(bytes(2**21))" || status=$?
+          if [ "$status" != 153 ]; then
+            echo "::error::A write past the file size limit ended with status $status, not 153 (SIGXFSZ)"
+            exit 1
+          fi
 
       # Outgoing TLS other than Stripe's (the app's mail through aiosmtplib,
       # anything on ssl.create_default_context()) trusts the system CA store:
