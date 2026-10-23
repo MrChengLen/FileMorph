@@ -543,6 +543,9 @@ function parseWarningsHeader(raw) {
       items.push({ label: (i18nKey && i18n[i18nKey]) || `Simplified: ${value}` });
     } else if (key === 'fidelity' && value === 'reduced') {
       fidelityReduced = true;
+    } else {
+      const label = targetNoteLabel(key, value);
+      if (label) items.push({ label });
     }
     // ``reason=…`` tokens (soffice_unavailable, soffice_runtime_error)
     // are diagnostic context for the engine-fallback message — surfaced
@@ -557,6 +560,21 @@ function parseWarningsHeader(raw) {
   return items;
 }
 
+// Target-size tokens (compress.py::target_notes) → a localized note, or null.
+function targetNoteLabel(key, value) {
+  const i18n = window.FM_I18N || {};
+  if (key === 'resized') {
+    const [width, height] = value.split('x').map(n => Number(n).toLocaleString(document.documentElement.lang || undefined));
+    return (i18n.warningTargetResized || "Scaled down to {width} × {height} pixels — the lowest quality alone wasn't enough for the target size.")
+      .replace('{width}', width)
+      .replace('{height}', height);
+  }
+  if (key === 'target' && value === 'missed') {
+    return i18n.warningTargetMissed || "The target size can't be reached, not even by scaling the image down: you get it at the lowest quality, still larger than the target.";
+  }
+  return null;
+}
+
 function showConversionWarnings(rawHeader) {
   const box = document.getElementById('conversion-warnings');
   const list = document.getElementById('conversion-warnings-list');
@@ -569,7 +587,9 @@ function showConversionWarnings(rawHeader) {
     return;
   }
   const i18n = window.FM_I18N || {};
-  titleEl.textContent = i18n.conversionWarningTitle || 'Conversion completed with notes';
+  titleEl.textContent = currentMode === 'compress'
+    ? (i18n.compressionWarningTitle || 'Compressed — with a note')
+    : (i18n.conversionWarningTitle || 'Conversion completed with notes');
   list.innerHTML = '';
   for (const item of items) {
     const li = document.createElement('li');
@@ -585,13 +605,15 @@ function hideConversionWarnings() {
 }
 
 // ── Batch summary (P2-1) ─────────────────────────────────────────────────────
-// Server emits four headers per /batch response:
+// Server emits these headers per /batch response:
 //   X-FileMorph-Batch-Total      — total files in the request
 //   X-FileMorph-Batch-Succeeded  — files that converted/compressed OK
 //   X-FileMorph-Batch-Failed     — files that errored
 //   X-FileMorph-Batch-Failures   — semicolon-joined URL-encoded
 //                                  "<name>|<reason>" pairs; absent on
 //                                  all-success runs
+//   X-FileMorph-Batch-Notes      — the same for files with target-size
+//                                  notes ("<name>|resized=2400x1600")
 // (See app/core/batch.py::batch_summary_headers for the producer.)
 
 function parseBatchFailures(rawHeader) {
@@ -619,7 +641,33 @@ function parseBatchFailures(rawHeader) {
   return items;
 }
 
-function showBatchSummary({ total, succeeded, failed, failures }) {
+// X-FileMorph-Batch-Notes: the same "<name>|<value>" list as the failures,
+// the value being comma-joined note tokens (``resized=2400x1600``).
+function parseBatchNotes(rawHeader) {
+  return parseBatchFailures(rawHeader).map(({ name, reason }) => {
+    const labels = reason.split(',').map(token => {
+      const eq = token.indexOf('=');
+      return eq === -1 ? null : targetNoteLabel(token.slice(0, eq).trim(), token.slice(eq + 1).trim());
+    }).filter(Boolean);
+    return { name, reason: labels.length ? labels.join(' ') : reason };
+  });
+}
+
+function fillBatchList(listEl, items) {
+  listEl.innerHTML = '';
+  listEl.classList.toggle('hidden', items.length === 0);
+  for (const item of items) {
+    const li = document.createElement('li');
+    const code = document.createElement('code');
+    code.textContent = item.name;
+    code.className = 'font-mono text-amber-200';
+    li.appendChild(code);
+    li.appendChild(document.createTextNode(' — ' + item.reason));
+    listEl.appendChild(li);
+  }
+}
+
+function showBatchSummary({ total, succeeded, failed, failures, notes }) {
   const box = document.getElementById('batch-summary');
   if (!box) return;
   const t = parseInt(total || '0', 10);
@@ -627,6 +675,7 @@ function showBatchSummary({ total, succeeded, failed, failures }) {
   const f = parseInt(failed || '0', 10);
   const countsEl = document.getElementById('batch-summary-counts');
   const failuresList = document.getElementById('batch-summary-failures');
+  const notesList = document.getElementById('batch-summary-notes');
   const i18n = window.FM_I18N || {};
 
   if (countsEl) {
@@ -637,32 +686,19 @@ function showBatchSummary({ total, succeeded, failed, failures }) {
       .replace('{total}', String(t));
   }
 
-  if (failuresList) {
-    failuresList.innerHTML = '';
-    const parsed = parseBatchFailures(failures);
-    if (parsed.length === 0) {
-      failuresList.classList.add('hidden');
-    } else {
-      failuresList.classList.remove('hidden');
-      for (const item of parsed) {
-        const li = document.createElement('li');
-        const code = document.createElement('code');
-        code.textContent = item.name;
-        code.className = 'font-mono text-amber-200';
-        li.appendChild(code);
-        li.appendChild(document.createTextNode(' — ' + item.reason));
-        failuresList.appendChild(li);
-      }
-    }
-  }
-  // Visual tone: emerald-green if all succeeded; amber if any failed.
+  if (failuresList) fillBatchList(failuresList, parseBatchFailures(failures));
+  if (notesList) fillBatchList(notesList, parseBatchNotes(notes));
+  // Visual tone: emerald-green if all succeeded; amber if any failed or
+  // missed its target size.
+  const missed = parseBatchFailures(notes).some(n => n.reason.split(',').includes('target=missed'));
+  const warn = f > 0 || missed;
   box.classList.remove('hidden');
-  box.classList.toggle('border-emerald-900/50', f === 0);
-  box.classList.toggle('bg-emerald-950/40', f === 0);
-  box.classList.toggle('text-emerald-200', f === 0);
-  box.classList.toggle('border-amber-900/50', f > 0);
-  box.classList.toggle('bg-amber-950/40', f > 0);
-  box.classList.toggle('text-amber-200', f > 0);
+  box.classList.toggle('border-emerald-900/50', !warn);
+  box.classList.toggle('bg-emerald-950/40', !warn);
+  box.classList.toggle('text-emerald-200', !warn);
+  box.classList.toggle('border-amber-900/50', warn);
+  box.classList.toggle('bg-amber-950/40', warn);
+  box.classList.toggle('text-amber-200', warn);
 }
 
 function hideBatchSummary() {
@@ -752,7 +788,10 @@ async function submitForm() {
       alert(I18N.alertNoTargetSize || 'Please enter a target size in MB.');
       return;
     }
-    formData.append('target_size_kb', String(Math.max(5, Math.round(mb * 1024))));
+    // MB as upload portals and macOS count them (5 MB = 5,000,000 bytes),
+    // rounded down: the result then fits a limit of that size however it is
+    // counted. The API takes KiB.
+    formData.append('target_size_kb', String(Math.max(5, Math.floor(mb * 1e6 / 1024))));
   } else {
     formData.append('quality', quality);
   }
@@ -886,6 +925,7 @@ async function submitForm() {
         succeeded: res.headers.get('X-FileMorph-Batch-Succeeded'),
         failed: res.headers.get('X-FileMorph-Batch-Failed'),
         failures: res.headers.get('X-FileMorph-Batch-Failures'),
+        notes: res.headers.get('X-FileMorph-Batch-Notes'),
       });
     } else {
       hideBatchSummary();
@@ -895,7 +935,8 @@ async function submitForm() {
     if (label) {
       const achieved = res.headers.get('X-FileMorph-Achieved-Bytes');
       if (!isBatch && useTargetSize && achieved) {
-        const mb = (parseInt(achieved, 10) / (1024 * 1024)).toFixed(2);
+        // Decimal MB, as the target was entered.
+        const mb = (parseInt(achieved, 10) / 1e6).toFixed(2);
         label.textContent = `Download Result (${mb} MB)`;
       } else {
         label.textContent = isBatch

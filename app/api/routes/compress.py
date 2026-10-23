@@ -53,6 +53,21 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+def target_notes(result: dict) -> list[str]:
+    """``X-FileMorph-Warnings`` tokens for a target-size result.
+
+    ``resized=<w>x<h>``: the image was scaled down to fit the target.
+    ``target=missed``: not even the smallest size fits; the output is larger
+    than the target.
+    """
+    notes = []
+    if result["resized_to"] is not None:
+        notes.append("resized={}x{}".format(*result["resized_to"]))
+    if not result["converged"]:
+        notes.append("target=missed")
+    return notes
+
+
 @router.post("/compress", tags=["Compress"], dependencies=[Depends(require_api_key)])
 @limiter.limit("10/minute")
 async def compress_file(
@@ -62,7 +77,8 @@ async def compress_file(
     target_size_kb: int | None = Form(
         None,
         ge=5,
-        description="Target output size in KB. Activates binary-search-on-quality. "
+        description="Maximum output size in KB. Searches for the best quality that fits and "
+        "scales the image down when even the lowest quality doesn't. "
         "Mutually exclusive with quality. JPEG/WebP/AVIF only.",
     ),
     user: User | None = Depends(get_optional_user),
@@ -264,6 +280,7 @@ async def _do_compress(
                     "achieved_size_bytes": target_result["achieved_bytes"],
                     "iterations": target_result["iterations"],
                     "converged": target_result["converged"],
+                    "resized_to": target_result["resized_to"],
                 }
             )
         logger.info("compression complete", extra=log_extra)
@@ -330,6 +347,12 @@ async def _do_compress(
     if target_result is not None:
         response_headers["X-FileMorph-Achieved-Bytes"] = str(target_result["achieved_bytes"])
         response_headers["X-FileMorph-Final-Quality"] = str(target_result["final_quality"])
+        response_headers["X-FileMorph-Converged"] = (
+            "true" if target_result["converged"] else "false"
+        )
+        notes = target_notes(target_result)
+        if notes:
+            response_headers["X-FileMorph-Warnings"] = ",".join(notes)
 
     return FileResponse(
         output_path,
@@ -349,7 +372,8 @@ async def compress_batch(
     target_size_kb: int | None = Form(
         None,
         ge=5,
-        description="Target output size in KB. Applies to all files. JPEG/WebP/AVIF only.",
+        description="Maximum output size in KB, as for /compress. Applies to all files. "
+        "JPEG/WebP/AVIF only.",
     ),
     user: User | None = Depends(get_optional_user),
 ) -> Response:
@@ -438,18 +462,20 @@ async def _do_compress_batch(
                 if any(header.startswith(sig) for sig in BLOCKED_MAGIC):
                     raise BatchFileError("File type not permitted.")
 
+                notes: list[str] = []
                 if target_size_kb is not None:
                     if ext not in TARGET_SIZE_FORMATS:
                         raise BatchFileError(
                             "Target-size compression supports only JPEG, WebP and AVIF. "
                             "Use quality= for PNG/TIFF."
                         )
-                    await asyncio.to_thread(
+                    target_result = await asyncio.to_thread(
                         compress_image_to_target,
                         input_path,
                         output_path,
                         target_bytes=target_size_kb * 1024,
                     )
+                    notes = target_notes(target_result)
                 elif ext in IMAGE_FMTS:
                     await asyncio.to_thread(
                         compress_image, input_path, output_path, quality=effective_quality
@@ -477,6 +503,7 @@ async def _do_compress_batch(
                         size_in=size_in,
                         size_out=len(content),
                         content=content,
+                        notes=notes,
                     )
                 )
                 key = f"compress.{ext}"

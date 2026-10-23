@@ -230,7 +230,7 @@
 
     const bytes = parseInt(achieved, 10);
     if (!isFinite(bytes)) return;
-    const mb = (bytes / (1024 * 1024)).toFixed(2);
+    const mb = (bytes / 1e6).toFixed(2); // decimal MB, as the target was entered
     if (images === '0') {
       note.textContent = t(
         'pdfCompressNoImages',
@@ -252,6 +252,19 @@
     }
     // else: already at/under target without shrinking (max-quality shortcut) —
     // keep the neutral "ready" summary rather than claiming a compression.
+
+    // X-FileMorph-Warnings: scaled=<percent> — the images' resolution was
+    // lowered to fit the target; never leave that unsaid.
+    const scaled = /(?:^|,)\s*scaled=(\d+)/.exec(res.headers.get('X-FileMorph-Warnings') || '');
+    if (scaled) {
+      const text = t(
+        'pdfCompressScaled',
+        "The images in the PDF were scaled down to {percent} percent of their resolution — the lowest quality alone wasn't enough for the target size. Text and layout are unchanged.",
+        { percent: scaled[1] }
+      );
+      note.textContent = note.classList.contains('hidden') ? text : note.textContent + ' ' + text;
+      show(note);
+    }
   }
 
   async function submit() {
@@ -282,7 +295,9 @@
         showError(t('errorTargetSizeTooHigh', 'The target size is above the allowed maximum of 2 GB.'));
         return;
       }
-      targetKb = Math.max(1, Math.round(mb * 1024));
+      // MB as upload portals and macOS count them (5 MB = 5,000,000 bytes),
+      // rounded down, so the result fits a limit of that size either way.
+      targetKb = Math.max(1, Math.floor(mb * 1e6 / 1024));
     }
 
     hide($('pdf-error'));

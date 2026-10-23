@@ -277,16 +277,21 @@ PDF_TOOL_CONTENT: dict[str, dict[str, dict]] = {
         "en": {
             "title": "Compress a PDF to a target size — free",
             "meta": (
-                "Compress a PDF toward a target size online for free, no account. "
+                "Compress a PDF to at most a target size online for free, no account. "
                 "Recompresses embedded images; honestly reports when there's "
                 "nothing to shrink."
             ),
             "h1": "Compress a PDF to a target size",
-            "hero": "Shrink a PDF toward a size you choose by recompressing its embedded images.",
+            "hero": (
+                "Shrink a PDF to at most a size you choose by recompressing its embedded images."
+            ),
             "cta": "Compress PDF",
             "limits": (
                 "Only embedded raster images (photos, scans) are recompressed — "
-                "text, fonts and vector graphics are left untouched. A text-only "
+                "text, fonts and vector graphics are left untouched. The size is "
+                "a hard ceiling: if the lowest quality isn't enough, the images' "
+                "resolution is lowered too — they keep their place and size on the "
+                "page, and you're told by how much. A text-only "
                 "or already-optimized PDF has nothing to shrink, so it comes back "
                 "valid and unchanged; the tool always shows the size it actually "
                 "achieved and says plainly when the target wasn't reached, rather "
@@ -299,13 +304,15 @@ PDF_TOOL_CONTENT: dict[str, dict[str, dict]] = {
                 ),
                 (
                     "Set a target size",
-                    "Enter the size you're aiming for in MB — the engine "
-                    "recompresses embedded images toward that budget.",
+                    "Enter the most the file may weigh in MB — the engine "
+                    "recompresses embedded images to fit, scaling them down if "
+                    "needed.",
                 ),
                 (
                     "Download the result",
                     "Download the compressed PDF — the achieved size is shown, "
-                    "along with a plain note if the target wasn't reached.",
+                    "along with a plain note if the images were scaled down or "
+                    "the target wasn't reached.",
                 ),
             ],
             "when": (
@@ -315,11 +322,13 @@ PDF_TOOL_CONTENT: dict[str, dict[str, dict]] = {
             ),
             "faq": [
                 (
-                    "Will my PDF always hit the target size exactly?",
-                    "Not always — only embedded raster images can be "
-                    "recompressed, and some PDFs have little or nothing to "
-                    "shrink. You always get the best achievable size back, with "
-                    "a plain note about whether the target was reached.",
+                    "Will my PDF always end up under the target size?",
+                    "Usually, if it contains photos or scans: the size is a hard "
+                    "ceiling, and if the lowest quality isn't enough, the images' "
+                    "resolution is lowered too. A PDF made mostly of text and "
+                    "fonts has little to shrink — then you get the smallest size "
+                    "possible back, with a plain note that the target wasn't "
+                    "reached.",
                 ),
                 (
                     "What happens if my PDF has no images to compress?",
@@ -343,14 +352,17 @@ PDF_TOOL_CONTENT: dict[str, dict[str, dict]] = {
             ),
             "h1": "PDF auf eine Zielgröße verkleinern",
             "hero": (
-                "Ein PDF durch Rekomprimieren eingebetteter Bilder auf eine "
-                "gewünschte Größe verkleinern."
+                "Ein PDF durch Rekomprimieren eingebetteter Bilder so verkleinern, "
+                "dass es die gewünschte Größe nicht überschreitet."
             ),
             "cta": "PDF verkleinern",
             "limits": (
                 "Rekomprimiert werden nur eingebettete Rasterbilder (Fotos, "
                 "Scans) — Text, Schriften und Vektorgrafiken bleiben "
-                "unangetastet. Ein reines Text-PDF oder ein bereits optimiertes "
+                "unangetastet. Die Größe ist eine feste Obergrenze: Reicht die "
+                "niedrigste Qualität nicht, wird auch die Auflösung der Bilder "
+                "gesenkt — sie behalten ihren Platz und ihre Größe auf der Seite, "
+                "und du erfährst, um wie viel. Ein reines Text-PDF oder ein bereits optimiertes "
                 "PDF hat nichts zu verkleinern und kommt darum gültig und "
                 "unverändert zurück; das Tool zeigt immer die tatsächlich "
                 "erreichte Größe und sagt offen, wenn das Ziel nicht erreicht "
@@ -363,15 +375,15 @@ PDF_TOOL_CONTENT: dict[str, dict[str, dict]] = {
                 ),
                 (
                     "Zielgröße festlegen",
-                    "Gib die angestrebte Größe in MB ein — die Engine "
-                    "komprimiert eingebettete Bilder in Richtung dieses Budgets "
-                    "neu.",
+                    "Gib ein, wie groß die Datei höchstens sein darf (in MB) — "
+                    "die Engine komprimiert eingebettete Bilder neu, bis sie "
+                    "passt, und verkleinert sie bei Bedarf.",
                 ),
                 (
                     "Ergebnis herunterladen",
                     "Lade das komprimierte PDF herunter — die erreichte Größe "
-                    "wird angezeigt, mit einem klaren Hinweis, falls das Ziel "
-                    "nicht erreicht wurde.",
+                    "wird angezeigt, mit einem klaren Hinweis, falls Bilder "
+                    "verkleinert wurden oder das Ziel nicht erreicht wurde.",
                 ),
             ],
             "when": (
@@ -382,11 +394,13 @@ PDF_TOOL_CONTENT: dict[str, dict[str, dict]] = {
             ),
             "faq": [
                 (
-                    "Erreicht mein PDF immer genau die Zielgröße?",
-                    "Nicht immer — nur eingebettete Rasterbilder lassen sich "
-                    "rekomprimieren, manche PDFs haben wenig oder nichts zu "
-                    "verkleinern. Du bekommst immer die bestmöglich erreichte "
-                    "Größe zurück, mit einem klaren Hinweis, ob das Ziel "
+                    "Bleibt mein PDF immer unter der Zielgröße?",
+                    "In der Regel ja, wenn es Fotos oder Scans enthält: Die "
+                    "Größe ist eine feste Obergrenze, und reicht die niedrigste "
+                    "Qualität nicht, wird auch die Auflösung der Bilder gesenkt. "
+                    "Ein PDF, das vor allem aus Text und Schriften besteht, hat "
+                    "wenig zu verkleinern — dann bekommst du die kleinstmögliche "
+                    "Größe zurück, mit einem klaren Hinweis, dass das Ziel nicht "
                     "erreicht wurde.",
                 ),
                 (

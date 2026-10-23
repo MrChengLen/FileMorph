@@ -80,7 +80,7 @@ TOOLS_CONTENT: dict[str, dict] = {
             "compress": {
                 "title": "Compress a PDF",
                 "desc": (
-                    "Shrink a PDF toward a target size by recompressing its "
+                    "Shrink a PDF to at most a target size by recompressing its "
                     "embedded images — and get an honest note if there's "
                     "nothing to shrink."
                 ),

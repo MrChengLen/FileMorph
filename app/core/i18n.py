@@ -287,6 +287,16 @@ def _js_i18n_strings(_: gettext.GNUTranslations.gettext) -> dict[str, str]:
         ),
         "docxPdfEngineLearnMore": _("Engine details ↗"),
         "conversionWarningTitle": _("Conversion completed with notes"),
+        "compressionWarningTitle": _("Compressed — with a note"),
+        # Target-size notes (compress.py::target_notes), single file and batch.
+        "warningTargetResized": _(
+            "Scaled down to {width} × {height} pixels — the lowest quality alone "
+            "wasn't enough for the target size."
+        ),
+        "warningTargetMissed": _(
+            "The target size can't be reached, not even by scaling the image down: "
+            "you get it at the lowest quality, still larger than the target."
+        ),
         "warningEngineFallback": _(
             "The high-fidelity LibreOffice engine wasn't available on "
             "this deployment — output uses the pure-Python fallback "
@@ -489,6 +499,12 @@ def _js_i18n_strings(_: gettext.GNUTranslations.gettext) -> dict[str, str]:
         ),
         "pdfCompressNoImages": _(
             "Nothing to recompress — this PDF has no images that can be shrunk. Size: {size} MB."
+        ),
+        # X-FileMorph-Warnings: scaled=<percent> from /pdf/compress.
+        "pdfCompressScaled": _(
+            "The images in the PDF were scaled down to {percent} percent of their resolution — "
+            "the lowest quality alone wasn't enough for the target size. "
+            "Text and layout are unchanged."
         ),
         # Compress no-op branch (X-FileMorph-Recompressible-Images: 0) relabels
         # the download button so it never implies a compression that didn't

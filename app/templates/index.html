@@ -199,7 +199,7 @@
           </div>
           <div>
             <h3 class="font-semibold text-gray-200">{{ _('Can I compress a file to a target size?') }}</h3>
-            <p class="text-gray-400">{{ _('Yes. FileMorph can compress JPEG, WebP and AVIF images to a target size (for example 5 MB) using a binary search. The result can end up to 3 % above the target — a 5 MB target can give up to 5.15 MB — so leave a little room below a hard upload limit. An image that can\'t get that small comes back as small as it gets.') }}</p>
+            <p class="text-gray-400">{{ _('Yes. FileMorph can compress JPEG, WebP and AVIF images to at most a target size (for example 5 MB), so the result fits an upload limit of the same size. If even the lowest quality is too big, the image is scaled down to fewer pixels, and you\'re told the new size.') }}</p>
           </div>
           <div>
             <h3 class="font-semibold text-gray-200">{{ _('Can I self-host FileMorph or use it as an API?') }}</h3>
