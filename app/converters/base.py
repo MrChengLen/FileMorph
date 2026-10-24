@@ -70,6 +70,38 @@ class UnsupportedPdfEncryptionError(EncryptedPdfError):
     )
 
 
+class VideoTooLongError(InvalidInputError):
+    """The video is longer than a GIF may be (``GIF_MAX_SECONDS`` in
+    ``app/converters/_ffmpeg.py``). It is refused, never cut short: a GIF of
+    only its start would look like the whole clip. The routes send
+    ``error_code`` as ``X-FileMorph-Error-Code``."""
+
+    error_code = "video_too_long"
+    message = (
+        "This video is longer than 30 seconds, the maximum for a GIF. Shorten it to "
+        "30 seconds or less (for example in your phone's gallery or a video editor), "
+        "or convert it to MP4 or WebM instead."
+    )
+
+    def __init__(self, *_args: object) -> None:
+        super().__init__(self.message)
+
+
+class VideoTooComplexError(InvalidInputError):
+    """The video has too many pixels, or takes too long to decode, to become a
+    GIF within the time budget (``GIF_MAX_SOURCE_PIXELS`` and
+    ``GIF_TIME_BUDGET_SECONDS`` in ``app/converters/_ffmpeg.py``)."""
+
+    error_code = "video_too_complex"
+    message = (
+        "This video is too large to turn into a GIF in time. Use a shorter clip or "
+        "a lower resolution (for example 1080p), then try again."
+    )
+
+    def __init__(self, *_args: object) -> None:
+        super().__init__(self.message)
+
+
 def open_pypdf(path: Path) -> "PdfReader":
     """``pypdf.PdfReader(path)``; :class:`UnsupportedPdfEncryptionError` if
     pypdf can't handle the file's encryption.

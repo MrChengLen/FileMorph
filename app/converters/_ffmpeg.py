@@ -25,14 +25,18 @@ mapping, the quality→CRF/qscale/bitrate translation, and a single
 :func:`run_ffmpeg` that compiles an ffmpeg-python stream and executes
 it via subprocess with a hard timeout (mirroring _ghostscript.py).
 Uploads are opened through :func:`media_input`, never ``ffmpeg.input()``
-directly.
+directly. It also builds the two video → GIF passes and the ffprobe
+checks around them (bottom of the file).
 """
 
 from __future__ import annotations
 
+import json
+import math
 import shutil
 import subprocess
 from pathlib import Path
+from typing import NamedTuple
 
 import ffmpeg  # ffmpeg-python
 
@@ -42,6 +46,10 @@ from app.core.config import settings
 
 class FFmpegError(RuntimeError):
     """Raised when an ffmpeg invocation fails, times out, or is unavailable."""
+
+
+class FFmpegTimeoutError(FFmpegError):
+    """Raised when an ffmpeg or ffprobe invocation runs past its timeout."""
 
 
 # ffmpeg muxer names that differ from the user-facing file extension.
@@ -62,9 +70,17 @@ _NOT_A_SUPPORTED_MEDIA_FORMAT = (
 )
 
 
-def media_input(path: Path):
-    """``ffmpeg.input`` for an upload: only ``INPUT_DEMUXERS``, only local files."""
-    return ffmpeg.input(str(path), format_whitelist=INPUT_DEMUXERS, protocol_whitelist="file")
+def _local_input(path: Path, demuxers: str, **options):
+    """``ffmpeg.input`` for a local file, read only with ``demuxers``."""
+    return ffmpeg.input(str(path), format_whitelist=demuxers, protocol_whitelist="file", **options)
+
+
+def media_input(path: Path, **options):
+    """``ffmpeg.input`` for an upload: only ``INPUT_DEMUXERS``, only local files.
+
+    ``options`` are further input options, e.g. ``t=31`` to read at most 31 s.
+    """
+    return _local_input(path, INPUT_DEMUXERS, **options)
 
 
 # Container → (video codec, audio codec). WebM *requires* VP8/VP9/AV1 +
@@ -175,13 +191,14 @@ def audio_output_args(target_ext: str, quality: int) -> dict:
     return args
 
 
-def run_ffmpeg(stream, *, timeout: int | None = None) -> None:
+def run_ffmpeg(stream, *, timeout: float | None = None) -> None:
     """Compile an ffmpeg-python stream and run it with a hard timeout.
 
     Raises :class:`FFmpegError` on every failure mode (binary missing,
-    non-zero exit, timeout). ffmpeg's stderr echoes the upload's metadata,
-    so its tail lands in the exception message only with APP_DEBUG; the
-    routes catch broadly and return a generic message to the client (A-3).
+    non-zero exit, timeout — then :class:`FFmpegTimeoutError`). ffmpeg's
+    stderr echoes the upload's metadata, so its tail lands in the exception
+    message only with APP_DEBUG; the routes catch broadly and return a
+    generic message to the client (A-3).
     """
     if shutil.which("ffmpeg") is None:
         raise FFmpegError("ffmpeg binary not found on PATH")
@@ -192,11 +209,174 @@ def run_ffmpeg(stream, *, timeout: int | None = None) -> None:
     try:
         result = subprocess.run(cmd, capture_output=True, timeout=timeout, check=False)
     except subprocess.TimeoutExpired as exc:
-        raise FFmpegError(f"ffmpeg timed out after {timeout}s") from exc
+        raise FFmpegTimeoutError(f"ffmpeg timed out after {timeout:.0f}s") from exc
+    _raise_on_failure("ffmpeg", result)
 
+
+def _raise_on_failure(tool: str, result: subprocess.CompletedProcess) -> None:
+    """Translate a non-zero exit of ffmpeg or ffprobe into an exception."""
     if result.returncode != 0:
         tail = result.stderr.decode("utf-8", errors="replace")[-500:].strip()
         if "not on whitelist" in tail:  # a container media_input doesn't accept
             raise InvalidInputError(_NOT_A_SUPPORTED_MEDIA_FORMAT)
         detail = f": {tail or '<no stderr>'}" if settings.app_debug else ""
-        raise FFmpegError(f"ffmpeg exit {result.returncode}{detail}")
+        raise FFmpegError(f"{tool} exit {result.returncode}{detail}")
+
+
+# ---------------------------------------------------------------------------
+# Video → GIF (app/converters/video.py)
+# ---------------------------------------------------------------------------
+
+# A GIF is for short clips. GIF counts frame delays in hundredths of a
+# second, so 10 fps gives every frame exactly the same delay. Frames fit a
+# GIF_MAX_SIDE square, so portrait clips are capped too, and are never
+# upscaled.
+GIF_MAX_SECONDS = 30
+GIF_FPS = 10
+GIF_MAX_SIDE = 480
+# Phones save a "30-second" clip as e.g. 30.03 s; this much more still converts.
+GIF_SLACK_SECONDS = 0.5
+# A larger source (8K) can't be decoded within the time budget.
+GIF_MAX_SOURCE_PIXELS = 4096 * 2160
+# One budget for the probe, both passes and the frame count — under the 100 s
+# a CDN in front of the app may wait for an answer (as in _isolated.py), so
+# the caller gets the 400 that names the next step, not a gateway timeout.
+GIF_TIME_BUDGET_SECONDS = 85
+
+
+class VideoProbe(NamedTuple):
+    width: int
+    height: int
+    duration: float | None  # seconds; None when the container doesn't say
+
+
+def _ffprobe(path: Path, *args: str, demuxers: str, timeout: float) -> dict:
+    """Run ffprobe on a local file, read only with ``demuxers``, and return
+    its JSON output. Fails like :func:`run_ffmpeg`."""
+    if shutil.which("ffprobe") is None:
+        raise FFmpegError("ffprobe binary not found on PATH")
+    cmd = [
+        "ffprobe", "-v", "error",
+        "-format_whitelist", demuxers, "-protocol_whitelist", "file",
+        *args, "-of", "json", str(path),
+    ]  # fmt: skip
+    try:
+        result = subprocess.run(cmd, capture_output=True, timeout=timeout, check=False)
+    except subprocess.TimeoutExpired as exc:
+        raise FFmpegTimeoutError(f"ffprobe timed out after {timeout:.0f}s") from exc
+    _raise_on_failure("ffprobe", result)
+    try:
+        return json.loads(result.stdout)
+    except ValueError as exc:
+        raise FFmpegError("ffprobe printed no JSON") from exc
+
+
+def _seconds(value) -> float | None:
+    """An ffprobe duration in seconds; None for "N/A", junk or ≤ 0."""
+    try:
+        seconds = float(value)
+    except (TypeError, ValueError):
+        return None
+    return seconds if math.isfinite(seconds) and seconds > 0 else None
+
+
+def probe_video(path: Path, *, timeout: float) -> VideoProbe | None:
+    """Frame size and duration of an upload's first video stream — cover art
+    doesn't count — or None if it has none. Same demuxers as
+    :func:`media_input`; only numeric fields are read, so none of the
+    upload's tags are echoed."""
+    data = _ffprobe(
+        path,
+        "-select_streams", "V:0",
+        "-show_entries", "stream=width,height,duration:format=duration",
+        demuxers=INPUT_DEMUXERS,
+        timeout=timeout,
+    )  # fmt: skip
+    streams = data.get("streams") or []
+    if not streams:
+        return None
+    width, height = streams[0].get("width"), streams[0].get("height")
+    if not (isinstance(width, int) and isinstance(height, int) and width > 0 and height > 0):
+        return None
+    duration = _seconds(streams[0].get("duration"))
+    if duration is None:
+        duration = _seconds((data.get("format") or {}).get("duration"))
+    return VideoProbe(width, height, duration)
+
+
+def count_gif_frames(path: Path, *, timeout: float) -> int:
+    """The number of frames in a GIF written by :func:`gif_stream` — counted, not decoded."""
+    data = _ffprobe(
+        path,
+        "-select_streams", "v:0", "-count_packets",
+        "-show_entries", "stream=nb_read_packets",
+        demuxers="gif",
+        timeout=timeout,
+    )  # fmt: skip
+    try:
+        return int(data["streams"][0]["nb_read_packets"])
+    except (KeyError, IndexError, TypeError, ValueError) as exc:
+        raise FFmpegError("ffprobe reported no frame count") from exc
+
+
+def _gif_frames(input_path: Path, seconds: float):
+    """At most ``seconds`` of the upload's first video stream (no cover art),
+    at GIF_FPS, fitted into the GIF_MAX_SIDE square, as opaque RGB."""
+    return (
+        media_input(input_path, t=seconds)["V:0"]
+        .filter("fps", fps=GIF_FPS)
+        .filter(
+            "scale",
+            w=f"min({GIF_MAX_SIDE},iw)",
+            h=f"min({GIF_MAX_SIDE},ih)",
+            force_original_aspect_ratio="decrease",
+            flags="lanczos",
+        )
+        # No alpha: the GIF stays opaque, and both passes' colour tables
+        # count at most one entry per RGB colour.
+        .filter("format", "rgb24")
+    )
+
+
+# 6 bits per channel, the top two bits repeated below them, so white stays white.
+_SIX_BITS = "bitor(bitand(val,252),bitand(val,192)/64)"
+
+
+def gif_palette_stream(input_path: Path, palette_path: Path, *, seconds: float):
+    """Pass 1: one 256-colour palette for the whole clip, written to ``palette_path``."""
+    return (
+        _gif_frames(input_path, seconds)
+        # Colours are counted at 6 bits per channel, which keeps palettegen's
+        # colour statistics small; the palette still has 256 colours.
+        .filter("lutrgb", r=_SIX_BITS, g=_SIX_BITS, b=_SIX_BITS)
+        .filter("palettegen", stats_mode="full")
+        .output(str(palette_path), update=1)
+    )
+
+
+def gif_stream(
+    input_path: Path,
+    palette_path: Path,
+    output_path: Path,
+    *,
+    seconds: float,
+    max_output_bytes: int | None,
+):
+    """Pass 2: the clip mapped onto the pass-1 palette, as a looping GIF
+    without metadata. ``-fs`` stops writing once ``max_output_bytes`` is
+    passed; ffmpeg still exits 0 then, so the caller checks the file size."""
+    palette = _local_input(palette_path, "image2,png_pipe")
+    frames = ffmpeg.filter(
+        [_gif_frames(input_path, seconds), palette],
+        "paletteuse",
+        # Ordered dithering is the same in every frame, so a pixel that
+        # doesn't change keeps its colour, and the GIF encoder stores only
+        # the rectangle that did change.
+        dither="bayer",
+        bayer_scale=4,
+        diff_mode="rectangle",
+    )
+    options = {"format": "gif", "loop": 0, "map_metadata": -1, "map_chapters": -1}
+    if max_output_bytes is not None:
+        options["fs"] = max_output_bytes
+    return frames.output(str(output_path), **options)

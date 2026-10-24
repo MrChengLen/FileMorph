@@ -161,6 +161,25 @@ jobs:
       - name: Check the converters' programs and libraries
         run: |
           docker exec filemorph ffmpeg -version > /dev/null
+          # Video -> GIF (app/converters/video.py): the ffprobe check, both
+          # ffmpeg passes and the frame count with the image's ffmpeg (newer
+          # than the CI runner's); then a GIF over a tiny output cap.
+          docker exec -i filemorph python - <<'PY'
+          import pathlib, subprocess, tempfile
+          from app.converters.base import OutputTooLargeError
+          from app.converters.video import VideoToGifConverter
+          d = pathlib.Path(tempfile.mkdtemp())
+          clip = ["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "testsrc2=duration=1:size=640x360:rate=25"]
+          subprocess.run([*clip, "-pix_fmt", "yuv420p", str(d / "in.mp4")], check=True)
+          VideoToGifConverter().convert(d / "in.mp4", d / "out.gif", max_output_bytes=10**7)
+          assert (d / "out.gif").read_bytes()[:6] == b"GIF89a"
+          try:
+              VideoToGifConverter().convert(d / "in.mp4", d / "cap.gif", max_output_bytes=1000)
+          except OutputTooLargeError:
+              print("ok: GIF made, a GIF over the cap refused")
+          else:
+              raise SystemExit("a GIF over the cap was not refused")
+          PY
           docker exec filemorph gs --version
           docker exec filemorph python -c "import weasyprint; assert weasyprint.HTML(string='<p>probe</p>').write_pdf().startswith(b'%PDF')"
           # PDF -> TXT runs pypdf in a child process (app/converters/_pdf_text.py):
