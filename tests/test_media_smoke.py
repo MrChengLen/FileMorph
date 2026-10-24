@@ -84,6 +84,13 @@ def test_video_args_round_odd_dimensions():
     assert args["vf"] == "scale=trunc(iw/2)*2:trunc(ih/2)*2"
 
 
+def test_video_args_copy_no_source_metadata():
+    # ffmpeg copies the source's tags and chapters unless told otherwise (NEU-C.2).
+    for container in VIDEO_CODECS:
+        args = video_output_args(container, 70, audio_bitrate="128k")
+        assert args["map_metadata"] == args["map_chapters"] == -1
+
+
 def test_x264_crf_mapping_endpoints_unchanged():
     # Same mapping the compressor always documented: quality 100→CRF 18, 1→40.
     assert video_output_args("mp4", 100, audio_bitrate="128k")["crf"] == 18
@@ -248,7 +255,7 @@ def _generate(*args: str) -> None:
     )
 
 
-def _probe(path) -> tuple[str, set[str]]:
+def _probe_json(path) -> dict:
     out = subprocess.run(
         [
             FFPROBE,
@@ -258,13 +265,18 @@ def _probe(path) -> tuple[str, set[str]]:
             "json",
             "-show_format",
             "-show_streams",
+            "-show_chapters",
             str(path),
         ],
         capture_output=True,
         check=True,
         timeout=30,
     )
-    data = json.loads(out.stdout)
+    return json.loads(out.stdout)
+
+
+def _probe(path) -> tuple[str, set[str]]:
+    data = _probe_json(path)
     return data["format"]["format_name"], {s["codec_name"] for s in data["streams"]}
 
 
@@ -431,3 +443,131 @@ def test_an_upload_in_another_format_is_refused(tmp_path):
     _generate("-f", "lavfi", "-i", "sine=frequency=440:duration=0.3", "-f", "au", str(source))
     with pytest.raises(InvalidInputError):
         get_converter("wav", "mp3").convert(source, tmp_path / "out.mp3", quality=85)
+
+
+# ---------------------------------------------------------------------------
+# Metadata strip (NEU-C.2) — needs ffmpeg/ffprobe on PATH
+# ---------------------------------------------------------------------------
+
+# What a phone writes into a clip: where it was filmed (Apple's key and the
+# generic one), on which device, when. Plus a named chapter, as editors add.
+_PHONE_TAGS = {
+    "location": "+53.5511+009.9937/",
+    "com.apple.quicktime.location.ISO6709": "+53.5511+009.9937+012.000/",
+    "make": "Apple",
+    "model": "iPhone 15 Pro",
+    "creation_time": "2026-06-15T10:20:30.000000Z",
+}
+_PHONE_CHAPTER = "Rathausmarkt"
+# Text only this metadata puts into a file: the latitude (also what ffprobe
+# decodes from MP4's binary 'loci' box), make, model, date, chapter title.
+_PHONE_MARKERS = ("53.5511", "Apple", "iPhone 15 Pro", "2026-06-15", _PHONE_CHAPTER)
+
+
+def _metadata_traces(path) -> set[str]:
+    """The phone markers still in ``path`` — in the container, stream or
+    chapter tags ffprobe decodes, or in the raw bytes (ASF stores its tags
+    as UTF-16) — plus ``"chapters"`` if the file has any."""
+    data = _probe_json(path)
+    values = [
+        value
+        for part in (data["format"], *data["streams"], *data["chapters"])
+        for value in part.get("tags", {}).values()
+    ]
+    raw = path.read_bytes()
+    traces = {
+        marker
+        for marker in _PHONE_MARKERS
+        if any(marker in value for value in values)
+        or marker.encode() in raw
+        or marker.encode("utf-16-le") in raw
+    }
+    if data["chapters"]:
+        traces.add("chapters")
+    return traces
+
+
+@pytest.fixture(scope="module")
+def sample_phone_mov(tmp_path_factory):
+    folder = tmp_path_factory.mktemp("media")
+    chapters = folder / "chapters.txt"
+    chapters.write_text(
+        f";FFMETADATA1\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=0\nEND=600\ntitle={_PHONE_CHAPTER}\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+    tags = [arg for key, value in _PHONE_TAGS.items() for arg in ("-metadata", f"{key}={value}")]
+    path = folder / "phone.mov"
+    # use_metadata_tags: QuickTime 'mdta' keys, the way an iPhone stores them.
+    _generate(
+        "-f", "lavfi", "-i", "testsrc2=duration=0.6:size=128x72:rate=10",
+        "-f", "lavfi", "-i", "sine=frequency=440:duration=0.6",
+        "-f", "ffmetadata", "-i", str(chapters),
+        "-map", "0:v", "-map", "1:a", "-map_chapters", "2",
+        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest",
+        *tags, "-movflags", "use_metadata_tags",
+        str(path),
+    )  # fmt: skip
+    return path
+
+
+@requires_ffmpeg
+def test_phone_clip_carries_every_marker(sample_phone_mov):
+    # Guards the tests below against passing on a fixture with nothing to strip.
+    assert _metadata_traces(sample_phone_mov) == {*_PHONE_MARKERS, "chapters"}
+
+
+@requires_ffmpeg
+@pytest.mark.parametrize("tgt", sorted(set(_VIDEO_FORMATS) - {"mov"}))
+def test_video_convert_drops_source_metadata(sample_phone_mov, tmp_path, tgt):
+    out = tmp_path / f"out.{tgt}"
+    get_converter("mov", tgt).convert(sample_phone_mov, out, quality=70)
+    assert _metadata_traces(out) == set()
+
+
+@requires_ffmpeg
+@pytest.mark.parametrize("container", sorted(_COMPRESS_VIDEO_INPUTS))
+def test_compress_video_drops_source_metadata(sample_phone_mov, tmp_path, container):
+    out = tmp_path / f"compressed.{container}"
+    compress_video(sample_phone_mov, out, quality=60)
+    assert _metadata_traces(out) == set()
+
+
+@pytest.fixture(scope="module")
+def sample_portrait_mp4(sample_mp4, tmp_path_factory):
+    # A phone filming upright stores landscape pixels plus a 90° display
+    # matrix — stream side data, not metadata.
+    path = tmp_path_factory.mktemp("media") / "portrait.mp4"
+    _generate("-display_rotation:v:0", "90", "-i", str(sample_mp4), "-c", "copy", str(path))
+    return path
+
+
+def _displayed_size(path) -> tuple[int, int]:
+    """Width × height as a player shows the video: ±90° rotation swaps them."""
+    video = next(s for s in _probe_json(path)["streams"] if s["codec_type"] == "video")
+    rotation = next(
+        (
+            side_data.get("rotation", 0)
+            for side_data in video.get("side_data_list", [])
+            if side_data.get("side_data_type") == "Display Matrix"
+        ),
+        0,
+    )
+    width, height = video["width"], video["height"]
+    return (height, width) if abs(rotation) == 90 else (width, height)
+
+
+@requires_ffmpeg
+@pytest.mark.parametrize("tgt", sorted(set(_VIDEO_FORMATS) - {"mp4"}))
+def test_video_convert_keeps_portrait_clips_upright(sample_portrait_mp4, tmp_path, tgt):
+    assert _displayed_size(sample_portrait_mp4) == (72, 128)
+    out = tmp_path / f"out.{tgt}"
+    get_converter("mp4", tgt).convert(sample_portrait_mp4, out, quality=70)
+    assert _displayed_size(out) == (72, 128)
+
+
+@requires_ffmpeg
+def test_compress_video_keeps_portrait_clips_upright(sample_portrait_mp4, tmp_path):
+    out = tmp_path / "compressed.mp4"
+    compress_video(sample_portrait_mp4, out, quality=60)
+    assert _displayed_size(out) == (72, 128)
