@@ -330,8 +330,10 @@ recognises other formats, but refuses to open an upload in one of them, and
 an upload is opened as a local file only. The list is one constant,
 `INPUT_DEMUXERS`, and the media converters and the video compressor open
 every upload through `media_input()` (both in
-`app/converters/_ffmpeg.py`). An upload in another format is answered with
-HTTP 400 and `X-FileMorph-Error-Code: invalid_input`.
+`app/converters/_ffmpeg.py`). Before a video becomes a GIF, ffprobe reads its
+frame size and length with the same list (`probe_video()`, numeric fields
+only). An upload in another format is answered with HTTP 400 and
+`X-FileMorph-Error-Code: invalid_input`.
 
 ### Historical findings addressed in this area
 

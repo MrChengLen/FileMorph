@@ -159,7 +159,7 @@ every edition runs.
 | **PDF**       | PDF                                                              | TXT, PDF/A-2b<sup>†</sup>                     |
 | **Spreadsheets** | XLSX, CSV, JSON                                               | CSV, XLSX, JSON                               |
 | **Audio**     | MP3, WAV, FLAC, OGG, M4A, AAC, WMA, Opus                        | MP3, WAV, FLAC, OGG, M4A, AAC, WMA, Opus     |
-| **Video**     | MP4, MOV, AVI, MKV, WebM, FLV, WMV                              | MP4, MOV, AVI, MKV, WebM, FLV, WMV           |
+| **Video**     | MP4, MOV, AVI, MKV, WebM, FLV, WMV                              | MP4, MOV, AVI, MKV, WebM, FLV, WMV, GIF      |
 
 **Compression** (quality-based or target-size, no re-encoding format change):
 Images: JPG, PNG, WebP, AVIF, TIFF · Video: MP4, MOV, AVI, MKV, WebM

@@ -137,6 +137,12 @@
           target="_blank" rel="noopener"
           class="underline hover:text-sky-200 font-semibold ml-1"></a>
       </p>
+      {# Video → GIF: the fixed limits (GIF_* in app/converters/_ffmpeg.py, a
+         test pins the numbers), before the upload. Shown by app.js. #}
+      <p id="gif-notice"
+        class="hidden text-xs text-sky-300 bg-sky-950/40 border border-sky-900/50 rounded-lg px-3 py-2 leading-relaxed">
+        {{ _('GIF is for short clips: up to 30 seconds, at most 480 pixels wide or high, without sound.') }}
+      </p>
       {# PDF is a valid *source* here (→ TXT / PDF/A) but no longer a target
          (get_public_conversions() drops the pdf->pdf identity pair — a
          same-format "conversion" would be a silent no-op re-save). When the

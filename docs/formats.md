@@ -301,6 +301,41 @@ Any of the above can be converted to any other format.
 - AVI / MKV → MP4 (compatibility for phones, tablets, TVs)
 - MP4 → WebM (web embedding without Flash)
 
+### Video → GIF
+
+| From | To | Notes |
+|------|----|-------|
+| MP4 / MOV / AVI / MKV / WebM / FLV / WMV | GIF | Animated GIF of a short clip: up to 30 s, 10 frames per second, endless loop, no sound |
+
+A GIF suits short clips — for a chat, a ticket or a README. The result fits
+into 480 × 480 pixels (a 1920 × 1080 video becomes 480 × 270, a portrait clip
+270 × 480; a smaller video keeps its size) and carries no metadata from the
+video — no location, device or recording date. ffmpeg makes it in two passes:
+the first picks one 256-colour palette for the whole clip, the second maps
+every frame onto it with ordered dithering, so areas that don't change stay
+identical from frame to frame and the file stays small. `quality` doesn't
+apply: frame size and frame rate are fixed.
+
+These are answered with `400` and a `detail` that names the next step:
+
+- a video longer than 30 seconds (`X-FileMorph-Error-Code: video_too_long`).
+  It is refused, not cut short — shorten it first, or convert it to MP4 or
+  WebM instead;
+- a video of more than 4096 × 2160 pixels, or one that can't be turned into a
+  GIF within 85 seconds (`video_too_complex`) — use a shorter clip or a lower
+  resolution;
+- a file without a video picture (`invalid_input`).
+
+A GIF over your tier's output cap is answered with `413`
+(`output_cap_exceeded`); a shorter clip makes it smaller. The 85 seconds cover
+all steps together — or `MEDIA_SUBPROCESS_TIMEOUT_SECONDS`, if that is lower —
+and stay under the 100 seconds a CDN in front of the server may wait for an
+answer.
+
+Known limit: a video whose frame size changes partway through — a browser
+screen recording of a window that was resized, for example — may come out
+incomplete or fail. Save it again at one size first, then convert it.
+
 ### Compression
 
 Video compression re-encodes the video and **keeps its container**: an MP4

@@ -148,6 +148,7 @@ def test_anonymous_one_file_batch_over_the_output_cap_names_the_free_path(
 _UI_LIMIT_KEYS = (
     "errorInputTooLarge",
     "errorOutputCapExceeded",
+    "errorOutputCapGif",
     "errorTargetSizeExceedsCap",
     "errorBatchTooLarge",
 )
