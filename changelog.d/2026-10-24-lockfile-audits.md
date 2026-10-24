@@ -12,7 +12,11 @@ one source, PyPI's advisory feed. Both limits let an advisory through:
 - **PyPI's feed can lack an advisory that OSV lists.** It had no entry for
   PYSEC-2026-4243 (CVE-2026-102991) against Mako 1.4.1, which alembic pulls
   in: a path traversal through a drive-letter URI on Windows. Every lockfile is
-  now audited against both sources.
+  now audited against both sources, and Mako moves to 1.4.3
+  (`mako>=1.4.2` in `requirements.txt`). The flaw was not reachable in
+  FileMorph: it needs Windows and a template looked up by a URI an attacker
+  chooses, while FileMorph uses Mako only through alembic, which renders its
+  own migration template from a file.
 
 Every audit now reads the pinned versions as written (`--disable-pip`): having
 pip resolve the lockfile first left out packages that pip-audit's own scratch
