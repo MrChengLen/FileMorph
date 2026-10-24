@@ -54,7 +54,7 @@
   <section class="space-y-3">
     <h2 class="text-base font-semibold text-white border-b border-gray-800 pb-2">{{ _('Compress to a target size') }}</h2>
     <p class="text-gray-400 max-w-2xl">
-      {{ _('FileMorph can shrink a JPEG, WebP or AVIF image to a target size (for example 5 MB) using a binary search — useful for upload limits and email attachments. The result can end up to 3 % above the target (or larger if the image can\'t get that small), so leave a little room below a hard limit. PNG, TIFF and video below compress by quality only, not to a target size.') }}
+      {{ _('FileMorph can shrink a JPEG, WebP or AVIF image to at most a target size (for example 5 MB) — useful for upload limits and email attachments. It searches for the best quality that fits and, if even the lowest quality is too big, scales the image down and says so. PNG, TIFF and video below compress by quality only, not to a target size.') }}
       <a href="{{ localized_url('/compress', current_prefix) }}" class="text-brand hover:underline">{{ _('Try the compressor →') }}</a>
     </p>
     <div class="grid sm:grid-cols-2 gap-x-8 gap-y-4">

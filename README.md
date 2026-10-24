@@ -141,7 +141,7 @@ strip and the signed images in that list are the same AGPL code and builds
 every edition runs.
 
 > **Honest maturity:** no external audit or ISO 27001 certification yet (both a
-> Year-2 roadmap item). The newest tagged release is v1.2.0 (October 2026),
+> Year-2 roadmap item). The newest tagged release is v1.3.0 (October 2026),
 > with a CycloneDX SBOM and the image digest attached to the GitHub release;
 > changes merged after it are in [`changelog.d/`](changelog.d/) until the next
 > release folds them into [`CHANGELOG.md`](CHANGELOG.md).
@@ -166,7 +166,7 @@ Images: JPG, PNG, WebP, AVIF, TIFF · Video: MP4, MOV, AVI, MKV, WebM
 Compress mode supports both *by quality %* and *by target size MB*.
 Target-size compression covers the lossy image formats (JPEG, WebP, AVIF); AVIF/AV1 encode is more CPU-intensive than JPEG/WebP.
 
-**PDF tools:** split a PDF into single-page files, extract a page range, or compress toward a target size — via the web UI (`/pdf/split`, `/pdf/extract`, `/pdf/compress`) or the API; see [docs/formats.md](docs/formats.md#pdf-structural-operations). Image compression to a target size (video too, by quality) has its own page at `/compress`. All tool pages are listed at `/tools`.
+**PDF tools:** split a PDF into single-page files, extract a page range, or compress to at most a target size — via the web UI (`/pdf/split`, `/pdf/extract`, `/pdf/compress`) or the API; see [docs/formats.md](docs/formats.md#pdf-structural-operations). Image compression to a target size (video too, by quality) has its own page at `/compress`. All tool pages are listed at `/tools`.
 
 <sup>†</sup> Full PDF/A-2b conformance (passes
 [veraPDF](https://verapdf.org/) validation) requires

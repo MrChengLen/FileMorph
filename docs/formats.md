@@ -179,7 +179,7 @@ between formats — all pure-Python (pypdf / pikepdf), no external binary.
 |---|---|---|---|
 | **Page extract** | `POST /api/v1/pdf/extract` | PDF → PDF | Keep a 1-based page selection, e.g. `pages=1-3,5`. Text, fonts and vector content are copied byte-for-byte. |
 | **Split** | `POST /api/v1/pdf/split` | PDF → ZIP | One single-page PDF per page (`page_1.pdf`, …, zero-padded to the page count's width), bundled as a ZIP. |
-| **Compress to target** | `POST /api/v1/pdf/compress` | PDF → PDF | Shrink toward a `target_kb` budget by recompressing embedded raster images. Page count and every glyph are preserved. |
+| **Compress to target** | `POST /api/v1/pdf/compress` | PDF → PDF | Shrink to at most a `target_kb` budget by recompressing embedded raster images, scaling them down if needed. Page count, layout and every glyph are preserved. |
 
 **Web UI:** each operation also has a dedicated, bilingual (DE/EN) page —
 `/pdf/split`, `/pdf/extract`, `/pdf/compress` — ungated, same as the main
@@ -197,8 +197,8 @@ formats page — it is plumbing, not a conversion a user picks.
   photos (RGB/grayscale image XObjects re-encoded as JPEG); text, fonts and
   vector paths are left intact. A text/vector-only PDF — or one whose images
   are all masks / palette / alpha-bearing — has nothing to grab, so it comes
-  back valid and unchanged-in-content, honestly reported as *not converged*
-  with `0` recompressible images (never a fake compression claim). Images
+  back valid and unchanged-in-content with `0` recompressible images, reported
+  as *converged* only if it already fits (never a fake compression claim). Images
   carrying transparency (`/SMask`), stencil/image masks and indexed-palette
   images are deliberately skipped (JPEG can't carry them faithfully), and so
   are JPEG 2000 images and images over the image size limit

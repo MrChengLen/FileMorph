@@ -141,7 +141,7 @@ def test_formats_page_target_size_section_names_avif(client):
 
 def test_llms_txt_states_avif_target_size(client):
     llms = client.get("/llms.txt").text
-    assert "compress JPEG, WebP and AVIF images to a target size" in llms
+    assert "compress JPEG, WebP and AVIF images to at most a target size" in llms
 
 
 def test_llms_txt_compress_bullet_names_avif(client):

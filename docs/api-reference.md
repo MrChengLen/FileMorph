@@ -219,7 +219,7 @@ Reduce a file's size by re-encoding at a lower quality, keeping the same format.
 |---|---|---|---|
 | `file` | file | Yes | The file to compress |
 | `quality` | integer | No | Quality 1 (smallest) – 100 (best). Defaults to 85. Mutually exclusive with `target_size_kb` |
-| `target_size_kb` | integer | No | Target output size in KB, at least `5`. Activates binary-search-on-quality (JPEG/WebP/AVIF only). Mutually exclusive with `quality` |
+| `target_size_kb` | integer | No | Maximum output size in KB, at least `5`. Searches for the best quality that fits and scales the image down when even quality 1 doesn't (JPEG/WebP/AVIF only). Mutually exclusive with `quality` |
 
 **Supported formats**: JPG, JPEG, PNG, WebP, AVIF, TIFF, TIF · MP4, MOV, AVI, MKV, WebM. FLV and WMV can be converted but not compressed (`422`). A video keeps its container; see [`formats.md`](formats.md#video) for the codecs and how `quality` maps onto them.
 
@@ -233,8 +233,10 @@ When `target_size_kb` is set, the response also carries:
 |---|---|
 | `X-FileMorph-Achieved-Bytes` | Actual output size in bytes |
 | `X-FileMorph-Final-Quality` | Quality value the search settled on (1–100) |
+| `X-FileMorph-Converged` | `true` if the output is at most the target, else `false` |
+| `X-FileMorph-Warnings` | Only when the image was scaled down or the target can't be reached — see [Target-size notes](#target-size-notes) |
 
-Tolerance is ±3 % of the requested target: the result is at most 3 % over it, but can be smaller (an image that already fits at quality 95 is returned at 95). If even quality `1` exceeds the target, the smallest possible output is returned anyway and the headers reveal the actual size.
+The target is an upper bound: the result is the best quality whose output is at most `target_size_kb`, never above it (an image that already fits at quality 95 is returned at 95). If even quality `1` is too big, the image is scaled down — to where a good quality fits — and searched again; `X-FileMorph-Warnings: resized=<w>x<h>` names the new pixel size. Only an image whose smallest size — short edge 16 px, quality `1` — still doesn't fit (one carrying a large colour profile, say) stays above the target: then it comes back unscaled at quality `1`, with `X-FileMorph-Converged: false` and `target=missed`.
 
 **Example — Compress a JPG to 70% quality**
 ```bash
@@ -339,11 +341,11 @@ curl -X POST http://localhost:8000/api/v1/pdf/split \
 
 ### POST `/api/v1/pdf/compress`
 
-Shrink a PDF toward a byte budget by recompressing its embedded raster images.
-Page count and every glyph are preserved; text/fonts/vector content are left
-intact. Honest by design — a PDF with no recompressible images comes back valid
-and unchanged-in-content (see the headers below), never a fake compression
-claim.
+Shrink a PDF to at most a byte budget by recompressing its embedded raster
+images, scaling them down if needed. Page count, layout and every glyph are
+preserved; text/fonts/vector content are left intact. Honest by design — a PDF
+with no recompressible images comes back valid and unchanged-in-content (see the
+headers below), never a fake compression claim.
 
 **Authentication**: Optional — `X-API-Key` or `Authorization: Bearer`; without credentials the request runs on the anonymous tier (see [Authentication](#authentication))
 
@@ -352,7 +354,7 @@ claim.
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `file` | file | Yes | The source PDF (must be a `.pdf`) |
-| `target_kb` | integer | Yes | Target output size in KB (`> 0`). The embedded images are recompressed toward this budget via binary search on a global JPEG quality. |
+| `target_kb` | integer | Yes | Maximum output size in KB (`> 0`). The embedded images are recompressed via binary search on a global JPEG quality; when even the lowest quality is too big, their resolution is lowered and the search runs again. |
 
 **Response**: `200 OK` (`application/pdf`) — the compressed PDF as a download
 (`_compressed.pdf` suffix), plus:
@@ -360,13 +362,16 @@ claim.
 | Header | Description |
 |---|---|
 | `X-FileMorph-Achieved-Bytes` | Actual output size in bytes |
-| `X-FileMorph-Converged` | `true` if the output reached the target within tolerance, else `false` |
+| `X-FileMorph-Converged` | `true` if the output is at most the target, else `false` |
 | `X-FileMorph-Recompressible-Images` | How many embedded images the engine could recompress (`0` ⇒ nothing to shrink) |
+| `X-FileMorph-Warnings` | `scaled=<percent>` when the images were scaled down to fit — see [Target-size notes](#target-size-notes) |
 
 A `target_kb` above the tier output cap is a `413` (rejected before any work);
 a value beyond a 2 GB sanity ceiling, or a non-PDF / corrupt input, is a
 `422` / `400`. A text/vector-only PDF returns `200` with
-`X-FileMorph-Converged: false` and `X-FileMorph-Recompressible-Images: 0`.
+`X-FileMorph-Recompressible-Images: 0`; `X-FileMorph-Converged` is `true` only
+if it already fits. A PDF whose text and fonts alone exceed the target gets
+`false` as well: scaling images can't help it.
 The compression runs in its own process with memory, time and file size
 limits; a PDF too large or complex for them is a `400` with `X-FileMorph-Error-Code:
 pdf_too_complex`, whose `detail` names the next step: extract fewer pages with
@@ -426,7 +431,7 @@ Compress several files in one request. Same response shape as `/convert/batch`.
 |---|---|---|---|
 | `files` | files (≥1) | Yes | One or more files to compress |
 | `quality` | integer | No | Quality 1–100 (default 85). Mutually exclusive with `target_size_kb`. |
-| `target_size_kb` | integer | No | Target size in KB (at least `5`), applied to each file. JPEG/WebP/AVIF only — any other file in the batch fails on its own, with an `error_message` saying so. Mutually exclusive with `quality`. |
+| `target_size_kb` | integer | No | Maximum size in KB (at least `5`), applied to each file as for `/compress`; a file scaled down to fit is listed in `X-FileMorph-Batch-Notes`. JPEG/WebP/AVIF only — any other file in the batch fails on its own, with an `error_message` saying so. Mutually exclusive with `quality`. |
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/compress/batch \
@@ -513,10 +518,12 @@ Every successful conversion / compression carries integrity and classification m
 | `X-Data-Classification` | One of `public`, `internal`, `confidential`, `restricted` | every response — echoes the request header value, defaults to `internal` when absent (NEU-C.3 / BSI-style taxonomy) |
 | `X-FileMorph-Achieved-Bytes` | Actual output size in bytes | on `/compress` calls with `target_size_kb`, and on `/pdf/compress` |
 | `X-FileMorph-Final-Quality` | Quality value the binary search settled on (1–100) | only on `/compress` calls with `target_size_kb` |
+| `X-FileMorph-Converged` | `true` if the output is at most the target size, else `false` | on `/compress` calls with `target_size_kb`, and on `/pdf/compress` |
 | `X-FileMorph-Batch-Total`, `X-FileMorph-Batch-Succeeded`, `X-FileMorph-Batch-Failed` | File counts of the batch | every `200` from `/convert/batch` and `/compress/batch` |
 | `X-FileMorph-Batch-Failures` | The failed files and why (see [Batch headers](#batch-headers)) | batch `200` responses in which at least one file failed |
+| `X-FileMorph-Batch-Notes` | The files with notes, e.g. scaled down to fit (see [Batch headers](#batch-headers)) | `/compress/batch` `200` responses in which at least one file has notes |
 | `X-FileMorph-Error-Code` | A fixed code for the reason of an error (see [Error codes](#error-codes)) | the error responses listed there |
-| `X-FileMorph-Warnings` | Comma-separated `key=value` tokens (see [Conversion warnings](#conversion-warnings)) | `/convert` DOCX → PDF, when the layout had to be simplified |
+| `X-FileMorph-Warnings` | Comma-separated `key=value` tokens (see [Conversion warnings](#conversion-warnings) and [Target-size notes](#target-size-notes)) | `/convert` DOCX → PDF, when the layout had to be simplified; `/compress` with `target_size_kb`, when the image was scaled down or the target can't be reached; `/pdf/compress`, when the images were scaled down |
 | `Retry-After` | Seconds the client should wait before retrying | on `503 Service Unavailable` (global concurrency cap) and on every `429` except the rate limiter's (slowapi, see Rate Limiting) — e.g. the per-tier concurrency cap and the monthly call quota |
 
 The `X-Data-Classification` value is also written to the audit-log entry for the request, so a downstream auditor can answer "what classification of data was processed in this call" from the database alone (see `app/core/audit.py`).
@@ -531,6 +538,12 @@ is capped at about 4 KB: a longer list is cut and ends with the entry `...`,
 while `manifest.json` in the ZIP always lists every file. The three count
 headers always carry the full totals. A batch in which every file failed
 returns the `422` JSON body instead, without these headers.
+
+`X-FileMorph-Batch-Notes` lists, in the same form, each file that has notes,
+within what the failures leave of the same 4 KB; the value is its comma-joined
+[target-size notes](#target-size-notes), for example
+`photo_compressed.jpg|resized%3D2400x1600`. The ZIP then contains
+`manifest.json` too, with each file's `notes`.
 
 ### Error codes
 
@@ -575,6 +588,21 @@ returned (`200`). The tokens, comma-separated:
 
 For example `engine=mammoth_fallback,reason=soffice_unavailable,simplified=footnotes`.
 The engine routing is described in [`formats.md`](formats.md#notes-on-docx--pdf).
+
+### Target-size notes
+
+`/compress` (with `target_size_kb`) and `/pdf/compress` add these tokens to
+`X-FileMorph-Warnings`; `/compress/batch` lists them per file in
+`X-FileMorph-Batch-Notes` and in `manifest.json`:
+
+- `resized=<w>x<h>` — `/compress`: not even quality 1 fit, so the image was
+  scaled down to `<w>` × `<h>` pixels.
+- `target=missed` — `/compress`: not even the smallest size (short edge
+  16 px, quality 1) fits, so the image comes back unscaled at quality 1,
+  still larger than the target.
+- `scaled=<percent>` — `/pdf/compress`: not even the lowest quality fit, so the
+  embedded images were scaled down to `<percent>` % of their resolution. They
+  keep their place and size on the page.
 
 ### Download names
 

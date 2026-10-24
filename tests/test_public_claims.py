@@ -15,10 +15,10 @@ surface while another keeps the old sentence fails here.
    counsel confirms it), and "tamper-evident" is not translated "tamper-proof".
 3. "180+ format pairs" names its document share — pinned next to the pair
    count in tests/test_format_lists_match_registry.py.
-4. Target size: no "exact" and no "±3 %" — the result can be up to 3 % above
-   the target (``tolerance=0.03`` in ``compress_image_to_target``), or larger
-   when even the lowest quality is too big, and the homepage comparison no
-   longer calls target-size compression "rare".
+4. Target size: no "exact", no "±3 %" and no "up to 3 % above" — the target
+   is an upper bound (``compress_image_to_target`` scales an image down when
+   even quality 1 is too big), every surface says so, and the homepage
+   comparison no longer calls target-size compression "rare".
 5. Hosting: one sentence everywhere (partials/hosting_note.html) — server at
    Hetzner in the EU, connections via Cloudflare (USA), linked to privacy § 4 —
    and only where the commercial pages are on, since it describes
@@ -309,6 +309,8 @@ def test_tamper_evident_is_not_translated_tamper_proof():
 
 _EXACT = re.compile(
     r"±\s?3|exact target size|exact size|exakte Zielgröße|exakte Größe|exakten Größe|Hit an exact"
+    # the overshoot the compressor no longer has
+    r"|up to 3 %|bis zu 3 %|5[.,]15 MB"
 )
 
 
@@ -327,7 +329,13 @@ def test_no_surface_claims_an_exact_target_size(client):
         for where, text in surfaces.items()
         for m in _EXACT.finditer(text)
     ]
-    assert not hits, f"target size is not exact — the result can be up to 3 % above it: {hits}"
+    assert not hits, f"the target size is an upper bound, neither exact nor exceeded: {hits}"
+
+
+def test_no_catalog_entry_promises_the_overshoot():
+    """The catalogs too — a stale entry would come back with the next extract."""
+    hits = [text for text in _catalog_texts().values() if _EXACT.search(text)]
+    assert not hits, hits
 
 
 @pytest.mark.parametrize(
@@ -336,42 +344,59 @@ def test_no_surface_claims_an_exact_target_size(client):
         (
             "/",
             "en",
-            "The result can end up to 3 % above the target — a 5 MB target can give up to 5.15 MB",
+            "to at most a target size (for example 5 MB), so the result fits an upload limit of "
+            "the same size",
         ),
         (
             "/",
             "de",
-            "Das Ergebnis kann bis zu 3 % über dem Ziel liegen (aus 5 MB werden bis zu 5,15 MB); lass",
+            "so komprimieren, dass sie eine Zielgröße (zum Beispiel 5 MB) nicht überschreiten — "
+            "das Ergebnis passt also unter eine Upload-Grenze gleicher Größe",
         ),
-        ("/", "en", "result can be up to 3 % above"),  # the tool's target-size field
-        ("/", "de", "Ergebnis bis zu 3 % darüber möglich"),
-        ("/", "en", "An image that can&#39;t get that small comes back as small as it gets."),
-        ("/", "de", "Ein Bild, das nicht so klein wird, kommt so klein wie möglich zurück."),
-        ("/formats", "en", "The result can end up to 3 % above the target (or larger if"),
-        ("/formats", "de", "Das Ergebnis kann bis zu 3 % über dem Ziel liegen (oder darüber, wenn"),
+        ("/", "en", "the result is at most this size"),  # the tool's target-size field
+        ("/", "de", "Ergebnis höchstens so groß"),
+        ("/formats", "en", "to at most a target size (for example 5 MB)"),
+        (
+            "/formats",
+            "de",
+            "so verkleinern, dass es eine Zielgröße (zum Beispiel 5 MB) nicht überschreitet",
+        ),
         (
             "/compress",
             "en",
-            "The result can end up to 3 % above the target (a 5 MB target can give up to 5.15 MB)",
+            "The size is a hard ceiling, so the result fits an upload limit of the same size.",
         ),
         (
             "/compress",
             "de",
-            "Das Ergebnis kann bis zu 3 % über dem Ziel liegen (aus 5 MB werden bis zu 5,15 MB)",
+            "Die Größe ist eine feste Obergrenze: Das Ergebnis passt also unter eine "
+            "Upload-Grenze gleicher Größe.",
         ),
+        ("/pdf/compress", "en", "The size is a hard ceiling: if the lowest quality"),
+        ("/pdf/compress", "de", "Die Größe ist eine feste Obergrenze: Reicht die niedrigste"),
     ],
 )
-def test_target_size_surfaces_state_the_three_percent_overshoot(client, path, locale, sentence):
+def test_target_size_surfaces_state_the_upper_bound(client, path, locale, sentence):
     assert sentence in _page(client, locale, path)
 
 
-def test_target_size_tolerance_matches_the_compressor():
-    """The "up to 3 %" above is the compressor's own acceptance band."""
-    import inspect
+def test_target_size_upper_bound_matches_the_compressor(tmp_path):
+    """The pages' "at most" is the compressor's own rule: an image that
+    doesn't fit even at quality 1 is scaled down, not shipped above the
+    target."""
+    from PIL import Image
 
     from app.compressors.image import compress_image_to_target
 
-    assert inspect.signature(compress_image_to_target).parameters["tolerance"].default == 0.03
+    src = tmp_path / "noise.jpg"
+    Image.effect_noise((800, 600), 90).convert("RGB").save(src, quality=95)
+    out = tmp_path / "out.jpg"
+
+    result = compress_image_to_target(src, out, target_bytes=20 * 1024)
+
+    assert out.stat().st_size <= 20 * 1024
+    assert result["converged"] is True
+    assert result["resized_to"] is not None
 
 
 @pytest.mark.parametrize(

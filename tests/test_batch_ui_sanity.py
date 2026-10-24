@@ -122,6 +122,39 @@ def test_cors_exposes_pdf_compress_honesty_headers():
         )
 
 
+def test_every_header_the_js_reads_is_exposed():
+    """Network quadruple (c), for every header at once: a response header the
+    client JS reads must be in expose_headers, or the browser hides it on a
+    cross-origin upload and the UI falls back silently."""
+    import re
+
+    from starlette.middleware.cors import CORSMiddleware
+
+    from app.main import app
+
+    root = Path(__file__).resolve().parent.parent
+    cors = next(m for m in app.user_middleware if m.cls is CORSMiddleware)
+    expose = cors.kwargs.get("expose_headers") or []
+    for js in ("app/static/js/app.js", "app/static/js/pdf-tools.js"):
+        read = re.findall(r"headers\.get\('(X-[\w-]+)'\)", (root / js).read_text(encoding="utf-8"))
+        assert read, f"{js} reads no X- headers any more — update this test"
+        missing = sorted({h for h in read if h not in expose})
+        assert not missing, f"{js} reads {missing}, which expose_headers lacks"
+
+
+def test_target_size_notes_reach_the_page(client):
+    """The notes the compress routes send reach the user: the batch summary
+    has a list for them, and both scripts read the headers that carry them."""
+    root = Path(__file__).resolve().parent.parent
+    assert 'id="batch-summary-notes"' in client.get("/en/").text
+    app_js = (root / "app/static/js/app.js").read_text(encoding="utf-8")
+    assert "res.headers.get('X-FileMorph-Batch-Notes')" in app_js
+    assert "targetNoteLabel(" in app_js
+    pdf_js = (root / "app/static/js/pdf-tools.js").read_text(encoding="utf-8")
+    assert "res.headers.get('X-FileMorph-Warnings')" in pdf_js
+    assert "'pdfCompressScaled'" in pdf_js
+
+
 def test_cors_exposes_the_error_code_header():
     """app.js reads `X-FileMorph-Error-Code` on a failed upload to pick the
     localized text — the limit 413s, the batch-size 400, encrypted PDFs.

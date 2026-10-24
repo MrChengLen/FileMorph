@@ -9,8 +9,8 @@ each instance.
 
 ## Supported versions
 
-The newest tagged release is v1.2.0 (October 2026); the one before it is
-v1.1.0 (2026-06-01). Security fixes are made on the `main` branch first; the
+The newest tagged release is v1.3.0 (October 2026); the one before it is
+v1.2.1 (2026-10-19). Security fixes are made on the `main` branch first; the
 `latest` and `office` container images are rebuilt from `main` on every merge,
 and the next tagged release carries the fixes. Self-hosters pinned to an
 older `vX.Y` line can request a backport of a Critical or High fix onto that

@@ -374,8 +374,9 @@ async def pdf_compress(
         ...,
         gt=0,
         le=_MAX_TARGET_KB,
-        description="Target output size in KB. The PDF's embedded images are "
-        "recompressed toward this budget; text/vector content is preserved.",
+        description="Maximum output size in KB. The PDF's embedded images are "
+        "recompressed, and scaled down if needed, to fit; text/vector content and "
+        "the layout are preserved.",
     ),
     user: User | None = Depends(get_optional_user),
 ) -> Response:
@@ -495,6 +496,7 @@ async def _do_compress(
                 "recompressible_images": result["recompressible_images"],
                 "iterations": result["iterations"],
                 "converged": result["converged"],
+                "image_scale": result["image_scale"],
                 "duration_ms": duration_ms,
                 "success": True,
             },
@@ -527,6 +529,11 @@ async def _do_compress(
         "X-FileMorph-Converged": "true" if result["converged"] else "false",
         "X-FileMorph-Recompressible-Images": str(result["recompressible_images"]),
     }
+    if result["image_scale"] is not None:
+        # The images were scaled down to fit: ``scaled=<percent>`` of their
+        # former resolution.
+        percent = max(1, round(result["image_scale"] * 100))
+        response_headers["X-FileMorph-Warnings"] = f"scaled={percent}"
     return FileResponse(
         output_path,
         media_type="application/pdf",

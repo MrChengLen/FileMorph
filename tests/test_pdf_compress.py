@@ -4,11 +4,14 @@
 Covers the engine (``app/compressors/pdf.py``) and the dedicated route
 (``app/api/routes/pdf_pages.py`` → ``POST /api/v1/pdf/compress``):
 
-* an image-rich PDF shrinks toward the target, stays a valid PDF, and
-  preserves page count;
+* an image-rich PDF shrinks to at most the target, stays a valid PDF, and
+  preserves page count; when the quality floor isn't enough, its images are
+  scaled down (``image_scale``, ``X-FileMorph-Warnings: scaled=…``) while the
+  page layout stays as it was;
 * a text/vector-only PDF (nothing to recompress) comes back a valid PDF,
-  unchanged-in-content, reported ``converged=False`` / 0 recompressible
-  images — never an error, never a false compression claim;
+  unchanged-in-content, with 0 recompressible images and ``converged`` only
+  if it already fits — never an error, never a false compression claim; a PDF
+  whose text alone exceeds the target is ``converged=False``, unscaled;
 * invalid / negative / huge / corrupt targets and inputs → graceful 4xx
   (no 500, no pikepdf/Pillow internals in the body);
 * the magic-byte guard still rejects a disguised executable;
@@ -114,10 +117,25 @@ def _image_pdf_file(tmp_path: Path, name: str = "rich.pdf", **kw) -> Path:
     return path
 
 
+def _image_pdf_with_text_weight(tmp_path: Path, junk_bytes: int) -> Path:
+    """A small image PDF carrying ``junk_bytes`` of incompressible non-image
+    data (standing in for fonts and text) — more than scaling images can win."""
+    import os
+
+    import pikepdf
+
+    path = tmp_path / "heavy.pdf"
+    path.write_bytes(_image_pdf_bytes(dim=300, quality=95))
+    with pikepdf.open(str(path), allow_overwriting_input=True) as pdf:
+        pdf.pages[0].FMJunk = pdf.make_stream(os.urandom(junk_bytes))
+        pdf.save(str(path))
+    return path
+
+
 # ── Engine: image-rich PDF ───────────────────────────────────────────────────
 
 
-def test_engine_shrinks_image_pdf_toward_target(tmp_path):
+def test_engine_shrinks_image_pdf_to_at_most_the_target(tmp_path):
     import pikepdf
 
     from app.compressors.pdf import compress_pdf_to_target
@@ -130,11 +148,11 @@ def test_engine_shrinks_image_pdf_toward_target(tmp_path):
 
     assert out.read_bytes()[:4] == b"%PDF"
     assert result["recompressible_images"] == 1
-    # Output must be well under the source and at/around the target.
+    # The target is a ceiling — never above it, not even by a byte.
     assert out.stat().st_size < src.stat().st_size
-    assert out.stat().st_size <= int(target * 1.05) + 1, (
-        f"{out.stat().st_size} exceeds target+tolerance"
-    )
+    assert out.stat().st_size <= target, f"{out.stat().st_size} exceeds the target"
+    assert result["converged"] is True
+    assert result["achieved_bytes"] == out.stat().st_size
     with pikepdf.open(str(out)) as pdf:
         assert len(pdf.pages) == 1
 
@@ -166,19 +184,49 @@ def test_engine_generous_target_uses_high_quality_shortcut(tmp_path):
     assert out.stat().st_size <= target
 
 
-def test_engine_tiny_target_returns_floor_not_converged(tmp_path):
-    """Target smaller than the quality-floor output → still a valid PDF,
-    smallest we can honestly produce, converged=False."""
+def test_engine_tiny_target_scales_the_images_down(tmp_path):
+    """Target below what the quality floor reaches → the image's resolution
+    drops until the document fits; the page draws it into the same box."""
     import pikepdf
 
     from app.compressors.pdf import compress_pdf_to_target
 
     src = _image_pdf_file(tmp_path)
     out = tmp_path / "out.pdf"
+    target = 20 * 1024
 
-    result = compress_pdf_to_target(src, out, target_bytes=2 * 1024)
+    result = compress_pdf_to_target(src, out, target_bytes=target)
+
+    assert result["converged"] is True
+    assert out.stat().st_size <= target
+    assert 0 < result["image_scale"] < 1
+    with pikepdf.open(str(src)) as before, pikepdf.open(str(out)) as after:
+        assert len(after.pages) == 1
+        page_before, page_after = before.pages[0], after.pages[0]
+        assert list(page_after.MediaBox) == list(page_before.MediaBox)
+        assert page_after.Contents.read_bytes() == page_before.Contents.read_bytes()
+        image = page_after.Resources.XObject.Im0
+        assert int(image.Width) < 1200 and int(image.Height) < 1200
+        assert int(image.Width) == int(image.Height)  # the aspect ratio is kept
+
+
+def test_engine_text_heavier_than_the_target_is_not_converged(tmp_path):
+    """When the non-image part alone exceeds the target, scaling images can't
+    help: the floor-quality output comes back, unscaled, converged=False."""
+    import pikepdf
+
+    from app.compressors.pdf import _DEFAULT_FLOOR, compress_pdf_to_target
+
+    src = _image_pdf_with_text_weight(tmp_path, junk_bytes=40 * 1024)
+    out = tmp_path / "out.pdf"
+    target = 20 * 1024
+
+    result = compress_pdf_to_target(src, out, target_bytes=target)
+
     assert result["converged"] is False
-    assert out.read_bytes()[:4] == b"%PDF"
+    assert result["image_scale"] is None
+    assert result["final_quality"] == _DEFAULT_FLOOR
+    assert out.stat().st_size > target
     with pikepdf.open(str(out)) as pdf:
         assert len(pdf.pages) == 1
 
@@ -198,11 +246,19 @@ def test_engine_text_only_pdf_is_noop_not_error(tmp_path):
     result = compress_pdf_to_target(src, out, target_bytes=10 * 1024)
 
     assert result["recompressible_images"] == 0
-    assert result["converged"] is False
+    # Nothing was recompressed, but the small file already fits the target.
+    assert result["converged"] is True
+    assert out.stat().st_size <= 10 * 1024
     assert result["final_quality"] is None
+    assert result["image_scale"] is None
     assert out.read_bytes()[:4] == b"%PDF"
     with pikepdf.open(str(out)) as pdf:
         assert len(pdf.pages) == 3
+
+    # The same file against a target it can't meet: not converged.
+    result = compress_pdf_to_target(src, out, target_bytes=100)
+    assert result["recompressible_images"] == 0
+    assert result["converged"] is False
 
 
 # ── Engine: working-set DoS guard ────────────────────────────────────────────
@@ -548,8 +604,9 @@ def test_route_compress_shrinks_below_source(client, auth_headers):
     assert len(res.content) < len(source)
 
 
-def test_route_compress_text_pdf_reports_not_converged(client, auth_headers):
-    """Image-poor PDF: 200 OK, valid PDF, headers flag nothing to shrink."""
+def test_route_compress_text_pdf_reports_nothing_to_shrink(client, auth_headers):
+    """Image-poor PDF: 200 OK, valid PDF, headers flag nothing to shrink;
+    the small file already fits the 10 KB target."""
     import pikepdf
 
     res = client.post(
@@ -560,10 +617,27 @@ def test_route_compress_text_pdf_reports_not_converged(client, auth_headers):
     )
     assert res.status_code == 200, res.text
     assert res.content[:4] == b"%PDF"
-    assert res.headers["X-FileMorph-Converged"] == "false"
+    assert res.headers["X-FileMorph-Converged"] == "true"
     assert res.headers["X-FileMorph-Recompressible-Images"] == "0"
+    assert "X-FileMorph-Warnings" not in res.headers
     with pikepdf.open(io.BytesIO(res.content)) as pdf:
         assert len(pdf.pages) == 2
+
+
+def test_route_compress_says_when_it_scaled_the_images(client, auth_headers):
+    """Images scaled down to fit → X-FileMorph-Warnings: scaled=<percent>."""
+    res = client.post(
+        "/api/v1/pdf/compress",
+        headers=auth_headers,
+        files={"file": ("rich.pdf", _image_pdf_bytes(), _PDF_MIME)},
+        data={"target_kb": "20"},
+    )
+    assert res.status_code == 200, res.text
+    assert len(res.content) <= 20 * 1024
+    assert res.headers["X-FileMorph-Converged"] == "true"
+    warning = res.headers["X-FileMorph-Warnings"]
+    assert warning.startswith("scaled=")
+    assert 0 < int(warning.removeprefix("scaled=")) < 100
 
 
 # ── Route: validation + hardening ────────────────────────────────────────────

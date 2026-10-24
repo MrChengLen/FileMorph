@@ -148,7 +148,7 @@ def test_compress_page_states_which_formats_support_target_size(client):
     assert "so a large photo can take a minute or more" in en
     assert "PNG, TIFF and video" in en and "take a target size" in en
     assert "no byte-exact target" in en
-    assert "AVIF-Bilder. Das Ergebnis kann bis zu 3 %" in de  # limits
+    assert "AVIF-Bilder. Die Größe ist eine feste Obergrenze" in de  # limits
     assert "AVIF-Bilder — die Engine" in de  # FAQ
     assert "daher kann ein großes Foto eine Minute oder länger brauchen" in de
     assert "PNG, TIFF und Video nehmen keine Zielgröße entgegen" in de
