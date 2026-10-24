@@ -14,6 +14,486 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.3.0] — 2026-10-24
+
+**Upgrading from 1.2.1.** No format or env var was removed, and no database
+migration runs; `/redoc`, which rendered empty, is switched off. Every
+deployment should update: this release carries the fixes for critical
+advisories in the Python packages Pillow (GHSA-8g5g-8vmr-9782), certifi
+(GHSA-6q48-6c7w-9gw2) and brotli (CVE-2026-111497); see the Security entries.
+Still accepted until 2026-11-02, because Swagger UI does not use the options
+they need: five DOMPurify advisories in the Swagger UI bundle on `/docs`, one
+rated critical and one high upstream (listed in `docs/security-overview.md`).
+Check before pulling:
+
+- **Pinned to `1.2` or `1.2.1` (or their `-office` variants):** there is no
+  1.2.2, so these image tags stay on 1.2.1 without the fixes. Move to `1.3`
+  (or `1.3.0`); for a backport onto 1.2, write to `security@filemorph.io`.
+- **New setting:** `LOCAL_TOOLS_ENABLED` (default `false`) prepares processing
+  in the browser. Left off, nothing changes.
+- **New refusals:** the table conversions (XLSX → CSV, CSV → XLSX,
+  CSV → JSON, JSON → CSV) and PDF compression now run in a child process, as
+  PDF → TXT already did, and stop after 90 seconds; on Linux the child is also
+  capped at 1 GiB of address space (PDF compression: 3 GiB) and 2 GiB per file
+  written (PDF compression and PDF → TXT: 1 GiB). A file past a limit gets
+  `400` (`invalid_input`; PDF compression: `pdf_too_complex`) with the next
+  step in the message. With pypdf 6.21 a few rare PDFs that 1.2.1 read now get
+  the "could not read" message.
+- **Target sizes:** a result is now at most the target, no longer up to 3 %
+  (PDF: 5 %) above it. Where even the lowest quality is too big, images, and a
+  PDF's embedded images, are scaled down; such results say so in
+  `X-FileMorph-Warnings`, the new `X-FileMorph-Batch-Notes` header and
+  `manifest.json`, which a batch ZIP now also carries when no file failed. On
+  `/pdf/compress`, `X-FileMorph-Converged` now means "at most the target".
+- **Messages and codes:** the limit messages no longer say "upgrade your
+  plan"; they name a free account where accounts exist, or self-hosting. New
+  error codes: `pdf_too_complex` and `batch_too_large`. A client that matches
+  message texts needs updating.
+- **Instances without accounts (no `DATABASE_URL`):** no Sign In link, and the
+  account pages answer 404.
+- **`APP_BASE_URL`:** the home page's curl example now targets it on every
+  instance instead of filemorph.io; left at the default it shows
+  `http://localhost:8000`.
+- **Logs:** logged errors keep their type and traceback but no longer their
+  text unless `APP_DEBUG=true`; the WeasyPrint, fontTools and pypdf loggers
+  are silent; a child stopped at its CPU-time limit shows status `-9`. An
+  alert rule that matched error texts needs a new pattern.
+- **Image and TLS:** the image moves to the python:3.14-slim build of
+  2026-10-21 (Python 3.14.8, a CA store without the compromised emSign root).
+  Installed without the image, update the operating system's ca-certificates
+  package: outgoing mail trusts it.
+
+### Changed — the target size is an upper bound
+
+Compressing to a target size no longer accepts a result up to 3 % above it
+(5 % for PDFs): `/compress`, `/compress/batch` and `/pdf/compress` now return
+the best quality that is at most the target, so the file fits an upload limit
+of the same size. When even the lowest quality is too big, an image is scaled
+down to fewer pixels, and a PDF's embedded images are scaled down (they keep
+their place and size on the page), and the search runs again. The result
+stays above the target only when not even an image's smallest size (short
+edge 16 px, quality 1) fits — one carrying a large colour profile, say; the
+image then keeps its size at quality 1 — or for a PDF whose images can't
+shrink enough, for instance because its text and fonts leave too little room.
+
+Every such result says so. `/compress` sends `X-FileMorph-Converged` and, in
+`X-FileMorph-Warnings`, `resized=<w>x<h>` or `target=missed`; `/pdf/compress`
+sends `scaled=<percent>`. `/compress/batch` lists the files in the new
+`X-FileMorph-Batch-Notes` header and in `manifest.json`, which the ZIP now
+carries whenever a file has notes; every manifest entry and the body of a 422
+gained a `notes` list. The web UI shows the notes next to the result, in
+English and German, and reads a size in MB as 1,000,000 bytes, rounded down,
+so the result fits a limit of that size however a portal counts it.
+`X-FileMorph-Converged` on `/pdf/compress` now means "at most the target": a
+PDF with nothing to recompress that already fits reports `true`. The pages,
+`llms.txt` and the API docs describe the upper bound instead of the 3 %
+overshoot.
+
+### Security — pypdf 6.21.2 and opentelemetry-api 1.45.1
+
+pypdf moves from 6.19.0 to 6.21.2. That fixes the eight advisories published on
+2026-10-21/22: infinite loops and unbounded memory use on crafted PDFs (seven,
+moderate) and unvalidated JPEG image data (one, low). Four of the seven, an
+endless loop and three memory blow-ups in reading a PDF, could be reached
+through uploads to the PDF tools and PDF → TXT; the other three and the JPEG
+one sit in pypdf features FileMorph does not call.
+opentelemetry-api, which FastAPI pulls in, moves from 1.45.0 to 1.45.1, which
+bounds the parsing of the W3C `tracestate` header (GHSA-xcq7-p3pf-p88h,
+moderate). Both are floors in `requirements.txt`, so a later re-lock cannot fall
+back below them; nothing else in the lockfile moved.
+
+The new pypdf also turns away a few rare PDFs that 6.19 read. PDF → TXT now
+fails on a text run with an odd number of bytes in a font with two-byte
+character codes (such as Identity-H, common for embedded fonts), and on more
+than two million tokens in one page's content; PDF → TXT and the PDF tools
+both fail on more than 100,000 entries in one array or dictionary. Such files
+now get the "could not read" message.
+
+### Security — three DOMPurify advisories in the Swagger UI bundle accepted until 2026-11-02
+
+Three DOMPurify advisories published on 2026-10-22 hit the copy bundled in
+Swagger UI 5.33.1, which renders the API explorer on `/docs`:
+GHSA-cg2g-xh64-v4q7 (critical), GHSA-mrv2-3pqr-j5jr (high) and
+GHSA-c6gr-qvv4-5v3f (low). Each needs a DOMPurify option that Swagger UI does
+not set (`SAFE_FOR_TEMPLATES` with DOM output, the `IN_PLACE` mode, the XHTML
+parser), and the page renders only FileMorph's own OpenAPI schema. The fix,
+DOMPurify 3.4.17, is in no Swagger UI release yet: 5.34.0 still bundles 3.4.16.
+`scripts/check_vendor_advisories.py` therefore accepts the three until
+2026-11-02, the date of the planned Swagger UI update, when they are decided
+again. `docs/security-overview.md` lists them with the two accepted on
+2026-10-20.
+
+### Fixed — no sign-in links where an instance has no accounts
+
+A Community Edition instance has no database and so no accounts, yet its
+navigation offered "Sign In" and the home page's developer section "Get API
+Key →". Both led to forms that could only fail: the account API answers 503
+there, and the forgot-password form even reported an email it never sent.
+Where an instance has no accounts:
+
+- The navigation has no Sign In link, on desktop and mobile.
+- The developer section links "How to get an API key ↗" instead of the sign-up
+  form: the self-hosting guide's API Key management section, since keys come
+  from the instance's key file there.
+- The account pages (`/login`, `/register`, `/forgot-password`,
+  `/reset-password`, `/verify-email`, `/dashboard`, `/account-deleted`,
+  `/cockpit`) answer 404, as `/pricing` does where the pricing page is off.
+
+The developer section's curl example now targets the instance itself
+(`APP_BASE_URL`) instead of filemorph.io, since a key from an instance's key
+file is valid only there. Copied as it was, the example sent the file to
+filemorph.io.
+
+Instances with accounts, such as filemorph.io, are unchanged.
+`docs/self-hosting.md` and `docs/installation.md` describe the behaviour.
+
+### Changed — Conversion child processes set their limits as hard limits
+
+On Linux the child processes that run the table conversions (XLSX → CSV,
+CSV → XLSX, CSV → JSON, JSON → CSV), PDF compression and PDF → TXT set their
+limits on address space, CPU time, file size and core dumps as hard limits,
+which the child cannot raise again without root privileges. A child that
+reaches its CPU-time limit is stopped with `SIGKILL` (status `-9` in the
+server log); the request gets the same `400` as for the other limits.
+
+### Security — brotli 1.2.1: out-of-bounds write in the decoder fixed
+
+brotli, which WeasyPrint pulls in through fonttools, moves from 1.2.0 to
+1.2.1. That fixes CVE-2026-111497 (PYSEC-2026-4322, critical), published on
+2026-10-22: a crafted Brotli stream could make the decoder write past its
+buffer. Every deployment should update. The new version is a floor in
+`requirements.txt`, so a later re-lock cannot fall back below it; nothing
+else in the lockfile moved.
+
+### Fixed — limit messages offer a free account only where accounts exist, and the batch-size error speaks German
+
+The limit messages offered callers without an account a free one ("Register
+free …"). A Community Edition instance has no database and so no accounts:
+signing up answers 503, and the hint led nowhere. Where an instance has no
+accounts, the messages now point every caller to self-hosting, as they already
+did for account holders. This covers the file-size, output-cap, target-size and
+batch-size messages of the API and the web interface's texts for them.
+
+- The batch-size 400 of `/convert/batch` and `/compress/batch` carries
+  `X-FileMorph-Error-Code: batch_too_large`. The web interface showed the
+  server's English text there, on the German pages too; it now shows its own
+  text in both languages, and the "Costs and limits" link where the pricing
+  page is on, as for the other limit errors.
+- `docs/api-usage-guide.md` and `docs/api-reference.md` describe both cases and
+  list the new error code.
+
+### Security — Pillow 13.0.0: nine decoder advisories fixed, one of them critical
+
+Pillow is raised from 12.3.0 to 13.0.0, the first release with the fixes for
+the nine advisories published on 2026-10-20 — among them a heap buffer
+overflow in the JPEG decoder (GHSA-8g5g-8vmr-9782, critical) and
+out-of-bounds reads in the TIFF decoder. FileMorph decodes uploaded images
+with Pillow, so every deployment should update. `requirements.txt` now
+requires `Pillow>=13.0.0`; the HEIF and AVIF plugins keep their versions.
+
+### Changed — every processing button says where the work runs
+
+Right below each tool's start button — Convert/Compress (homepage,
+`/compress`, the conversion pages), the PDF tools and the redaction tool (under
+the scan, which stays on screen for the apply step) — a line now says where
+the file goes: "Runs via our server — files are uploaded
+and deleted right after processing." ("Läuft über unseren Server – Dateien
+werden hochgeladen und nach der Verarbeitung sofort gelöscht."). It is text,
+not only an icon, and it reads at WCAG AA on the tool card.
+
+The note below the tool on the homepage and the conversion pages ("Files are
+processed server-side and deleted immediately after conversion.") is gone; the
+hint under the button replaces it. `/compress` and the PDF tools had no such
+note before.
+
+### Changed — The log names the error type of a failed conversion child
+
+When a table conversion, PDF compression or PDF → TXT child process fails
+unexpectedly, the server log now names the child's error type (the exception
+class name) at warning level, next to the generic error the route logs. As for
+every logged error, the error's text stays out of the log.
+
+### Changed — FileMorph is free: the pricing page, navigation and account texts say so
+
+Without Stripe configured no plan can be booked, so `/pricing` no longer shows
+Pro and Business as "currently not available". It shows what is free instead:
+our server with fair limits (without an account up to 30 MB per file; with a
+free account up to 100 MB, 10 files per request and an API key with 1,000
+calls a month), self-hosting with no feature gates, and the Compliance Edition for
+organizations. A short FAQ says there are no paid plans and that a change would
+be announced in advance. The homepage's plan teaser becomes the same free
+summary, and its FAQ no longer mentions paid hosted plans. A deployment with
+Stripe configured keeps the plan cards, the comparison table and the checkout
+unchanged.
+
+- Navigation: "Self-Hosted" is now "Self-host" ("Selbst hosten"), "Enterprise"
+  is "For organizations" ("Für Organisationen"), and "Register" is no longer in
+  the main navigation; registering stays reachable from the login page, the
+  pricing page and the developer teaser. The URLs are unchanged.
+- The registration page no longer promises an upgrade path: a free account is
+  for an API key and larger files.
+- Terms § 8: without Stripe, a sentence says that no paid plans are offered and
+  that § 8 and § 9 apply only once they are.
+- `/enterprise`: the per-year price note only appears when a tier shows a price;
+  with no display price configured every tier reads "on request".
+- README and `COMMERCIAL-LICENSE.md`: the hosted service is described as free
+  (no Pro/Business rows), and the Compliance Edition tiers are priced on request.
+
+### Changed — limit messages name the free way past a limit instead of an upgrade
+
+A request that hits a tier limit no longer hears "upgrade your plan": the hosted
+service has no paid plan to upgrade to. Callers without an account are pointed
+to a free account, as before, and now also for batches ("Register free to send
+up to 10 files per request"), for target sizes above the output cap and for the
+`/compress` output cap. Everyone else is pointed to self-hosting FileMorph
+("Self-host FileMorph for larger files" / "for a higher cap" / "for larger
+batches"). This covers the file-size, output-cap, target-size and batch-size
+messages of `/convert`, `/compress` and the PDF tools, single and batch, plus
+the monthly-quota 429 ("Wait until the reset, or self-host FileMorph without a
+monthly limit") and the concurrency 429. The AI routes keep their wording.
+
+- A file that is too large inside a batch now names the next step as well.
+  Every route builds this message the same way.
+- Web interface: the three texts for "file too large", "result too large" and
+  "target size above the limit" name self-hosting for everyone and the free
+  account for visitors without one. The page doesn't know the caller's tier.
+  They no longer claim a conversion worked when it stopped at the cap.
+  The link next to them reads "Costs and limits" ("Kosten und Grenzen") where no
+  plan can be booked; with Stripe configured it stays "See plans and limits".
+- The 2 GB target-size ceiling on `/pdf/compress` gets its own text, since
+  neither an account nor self-hosting lifts it.
+- The German texts use the informal "du" like the rest of the site (the three
+  old ones were formal).
+- `docs/api-usage-guide.md` and `docs/api-reference.md` quote the new messages.
+
+### Added — Groundwork for processing files in the browser, switched off
+
+FileMorph is preparing an engine that processes files in the browser instead
+of uploading them. This change lays the groundwork and changes nothing
+visible: the new setting `LOCAL_TOOLS_ENABLED` is off by default, and no page
+loads the engine yet.
+
+- With `LOCAL_TOOLS_ENABLED=true`, the app serves the engine from
+  `app/static/engine/` under `/static/engine/<tree-hash>/…`. The hash is the
+  git tree id of that directory, so `git rev-parse <tag>:app/static/engine`
+  shows which engine a release serves (docs/self-hosting.md, "Local tools").
+  The files are cached as immutable, any other hash returns a plain 404 that
+  is never cached, and the files are always sent as `text/javascript`,
+  whatever type the operating system maps `.js` to. For now the engine holds
+  only a placeholder module.
+- The Content-Security-Policy comes in three profiles, chosen per route:
+  `default` (unchanged, still used by every page), `hybrid` (adds `blob:`
+  images for previews) and `local` (the browser refuses fetch, XHR,
+  WebSocket, beacons, form posts, plugins and frames; navigation and pop-up
+  windows stay possible). Engine files always get `local`.
+- `base.html` loads `auth.js` and `app.js` in a `core_scripts` block, so a
+  strict page can leave them out.
+
+### Security — Stripe calls and outgoing mail no longer trust the compromised emSign root
+
+The certifi update fixed certifi's own CA bundle (GHSA-6q48-6c7w-9gw2). Two
+other places FileMorph takes its trusted CAs from still held the emSign ECC
+Root CA - G3, below which eight intermediate CAs had their keys compromised:
+
+- **Stripe.** The Stripe SDK checks certificates against a CA file it ships
+  itself, which still trusts this root and which no dependency audit covers.
+  `app/core/billing.py` now points the SDK at certifi's bundle, the one
+  pip-audit watches and `requirements.txt` keeps past the advisory.
+  `tests/test_stripe_ca_bundle.py` pins what the SDK hands to `requests` on a
+  call. This matters only where Stripe keys are configured.
+- **The image's system CA store.** Outgoing mail (aiosmtplib) and anything
+  else on Python's default TLS settings trust Debian's ca-certificates from
+  the base image. The base image moves to the python:3.14-slim build of
+  2026-10-21, whose ca-certificates 20250419+deb13u1 (DSA-6572-1) drops this
+  root and the "Comodo AAA Services root". The same build brings Python
+  3.14.8 and Debian's OpenSSL security update 3.5.7-1~deb13u3 (DSA-6531-1).
+  The Docker PR smoke test now fails if the image's system CA store trusts
+  the emSign root. Installed without the image, FileMorph's mail trusts the
+  operating system's CA store: update its ca-certificates package.
+
+pip's own copy of certifi in the image (pip 26.2.1 vendors 2026.6.17) still
+holds the root. pip runs only while the image is built, and it installs only
+packages whose hash matches `requirements.lock`.
+
+### Changed — CSV → XLSX and CSV → JSON read the CSV row by row
+
+CSV → XLSX and CSV → JSON check that the uploaded CSV is UTF-8 and then read
+it row by row while they convert it, so the memory they take depends on the
+longest row, not on the file's size. The output is unchanged: line endings
+inside quoted cells stay as uploaded, and a leading BOM (Excel's "CSV UTF-8")
+is dropped. A CSV that is not UTF-8 still gets the same `400` and message,
+before anything is converted. CSV → XLSX of a very large file can still end
+at the conversion's 90-second time limit.
+`tests/test_isolated_conversions.py` checks that converting a CSV takes far
+less memory than the file's size.
+
+### Added — The PDF compress page names the next step for a PDF too large or complex to compress
+
+When `/api/v1/pdf/compress` stops a PDF at its memory and time limits, it
+answers `400` with a code of its own, `pdf_too_complex`, so a client can tell
+this case from other input problems. The compress page (`/pdf/compress`) shows
+the message in the visitor's language with a link to “Extract PDF pages”:
+extract fewer pages at a time, then compress each part. A range of pages
+needs far fewer steps than splitting the PDF into single pages and
+compressing each one.
+
+### Changed — Conversion child processes also limit the size of each file they write
+
+On Linux the child processes that run the table conversions (XLSX → CSV,
+CSV → XLSX, CSV → JSON, JSON → CSV), PDF compression and PDF → TXT now also
+limit the size of each file they write (table conversions 2 GiB, PDF
+compression and PDF → TXT 1 GiB), next to their memory and CPU-time limits. A
+write past the limit ends the child, and the request gets the same `400`
+whose message names the next step as for a file over the memory or time
+limit.
+
+### Security — CI checks the vendored browser code for known vulnerabilities
+
+pip-audit and Dependabot do not see the browser code vendored under
+`app/static/vendor/` (Swagger UI, Chart.js). A new CI step,
+`scripts/check_vendor_advisories.py`, asks the OSV advisory database about every
+package and version in `app/static/vendor/manifest.json`, plus the libraries a
+file's new `bundles` field names (today DOMPurify inside the Swagger UI bundle),
+and blocks the build on a finding, the same way pip-audit does. A finding passes
+only when it is accepted for that version with a reason and a review date, and
+it fails again once that date has passed; an OSV answer that is incomplete or
+unreadable fails the step instead of passing it. The weekly `deps-latest`
+workflow runs the same check. The two low-severity advisories in the DOMPurify
+bundled with Swagger UI 5.33.1 are accepted until 2026-11-02, when the Swagger
+UI release that fixes them is two weeks old.
+
+### Security — certifi 2026.10.19: its CA bundle drops the compromised emSign root
+
+certifi is raised from 2026.7.22 to 2026.10.19 (GHSA-6q48-6c7w-9gw2,
+critical). Earlier versions trust the emSign ECC Root CA - G3, below which
+eight intermediate CAs had their private keys compromised: whoever holds one
+of those keys and sits on the network path could pose as any host to a client
+that trusts the bundle. `requirements.txt` now sets `certifi>=2026.10.19`. A
+re-lock keeps existing pins, so this floor is what moves certifi past the
+advisory and keeps it there; no other dependency changes.
+
+This fixes certifi itself. Its only user in FileMorph is `requests`, which
+comes in through the Stripe SDK, and the Stripe SDK checked certificates
+against its own CA file, which still contains this root; the entry above
+points the SDK at certifi's bundle.
+
+### Fixed — the API docs page shows the API explorer again
+
+`/docs` rendered empty: it loaded Swagger UI from an external CDN and started it
+with an inline script, and FileMorph's Content Security Policy blocks both. The
+page now serves a pinned, unmodified copy of Swagger UI 5.33.1 from
+`/static/vendor/` and starts it from an external script, so it works under the
+unchanged policy and loads nothing from a third-party host. If the explorer
+cannot load, the page links the OpenAPI schema instead of staying blank.
+`/redoc`, broken the same way and linked nowhere, is switched off;
+`/openapi.json` is unchanged.
+
+Vendored browser code is now listed in `app/static/vendor/manifest.json`
+(version, source, licence, SHA-256 per file); a test fails if a file changes,
+appears unlisted, or carries a licence outside the allow-list. The DOMPurify
+copy bundled in Swagger UI 5.33.1 has two low-severity advisories that need a
+mode Swagger UI does not use; the update to a Swagger UI release with the fix
+follows once that release has been out for two weeks.
+
+### Fixed — the privacy notice names every right, the Cloudflare transfer and a 30-day log limit
+
+The privacy notice (`/privacy`; the German text is authoritative) was missing
+parts of what Art. 13, 20, 21 and 77 GDPR require, and its § 4 — where the
+hosting line on the homepage has pointed since the claims correction — did not
+say what Cloudflare does with a request. Now:
+
+- **Rights:** access, rectification, erasure, restriction, data portability,
+  objection and complaint, each with its article. The right to object stands
+  on its own in a highlighted box (Art. 21(4) GDPR) and names the processing
+  it covers. Requests are answered without undue delay, within one month
+  (Art. 12(3)).
+- **Supervisory authority:** the Hamburg Commissioner for Data Protection and
+  Freedom of Information, with address and website; a complaint can also go
+  where the reader lives or works or where the infringement took place.
+- **§ 4 Hosting and connection:** Hetzner holds what FileMorph stores.
+  Cloudflare, Inc. (USA) ends the encrypted connection, so it processes IP
+  addresses, request data and — in transit — uploaded and converted files.
+  The transfer rests on Cloudflare's EU-U.S. Data Privacy Framework
+  certification (adequacy decision); the Standard Contractual Clauses in its
+  DPA apply only if that lapses. Legal basis: Art. 6(1)(f) GDPR.
+- **Recipients:** Zoho Corporation GmbH, the contracting entity for Germany,
+  sends account emails and hosts the operator's mailbox; rare support access
+  by Zoho's Indian group company is covered by the Standard Contractual
+  Clauses. Stripe's contracting entity is Stripe Payments Europe, Ltd.; Stripe
+  and Cloudflare process part of the data under their own responsibility;
+  paid plans are not offered at present. A copy of the Standard Contractual
+  Clauses is available on request.
+- **The rest of Art. 13:** the legal basis for processing uploaded files
+  (Art. 6(1)(b), and (f) for other people's data in a file) and for statutory
+  retention (Art. 6(1)(c)), contact by email, server logs deleted after 30
+  days at the latest, which data is required, no automated decisions, and why
+  there is no data protection officer.
+- § 2a no longer says no file content is "stored in any form": uploads sit
+  on the server as temporary files while processed, and the audit log keeps
+  the output's hash. § 6 names Cloudflare's `cf_clearance` cookie after a
+  security check. The notice says it applies to filemorph.io; a self-hosted
+  instance needs its own.
+- The German text addresses the reader as "du" throughout and cites
+  "Art. 6 Abs. 1 lit. …". § 2i, shown only with the redaction add-on, says
+  uploads are temporary files on the server, not held in memory only.
+
+`docs/sub-processors.md`, `docs/vendor-security-questionnaire.md`,
+`docs/records-of-processing-template.md` and `docs/security-overview.md` name
+the same entities and transfer bases. Like § 6, `docs/sub-processors.md`,
+`docs/vendor-security-questionnaire.md` and `docs/dpa-tom-annex.md` no longer
+say "no third-party CDN": the pages load nothing from another domain, but
+on filemorph.io every request passes through Cloudflare.
+`docs/gdpr-privacy-analysis.md` marks its April recommendation (Cloudflare
+R2 storage, the federal BfDI) as superseded. `tests/test_privacy_notice.py`
+pins all of it in both languages.
+
+### Changed — Table conversions and PDF compression run in their own process with memory and time limits
+
+XLSX → CSV, CSV → XLSX, CSV → JSON, JSON → CSV and PDF compression
+(`/api/v1/pdf/compress`) run in a child process, as PDF → TXT already does:
+without the server's secrets in its environment, stopped after 90 seconds,
+and on Linux limited to 1 GiB of address space (PDF compression: 3 GiB). A
+file over these limits gets `400` with `X-FileMorph-Error-Code: invalid_input`
+(a PDF: `pdf_too_complex`) and a message naming the next step: split the
+table into smaller files, or extract fewer pages of the PDF with
+`/api/v1/pdf/extract` and compress them in parts. The child's temporary files
+go to the request's own temp folder, which is removed with the request.
+CSV → XLSX writes its rows to a temporary file instead of holding every cell
+in memory, and the PDF → TXT child also gets a CPU-time limit (35 seconds).
+
+### Fixed — logged errors keep their type and location, not their text
+
+A logged exception now records the exception types and the traceback —
+where it failed — but no longer the exceptions' texts. Those texts can quote
+the uploaded file (document text, media metadata, addresses in a document's
+markup), and the privacy notice says no file content is logged. This applies
+to every logged exception, so database, payment and mail errors show their
+type too; an `OSError` keeps its errno name (for example `[ENOSPC]`).
+
+- ffmpeg, Ghostscript and LibreOffice errors carry the exit status; the
+  tool's stderr goes into the error only with `APP_DEBUG=true`.
+- The loggers of WeasyPrint, fontTools and pypdf, and library warnings
+  (routed to the `py.warnings` logger), are silent: they quote refused URLs,
+  font names, raw bytes of a malformed PDF object or sheet titles. A real
+  failure still reaches the converter as an exception.
+- uvicorn's own line for an exception that escapes past the 500 handler
+  keeps its format and loses the text; uvicorn's other lines and the access
+  log are unchanged.
+- The PDF compressor's "skipping undecodable image" line names the error
+  type only.
+- With `APP_DEBUG=true` the log keeps the full texts and the library output —
+  for local debugging only; `.env.example` and `docs/self-hosting.md` say so.
+
+`tests/test_log_privacy.py` pins it: a logged failure keeps both types,
+Python's chain separators and the frames but no text unless APP_DEBUG is on;
+`from None` drops the context; the four loggers are silenced; uvicorn's
+exception line drops the text; a malformed PDF quotes nothing into the log;
+the three tools quote their stderr only with APP_DEBUG; and the refused image
+URL of an HTML upload reaches no log line. `docs/vendor-security-questionnaire.md`
+and `docs/dpa-tom-annex.md` name the new guard.
+
+---
+
 ## [1.2.1] — 2026-10-19
 
 ### Security — PDF/A conversion runs Ghostscript only on a file that starts as a PDF
