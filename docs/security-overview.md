@@ -632,7 +632,10 @@ to be effective. The following list is grouped by importance.
 5. **`pip-audit -r requirements.lock` is a blocking gate in CI.**
    The lockfile is audited rather than `requirements.txt` because it
    is what the image installs: every direct and transitive Python
-   dependency, pinned to an exact version and hash.
+   dependency, pinned to an exact version and hash. It is checked
+   against PyPI's advisory feed and against OSV, and the two lockfiles
+   CI installs its own tools from (`requirements-uv.lock`,
+   `requirements-sbom.lock`) are audited the same way.
    Every CI run fails the build on any finding it cannot ignore. If
    an upstream advisory is genuinely unfixable, add the ID to
    `--ignore-vuln` in `.github/workflows/ci.yml` with a comment
@@ -640,8 +643,8 @@ to be effective. The following list is grouped by importance.
    Self-hosters running an out-of-tree fork should recompile
    `requirements.lock` whenever they change `requirements.txt` (see
    "Reproducible builds" in [`docs/self-hosting.md`](./self-hosting.md))
-   and run `pip-audit -r requirements.lock` on the same cadence as
-   their dependency updates.
+   and run `pip-audit -r requirements.lock`, once more with `-s osv`,
+   on the same cadence as their dependency updates.
 
 ### Recommended
 
@@ -829,8 +832,8 @@ gate fails the build if a pinned version is still affected:
 
 Self-hosters who fork this repository should recompile
 `requirements.lock` after updating dependencies and re-run
-`pip-audit -r requirements.lock` — the lockfile, not
-`requirements.txt`, is what the image installs.
+`pip-audit -r requirements.lock`, once more with `-s osv` — the
+lockfile, not `requirements.txt`, is what the image installs.
 
 ### Accepted advisories
 
@@ -855,7 +858,7 @@ advisories, each for one version and only until its review date:
 ### Update cadence
 
 - `pip-audit -r requirements.lock` runs in CI as a blocking gate
-  (Operational Hardening, item 5).
+  (Operational Hardening, item 5) and weekly in `deps-latest`.
 - `scripts/check_vendor_advisories.py` checks the vendored browser code
   against OSV, as a blocking gate in CI and weekly in `deps-latest`.
 - Dependabot opens weekly update PRs for the Python requirements,
@@ -894,7 +897,7 @@ For readers who want to jump directly to the code:
 
 ---
 
-*Last revised 2026-10-23. The findings synthesised here are
+*Last revised 2026-10-24. The findings synthesised here are
 sourced from the static code review dated 2026-04-19 and the
 current state of the repository. The 2026-09-28 revision corrects
 drift against the code: the account-deletion section now reflects
@@ -913,4 +916,5 @@ revision adds the OSV check of the vendored browser code and its two
 accepted DOMPurify advisories (GHSA-6688-9rhm-gjv2,
 GHSA-p98j-92pf-mc4p); the 2026-10-23 revision accepts three more
 (GHSA-c6gr-qvv4-5v3f, GHSA-cg2g-xh64-v4q7, GHSA-mrv2-3pqr-j5jr), which no
-Swagger UI release fixes yet.*
+Swagger UI release fixes yet; the 2026-10-24 revision has the pip-audit
+gate ask OSV as well and cover the lockfiles of CI's own tools.*

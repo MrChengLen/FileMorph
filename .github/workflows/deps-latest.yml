@@ -18,7 +18,8 @@
 #
 # A second job re-runs ci.yml's advisory check of the vendored browser code
 # (scripts/check_vendor_advisories.py), so a new advisory, or an accepted one
-# whose review date has passed, is noticed even in a week without pushes.
+# whose review date has passed, is noticed even in a week without pushes. A
+# third re-runs ci.yml's pip-audit of the lockfiles for the same reason.
 #
 # To run it by hand, use the Actions tab or:
 #
@@ -101,3 +102,33 @@ jobs:
 
       - name: Vendored browser code vulnerability scan (OSV)
         run: python scripts/check_vendor_advisories.py
+
+  # The weekly copy of ci.yml's "Dependency vulnerability scan (pip-audit)"
+  # step (see the comment there), a job of its own like vendor-advisories.
+  lockfile-advisories:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          # The shipped version, like every workflow (scripts/check_python_version.py).
+          python-version: "3.14"
+
+      # pip-audit alone, as requirements-dev.txt asks for it: the audits read
+      # the lockfiles and need nothing else installed. pipefail, because pip
+      # installs nothing and succeeds if grep finds no line.
+      - name: Install pip-audit
+        run: |
+          set -o pipefail
+          grep -E '^pip-audit\b' requirements-dev.txt | pip install -r /dev/stdin
+
+      - name: Dependency vulnerability scan (pip-audit)
+        run: |
+          pip-audit -r requirements.lock --disable-pip --strict
+          pip-audit -r requirements.lock --disable-pip --strict -s osv
+          pip-audit -r requirements-uv.lock --disable-pip --strict
+          pip-audit -r requirements-uv.lock --disable-pip --strict -s osv
+          pip-audit -r requirements-sbom.lock --disable-pip --strict
+          pip-audit -r requirements-sbom.lock --disable-pip --strict -s osv

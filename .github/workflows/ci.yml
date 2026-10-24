@@ -174,16 +174,40 @@ jobs:
       # pip-audit scans dependencies for known CVEs.
       # Blocking — a failure means a published advisory affects a pinned dep.
       # If a finding is genuinely unfixable upstream, add the ID to the --ignore-vuln list
-      # below with a comment naming the package + reason; never silence the whole step.
+      # of every run of that lockfile below, here and in deps-latest.yml, with a comment
+      # in this block naming the package + reason; never silence the whole step.
       #
       # Audits requirements.lock, not requirements.txt: the lockfile is what the
       # image installs (Dockerfile: pip install --require-hashes), so it is the
       # only file whose contents actually reach production. The lockfile-drift
       # job below guarantees it still corresponds to requirements.txt.
       #
+      # The other two lockfiles hold tools CI runs: requirements-uv.lock the uv
+      # that writes the lockfiles (lockfile-drift below, deps-lock.yml), and
+      # requirements-sbom.lock the SBOM generator (sbom.yml, release.yml,
+      # docker.yml). Neither was audited until 2026-10, and uv 0.12.23 sat on
+      # main unnoticed although its bundled CA store trusted a root whose
+      # intermediate keys were compromised (GHSA-hq85-5cpj-mr62).
+      #
+      # Each lockfile is audited twice, against PyPI's advisory feed
+      # (pip-audit's default) and against OSV (-s osv): either can lack an
+      # advisory the other lists, as PyPI's feed lacked PYSEC-2026-4243 for
+      # mako 1.4.1. --disable-pip audits the pins as written instead of
+      # resolving them with pip, which leaves out packages its scratch venv
+      # already holds; every entry is an exact, hashed pin
+      # (tests/test_supply_chain_hygiene.py), so none is left out. --strict
+      # fails on a package the source cannot look up instead of skipping it.
+      # deps-latest.yml runs the same audits weekly.
+      #
       # Ignored advisories: none at the moment.
       - name: Dependency vulnerability scan (pip-audit)
-        run: pip-audit -r requirements.lock
+        run: |
+          pip-audit -r requirements.lock --disable-pip --strict
+          pip-audit -r requirements.lock --disable-pip --strict -s osv
+          pip-audit -r requirements-uv.lock --disable-pip --strict
+          pip-audit -r requirements-uv.lock --disable-pip --strict -s osv
+          pip-audit -r requirements-sbom.lock --disable-pip --strict
+          pip-audit -r requirements-sbom.lock --disable-pip --strict -s osv
 
       # The vendored browser code in app/static/vendor/ (listed in its
       # manifest.json, plus the libraries a file's "bundles" field names) is
