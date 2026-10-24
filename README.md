@@ -141,7 +141,7 @@ strip and the signed images in that list are the same AGPL code and builds
 every edition runs.
 
 > **Honest maturity:** no external audit or ISO 27001 certification yet (both a
-> Year-2 roadmap item). The newest tagged release is v1.2.0 (October 2026),
+> Year-2 roadmap item). The newest tagged release is v1.3.0 (October 2026),
 > with a CycloneDX SBOM and the image digest attached to the GitHub release;
 > changes merged after it are in [`changelog.d/`](changelog.d/) until the next
 > release folds them into [`CHANGELOG.md`](CHANGELOG.md).

@@ -16,7 +16,8 @@ Separately, at the maintainer's discretion, a commit on `main` gets a
 GPG-signed git tag `vX.Y.Z`; that tag build additionally pushes the
 image tags `X.Y.Z` and `X.Y` — **no `v` prefix on the image tag, and no
 bare-major tag** (pin `X.Y.Z` or `X.Y`, never just `X`). The tagged
-releases so far are `v1.1.0` (2026-06-01) and `v1.2.0` (October 2026) —
+releases so far are `v1.1.0` (2026-06-01), then `v1.2.0`, `v1.2.1` and
+`v1.3.0` (all October 2026) —
 see [GitHub Releases](https://github.com/MrChengLen/FileMorph/releases)
 for the current list.
 
@@ -148,15 +149,18 @@ git verify-tag vX.Y.Z
 
 ## End-of-life
 
-A release line stops receiving patches when the next `MAJOR` is published
-plus 90 days. The transition window is announced in the release notes of
-the new `MAJOR` along with the migration guide.
+Within a `MAJOR` line, fixes ship in the next tagged release, patch or
+minor; an older `X.Y` gets Critical and High fixes only as a backport on
+request (see [`SECURITY.md`](../SECURITY.md)). A `MAJOR` line stops
+receiving fixes 90 days after the next `MAJOR` is published. The transition
+window is announced in the release notes of the new `MAJOR` along with the
+migration guide.
 
 ## How a self-hoster keeps current
 
 Recommended cadence:
 
-1. Pin to a specific image tag (`X.Y.Z` or `X.Y`, e.g. `1.2.0`) for
+1. Pin to a specific image tag (`X.Y.Z` or `X.Y`, e.g. `1.3.0`) for
    controlled, deliberate upgrades — or track `latest` / `office` if you
    want fixes as soon as they merge to `main`.
 2. Subscribe to GitHub Releases on this repository (the *Watch → Custom →
