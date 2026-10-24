@@ -48,6 +48,15 @@ services:
     # read_only: true
     # tmpfs:
     #   - /tmp:size=512m
+    # At most 4096 processes and threads in the container, so a fork past it
+    # fails instead of filling the host's process table. The programs a
+    # conversion runs start a few threads per CPU core (ffmpeg), so raise it
+    # with MAX_GLOBAL_CONCURRENCY on a host with many cores.
+    pids_limit: 4096
+    # No core dumps: a crashing process would write uploaded data from its
+    # memory to disk.
+    ulimits:
+      core: 0
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
       interval: 10s
