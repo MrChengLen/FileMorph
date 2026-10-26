@@ -4,7 +4,7 @@
 # so we are not actually vulnerable, but pip-audit correctly flags the version
 # and blocks every CI run. Re-allow once the maintainers ship a clean release
 # (drop the "!= 0.136.3" once 0.136.4+ is on PyPI without the bad dep).
-fastapi!=0.136.3,>=0.154.0
+fastapi!=0.136.3,>=0.161.1
 uvicorn[standard]>=0.54.0
 python-multipart>=0.0.32
 jinja2>=3.1.6
@@ -24,7 +24,7 @@ mammoth>=1.13.0
 # 2026-10-21/22: infinite loops and unbounded memory on crafted PDFs (among them
 # GHSA-39mj-jf6j-2qj3, GHSA-cgf9-327m-v77c) and unvalidated JPEG image data
 # (GHSA-5hx5-vpf9-5wcv).
-pypdf>=6.21.1
+pypdf>=6.21.2
 # pypdf opens AES-encrypted PDFs only with cryptography installed
 # (DependencyError without it, which tests/test_pdf_error_messages.py catches),
 # e.g. an owner-password PDF, which FileMorph processes. It came in through
@@ -36,7 +36,7 @@ cryptography>=50.0.2
 # package required.
 # Lifting the cap also removes its ignore entry in .github/dependabot.yml.
 pikepdf>=10.17.0,<11
-reportlab>=5.0.1
+reportlab>=5.1.0
 # Capped below 71: the SSRF guard ``_deny_url_fetcher`` in
 # app/converters/document.py subclasses WeasyPrint's ``URLFetcher`` and
 # overrides ``fetch``. 70 accepts only such an object (the guard used to be a
@@ -59,8 +59,8 @@ slowapi>=0.1.10
 Babel>=2.18.0
 
 # ── Auth / Database ───────────────────────────────────────────────
-sqlalchemy[asyncio]>=2.1.5
-alembic>=1.20.0
+sqlalchemy[asyncio]>=2.1.6
+alembic>=1.20.1
 asyncpg>=0.32.0
 PyJWT>=2.15.1
 bcrypt>=5.0.0
