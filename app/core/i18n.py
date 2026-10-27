@@ -31,10 +31,13 @@ The resolved locale lands on ``request.state.locale`` via
 :func:`get_locale` (FastAPI dependency) or read it directly from
 ``request.state``.
 
-Translations are loaded once at import time from
-``locale/<code>/LC_MESSAGES/messages.mo``. ``_()`` is exposed as a
-template global pointing at the current request's translator via
-:func:`localized_context`.
+Translations are compiled in memory from
+``locale/<code>/LC_MESSAGES/messages.po`` once, at startup (``load_catalogs``
+in the app's lifespan), and cached for the process. No ``.mo`` files are
+committed or built: a binary file in every catalogue change only produced
+merge conflicts.
+``_()`` is exposed as a template global pointing at the current
+request's translator via :func:`localized_context`.
 
 Self-hosters can override the default locale with the ``LANG_DEFAULT``
 env-var (read from ``settings.lang_default``) — useful for an EN-first
@@ -44,13 +47,19 @@ deployment that doesn't want German fallbacks.
 from __future__ import annotations
 
 import gettext
+import io
+import logging
 from pathlib import Path
 
+from babel.messages.mofile import write_mo
+from babel.messages.pofile import read_po
 from babel.support import Translations
 from fastapi import Request
 
 from app.core.config import settings
 from app.db.base import accounts_enabled
+
+logger = logging.getLogger(__name__)
 
 SUPPORTED_LOCALES: tuple[str, ...] = ("de", "en")
 DEFAULT_LOCALE: str = "de"
@@ -73,22 +82,54 @@ def _effective_default() -> str:
     return DEFAULT_LOCALE
 
 
+def _compile_catalog(locale: str) -> Translations:
+    """Compile ``locale/<locale>/LC_MESSAGES/messages.po`` in memory.
+
+    Same message table as ``pybabel compile``: fuzzy entries are left out, so
+    an unreviewed translation falls back to the English source string. The
+    placeholder checks ``pybabel compile`` ran are a test instead
+    (``tests/test_i18n_catalogs.py``).
+    """
+    po_path = LOCALE_DIR / locale / "LC_MESSAGES" / "messages.po"
+    with po_path.open("rb") as po_file:
+        catalog = read_po(po_file, locale=locale, domain="messages")
+    mo_bytes = io.BytesIO()
+    write_mo(mo_bytes, catalog)
+    mo_bytes.seek(0)
+    return Translations(mo_bytes, domain="messages")
+
+
 def _load_translations() -> dict[str, Translations | gettext.NullTranslations]:
     """Load + cache translation bundles for all supported locales.
 
-    A missing ``.mo`` falls back to ``NullTranslations`` (identity
-    passthrough) so the app boots even before ``pybabel compile`` has
-    been run — useful for the very first dev setup.
+    A missing or broken ``.po`` falls back to ``NullTranslations`` (identity
+    passthrough), logged, so the app still boots and serves the English
+    source strings rather than failing every page. The cache is filled in
+    one step, so no request sees one locale loaded and the other missing.
     """
     if _translations:
         return _translations
+    loaded: dict[str, Translations | gettext.NullTranslations] = {}
     for locale in SUPPORTED_LOCALES:
         try:
-            t = Translations.load(LOCALE_DIR, locales=[locale], domain="messages")
-        except (FileNotFoundError, OSError):
-            t = gettext.NullTranslations()
-        _translations[locale] = t
+            loaded[locale] = _compile_catalog(locale)
+        except FileNotFoundError:
+            logger.warning("No %s catalogue; serving the English source strings", locale)
+            loaded[locale] = gettext.NullTranslations()
+        except Exception:
+            logger.exception(
+                "The %s catalogue failed to load; serving the English source strings", locale
+            )
+            loaded[locale] = gettext.NullTranslations()
+    _translations.update(loaded)
     return _translations
+
+
+def load_catalogs() -> None:
+    """Compile the catalogues now. The app's lifespan calls this once, so the
+    first request doesn't pay for it and a broken catalogue shows up in the
+    start-up log."""
+    _load_translations()
 
 
 def normalize_locale(locale: str | None) -> str:
@@ -543,7 +584,7 @@ def localized_context(request: Request, **extra) -> dict:
     """Build a context dict carrying the per-request translator + locale.
 
     Pass into ``templates.TemplateResponse(..., context=localized_context(request, ...))``
-    so ``{{ _('Sign In') }}`` resolves against the right ``.mo`` and the
+    so ``{{ _('Sign In') }}`` resolves against the right catalogue and the
     template can read ``{{ locale }}`` directly.
 
     ``current_prefix`` is the URL path's actual locale prefix (``'de'``,

@@ -97,7 +97,6 @@ def test_pre_commit_and_pre_push_regexes_stay_in_sync(hooks):
         "locale/de/LC_MESSAGES/messages.po",
         "locale/en/LC_MESSAGES/messages.po",
         "locale/messages.pot",
-        "locale/de/LC_MESSAGES/messages.mo",
         # Public legal templates that intentionally contain the operator's
         # business address.
         "app/templates/impressum.html",

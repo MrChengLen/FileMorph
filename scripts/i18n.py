@@ -7,8 +7,15 @@ Usage:
     python scripts/i18n.py extract     # Re-scan code → locale/messages.pot
     python scripts/i18n.py init <loc>  # Bootstrap a new language (run once per locale)
     python scripts/i18n.py update      # Merge .pot into all locale .po files
-    python scripts/i18n.py compile     # Compile every .po → .mo
+    python scripts/i18n.py compile     # Optional: compile .po → .mo, print statistics and placeholder errors
     python scripts/i18n.py drift-check # CI gate: re-extract, fail if .pot drifts
+
+The app compiles the .po files in memory at startup (app/core/i18n.py), so
+.mo files are neither committed nor needed; `compile` only reports how
+complete each catalogue is (tests/test_i18n_catalogs.py runs its placeholder
+checks in CI). `extract`, `update` and `init` drop the
+POT-Creation-Date header, which Babel rewrites on every run: otherwise two
+branches that both touched strings conflicted on that one line.
 
 Cross-platform: works on Windows (`pybabel.exe` + venv) and Linux (CI).
 """
@@ -29,6 +36,9 @@ POT_FILE = LOCALE_DIR / "messages.pot"
 BABEL_CFG = ROOT / "babel.cfg"
 SUPPORTED = ("de", "en")
 
+# Babel stamps the wall-clock time into this header on every extract/update.
+_CREATION_DATE_RE = re.compile(r'^"POT-Creation-Date:[^"]*"\n', re.MULTILINE)
+
 
 def _run(cmd: list[str]) -> int:
     """Run a command, stream output, return exit code."""
@@ -38,6 +48,21 @@ def _run(cmd: list[str]) -> int:
 
 def _pybabel(args: list[str]) -> int:
     return _run([sys.executable, "-m", "babel.messages.frontend"] + args)
+
+
+def _drop_creation_date(*paths: Path) -> None:
+    """Remove the POT-Creation-Date header so a re-run leaves the file unchanged."""
+    for path in paths:
+        if not path.exists():
+            continue
+        text = path.read_text(encoding="utf-8")
+        stripped = _CREATION_DATE_RE.sub("", text)
+        if stripped != text:
+            path.write_text(stripped, encoding="utf-8", newline="\n")
+
+
+def _po_files() -> list[Path]:
+    return [LOCALE_DIR / loc / "LC_MESSAGES" / "messages.po" for loc in SUPPORTED]
 
 
 def _project_version() -> str:
@@ -64,7 +89,7 @@ def cmd_extract() -> int:
     """Scan all sources → locale/messages.pot."""
     LOCALE_DIR.mkdir(parents=True, exist_ok=True)
     version = _project_version()
-    return _pybabel(
+    rc = _pybabel(
         [
             "extract",
             "-F",
@@ -79,6 +104,9 @@ def cmd_extract() -> int:
             ".",
         ]
     )
+    if not rc:
+        _drop_creation_date(POT_FILE)
+    return rc
 
 
 def cmd_init(locale: str) -> int:
@@ -89,7 +117,10 @@ def cmd_init(locale: str) -> int:
         rc = cmd_extract()
         if rc:
             return rc
-    return _pybabel(["init", "-i", str(POT_FILE), "-d", str(LOCALE_DIR), "-l", locale])
+    rc = _pybabel(["init", "-i", str(POT_FILE), "-d", str(LOCALE_DIR), "-l", locale])
+    if not rc:
+        _drop_creation_date(*_po_files())
+    return rc
 
 
 def cmd_update() -> int:
@@ -99,7 +130,10 @@ def cmd_update() -> int:
             return rc
     # --ignore-obsolete: removed msgids are dropped instead of kept as "#~"
     # blocks (the catalogs carry none since c8fc734; they only add noise).
-    return _pybabel(["update", "--ignore-obsolete", "-i", str(POT_FILE), "-d", str(LOCALE_DIR)])
+    rc = _pybabel(["update", "--ignore-obsolete", "-i", str(POT_FILE), "-d", str(LOCALE_DIR)])
+    if not rc:
+        _drop_creation_date(*_po_files())
+    return rc
 
 
 def cmd_compile() -> int:
@@ -118,8 +152,7 @@ def _normalize_pot(path: Path) -> str:
     """
     text = path.read_text(encoding="utf-8")
     text = text.replace("\r\n", "\n")
-    text = re.sub(r'^"POT-Creation-Date:[^"]*"\n', "", text, flags=re.MULTILINE)
-    return text
+    return _CREATION_DATE_RE.sub("", text)
 
 
 def cmd_drift_check() -> int:

@@ -118,9 +118,7 @@ jobs:
             ':!.env.example' \
             ':!locale/messages.pot' \
             ':!locale/de/LC_MESSAGES/messages.po' \
-            ':!locale/de/LC_MESSAGES/messages.mo' \
             ':!locale/en/LC_MESSAGES/messages.po' \
-            ':!locale/en/LC_MESSAGES/messages.mo' \
             ':!.githooks/pre-commit' \
             ':!.githooks/pre-push' \
             ':!.github/workflows/scope-guard.yml' \
