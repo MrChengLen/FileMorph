@@ -79,6 +79,14 @@ class _ImageConverter(BaseConverter):
         # strip so we don't paste from a soon-to-be-discarded mode.
         if pil_fmt == "JPEG" and img.mode in ("RGBA", "LA", "P"):
             img = img.convert("RGB")
+        elif (
+            pil_fmt == "GIF"
+            and isinstance(img.info.get("transparency"), bytes)
+            and len(img.info["transparency"]) <= 256
+        ):
+            # GIF has one transparent index, not a PNG's alpha table. (A
+            # longer, malformed table is dropped by strip_metadata instead.)
+            img = img.convert("RGBA")
         img = strip_metadata(img)
 
         # PNG and BMP are lossless — quality param is ignored
