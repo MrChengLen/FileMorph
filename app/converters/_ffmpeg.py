@@ -23,47 +23,33 @@ three structural problems:
 This module owns the container→codec matrix, the extension→muxer
 mapping, the quality→CRF/qscale/bitrate translation, and a single
 :func:`run_ffmpeg` that compiles an ffmpeg-python stream and executes
-it via subprocess within the request's time limit (:func:`media_time_limit`),
-on Linux under memory, CPU time and file size limits
-(``_limited_exec.py``). Uploads are opened through :func:`media_input`,
-never ``ffmpeg.input()`` directly. It also builds the two video → GIF
-passes and the ffprobe checks around them (bottom of the file).
+it via subprocess with a hard timeout (mirroring _ghostscript.py).
+Uploads are opened through :func:`media_input`, never ``ffmpeg.input()``
+directly. It also builds the two video → GIF passes and the ffprobe
+checks around them (bottom of the file).
 """
 
 from __future__ import annotations
 
 import json
-import logging
 import math
-import os
-import re
 import shutil
-import signal
 import subprocess
-import sys
-import time
-from collections.abc import Iterator
-from contextlib import contextmanager
-from contextvars import ContextVar
 from pathlib import Path
 from typing import NamedTuple
 
 import ffmpeg  # ffmpeg-python
 
-from app.converters._limited_exec import PARENT_PID_ENV
-from app.converters.base import InvalidInputError, OutputTooLargeError
+from app.converters.base import InvalidInputError
 from app.core.config import settings
-
-logger = logging.getLogger(__name__)
 
 
 class FFmpegError(RuntimeError):
-    """Raised when an ffmpeg invocation fails or ffmpeg is unavailable."""
+    """Raised when an ffmpeg invocation fails, times out, or is unavailable."""
 
 
-class FFmpegTimeoutError(InvalidInputError):
-    """Raised when an ffmpeg or ffprobe run is stopped at its time limit. The
-    message names the user's next step; the routes answer it with a 400."""
+class FFmpegTimeoutError(FFmpegError):
+    """Raised when an ffmpeg or ffprobe invocation runs past its timeout."""
 
 
 # ffmpeg muxer names that differ from the user-facing file extension.
@@ -78,118 +64,10 @@ _MUXER_FOR_EXT = {"mkv": "matroska", "wmv": "asf"}
 # converts if the container is listed.
 INPUT_DEMUXERS = "mp3,wav,flac,ogg,aac,asf,mov,avi,matroska,flv,live_flv"
 
-# The decoders ffmpeg may use for an upload, by decoder name (``ffmpeg
-# -decoders``): the codecs that phones, cameras, screen recorders, editors,
-# Windows, Apple and the web write into the formats above, and text
-# subtitles, which ffmpeg carries over into MP4, MOV, MKV and WebM. For a
-# codec with more than one decoder the default one is listed, e.g. mp3float
-# for MP3 and libdav1d for AV1. A conversion that needs a stream in another
-# codec is refused like a format that isn't listed; so is any such stream in
-# the GIF probe, which opens a decoder for every stream.
-INPUT_DECODERS = ",".join(
-    (
-        # video
-        "h264", "hevc", "vp8", "vp9", "libdav1d", "libaom-av1", "av1",
-        "mpeg4", "msmpeg4v1", "msmpeg4v2", "msmpeg4", "h263", "flv", "vp6f", "vp6a",
-        "mpeg1video", "mpeg2video", "mjpeg", "prores", "dnxhd", "dvvideo",
-        "wmv1", "wmv2", "wmv3", "vc1", "qtrle", "png", "rawvideo", "ffv1",
-        # audio
-        "aac", "mp3float", "mp3", "mp2float", "mp2", "ac3", "eac3", "dca",
-        "flac", "alac", "opus", "vorbis", "wmav1", "wmav2", "wmapro", "wmalossless",
-        "wmavoice", "amrnb", "amrwb", "speex", "nellymoser", "gsm_ms",
-        "adpcm_ima_wav", "adpcm_ms", "adpcm_ima_qt", "adpcm_swf",
-        "pcm_s16le", "pcm_s16be", "pcm_s24le", "pcm_s24be", "pcm_s32le", "pcm_s32be",
-        "pcm_f32le", "pcm_f32be", "pcm_f64le", "pcm_f64be", "pcm_u8", "pcm_mulaw", "pcm_alaw",
-        # subtitles
-        "subrip", "srt", "ass", "ssa", "webvtt", "mov_text", "text",
-    )
-)  # fmt: skip
-
-# The largest frame ffmpeg decodes: 4K, 4096 × 2160 pixels, either way up.
-# A larger video takes more memory and time than a request gets here.
-# Decoders count a frame with its rows padded to 64 pixels, so the limit is
-# that of a 2160 wide frame padded to 2176, 4096 high.
-_MAX_WIDTH, _MAX_HEIGHT = 4096, 2160
-MAX_PIXELS = -(-_MAX_HEIGHT // 64) * 64 * _MAX_WIDTH
-
-# Threads per decoder, per encoder and per filter graph: as fast as ffmpeg's
-# default on a small server, and on a large one the memory a conversion takes
-# doesn't grow with the number of CPUs.
-THREADS = 2
-
 _NOT_A_SUPPORTED_MEDIA_FORMAT = (
     "Could not read this file: it is not in one of the audio or video formats "
     "FileMorph supports. Save it as MP4 (video) or MP3 (audio) and try again."
 )
-_TOO_MANY_PIXELS = (
-    f"This video is larger than 4K (more than {_MAX_WIDTH} × {_MAX_HEIGHT} pixels per "
-    "frame), the most FileMorph converts. Export it at 4K or lower and try again."
-)
-_TOO_COMPLEX = (
-    "This file is too large or complex to convert here. Convert a shorter part of it "
-    "or a version with a lower resolution, and try again."
-)
-_TOO_LONG = (
-    "This file takes longer to convert than the {seconds} seconds a request may take "
-    "here. Convert a shorter part of it or a version with a lower resolution, or "
-    "self-host FileMorph and set a longer limit."
-)
-_OUT_OF_TIME = (
-    "Not converted: the {seconds} seconds this request may take ran out before this "
-    "file was done. Send it again on its own."
-)
-
-_GIB = 1024 * 1024 * 1024
-# What one ffmpeg or ffprobe run may take on Linux, where it starts through
-# _limited_exec.py: this much address space (a 4K video converts within it),
-# the caller's output cap as the size of each file it writes (this much
-# without one), and the time limit's worth of CPU time for each CPU of the
-# host, so the CPU cap never ends a run before the time limit would.
-_MEMORY_LIMIT_BYTES = 3 * _GIB
-_FILE_LIMIT_BYTES = _GIB
-_LIMITED_EXEC = Path(__file__).with_name("_limited_exec.py")
-
-# The messages ffmpeg and its libraries log for a frame over MAX_PIXELS
-# (libdav1d checks the limit itself) and for a run out of memory.
-_TOO_MANY_PIXELS_LOGGED = re.compile(
-    r"exceeds specified max pixel count|Frame size \d+x\d+ exceeds limit"
-)
-_OUT_OF_MEMORY = ("Cannot allocate memory", "malloc of size", "Memory allocation error")
-
-# The end of the request's time for ffmpeg, set by media_time_limit and
-# shared by every ffmpeg and ffprobe run in the request; asyncio.to_thread
-# hands it on to the worker thread with the rest of the context.
-_DEADLINE: ContextVar[float | None] = ContextVar("media_deadline", default=None)
-
-
-@contextmanager
-def media_time_limit() -> Iterator[None]:
-    """Give every ffmpeg and ffprobe run in the block one time limit
-    together, ``settings.media_subprocess_timeout_seconds`` from now.
-
-    The routes wrap each request in it, so a batch answers in time too: by
-    default within 85 s, under the 100 s a CDN in front of the app may wait
-    for the answer.
-    """
-    token = _DEADLINE.set(time.monotonic() + settings.media_subprocess_timeout_seconds)
-    try:
-        yield
-    finally:
-        _DEADLINE.reset(token)
-
-
-def media_time_left() -> float | None:
-    """Seconds left of the request's time limit (:func:`media_time_limit`);
-    None outside a request."""
-    deadline = _DEADLINE.get()
-    return None if deadline is None else deadline - time.monotonic()
-
-
-def out_of_time() -> FFmpegTimeoutError:
-    """The error for a file whose request ran out of time before it was done."""
-    return FFmpegTimeoutError(
-        _OUT_OF_TIME.format(seconds=settings.media_subprocess_timeout_seconds)
-    )
 
 
 def _local_input(path: Path, demuxers: str, **options):
@@ -198,20 +76,11 @@ def _local_input(path: Path, demuxers: str, **options):
 
 
 def media_input(path: Path, **options):
-    """``ffmpeg.input`` for an upload: only ``INPUT_DEMUXERS`` and
-    ``INPUT_DECODERS``, only local files, frames up to ``MAX_PIXELS``,
-    ``THREADS`` threads per decoder.
+    """``ffmpeg.input`` for an upload: only ``INPUT_DEMUXERS``, only local files.
 
     ``options`` are further input options, e.g. ``t=31`` to read at most 31 s.
     """
-    return _local_input(
-        path,
-        INPUT_DEMUXERS,
-        codec_whitelist=INPUT_DECODERS,
-        max_pixels=MAX_PIXELS,
-        threads=THREADS,
-        **options,
-    )
+    return _local_input(path, INPUT_DEMUXERS, **options)
 
 
 # Container → (video codec, audio codec). WebM *requires* VP8/VP9/AV1 +
@@ -273,7 +142,6 @@ def video_output_args(container: str, quality: int, *, audio_bitrate: str) -> di
         # yuv420p requires even dimensions — round odd sources down one
         # pixel instead of failing (e.g. an 855×479 screen recording).
         "vf": "scale=trunc(iw/2)*2:trunc(ih/2)*2",
-        "threads": THREADS,  # the encoder's, as media_input sets the decoder's
     }
     if vcodec == "libx264":
         args["crf"] = _scale(quality, 40, 18)
@@ -323,116 +191,36 @@ def audio_output_args(target_ext: str, quality: int) -> dict:
     return args
 
 
-def run_ffmpeg(
-    stream, *, timeout: float | None = None, max_output_bytes: int | None = None
-) -> None:
-    """Compile an ffmpeg-python stream and run it (:func:`_run`) with
-    ``THREADS`` threads per filter graph. Fails as :func:`_run` and
-    :func:`_raise_on_failure` say."""
-    stream = stream.global_args(
-        # Errors only on stderr, as for ffprobe: no echo of the upload's tags.
-        "-loglevel", "error",
-        "-filter_threads", str(THREADS),
-        "-filter_complex_threads", str(THREADS),
-    )  # fmt: skip
-    args = ffmpeg.compile(stream, overwrite_output=True)[1:]  # [0] is the program
-    result = _run("ffmpeg", args, timeout=timeout, max_output_bytes=max_output_bytes)
-    _raise_on_failure("ffmpeg", result)
+def run_ffmpeg(stream, *, timeout: float | None = None) -> None:
+    """Compile an ffmpeg-python stream and run it with a hard timeout.
 
-
-def _run(
-    tool: str, args: list[str], *, timeout: float | None, max_output_bytes: int | None = None
-) -> subprocess.CompletedProcess:
-    """Run ffmpeg or ffprobe (``tool``) with ``args`` within its time limit.
-
-    The time limit is ``timeout`` (default
-    ``settings.media_subprocess_timeout_seconds``), never more than is left
-    of the request's (:func:`media_time_limit`); raises
-    :class:`FFmpegTimeoutError` when it is up. On Linux the program starts
-    through ``_limited_exec.py`` with the limits above, ``max_output_bytes``
-    (the caller's output cap) being its file size limit. It gets the app's
-    environment without its secrets, as the other child processes do, and
-    no stdin.
-    """
-    binary = shutil.which(tool)
-    if binary is None:
-        raise FFmpegError(f"{tool} binary not found on PATH")
-    limit = settings.media_subprocess_timeout_seconds
-    if timeout is None:
-        timeout = limit
-    left = media_time_left()
-    if left is not None:
-        if left <= 0:
-            raise out_of_time()
-        timeout = min(timeout, left)
-
-    cmd = [binary, *args]
-    if sys.platform == "linux":
-        limits = (
-            _MEMORY_LIMIT_BYTES,
-            math.ceil(timeout) * (os.cpu_count() or 1) + 5,
-            _FILE_LIMIT_BYTES if max_output_bytes is None else max_output_bytes,
-        )
-        # -I -S: no PYTHON* environment variable, user or site directory reaches it.
-        cmd = [sys.executable, "-I", "-S", str(_LIMITED_EXEC), *map(str, limits), *cmd]
-    from app.converters.document import _is_secret_env_name
-
-    env = {k: v for k, v in os.environ.items() if not _is_secret_env_name(k)}
-    # glibc gives threads their own heap arenas, which under an address-space
-    # cap can use it up before the work does.
-    env["MALLOC_ARENA_MAX"] = "2"
-    env[PARENT_PID_ENV] = str(os.getpid())  # the process the program ends with
-    try:
-        return subprocess.run(  # noqa: S603 — the program from PATH, our own arguments, no shell
-            cmd,
-            stdin=subprocess.DEVNULL,
-            capture_output=True,
-            timeout=timeout,
-            check=False,
-            env=env,
-        )
-    except subprocess.TimeoutExpired:
-        logger.info("%s: stopped after %.0f s", tool, timeout)
-        # Less than four fifths of the request's time were left when it
-        # started: the files before it in the batch took the rest, and on its
-        # own it may convert.
-        if left is not None and left < 0.8 * limit:
-            raise out_of_time() from None
-        raise FFmpegTimeoutError(_TOO_LONG.format(seconds=limit)) from None
-
-
-def _raise_on_failure(tool: str, result: subprocess.CompletedProcess) -> None:
-    """Translate a non-zero exit of ffmpeg or ffprobe into an exception.
-
-    :class:`InvalidInputError`, whose message names the user's next step,
-    for a container or codec that isn't listed, a frame over ``MAX_PIXELS``
-    or a run out of memory; :class:`OutputTooLargeError` for a write past
-    the file size limit; :class:`FFmpegError` for anything else. Error
-    messages can quote the upload, so the stderr tail lands in the exception
+    Raises :class:`FFmpegError` on every failure mode (binary missing,
+    non-zero exit, timeout — then :class:`FFmpegTimeoutError`). ffmpeg's
+    stderr echoes the upload's metadata, so its tail lands in the exception
     message only with APP_DEBUG; the routes catch broadly and return a
     generic message to the client (A-3).
     """
-    if result.returncode == 0:
-        return
-    # The signal first: ffmpeg also logs the messages below for streams it
-    # only probes, such as cover art larger than MAX_PIXELS in an MP3.
-    if result.returncode < 0:  # ended by a signal (POSIX only)
-        if -result.returncode == signal.SIGXFSZ:  # a write past the file size limit
-            raise OutputTooLargeError
-        if -result.returncode == signal.SIGKILL:  # the kernel: out of memory or CPU time
-            logger.info("%s: stopped by a limit (status %s)", tool, result.returncode)
-            raise InvalidInputError(_TOO_COMPLEX)
-    stderr = result.stderr.decode("utf-8", errors="replace")
-    if "not on whitelist" in stderr:  # a container or codec media_input doesn't accept
-        raise InvalidInputError(_NOT_A_SUPPORTED_MEDIA_FORMAT)
-    if _TOO_MANY_PIXELS_LOGGED.search(stderr):
-        raise InvalidInputError(_TOO_MANY_PIXELS)
-    if any(message in stderr for message in _OUT_OF_MEMORY):
-        logger.info("%s: out of memory (status %s)", tool, result.returncode)
-        raise InvalidInputError(_TOO_COMPLEX)
-    tail = stderr[-500:].strip()
-    detail = f": {tail or '<no stderr>'}" if settings.app_debug else ""
-    raise FFmpegError(f"{tool} exit {result.returncode}{detail}")
+    if shutil.which("ffmpeg") is None:
+        raise FFmpegError("ffmpeg binary not found on PATH")
+    if timeout is None:
+        timeout = settings.media_subprocess_timeout_seconds
+
+    cmd = ffmpeg.compile(stream, overwrite_output=True)
+    try:
+        result = subprocess.run(cmd, capture_output=True, timeout=timeout, check=False)
+    except subprocess.TimeoutExpired as exc:
+        raise FFmpegTimeoutError(f"ffmpeg timed out after {timeout:.0f}s") from exc
+    _raise_on_failure("ffmpeg", result)
+
+
+def _raise_on_failure(tool: str, result: subprocess.CompletedProcess) -> None:
+    """Translate a non-zero exit of ffmpeg or ffprobe into an exception."""
+    if result.returncode != 0:
+        tail = result.stderr.decode("utf-8", errors="replace")[-500:].strip()
+        if "not on whitelist" in tail:  # a container media_input doesn't accept
+            raise InvalidInputError(_NOT_A_SUPPORTED_MEDIA_FORMAT)
+        detail = f": {tail or '<no stderr>'}" if settings.app_debug else ""
+        raise FFmpegError(f"{tool} exit {result.returncode}{detail}")
 
 
 # ---------------------------------------------------------------------------
@@ -449,7 +237,7 @@ GIF_MAX_SIDE = 480
 # Phones save a "30-second" clip as e.g. 30.03 s; this much more still converts.
 GIF_SLACK_SECONDS = 0.5
 # A larger source (8K) can't be decoded within the time budget.
-GIF_MAX_SOURCE_PIXELS = MAX_PIXELS
+GIF_MAX_SOURCE_PIXELS = 4096 * 2160
 # One budget for the probe, both passes and the frame count — under the 100 s
 # a CDN in front of the app may wait for an answer (as in _isolated.py), so
 # the caller gets the 400 that names the next step, not a gateway timeout.
@@ -462,16 +250,20 @@ class VideoProbe(NamedTuple):
     duration: float | None  # seconds; None when the container doesn't say
 
 
-def _ffprobe(
-    path: Path, *args: str, demuxers: str, timeout: float, decoders: str | None = None
-) -> dict:
-    """Run ffprobe on a local file, read only with ``demuxers`` (and
-    ``decoders``, if given), and return its JSON output. Runs and fails like
-    :func:`run_ffmpeg`."""
-    options = ["-v", "error", "-format_whitelist", demuxers, "-protocol_whitelist", "file"]
-    if decoders is not None:
-        options += ["-codec_whitelist", decoders]
-    result = _run("ffprobe", [*options, *args, "-of", "json", str(path)], timeout=timeout)
+def _ffprobe(path: Path, *args: str, demuxers: str, timeout: float) -> dict:
+    """Run ffprobe on a local file, read only with ``demuxers``, and return
+    its JSON output. Fails like :func:`run_ffmpeg`."""
+    if shutil.which("ffprobe") is None:
+        raise FFmpegError("ffprobe binary not found on PATH")
+    cmd = [
+        "ffprobe", "-v", "error",
+        "-format_whitelist", demuxers, "-protocol_whitelist", "file",
+        *args, "-of", "json", str(path),
+    ]  # fmt: skip
+    try:
+        result = subprocess.run(cmd, capture_output=True, timeout=timeout, check=False)
+    except subprocess.TimeoutExpired as exc:
+        raise FFmpegTimeoutError(f"ffprobe timed out after {timeout:.0f}s") from exc
     _raise_on_failure("ffprobe", result)
     try:
         return json.loads(result.stdout)
@@ -490,16 +282,14 @@ def _seconds(value) -> float | None:
 
 def probe_video(path: Path, *, timeout: float) -> VideoProbe | None:
     """Frame size and duration of an upload's first video stream — cover art
-    doesn't count — or None if it has none. Same demuxers and decoders as
+    doesn't count — or None if it has none. Same demuxers as
     :func:`media_input`; only numeric fields are read, so none of the
-    upload's tags are echoed. No ``MAX_PIXELS`` here: the probe reports the
-    size of a larger video, so the caller can say why it is refused."""
+    upload's tags are echoed."""
     data = _ffprobe(
         path,
         "-select_streams", "V:0",
         "-show_entries", "stream=width,height,duration:format=duration",
         demuxers=INPUT_DEMUXERS,
-        decoders=INPUT_DECODERS,
         timeout=timeout,
     )  # fmt: skip
     streams = data.get("streams") or []

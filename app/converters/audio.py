@@ -18,9 +18,7 @@ class _AudioConverter(BaseConverter):
     extension as the output format — ffmpeg has no muxer named
     ``m4a``/``aac``/``wma``. Direct invocation streams with constant
     memory; the extension→muxer/codec mapping and the quality→rate-
-    control translation live in ``app/converters/_ffmpeg.py``. A WAV
-    can be over ten times the size of its source, so ffmpeg stops writing
-    at the ``max_output_bytes`` cap.
+    control translation live in ``app/converters/_ffmpeg.py``.
     """
 
     def __init__(self, tgt_fmt: str):
@@ -31,7 +29,7 @@ class _AudioConverter(BaseConverter):
         stream = media_input(input_path).output(
             str(output_path), **audio_output_args(self._tgt_fmt, quality)
         )
-        run_ffmpeg(stream, max_output_bytes=kwargs.get("max_output_bytes"))
+        run_ffmpeg(stream)
         return output_path
 
 
