@@ -29,7 +29,7 @@ from io import BytesIO
 from pathlib import Path
 
 import pytest
-from PIL import Image
+from PIL import Image, ImageFile
 from pypdf import PdfReader, PdfWriter
 from pypdf.generic import (
     ArrayObject,
@@ -655,9 +655,13 @@ def test_route_hides_an_unexpected_failure(client, auth_headers, monkeypatch):
     assert "secret" not in r.text and "KeyError" not in r.text
 
 
-def test_route_names_a_damaged_image(client, auth_headers):
+def test_route_names_a_damaged_image(client, auth_headers, monkeypatch):
     """A truncated JPEG passes the format check and fails while decoding:
-    a 400 that names the field, not a bare 500."""
+    a 400 that names the field, not a bare 500. Importing WeasyPrint sets
+    Pillow's LOAD_TRUNCATED_IMAGES for the whole process (then Pillow pads a
+    cut-off image instead of failing), and an earlier test may have imported
+    it: the test sets Pillow's default itself."""
+    monkeypatch.setattr(ImageFile, "LOAD_TRUNCATED_IMAGES", False)
     buf = BytesIO()
     Image.effect_noise((200, 200), 90).convert("RGB").save(buf, format="JPEG")
     truncated = buf.getvalue()[: len(buf.getvalue()) // 2]
