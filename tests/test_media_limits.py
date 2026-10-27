@@ -14,11 +14,10 @@ from __future__ import annotations
 
 import os
 import re
+import select
 import signal
 import subprocess
 import sys
-import time
-from pathlib import Path
 from unittest.mock import MagicMock
 
 import ffmpeg
@@ -359,21 +358,16 @@ def test_the_program_may_start_threads():
     assert _limited(sys.executable, "-I", "-S", "-c", run, check=True).stdout.strip() == "ran"
 
 
-def _state(proc: Path) -> str | None:
-    """The process state letter (``Z`` for a zombie), None once it is gone."""
-    try:
-        return (proc / "stat").read_text(encoding="utf-8").rsplit(")", 1)[1].split()[0]
-    except FileNotFoundError:
-        return None
-
-
 @linux_only
 def test_the_program_ends_with_the_process_that_started_it():
+    # The program prints its PID when it runs, so after _limited_exec.py set
+    # the parent-death signal, and then waits.
+    program = ["/bin/sh", "-c", "echo $$; exec sleep 60"]
     start = (
         "import subprocess, sys; "
         f"p = subprocess.Popen([sys.executable, '-I', '-S', {str(_ffmpeg._LIMITED_EXEC)!r}, "
-        f"'{_MEMORY}', '{_CPU}', '{_FILE}', '/bin/sleep', '60']); "
-        "print(p.pid, flush=True); sys.stdin.read()"
+        f"'{_MEMORY}', '{_CPU}', '{_FILE}', *{program!r}]); "
+        "sys.stdin.read()"
     )
     parent = subprocess.Popen(
         [sys.executable, "-c", start],
@@ -382,18 +376,16 @@ def test_the_program_ends_with_the_process_that_started_it():
         encoding="utf-8",
     )
     try:
-        proc = Path(f"/proc/{int(parent.stdout.readline())}")
-        # Once sleep runs, the limits and the parent-death signal are set.
-        deadline = time.monotonic() + 10
-        while (proc / "comm").read_text(encoding="utf-8").strip() != "sleep":
-            assert time.monotonic() < deadline, "the program did not start"
-            time.sleep(0.02)
-        parent.kill()
-        parent.wait(timeout=10)
-        deadline = time.monotonic() + 10
-        while _state(proc) not in (None, "Z"):
-            assert time.monotonic() < deadline, "the program outlived its parent"
-            time.sleep(0.02)
+        pid = int(parent.stdout.readline())
+        # A pidfd becomes readable when the process ends, zombie or reaped.
+        pidfd = os.pidfd_open(pid)  # ProcessLookupError: it ended before its parent
+        try:
+            parent.kill()
+            parent.wait(timeout=10)
+            ended, _, _ = select.select([pidfd], [], [], 10)
+            assert ended, "the program outlived its parent"
+        finally:
+            os.close(pidfd)
     finally:
         parent.kill()
 
