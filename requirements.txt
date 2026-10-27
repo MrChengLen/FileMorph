@@ -12,7 +12,9 @@ pydantic>=2.14.1
 pydantic-settings>=2.16.1
 # 13.0.0 is the first release with the fixes for the nine advisories published
 # 2026-10-20, among them GHSA-8g5g-8vmr-9782 (critical, JPEG decoder) and
-# several in the TIFF and GIF decoders.
+# several in the TIFF and GIF decoders. Its EXIF parser also has limits that
+# 12.3 lacks, and app/converters/_metadata.py runs it on every uploaded image's
+# EXIF block (to read the orientation) — keep the floor.
 Pillow>=13.0.0
 pillow-heif>=1.8.1
 # AVIF encode+decode via libavif (bundled in the wheel — no system package).

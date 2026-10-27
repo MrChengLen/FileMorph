@@ -21,15 +21,19 @@ Properties verified:
    converted or compressed palette image looks the same. Without the
    palette every pixel came out one colour, which size/mode checks alone
    never caught.
+5. A photo comes back upright: phones store it as the sensor saw it and
+   note the turn in the EXIF orientation, which goes with the rest of the
+   EXIF — so the turn is applied to the pixels first, exactly once.
 """
 
 from __future__ import annotations
 
+import struct
 from io import BytesIO
 from pathlib import Path
 
 import pytest
-from PIL import Image, ImageChops, ImageStat
+from PIL import Image, ImageChops, ImageOps, ImageStat
 from PIL.ExifTags import Base as ExifBase, GPS as ExifGPS, IFD
 
 from app.converters._metadata import strip_metadata
@@ -349,3 +353,194 @@ def test_compress_target_size_strips_exif(client, auth_headers, tmp_path):
         )
     assert resp.status_code == 200, resp.text
     assert not _has_exif(resp.content)
+
+
+# --- Orientation: phone photos come back upright -------------------------
+
+
+def _sideways() -> Image.Image:
+    """A landscape image as a phone sensor stored it: red left half, blue
+    right half. With EXIF orientation 6 (turn 90° clockwise) viewers show
+    it as a portrait with red on top."""
+    img = Image.new("RGB", (80, 40), (0, 0, 255))
+    img.paste((255, 0, 0), (0, 0, 40, 40))
+    return img
+
+
+def _turn_tag(orientation: int = 6) -> bytes:
+    tags = Image.Exif()
+    tags[ExifBase.Orientation.value] = orientation
+    return tags.tobytes()
+
+
+def _saved(img: Image.Image, fmt: str, **params) -> bytes:
+    buf = BytesIO()
+    img.save(buf, format=fmt, **params)
+    return buf.getvalue()
+
+
+def _assert_upright(img: Image.Image) -> None:
+    """Portrait, red on top: turned exactly once (lossy formats included)."""
+    rgb = img.convert("RGB")
+    assert rgb.size == (40, 80)
+    top, bottom = rgb.getpixel((20, 10)), rgb.getpixel((20, 70))
+    assert top[0] > 200 and top[2] < 60, top
+    assert bottom[2] > 200 and bottom[0] < 60, bottom
+
+
+@pytest.mark.parametrize("orientation", range(1, 9))
+def test_strip_metadata_turns_the_photo_upright(orientation):
+    """Each of the eight EXIF orientations ends up the way Pillow's own
+    ImageOps.exif_transpose (and every viewer) shows it, and the EXIF goes."""
+    img = Image.effect_noise((6, 4), 90).convert("RGB")
+    img.info["exif"] = _turn_tag(orientation)
+    expected = ImageOps.exif_transpose(img)
+
+    clean = strip_metadata(img)
+
+    assert clean.size == expected.size
+    assert clean.tobytes() == expected.tobytes()
+    assert "exif" not in clean.info
+
+
+def test_strip_metadata_turned_palette_image_keeps_palette_icc_and_transparency():
+    """The turned image is the clean one: its palette, ICC profile and
+    transparent index stay, nothing else does. The colours are checked
+    against a turn of the RGB picture, which no lost palette could match."""
+    img = _image("P")
+    img.info.update(transparency=7, icc_profile=b"icc", exif=_turn_tag(), comment=b"by me")
+    expected = img.convert("RGB").transpose(Image.Transpose.ROTATE_270)
+
+    clean = strip_metadata(img)
+
+    assert clean.mode == "P" and clean.size == expected.size == (40, 60)
+    assert clean.convert("RGB").tobytes() == expected.tobytes()
+    assert clean.info == {"icc_profile": b"icc", "transparency": 7}
+
+
+def test_strip_metadata_reads_the_orientation_from_xmp():
+    """Some editors note the turn only in XMP; Pillow reads it there too."""
+    xmp = (
+        b'<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF '
+        b'xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description '
+        b'xmlns:tiff="http://ns.adobe.com/tiff/1.0/" tiff:Orientation="6"/></rdf:RDF></x:xmpmeta>'
+    )
+    img = Image.open(BytesIO(_saved(_sideways(), "JPEG", quality=95, xmp=xmp)))
+
+    _assert_upright(strip_metadata(img))
+
+
+def test_strip_metadata_turns_a_tiff_once():
+    """Pillow turns a TIFF while loading it and drops the tag: no second turn."""
+    tiff = _saved(_sideways(), "TIFF", tiffinfo={ExifBase.Orientation.value: 6})
+
+    _assert_upright(strip_metadata(Image.open(BytesIO(tiff))))
+
+
+def test_strip_metadata_turns_a_heic_once():
+    """pillow-heif applies the HEIF rotation while decoding and resets the
+    EXIF orientation: an iPhone photo is not turned a second time."""
+    pillow_heif = pytest.importorskip("pillow_heif")
+    if not pillow_heif.libheif_info().get("HEIF"):
+        pytest.skip("pillow-heif has no HEIF encoder")
+    pillow_heif.register_heif_opener()
+    heic = _saved(_sideways(), "HEIF", exif=_turn_tag())
+
+    _assert_upright(strip_metadata(Image.open(BytesIO(heic))))
+
+
+def test_strip_metadata_turns_an_avif():
+    """The AVIF decoder reports the file's rotation as the EXIF orientation."""
+    pytest.importorskip("pillow_avif")
+    avif = _saved(_sideways(), "AVIF", exif=_turn_tag(), quality=90)
+
+    _assert_upright(strip_metadata(Image.open(BytesIO(avif))))
+
+
+def test_strip_metadata_turns_a_photo_whose_exif_cannot_be_written_back():
+    """An ImageWidth entry holding a fraction: Pillow reads the block, but
+    writing it back fails (ImageOps.exif_transpose raises). The orientation is
+    only read, so the photo still turns — and the block still goes."""
+    tags = Image.Exif()
+    tags[ExifBase.Orientation.value] = 6
+    tags[ExifBase.XResolution.value] = 72.0
+    block = bytearray(tags.tobytes())
+    # Big-endian: the XResolution entry (tag 0x011A, type 5 = a fraction),
+    # renumbered to ImageWidth (0x0100).
+    entry = block.index(b"\x01\x1a\x00\x05")
+    block[entry + 1] = 0x00
+    img = _sideways()
+    img.info["exif"] = bytes(block)
+    with pytest.raises(struct.error):  # the premise: Pillow can't write it back
+        ImageOps.exif_transpose(img)
+
+    clean = strip_metadata(img)
+
+    _assert_upright(clean)
+    assert "exif" not in clean.info
+
+
+@pytest.mark.parametrize(
+    "block", [b"some-exif", b"Exif\x00\x00II*\x00"], ids=["not-tiff", "cut-short"]
+)
+def test_strip_metadata_keeps_a_photo_whose_exif_cannot_be_read(block):
+    """An EXIF block Pillow can't parse (SyntaxError, struct.error) has no
+    turn to apply: the photo stays as stored, as before, and the conversion
+    doesn't fail."""
+    img = _sideways()
+    img.info["exif"] = block
+
+    clean = strip_metadata(img)
+
+    assert clean.tobytes() == img.tobytes()
+    assert "exif" not in clean.info
+
+
+@pytest.mark.parametrize("target", ["png", "jpeg", "webp"])
+def test_convert_portrait_photo_comes_back_upright(client, auth_headers, target):
+    """End-to-end: a phone's portrait JPEG keeps standing — it came back
+    sideways while the stripped EXIF took the turn with it."""
+    photo = _saved(_sideways(), "JPEG", quality=95, exif=_turn_tag())
+    resp = client.post(
+        "/api/v1/convert",
+        files={"file": ("photo.jpg", photo, "image/jpeg")},
+        data={"target_format": target},
+        headers=auth_headers,
+    )
+
+    assert resp.status_code == 200, resp.text
+    _assert_upright(Image.open(BytesIO(resp.content)))
+    assert not _has_exif(resp.content)
+
+
+@pytest.mark.parametrize("form", [{"quality": "80"}, {"target_size_kb": "5"}])
+def test_compress_portrait_photo_comes_back_upright(client, auth_headers, form):
+    photo = _saved(_sideways(), "JPEG", quality=95, exif=_turn_tag())
+    resp = client.post(
+        "/api/v1/compress",
+        files={"file": ("photo.jpg", photo, "image/jpeg")},
+        data=form,
+        headers=auth_headers,
+    )
+
+    assert resp.status_code == 200, resp.text
+    _assert_upright(Image.open(BytesIO(resp.content)))
+
+
+@pytest.mark.parametrize("fmt, mode", [("JPEG", "RGB"), ("PNG", "RGBA")])
+def test_portrait_photo_to_pdf_gives_a_portrait_page(client, auth_headers, fmt, mode):
+    """Image → PDF: the page stands too — also for an image with alpha,
+    whose flattening onto white dropped the EXIF before the strip."""
+    from pypdf import PdfReader
+
+    photo = _saved(_sideways().convert(mode), fmt, exif=_turn_tag())
+    resp = client.post(
+        "/api/v1/convert",
+        files={"file": (f"photo.{fmt.lower()}", photo, f"image/{fmt.lower()}")},
+        data={"target_format": "pdf"},
+        headers=auth_headers,
+    )
+
+    assert resp.status_code == 200, resp.text
+    box = PdfReader(BytesIO(resp.content)).pages[0].mediabox
+    assert box.width < box.height
