@@ -21,6 +21,7 @@ remuxed every video into MP4 while keeping the original extension.
 import json
 import shutil
 import subprocess
+from pathlib import Path
 
 import ffmpeg
 import pytest
@@ -28,11 +29,14 @@ import pytest
 from app.compressors.video import _SUPPORTED_FORMATS as _COMPRESS_VIDEO_INPUTS
 from app.compressors.video import compress_video
 from app.converters._ffmpeg import (
+    _MAX_TAG_LENGTH,
     AUDIO_TARGETS,
     INPUT_DEMUXERS,
     VIDEO_CODECS,
     FFmpegError,
+    _read_ffmetadata,
     audio_output_args,
+    music_tags,
     run_ffmpeg,
     video_output_args,
 )
@@ -112,6 +116,60 @@ def test_audio_quality_drives_rate_control():
     assert audio_output_args("mp3", 1)["q:a"] == 9
     assert audio_output_args("opus", 85)["audio_bitrate"].endswith("k")
     assert "q:a" not in audio_output_args("wav", 85)  # lossless ignores quality
+
+
+def test_audio_args_carry_only_the_given_tags():
+    args = audio_output_args("mp3", 85, tags={"title": "Song", "date": "2026"})
+    assert args["map_metadata"] == args["map_chapters"] == -1
+    assert args["metadata:g:title"] == "title=Song"
+    assert args["metadata:g:date"] == "date=2026"
+    assert not [key for key in audio_output_args("mp3", 85) if key.startswith("metadata")]
+
+
+def test_ffmetadata_dump_is_unescaped():
+    dump = ";FFMETADATA1\ntitle=a\\=b\\;c\\#d\\\\\nartist=two\\\nlines\n"
+    assert _read_ffmetadata(dump) == {"title": "a=b;c#d\\", "artist": "two\nlines"}
+    # An empty value, a bare CR, and a last line cut off by the read limit.
+    assert _read_ffmetadata("title=\nalbum=a\rb\nartist=cu") == {"title": "", "album": "a\rb"}
+
+
+def _fake_dump(monkeypatch, text: str) -> None:
+    """Make music_tags' ffmpeg run write ``text`` as the dump."""
+    import app.converters._ffmpeg as mod
+
+    def write_dump(stream, **kwargs):
+        cmd = ffmpeg.compile(stream)
+        assert cmd[cmd.index("-f") + 1] == "ffmetadata"
+        assert cmd[cmd.index("-map_metadata:g") + 1] == "0:s:a:0"  # Ogg's stream tags
+        Path(cmd[-1]).write_text(text, encoding="utf-8", newline="\n")
+
+    monkeypatch.setattr(mod, "run_ffmpeg", write_dump)
+
+
+def test_music_tags_keep_title_artist_album_track_genre_and_year(tmp_path, monkeypatch):
+    _fake_dump(
+        monkeypatch,
+        ";FFMETADATA1\nTITLE=Song\nartist=Band\nalbum_artist=Band\nalbum="
+        + "x" * 5000
+        + "\ntrack=3/12\ngenre=Pop\ndate=2026-06-15T10:20:30\ncreation_time=2026-06-15\n"
+        "location=+53.5511+009.9937/\ncomment=Recorded with iPhone\nencoder=Lavf\n",
+    )
+    dump = tmp_path / "out.ffmetadata"
+    assert music_tags(tmp_path / "in.mp3", dump) == {
+        "title": "Song",
+        "artist": "Band",
+        "album_artist": "Band",
+        "album": "x" * _MAX_TAG_LENGTH,
+        "track": "3/12",
+        "genre": "Pop",
+        "date": "2026",
+    }
+    assert not dump.exists()
+
+
+def test_music_tags_find_the_year_where_wma_keeps_it(tmp_path, monkeypatch):
+    _fake_dump(monkeypatch, ";FFMETADATA1\ndate=unknown\nWM/Year=2019\n")
+    assert music_tags(tmp_path / "in.wma", tmp_path / "out.ffmetadata") == {"date": "2019"}
 
 
 def test_unknown_targets_raise():
@@ -194,13 +252,19 @@ def test_uploads_are_opened_with_the_listed_demuxers_only(tmp_path, monkeypatch)
 
     def capture(stream, **kwargs):
         commands.append(ffmpeg.compile(stream))
+        Path(commands[-1][-1]).touch()  # music_tags reads the dump it asked for
 
-    for module in ("app.converters.audio", "app.converters.video", "app.compressors.video"):
+    for module in (
+        "app.converters._ffmpeg",
+        "app.converters.audio",
+        "app.converters.video",
+        "app.compressors.video",
+    ):
         monkeypatch.setattr(f"{module}.run_ffmpeg", capture)
     get_converter("wav", "mp3").convert(tmp_path / "in.wav", tmp_path / "out.mp3")
     get_converter("mp4", "webm").convert(tmp_path / "in.mp4", tmp_path / "out.webm")
     compress_video(tmp_path / "in.mkv", tmp_path / "out.mkv")
-    assert len(commands) == 3
+    assert len(commands) == 4  # the audio conversion reads the music tags first
     for cmd in commands:
         options = cmd[1 : cmd.index("-i")]
         assert options == ["-format_whitelist", INPUT_DEMUXERS, "-protocol_whitelist", "file"]
@@ -450,13 +514,15 @@ def test_an_upload_in_another_format_is_refused(tmp_path):
 # ---------------------------------------------------------------------------
 
 # What a phone writes into a clip: where it was filmed (Apple's key and the
-# generic one), on which device, when. Plus a named chapter, as editors add.
+# generic one), on which device, when (ffmpeg drops creation_time on its own,
+# not Apple's key). Plus a named chapter, as editors add.
 _PHONE_TAGS = {
     "location": "+53.5511+009.9937/",
     "com.apple.quicktime.location.ISO6709": "+53.5511+009.9937+012.000/",
     "make": "Apple",
     "model": "iPhone 15 Pro",
     "creation_time": "2026-06-15T10:20:30.000000Z",
+    "com.apple.quicktime.creationdate": "2026-06-15T12:20:30+0200",
 }
 _PHONE_CHAPTER = "Rathausmarkt"
 # Text only this metadata puts into a file: the latitude (also what ffprobe
@@ -487,25 +553,33 @@ def _metadata_traces(path) -> set[str]:
     return traces
 
 
-@pytest.fixture(scope="module")
-def sample_phone_mov(tmp_path_factory):
-    folder = tmp_path_factory.mktemp("media")
-    chapters = folder / "chapters.txt"
-    chapters.write_text(
+def _chapter_file(folder) -> Path:
+    """An ffmetadata file with one named chapter, for ``-map_chapters``."""
+    path = folder / "chapters.txt"
+    path.write_text(
         f";FFMETADATA1\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=0\nEND=600\ntitle={_PHONE_CHAPTER}\n",
         encoding="utf-8",
         newline="\n",
     )
-    tags = [arg for key, value in _PHONE_TAGS.items() for arg in ("-metadata", f"{key}={value}")]
+    return path
+
+
+def _tag_args(tags: dict[str, str]) -> list[str]:
+    return [arg for key, value in tags.items() for arg in ("-metadata", f"{key}={value}")]
+
+
+@pytest.fixture(scope="module")
+def sample_phone_mov(tmp_path_factory):
+    folder = tmp_path_factory.mktemp("media")
     path = folder / "phone.mov"
     # use_metadata_tags: QuickTime 'mdta' keys, the way an iPhone stores them.
     _generate(
         "-f", "lavfi", "-i", "testsrc2=duration=0.6:size=128x72:rate=10",
         "-f", "lavfi", "-i", "sine=frequency=440:duration=0.6",
-        "-f", "ffmetadata", "-i", str(chapters),
+        "-f", "ffmetadata", "-i", str(_chapter_file(folder)),
         "-map", "0:v", "-map", "1:a", "-map_chapters", "2",
         "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest",
-        *tags, "-movflags", "use_metadata_tags",
+        *_tag_args(_PHONE_TAGS), "-movflags", "use_metadata_tags",
         str(path),
     )  # fmt: skip
     return path
@@ -571,3 +645,69 @@ def test_compress_video_keeps_portrait_clips_upright(sample_portrait_mp4, tmp_pa
     out = tmp_path / "compressed.mp4"
     compress_video(sample_portrait_mp4, out, quality=60)
     assert _displayed_size(out) == (72, 128)
+
+
+# Audio keeps the music tags — with only the year of the date, which a
+# recorder may fill with the recording time.
+_SONG_TAGS = {
+    "title": "Hafenrundfahrt",
+    "artist": "Die Elbtöne",
+    "album_artist": "Die Elbtöne",
+    "album": "Kaimauer",
+    "track": "3/12",
+    "genre": "Pop",
+    "date": "2026-06-15T10:20:30",
+}
+_KEPT_SONG_TAGS = {**_SONG_TAGS, "date": "2026"}
+# Tags a container has no room for: ADTS holds none, RIFF INFO no album artist.
+_NO_ROOM_FOR = {"aac": set(_SONG_TAGS), "wav": {"album_artist"}}
+
+
+def _song_tags(path) -> dict[str, str]:
+    """The music tags ffprobe reads from ``path`` (Ogg keeps them on the stream)."""
+    data = _probe_json(path)
+    found = {}
+    for part in (*data["streams"], data["format"]):
+        found.update({key.lower(): value for key, value in part.get("tags", {}).items()})
+    return {key: found[key] for key in _SONG_TAGS if key in found}
+
+
+@pytest.fixture(scope="module")
+def sample_tagged_mp3(tmp_path_factory):
+    # A song carrying the phone's metadata too: the location, the device, the
+    # recording time and a chapter must go, the music tags stay.
+    folder = tmp_path_factory.mktemp("media")
+    path = folder / "tagged.mp3"
+    _generate(
+        "-f", "lavfi", "-i", "sine=frequency=440:duration=0.6",
+        "-f", "ffmetadata", "-i", str(_chapter_file(folder)),
+        "-map", "0:a", "-map_chapters", "1",
+        "-c:a", "libmp3lame", *_tag_args({**_SONG_TAGS, **_PHONE_TAGS}),
+        str(path),
+    )  # fmt: skip
+    return path
+
+
+@requires_ffmpeg
+def test_tagged_mp3_carries_every_marker(sample_tagged_mp3):
+    assert _metadata_traces(sample_tagged_mp3) == {*_PHONE_MARKERS, "chapters"}
+    assert _song_tags(sample_tagged_mp3) == _SONG_TAGS
+
+
+@requires_ffmpeg
+@pytest.mark.parametrize("tgt", sorted(set(_AUDIO_FORMATS) - {"mp3"}))
+def test_audio_convert_keeps_only_the_music_tags(sample_tagged_mp3, tmp_path, tgt):
+    out = tmp_path / f"out.{tgt}"
+    get_converter("mp3", tgt).convert(sample_tagged_mp3, out, quality=85)
+    assert _metadata_traces(out) == set()
+    room = set(_SONG_TAGS) - _NO_ROOM_FOR.get(tgt, set())
+    assert _song_tags(out) == {key: _KEPT_SONG_TAGS[key] for key in room}
+
+
+@requires_ffmpeg
+def test_audio_reads_the_music_tags_ogg_keeps_on_its_stream(sample_tagged_mp3, tmp_path):
+    ogg = tmp_path / "in.ogg"
+    get_converter("mp3", "ogg").convert(sample_tagged_mp3, ogg, quality=85)
+    out = tmp_path / "out.mp3"
+    get_converter("ogg", "mp3").convert(ogg, out, quality=85)
+    assert _song_tags(out) == _KEPT_SONG_TAGS
