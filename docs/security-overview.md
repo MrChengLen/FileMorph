@@ -269,11 +269,11 @@ On Linux the app process marks itself non-dumpable as it loads
 read its environment or memory through `/proc` or attach to it, and it writes
 no core dump. Each of these children is dumpable again after `execve` and
 turns that off itself. Ghostscript, which the app runs for the PDF/A
-re-render, gets the app's environment without its secrets, as these children
-and LibreOffice do. In the Docker image the app's code and its Python
-packages belong to root and are read-only for `appuser`; the app writes only
-to `/app/data` and the temp dir. `tests/test_isolated_conversions.py` checks
-that a child can't read the app process's environment and that the app
+re-render, gets the app's environment without its secrets, as these children,
+LibreOffice, ffmpeg and ffprobe do. In the Docker image the app's code and its
+Python packages belong to root and are read-only for `appuser`; the app writes
+only to `/app/data` and the temp dir. `tests/test_isolated_conversions.py`
+checks that a child can't read the app process's environment and that the app
 doesn't start without the setting, `tests/test_office_gs_isolation.py` the
 environment Ghostscript gets, and `.github/workflows/docker-pr.yml` the app
 process and the file permissions in the built image.
