@@ -391,6 +391,81 @@ curl -X POST http://localhost:8000/api/v1/pdf/compress \
 
 ---
 
+### POST `/api/v1/pdf/insert`
+
+Insert a whole second file into a PDF — at the start, after a given page or at
+the end. The file can be a PDF, a Word document (`.docx`) or an image; an image
+becomes one page. The PDF keeps its bookmarks (still leading to the right
+pages), links, form fields, document info and XMP metadata. Its page labels
+(printed numbers such as i, ii, 1) survive only when the pages are appended —
+anywhere else viewers fall back to plain page numbers. The inserted file's
+bookmarks are not taken over, and a link on an inserted page whose destination
+name the PDF uses as well is dropped (it would lead into the PDF). Where the
+PDF keeps its destination names in a tree with `/Kids` at its root (pdfTeX
+does past 32 names), the inserted file's names are not taken over, and all
+named links on the inserted pages are dropped.
+
+**Authentication**: Optional — `X-API-Key` or `Authorization: Bearer`; without credentials the request runs on the anonymous tier (see [Authentication](#authentication))
+
+**Request**: `multipart/form-data`
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `file` | file | Yes | The PDF to insert into (must be a `.pdf`) |
+| `insert_file` | file | Yes | What to insert: a `.pdf` (all its pages), a `.docx` (converted with LibreOffice) or an image (`jpg`, `png`, `webp`, `avif`, `heic`, `tiff`, `gif`, `bmp`, `ico`; one page, metadata stripped and turned upright) |
+| `after_page` | integer | No | Insert after this page, counted from the PDF's first page (not its printed page numbers); `0` inserts at the start. Leave it out to append at the end. |
+
+An image page gets the size of the page before it (the first page when it goes
+at the start), turned to the image's orientation, with the image fitted and
+centred. PDF and Word pages keep their own size.
+
+**Response**: `200 OK` (`application/pdf`) — the combined PDF as a download
+(`_inserted.pdf` suffix), plus:
+
+| Header | Description |
+|---|---|
+| `X-FileMorph-Inserted-Pages` | How many pages were inserted |
+| `X-FileMorph-Page-Count` | The result's page count |
+
+Each file must fit the tier's upload cap, the result its output cap (`413`
+otherwise), and both together at most **10 000 pages** (`400`,
+`pdf_too_many_pages`). The request counts as one call. An error about one of
+the two files or the position carries `X-FileMorph-Error-Field: file`,
+`insert_file` or `after_page`, so a client can show it next to that field:
+
+- `after_page` past the PDF's last page is a `400` with `invalid_position`, and
+  `X-FileMorph-Page-Count` carries the PDF's page count.
+- An `insert_file` of another type is a `415` with `unsupported_format`; a
+  non-PDF `file` is a `422`. A malformed field (e.g. a negative `after_page`)
+  is FastAPI's validation `422`, without `X-FileMorph-Error-Field`.
+- A Word file on a server without LibreOffice (or one set to the `mammoth`
+  engine), a file named `.docx` that isn't one, or one LibreOffice can't
+  convert, is a `400` with `word_not_converted`: save it as a PDF in Word and
+  insert the PDF. An image that can't be decoded is a `400` with
+  `invalid_input`, one over the size limit `decompression_bomb`.
+- An unreadable or locked PDF is a `400` with `invalid_pdf`, `pdf_encrypted` or
+  `pdf_encryption_unsupported`.
+
+The pages are combined in their own process with memory, time and file size
+limits; files too large or complex for them are a `400` with `pdf_too_complex`.
+A PDF marked as PDF/A keeps the mark, which the inserted pages need not meet:
+convert the result with `target_format=pdfa` to be sure. The form fields of
+an inserted PDF come along with its pages.
+
+```bash
+curl -X POST http://localhost:8000/api/v1/pdf/insert \
+  -H "X-API-Key: YOUR_KEY" \
+  -F "file=@thesis.pdf" \
+  -F "insert_file=@statement.docx" \
+  -F "after_page=21" \
+  -D headers.txt \
+  --output thesis_inserted.pdf
+
+# headers.txt now carries X-FileMorph-Inserted-Pages / -Page-Count
+```
+
+---
+
 ### POST `/api/v1/convert/batch`
 
 Convert several files in one request. Returns a ZIP archive with all converted outputs.
@@ -523,6 +598,8 @@ Every successful conversion / compression carries integrity and classification m
 | `X-FileMorph-Batch-Failures` | The failed files and why (see [Batch headers](#batch-headers)) | batch `200` responses in which at least one file failed |
 | `X-FileMorph-Batch-Notes` | The files with notes, e.g. scaled down to fit (see [Batch headers](#batch-headers)) | `/compress/batch` `200` responses in which at least one file has notes |
 | `X-FileMorph-Error-Code` | A fixed code for the reason of an error (see [Error codes](#error-codes)) | the error responses listed there |
+| `X-FileMorph-Error-Field` | The form field an error is about: `file`, `insert_file` or `after_page` | `/pdf/insert` errors about one of its inputs |
+| `X-FileMorph-Inserted-Pages`, `X-FileMorph-Page-Count` | Pages inserted, and the result's page count | every `200` from `/pdf/insert`; `X-FileMorph-Page-Count` also carries the PDF's page count on `invalid_position` |
 | `X-FileMorph-Warnings` | Comma-separated `key=value` tokens (see [Conversion warnings](#conversion-warnings) and [Target-size notes](#target-size-notes)) | `/convert` DOCX → PDF, when the layout had to be simplified; `/compress` with `target_size_kb`, when the image was scaled down or the target can't be reached; `/pdf/compress`, when the images were scaled down |
 | `Retry-After` | Seconds the client should wait before retrying | on `503 Service Unavailable` (global concurrency cap) and on every `429` except the rate limiter's (slowapi, see Rate Limiting) — e.g. the per-tier concurrency cap and the monthly call quota |
 
@@ -553,19 +630,22 @@ can branch on (the `detail` text may change):
 | Code | Status | Meaning |
 |---|---|---|
 | `input_too_large` | `413` | A file is larger than your tier allows per file |
-| `output_cap_exceeded` | `413` | The result is larger than your tier's output cap. XLSX → CSV, JSON → CSV, CSV → JSON and `/pdf/split` stop writing as soon as they pass it |
+| `output_cap_exceeded` | `413` | The result is larger than your tier's output cap. XLSX → CSV, JSON → CSV, CSV → JSON, `/pdf/split` and `/pdf/insert` stop writing as soon as they pass it |
 | `target_size_exceeds_cap` | `413` | `target_size_kb` (`/compress`, `/compress/batch`) or `target_kb` (`/pdf/compress`) is above your tier's output cap — rejected before any work |
 | `batch_too_large` | `400` | `/convert/batch`, `/compress/batch`: more files than your tier allows per request — rejected before any work |
-| `decompression_bomb` | `400` | The image's dimensions exceed the decoder's safety limit (`/convert`, `/compress`) |
-| `invalid_input` | `400` | A problem you can fix, named in `detail` — e.g. a Markdown, CSV or JSON file that isn't UTF-8, a PDF that can't be read, a PDF → PDF or PDF → TXT conversion of a document over 10 000 pages, a PDF too large or complex to extract its text within 30 seconds, or a table too large or complex to convert within the memory, time and file size limits, or a file without a video picture converted to GIF (`/convert`); an image that isn't in a supported format or is too damaged to be recognised (`/convert`, `/compress`) |
+| `decompression_bomb` | `400` | The image's dimensions exceed the decoder's safety limit (`/convert`, `/compress`, an image for `/pdf/insert`) |
+| `invalid_input` | `400` | A problem you can fix, named in `detail` — e.g. a Markdown, CSV or JSON file that isn't UTF-8, a PDF that can't be read, a PDF → PDF or PDF → TXT conversion of a document over 10 000 pages, a PDF too large or complex to extract its text within 30 seconds, or a table too large or complex to convert within the memory, time and file size limits, or a file without a video picture converted to GIF (`/convert`); an image that isn't in a supported format or is too damaged to be recognised (`/convert`, `/compress`, `/pdf/insert`) |
 | `invalid_page_selection` | `400` | `/pdf/extract`: the `pages` selection is malformed, out of range or longer than 65 536 characters |
-| `invalid_pdf` | `400` | `/pdf/extract`, `/pdf/split`, `/pdf/compress`: the PDF can't be read; `/pdf/extract` and `/pdf/split` also for a PDF with no pages |
-| `pdf_encrypted` | `400` | The PDF needs a password to open (`/pdf/extract`, `/pdf/split`, `/pdf/compress`, `/convert`); remove the password and upload it again |
-| `pdf_encryption_unsupported` | `400` | The PDF is encrypted with a certificate or a method FileMorph can't open, so no password would help (`/pdf/extract`, `/pdf/split`, `/pdf/compress`, `/convert`); remove the protection, e.g. by asking the sender for an unprotected copy |
-| `pdf_too_complex` | `400` | `/pdf/compress`: the PDF is too large or complex to compress within the memory, time and file size limits. Extract fewer pages with `/pdf/extract` and compress them in parts |
-| `pdf_too_many_pages` | `400` | Over the 10 000-page cap: `/pdf/split` for a PDF with more pages, `/pdf/extract` for a selection that covers more. Extract in parts of up to 10 000 pages; for `/pdf/split`, then split each part |
+| `invalid_pdf` | `400` | `/pdf/extract`, `/pdf/split`, `/pdf/compress`, `/pdf/insert`: the PDF can't be read; `/pdf/extract`, `/pdf/split` and `/pdf/insert` also for a PDF with no pages |
+| `invalid_position` | `400` | `/pdf/insert`: `after_page` is past the PDF's last page; `X-FileMorph-Page-Count` carries its page count |
+| `pdf_encrypted` | `400` | The PDF needs a password to open (`/pdf/extract`, `/pdf/split`, `/pdf/compress`, `/pdf/insert`, `/convert`); remove the password and upload it again |
+| `pdf_encryption_unsupported` | `400` | The PDF is encrypted with a certificate or a method FileMorph can't open, so no password would help (`/pdf/extract`, `/pdf/split`, `/pdf/compress`, `/pdf/insert`, `/convert`); remove the protection, e.g. by asking the sender for an unprotected copy |
+| `pdf_too_complex` | `400` | `/pdf/compress`: the PDF is too large or complex to compress within the memory, time and file size limits. Extract fewer pages with `/pdf/extract` and compress them in parts. `/pdf/insert`: the files are too large or complex to combine within those limits |
+| `pdf_too_many_pages` | `400` | Over the 10 000-page cap: `/pdf/split` for a PDF with more pages, `/pdf/extract` for a selection that covers more, `/pdf/insert` for both files together. Extract in parts of up to 10 000 pages; for `/pdf/split`, then split each part |
+| `unsupported_format` | `415` | `/pdf/insert`: the file to insert is not a PDF, a `.docx` or a supported image |
 | `video_too_complex` | `400` | `/convert` video → GIF: the video has more than 4096 × 2160 pixels, or can't be turned into a GIF within 85 seconds. Use a shorter clip or a lower resolution |
 | `video_too_long` | `400` | `/convert` video → GIF: the video is longer than 30 seconds. It is refused, not cut short; shorten it first, or convert it to MP4 or WebM |
+| `word_not_converted` | `400` | `/pdf/insert`: this server can't convert the Word file (no LibreOffice, or the `mammoth` engine), the file isn't a `.docx`, or LibreOffice failed on it. Save it as a PDF in Word and insert the PDF |
 
 The redaction endpoints add codes of their own, listed under
 [AI operations](#ai-operations--pii-redaction-enterprise-edition-add-on).
@@ -615,6 +695,7 @@ The engine routing is described in [`formats.md`](formats.md#notes-on-docx--pdf)
 | `/convert` | `<name>.<target_format>`; `<name>_pdfa.pdf` for `target_format=pdfa` |
 | `/compress`, `/pdf/compress` | `<name>_compressed.<ext>` |
 | `/pdf/extract`, `/pdf/split` | `<name>_pages.pdf`, `<name>_pages.zip` |
+| `/pdf/insert` | `<name>_inserted.pdf`, after the PDF the pages went into |
 | `/ai/redact/apply` | `<name>.redacted.<ext>` — `<name>.redacted.txt` for every text input |
 | `/convert/batch`, `/compress/batch` | `filemorph-batch.zip`; the entries inside are named like single-file results |
 
@@ -678,7 +759,7 @@ item 3).
 |---|---|---|
 | `POST /api/v1/convert`, `POST /api/v1/compress` | 10 / minute | IP |
 | `POST /api/v1/convert/batch`, `POST /api/v1/compress/batch` | 3 / minute | IP |
-| `POST /api/v1/pdf/extract`, `POST /api/v1/pdf/split`, `POST /api/v1/pdf/compress` | 10 / minute | IP |
+| `POST /api/v1/pdf/extract`, `POST /api/v1/pdf/split`, `POST /api/v1/pdf/compress`, `POST /api/v1/pdf/insert` | 10 / minute | IP |
 | `POST /api/v1/ai/redact/detect` | 20 / minute | IP |
 | `POST /api/v1/ai/redact/apply` | 10 / minute | IP |
 | `GET /api/v1/formats` | 120 / minute | IP |
@@ -738,9 +819,9 @@ independently of the per-IP rate limits above:
 
 The gate counts every successful `POST /api/v1/convert`,
 `/convert/batch`, `/compress`, `/compress/batch`, `/pdf/extract`,
-`/pdf/split`, and `/pdf/compress` as **one** call. A batch with 25
+`/pdf/split`, `/pdf/compress` and `/pdf/insert` as **one** call. A batch with 25
 files counts as 1 call (matching the pricing-page wording "API calls
-per month"). Failed conversions do not count toward the quota.
+per month"), and so does an insertion with its two files. Failed conversions do not count toward the quota.
 
 When the limit is reached, the response is `429 Too Many Requests`
 with a `Retry-After` header in seconds pointing at the start of the

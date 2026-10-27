@@ -98,14 +98,23 @@ def test_hardening_module_respects_env_override(monkeypatch):
 # ── /convert route — bomb detection emits structured 400 ─────────────────────
 
 
+# 40 x 40 pixels against a limit of 100 is past Pillow's 2x ceiling (its
+# DecompressionBombError); against 1000 it is between 1x and 2x, where Pillow
+# warns and apply_hardening turns the warning into an error. pytest resets the
+# warning filters per test, so the marker does what startup does.
+_BOMB_LIMITS = pytest.mark.parametrize("limit", [100, 1000], ids=["error", "warning"])
+
+
+@pytest.mark.filterwarnings("error::PIL.Image.DecompressionBombWarning")
+@_BOMB_LIMITS
 def test_convert_decompression_bomb_returns_400_with_error_code(
-    client, auth_headers, tmp_path, monkeypatch
+    client, auth_headers, tmp_path, monkeypatch, limit
 ):
-    """A small PNG opened against a tightened MAX_IMAGE_PIXELS triggers
-    DecompressionBombError; the route maps it to HTTP 400 + structured
-    header so the UI can render a distinct message instead of the
-    generic 500 conversion-failed."""
-    monkeypatch.setattr(Image, "MAX_IMAGE_PIXELS", 100)
+    """A small PNG opened against a tightened MAX_IMAGE_PIXELS trips the
+    size limit; the route maps it to HTTP 400 + structured header so the UI
+    can render a distinct message instead of the generic 500
+    conversion-failed — for the warning as for the error."""
+    monkeypatch.setattr(Image, "MAX_IMAGE_PIXELS", limit)
 
     src = tmp_path / "small.png"
     _make_small_png(src, w=40, h=40)
@@ -123,11 +132,13 @@ def test_convert_decompression_bomb_returns_400_with_error_code(
     assert "safety limits" in body["detail"].lower() or "decode" in body["detail"].lower()
 
 
+@pytest.mark.filterwarnings("error::PIL.Image.DecompressionBombWarning")
+@_BOMB_LIMITS
 def test_compress_decompression_bomb_returns_400_with_error_code(
-    client, auth_headers, tmp_path, monkeypatch
+    client, auth_headers, tmp_path, monkeypatch, limit
 ):
     """Same hard-reject path on /compress."""
-    monkeypatch.setattr(Image, "MAX_IMAGE_PIXELS", 100)
+    monkeypatch.setattr(Image, "MAX_IMAGE_PIXELS", limit)
 
     src = tmp_path / "small.jpg"
     _make_small_jpg(src, w=40, h=40)
