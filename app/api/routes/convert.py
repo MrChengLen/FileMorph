@@ -9,7 +9,6 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.responses import FileResponse, JSONResponse, Response
-from PIL import Image as _PILImage
 from starlette.background import BackgroundTask
 
 from app.api.deps import caller_tier, require_api_key
@@ -31,6 +30,7 @@ from app.core.batch import (
 )
 from app.core.concurrency import acquire_slot
 from app.core.data_classification import DEFAULT_CLASSIFICATION as DATA_CLASSIFICATION_DEFAULT
+from app.core.image_hardening import DECOMPRESSION_BOMB
 from app.core.metrics import increment as metric_increment
 from app.core.observability import record_conversion
 from app.core.processing import BLOCKED_MAGIC, actor_id, sha256_file
@@ -180,10 +180,10 @@ async def _do_convert(
             raise
         except OutputTooLargeError:
             output_disk_size = None  # stopped writing at the cap: answered below
-        except _PILImage.DecompressionBombError as exc:
+        except DECOMPRESSION_BOMB as exc:
             # P3-4: Pillow's DecompressionBombWarning is filtered to an error
-            # at startup (see app/core/image_hardening.py); the Error subclass
-            # also fires above the 2× ceiling. Both land here. Return 400
+            # at startup (see app/core/image_hardening.py); the Error class
+            # fires above the 2× ceiling. Both land here. Return 400
             # with a structured error code so the UI can render a distinct
             # "image too large to decode safely" message rather than the
             # generic "Conversion failed".
