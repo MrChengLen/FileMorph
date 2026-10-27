@@ -25,14 +25,17 @@ mapping, the quality→CRF/qscale/bitrate translation, and a single
 :func:`run_ffmpeg` that compiles an ffmpeg-python stream and executes
 it via subprocess with a hard timeout (mirroring _ghostscript.py).
 Uploads are opened through :func:`media_input`, never ``ffmpeg.input()``
-directly. It also builds the two video → GIF passes and the ffprobe
-checks around them (bottom of the file).
+directly. The output arguments copy no metadata from the source
+(``_NO_SOURCE_METADATA``) except an audio file's music tags
+(:func:`music_tags`). It also builds the two video → GIF passes and the
+ffprobe checks around them (bottom of the file).
 """
 
 from __future__ import annotations
 
 import json
 import math
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -119,12 +122,23 @@ def _scale(quality: int, at_q1: float, at_q100: float) -> int:
     return round(at_q1 + (quality - 1) * (at_q100 - at_q1) / 99)
 
 
+# NEU-C.2 for media, as for images (app/converters/_metadata.py): ffmpeg
+# copies the source's global and per-stream tags and its chapters into the
+# output by default — on a phone clip that is where it was filmed, the
+# device and the capture time. A negative input index maps none of it; the
+# muxer still writes its own technical tags (encoder, handler, language
+# "und"). Rotation is display-matrix side data, not metadata, and
+# autorotate turns the frames upright before encoding either way.
+_NO_SOURCE_METADATA = {"map_metadata": -1, "map_chapters": -1}
+
+
 def video_output_args(container: str, quality: int, *, audio_bitrate: str) -> dict:
     """Build ffmpeg output kwargs for a video container at a quality level.
 
     quality 1 (smallest) – 100 (best) maps onto each encoder's native
     rate control: CRF 40→18 for libx264, CRF 45→18 for VP9 (its scale
-    runs 0-63), qscale 31→2 for the legacy qscale-driven codecs.
+    runs 0-63), qscale 31→2 for the legacy qscale-driven codecs. No tags
+    or chapters are copied from the source (``_NO_SOURCE_METADATA``).
     """
     try:
         vcodec, acodec = VIDEO_CODECS[container]
@@ -142,6 +156,7 @@ def video_output_args(container: str, quality: int, *, audio_bitrate: str) -> di
         # yuv420p requires even dimensions — round odd sources down one
         # pixel instead of failing (e.g. an 855×479 screen recording).
         "vf": "scale=trunc(iw/2)*2:trunc(ih/2)*2",
+        **_NO_SOURCE_METADATA,
     }
     if vcodec == "libx264":
         args["crf"] = _scale(quality, 40, 18)
@@ -160,22 +175,26 @@ def video_output_args(container: str, quality: int, *, audio_bitrate: str) -> di
     return args
 
 
-def audio_output_args(target_ext: str, quality: int) -> dict:
+def audio_output_args(target_ext: str, quality: int, *, tags: dict[str, str] | None = None) -> dict:
     """Build ffmpeg output kwargs for an audio target format.
 
     Lossy targets honour quality 1-100 via each codec's preferred rate
     control (LAME/Vorbis VBR scales, bitrate for AAC/Opus); lossless
     targets (wav/flac) ignore it. ``-vn`` drops embedded cover-art
-    streams — raw-stream muxers like ADTS cannot carry them, and
-    dropping them matches the strip-metadata default the image pipeline
-    already applies (NEU-C.2).
+    streams — raw-stream muxers like ADTS cannot carry them. Of the
+    source's metadata the output carries only ``tags``, the music tags
+    :func:`music_tags` read (NEU-C.2).
     """
     try:
         muxer, codec = AUDIO_TARGETS[target_ext]
     except KeyError:
         raise ValueError(f"unsupported audio target: {target_ext!r}") from None
 
-    args: dict = {"format": muxer, "acodec": codec, "vn": None}
+    args: dict = {"format": muxer, "acodec": codec, "vn": None, **_NO_SOURCE_METADATA}
+    # ffmpeg-python 0.2.0 cannot repeat an option, so each tag gets its own
+    # "-metadata:g:<key>": ffmpeg reads a specifier starting with "g" as the
+    # file's global metadata and ignores the rest.
+    args.update({f"metadata:g:{key}": f"{key}={value}" for key, value in (tags or {}).items()})
     if codec == "libmp3lame":
         args["q:a"] = _scale(quality, 9, 0)  # LAME VBR: 9 ≈ 65 kbps … 0 ≈ 245 kbps
     elif codec == "libvorbis":
@@ -189,6 +208,81 @@ def audio_output_args(target_ext: str, quality: int) -> dict:
         # universally decodable point — quality does not scale it.
         args["audio_bitrate"] = "128k"
     return args
+
+
+# The music tags an audio output keeps: title, artist and album artist,
+# album, track number and genre, plus the year — from the first of
+# _YEAR_TAGS that starts with one (WMA keeps it as "WM/Year", APE and some
+# Vorbis taggers as "YEAR"). Only the year: a recorder may store the
+# recording time in the date. Everything else the source carries — the
+# recording time, the device, comments, chapters — is dropped, as for video.
+_MUSIC_TAGS = ("title", "artist", "album_artist", "album", "track", "genre")
+_YEAR_TAGS = ("date", "year", "wm/year")
+# What a crafted upload's tags may cost: how much of the dump is read into
+# memory, the length of each value kept from it (Linux refuses an argument
+# over 128 KiB), and the time for the dump, which needs only the headers.
+_MAX_TAGS_READ = 1_000_000
+_MAX_TAG_LENGTH = 1_000
+_TAGS_TIMEOUT_SECONDS = 60
+
+
+def music_tags(path: Path, dump: Path) -> dict[str, str]:
+    """The music tags and the year of an upload, for :func:`audio_output_args`.
+
+    ffmpeg writes the upload's global tags and those of its first audio
+    stream (where Ogg keeps them) to ``dump`` as ffmetadata — opened with
+    :func:`media_input` and run by :func:`run_ffmpeg`, like a conversion.
+    A file rather than ffprobe's output, so at most ``_MAX_TAGS_READ`` of it
+    is read. No chapters (``map_chapters=-1``): :func:`_read_ffmetadata`
+    reads one section, and a chapter's ``title=`` would replace the song's.
+    """
+    try:
+        run_ffmpeg(
+            media_input(path).output(
+                str(dump),
+                format="ffmetadata",
+                map_chapters=-1,
+                map_metadata="0",
+                **{"map_metadata:g": "0:s:a:0"},
+            ),
+            timeout=min(_TAGS_TIMEOUT_SECONDS, settings.media_subprocess_timeout_seconds),
+        )
+        with dump.open(encoding="utf-8", errors="replace", newline="") as f:
+            text = f.read(_MAX_TAGS_READ)
+    finally:
+        dump.unlink(missing_ok=True)
+    found = {key.lower(): value for key, value in _read_ffmetadata(text).items()}
+    tags = {key: found[key] for key in _MUSIC_TAGS if found.get(key)}
+    for key in _YEAR_TAGS:
+        year = re.match(r"[0-9]{4}", found.get(key, ""))
+        if year:
+            tags["date"] = year.group()
+            break
+    return tags
+
+
+def _read_ffmetadata(text: str) -> dict[str, str]:
+    """The ``key=value`` lines of an ffmetadata dump, which puts a backslash
+    before ``=``, ``;``, ``#``, a backslash and a line break. A value is cut
+    at ``_MAX_TAG_LENGTH`` characters while it is read."""
+    tags: dict[str, str] = {}
+    key, field, escaped = None, [], False
+    for char in text:
+        if escaped:
+            escaped = False
+            if len(field) < _MAX_TAG_LENGTH:
+                field.append(char)
+        elif char == "\\":
+            escaped = True
+        elif char == "=" and key is None:
+            key, field = "".join(field), []
+        elif char == "\n":
+            if key is not None:
+                tags[key] = "".join(field)
+            key, field = None, []
+        elif len(field) < _MAX_TAG_LENGTH:
+            field.append(char)
+    return tags
 
 
 def run_ffmpeg(stream, *, timeout: float | None = None) -> None:

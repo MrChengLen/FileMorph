@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 from pathlib import Path
 
-from app.converters._ffmpeg import audio_output_args, media_input, run_ffmpeg
+from app.converters._ffmpeg import audio_output_args, media_input, music_tags, run_ffmpeg
 from app.converters.base import BaseConverter
 from app.converters.registry import register
 
@@ -18,7 +18,8 @@ class _AudioConverter(BaseConverter):
     extension as the output format — ffmpeg has no muxer named
     ``m4a``/``aac``/``wma``. Direct invocation streams with constant
     memory; the extension→muxer/codec mapping and the quality→rate-
-    control translation live in ``app/converters/_ffmpeg.py``.
+    control translation live in ``app/converters/_ffmpeg.py``. Of the
+    source's tags the output keeps the music tags only.
     """
 
     def __init__(self, tgt_fmt: str):
@@ -26,8 +27,9 @@ class _AudioConverter(BaseConverter):
 
     def convert(self, input_path: Path, output_path: Path, **kwargs) -> Path:
         quality = int(kwargs.get("quality", 85))
+        tags = music_tags(input_path, output_path.with_suffix(".ffmetadata"))
         stream = media_input(input_path).output(
-            str(output_path), **audio_output_args(self._tgt_fmt, quality)
+            str(output_path), **audio_output_args(self._tgt_fmt, quality, tags=tags)
         )
         run_ffmpeg(stream)
         return output_path

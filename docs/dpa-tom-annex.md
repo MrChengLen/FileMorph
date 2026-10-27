@@ -113,6 +113,10 @@ physical assets of its own.
   (GPS coordinates, camera serial, photographer name, capture
   timestamps) by default — `app/converters/_metadata.py` (ICC colour
   profile preserved so wide-gamut workflows are not desaturated).
+- Video conversions and compressions copy no tags or chapters from the
+  source (location, device, capture time); audio conversions keep only
+  the music tags (title, artist, album artist, album, track number,
+  genre, year) — `app/converters/_ffmpeg.py`.
 - PII redaction (Cloud/EE add-on, where `AI_OPERATIONS_ENABLED` is set)
   processes uploaded documents in memory and writes neither the content nor any
   detected value to logs or the audit trail; the audit entry records operation
