@@ -190,6 +190,8 @@ async def lifespan(app: FastAPI):
         logger.warning(
             "ffmpeg not found on PATH. Video and audio conversion/compression will not work."
         )
+    elif shutil.which("ffprobe") is None:
+        logger.warning("ffprobe not found on PATH. Video to GIF conversion will not work.")
 
     # A-8 / NEU-B.2: Sweep stale fm_ temp dirs on startup. Crash-recovery
     # only — the request path cleans its own dirs in a ``finally`` block.

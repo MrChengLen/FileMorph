@@ -795,7 +795,7 @@ defaults are sized for a 4 GB host:
 | `MAX_GLOBAL_CONCURRENCY` | `4` | Total parallel conversions across all callers. Past the cap → `503 Service Unavailable` + `Retry-After`. Raise this to roughly the CPU count on a bigger box. |
 | `CONCURRENCY_ACQUIRE_TIMEOUT_SECONDS` | `0.5` | How long a request waits for a free slot before giving up. Small values fail fast; raise to absorb longer micro-bursts. |
 | `CONCURRENCY_RETRY_AFTER_SECONDS` | `5` | Value sent in the `Retry-After` response header. Should match the typical drain time of a saturated pool. |
-| `MEDIA_SUBPROCESS_TIMEOUT_SECONDS` | `600` | Hard kill-switch for a single ffmpeg run (video/audio convert + video compress). Protects worker threads from a crafted or very long media file; raise it if you regularly convert long or HD footage. |
+| `MEDIA_SUBPROCESS_TIMEOUT_SECONDS` | `600` | Hard kill-switch for a single ffmpeg run (video/audio convert + video compress). Protects worker threads from a crafted or very long media file; raise it if you regularly convert long or HD footage. Video → GIF stops after 85 s for all its steps, or after this value if it is lower. |
 
 Per-actor limits (per user for authenticated callers, per client IP
 for everyone else) are tier-bound and not env-tunable: anonymous and
@@ -813,6 +813,13 @@ A batch endpoint (`/convert/batch`, `/compress/batch`) holds **one**
 concurrency slot for the whole batch — files inside the batch are
 processed sequentially. Increasing batch size therefore lengthens
 slot-hold time linearly without inflating the parallelism cost.
+
+Processes and threads are capped too: at 4096 for the container
+(`pids_limit` in `docker-compose.yml`) and for the systemd service
+below (`TasksMax=`). The programs a conversion runs start a few
+threads per CPU core (ffmpeg), so on a host with many cores raise this
+cap together with `MAX_GLOBAL_CONCURRENCY`: allow about 200, plus 3 per
+CPU core for each parallel conversion.
 
 ### PDF/A-2b conformance (optional ghostscript)
 
@@ -957,6 +964,13 @@ EnvironmentFile=-/etc/filemorph/filemorph.env
 ExecStart=/opt/filemorph/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
 Restart=on-failure
 RestartSec=5
+# Hardening: docker-compose.yml's limits, plus a /tmp of its own and a
+# read-only file system.
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+TasksMax=4096
+LimitCORE=0
 
 [Install]
 WantedBy=multi-user.target
@@ -964,6 +978,17 @@ WantedBy=multi-user.target
 
 The leading `-` in `EnvironmentFile=-` makes the file optional, so the
 service also starts on a Community Edition install that has none.
+
+The hardening lines keep the service from gaining privileges through
+setuid programs (`NoNewPrivileges=`), give it a `/tmp` of its own for
+its temporary folders (`PrivateTmp=`), and make the whole file system
+read-only for it (`ProtectSystem=strict`): while it runs, FileMorph
+writes nothing but those temporary folders. The scripts that write
+`data/api_keys.json` (see "API Key management") run from your shell,
+outside the service. `TasksMax=` caps its processes and threads, so a
+fork past the cap fails instead of filling the host's process table
+(see "Capacity tuning" above), and `LimitCORE=0` turns off core dumps,
+which would write uploaded data from memory to disk.
 
 Three things this unit gets right that a naive copy of the Docker
 setup would miss:

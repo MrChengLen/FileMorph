@@ -15,7 +15,6 @@ from starlette.background import BackgroundTask
 from app.api.deps import caller_tier, require_api_key
 from app.api.routes.auth import get_optional_user
 from app.converters.base import (
-    EncryptedPdfError,
     InvalidInputError,
     OutputTooLargeError,
     UnsupportedConversionError,
@@ -199,9 +198,16 @@ async def _do_convert(
             # The converter named a problem the user can fix (e.g. a text file
             # that isn't UTF-8). Its message is caller-safe; a 400 tells the
             # user what to change, where the generic 500 was a dead end. An
-            # encrypted PDF keeps the code it has on the PDF routes.
-            logger.info("invalid input rejected: %s -> %s (%s)", src_ext, tgt_ext, exc)
-            code = exc.error_code if isinstance(exc, EncryptedPdfError) else "invalid_input"
+            # error with its own code keeps it (an encrypted PDF the code it
+            # has on the PDF routes, a video too long for a GIF its own).
+            code = getattr(exc, "error_code", "invalid_input")
+            logger.info(
+                "invalid input rejected: %s -> %s (%s)",
+                src_ext,
+                tgt_ext,
+                exc,
+                extra={"operation": "convert", "reason": code},
+            )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(exc),
@@ -221,10 +227,14 @@ async def _do_convert(
         # S1-B: Output-cap check — reject before loading into memory. Guards
         # against bandwidth amplification (JPG→PNG ~5-10×, MP3→WAV ~11×).
         if output_disk_size is None or output_disk_size > quota.output_cap_bytes:
+            # A converter can name its own way to a smaller output (video → GIF:
+            # a shorter clip).
             if tgt_ext in _TABLE_TARGETS:
                 tip = "Split the table into smaller files and convert them one by one"
             else:
-                tip = "Try a more efficient target (WebP/AVIF for images, FLAC for audio)"
+                tip = getattr(converter, "output_cap_tip", None) or (
+                    "Try a more efficient target (WebP/AVIF for images, FLAC for audio)"
+                )
             hint = f"{tip}. {higher_cap_hint(tier)}"
             # S4-foundation: record the rejection so dashboards can count
             # cap-hits per tier / format-pair. Success log alone would miss
@@ -489,7 +499,10 @@ async def _do_convert_batch(
 
                 # S1-B: Output-cap check — reject before loading into memory.
                 if output_disk_size is None or output_disk_size > quota.output_cap_bytes:
-                    tip = "Split the table" if tgt_ext in _TABLE_TARGETS else "Try WebP/AVIF"
+                    if tgt_ext in _TABLE_TARGETS:
+                        tip = "Split the table"
+                    else:
+                        tip = getattr(converter, "output_cap_tip", None) or "Try WebP/AVIF"
                     raise BatchFileError(
                         f"{_output_too_large(output_disk_size, quota.output_cap_bytes)} "
                         f"{tip}. {higher_cap_hint(tier)}"

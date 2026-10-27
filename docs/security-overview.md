@@ -254,11 +254,13 @@ stopped after 90 seconds, on Linux capped at 1 GiB of address space (PDF
 compression: 3 GiB), slightly more CPU time than the time limit and 2 GiB per
 file written (PDF compression: 1 GiB), where a write past the limit ends the
 child. On Linux all of these caps, and those of the PDF → TXT child, are
-hard limits, which a child cannot raise again without root privileges, and
-no child writes a core dump. A file over these limits gets a `400`
-(`invalid_input`; PDF compression: `pdf_too_complex`) whose message names the
-next step. The child's temporary files go to the request's own temp folder,
-which the route removes.
+hard limits, which a child cannot raise again without root privileges; no
+child writes a core dump or gains privileges through a setuid program, each
+ends when the app process that started it ends, and none starts processes or
+threads of its own unless the app runs as root. A file over these limits gets
+a `400` (`invalid_input`; PDF compression: `pdf_too_complex`) whose message
+names the next step. The child's temporary files go to the request's own temp
+folder, which the route removes.
 `tests/test_isolated_conversions.py` pins the limits, the environment and how
 the child's errors come back.
 
@@ -330,8 +332,10 @@ recognises other formats, but refuses to open an upload in one of them, and
 an upload is opened as a local file only. The list is one constant,
 `INPUT_DEMUXERS`, and the media converters and the video compressor open
 every upload through `media_input()` (both in
-`app/converters/_ffmpeg.py`). An upload in another format is answered with
-HTTP 400 and `X-FileMorph-Error-Code: invalid_input`.
+`app/converters/_ffmpeg.py`). Before a video becomes a GIF, ffprobe reads its
+frame size and length with the same list (`probe_video()`, numeric fields
+only). An upload in another format is answered with HTTP 400 and
+`X-FileMorph-Error-Code: invalid_input`.
 
 ### Historical findings addressed in this area
 
@@ -646,7 +650,13 @@ to be effective. The following list is grouped by importance.
 ### Recommended
 
 6. **Run the container as a non-root user.** The provided
-   Dockerfile does this; verify in any custom build.
+   Dockerfile does this; verify in any custom build. Keep the
+   restrictions `docker-compose.yml` adds (all capabilities
+   dropped, `no-new-privileges`, a cap on processes and threads,
+   no core dumps); the systemd unit in
+   [`docs/self-hosting.md`](./self-hosting.md) runs the app as a
+   non-root user of its own with `NoNewPrivileges=`, the same cap and
+   no core dumps.
 7. **Add an upload size cap at the proxy.** The application
    enforces per-tier caps, but a proxy-level cap (in Caddy:
    `request_body { max_size 100MB }`) trims malicious requests

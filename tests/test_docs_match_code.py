@@ -34,6 +34,7 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
+import yaml
 
 from app.api.routes.auth import get_optional_user
 from app.api.routes.convert import _MAX_TARGET_LEN, _download_name
@@ -264,6 +265,22 @@ def test_docs_quote_the_isolated_conversion_limits(doc, sentence):
         compress_file_gib=compress_file // _isolated._GIB,
     )
     assert expected in " ".join(_text(doc).split())
+
+
+def test_compose_the_systemd_unit_and_ci_cap_processes_alike():
+    """docker-compose.yml, the systemd unit in self-hosting.md and the
+    container docker-pr.yml starts cap processes and threads at one number,
+    which self-hosting.md quotes, and turn off core dumps."""
+    compose = yaml.safe_load((DOCS.parent / "docker-compose.yml").read_text(encoding="utf-8"))
+    service = compose["services"]["filemorph"]
+    limit = service["pids_limit"]
+    assert service["ulimits"] == {"core": 0}
+    unit = _section("self-hosting.md", "## systemd service (without Docker)")
+    assert f"\nTasksMax={limit}\n" in unit
+    assert "\nLimitCORE=0\n" in unit
+    workflow = DOCS.parent / ".github" / "workflows" / "docker-pr.yml"
+    assert f"--pids-limit {limit} --ulimit core=0" in workflow.read_text(encoding="utf-8")
+    assert f"Processes and threads are capped too: at {limit} for" in _flat("self-hosting.md")
 
 
 def test_self_hosting_quotes_the_per_tier_concurrency():
