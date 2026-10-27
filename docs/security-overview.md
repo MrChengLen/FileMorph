@@ -264,6 +264,20 @@ folder, which the route removes.
 `tests/test_isolated_conversions.py` pins the limits, the environment and how
 the child's errors come back.
 
+On Linux the app process marks itself non-dumpable as it loads
+(`app/main.py`): no other process of its user, these children included, can
+read its environment or memory through `/proc` or attach to it, and it writes
+no core dump. Each of these children is dumpable again after `execve` and
+turns that off itself. Ghostscript, which the app runs for the PDF/A
+re-render, gets the app's environment without its secrets, as these children
+and LibreOffice do. In the Docker image the app's code and its Python
+packages belong to root and are read-only for `appuser`; the app writes only
+to `/app/data` and the temp dir. `tests/test_isolated_conversions.py` checks
+that a child can't read the app process's environment and that the app
+doesn't start without the setting, `tests/test_office_gs_isolation.py` the
+environment Ghostscript gets, and `.github/workflows/docker-pr.yml` the app
+process and the file permissions in the built image.
+
 ### Office image: LibreOffice subprocess hardening
 
 On the `filemorph:office` image, DOCX→PDF conversion can delegate to a
@@ -656,7 +670,13 @@ to be effective. The following list is grouped by importance.
    no core dumps); the systemd unit in
    [`docs/self-hosting.md`](./self-hosting.md) runs the app as a
    non-root user of its own with `NoNewPrivileges=`, the same cap and
-   no core dumps.
+   no core dumps. In a custom build, keep the app's code owned by
+   root, as the provided Dockerfile does: `appuser` needs write access
+   to `/app/data` only. On Linux the process that loads `app/main.py`
+   makes itself non-dumpable, so run it as the only server process, as
+   the image and the systemd unit do; a debugger or profiler that
+   attaches to it (gdb, py-spy) needs root — in a container, root with
+   the `SYS_PTRACE` capability.
 7. **Add an upload size cap at the proxy.** The application
    enforces per-tier caps, but a proxy-level cap (in Caddy:
    `request_body { max_size 100MB }`) trims malicious requests

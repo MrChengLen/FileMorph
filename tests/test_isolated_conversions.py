@@ -309,6 +309,93 @@ def test_a_child_whose_parent_ended_first_ends_at_once():
     assert (res.returncode, res.stdout) == (1, "")
 
 
+@pytest.mark.skipif(sys.platform != "linux", reason="the flag applies on Linux")
+@pytest.mark.skipif(
+    sys.platform == "linux" and os.getuid() == 0, reason="root reads any process's environment"
+)
+def test_a_child_cannot_read_the_environment_of_the_app_process():
+    # A process starts a child of its own user, as the app starts the
+    # conversion children, before and after it loads the app, which marks it
+    # non-dumpable (app/main.py). The child reads its parent's environment
+    # only before. A conversion child started after still sets itself up:
+    # it writes its OOM score before it turns the flag off itself.
+    reader = "\n".join(
+        [
+            "import os",
+            "try:",
+            "    open(f'/proc/{os.getppid()}/environ', 'rb').read()",
+            "except PermissionError:",
+            "    print('denied')",
+            "else:",
+            "    print('read')",
+        ]
+    )
+    child = "\n".join(
+        [
+            "from app.converters._isolated import limit_resources",
+            "limit_resources(2**30, 60, 2**30)",
+            "print(open('/proc/self/oom_score_adj').read())",
+        ]
+    )
+    parent = "\n".join(
+        [
+            "import subprocess, sys",
+            "def run(code):",
+            "    cmd = [sys.executable, '-c', code]",
+            "    return subprocess.run(cmd, capture_output=True, encoding='utf-8', check=True).stdout",
+            "own = open('/proc/self/oom_score_adj').read()",  # what a child inherits
+            f"before = run({reader!r})",
+            "import app.main",
+            f"print(own, before, run({reader!r}), run({child!r}))",
+        ]
+    )
+    res = subprocess.run(
+        [sys.executable, "-c", parent],
+        capture_output=True,
+        encoding="utf-8",
+        cwd=_isolated._APP_ROOT,
+        timeout=120,
+        check=True,
+    )
+    own, *outcomes = res.stdout.split()
+    assert outcomes == ["read", "denied", "1000"], res.stderr
+    assert own != "1000"  # the child wrote its score, it didn't inherit it
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="the flag applies on Linux")
+def test_the_app_does_not_start_when_the_kernel_refuses_the_flag():
+    # A libc whose prctl fails, as under a seccomp profile that refuses it.
+    probe = "\n".join(
+        [
+            "import ctypes",
+            "real = ctypes.CDLL",
+            "class Refusing:",
+            "    def __init__(self, lib):",
+            "        self.lib = lib",
+            "    def __getattr__(self, name):",
+            "        return getattr(self.lib, name)",
+            "    def prctl(self, *args):",
+            "        ctypes.set_errno(1)",
+            "        return -1",
+            "def cdll(name, *args, **kwargs):",
+            "    lib = real(name, *args, **kwargs)",
+            "    return Refusing(lib) if name is None else lib",
+            "ctypes.CDLL = cdll",
+            "import app.main",
+        ]
+    )
+    res = subprocess.run(
+        [sys.executable, "-c", probe],
+        capture_output=True,
+        encoding="utf-8",
+        cwd=_isolated._APP_ROOT,
+        timeout=120,
+        check=False,
+    )
+    assert res.returncode == 3, res.stderr  # as for a published JWT secret
+    assert "Refusing to start: the kernel refused PR_SET_DUMPABLE (errno 1)." in res.stderr
+
+
 # ── Within the child's memory limit ──────────────────────────────────────────
 
 
