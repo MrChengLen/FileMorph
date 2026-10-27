@@ -145,6 +145,14 @@ back until the update lands.
 - Every new converter should have at least one test in `tests/`
 - Use the provided fixtures in `conftest.py` (client, auth_headers, sample files)
 - Tests must pass locally and in CI before merging
+- A new public page goes into `app/core/catalog.py` (path, sitemap priority,
+  the switch that gates it, its `/llms.txt` line). The sitemap and `/llms.txt`
+  follow from there, and `tests/test_catalog.py` checks the rest.
+- The titles, meta descriptions and headings of the homepage, `/tools` and the
+  tool pages are pinned in `tests/golden/page_texts.json`. After a deliberate
+  change, run `pytest tests/test_catalog.py` once with
+  `FILEMORPH_UPDATE_GOLDEN=1` set (it rewrites the file and fails on purpose),
+  review the diff, unset the variable and commit the file.
 
 ---
 

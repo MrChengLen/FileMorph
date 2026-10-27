@@ -6,7 +6,8 @@ On the ``filemorph:office`` image, a complex DOCX is rendered by a LibreOffice
 defense-in-depth: application secrets are dropped from it, and a Ghostscript
 stub is prepended to its ``PATH`` so it cannot start the real ``gs``.
 FileMorph's own PDF/A path resolves Ghostscript in the app process and must
-keep working; the pure-Python (mammoth) path is unaffected.
+keep working, with the app's secrets dropped from that gs as well; the
+pure-Python (mammoth) path is unaffected.
 
 These tests fake ``shutil.which``/``subprocess.run`` so the wiring is asserted
 on any platform, with no real ``soffice`` or ``gs`` installed. The real office
@@ -146,6 +147,27 @@ def test_convert_via_libreoffice_runs_soffice_with_hardened_env(monkeypatch, tmp
     assert not (out.parent / f".soffice_{out.stem}").exists()
     # The app process keeps its secret and PATH.
     assert os.environ["STRIPE_SECRET_KEY"] == "sk_live_do_not_leak"
+
+
+def test_the_pdfa_rerender_runs_ghostscript_without_secrets(monkeypatch, tmp_path):
+    """FileMorph's own Ghostscript call gets the app's environment without its
+    secrets too, with ``PATH`` as it is: no stub there, it runs the real gs."""
+    monkeypatch.setenv("JWT_SECRET", "not-for-the-child")
+    monkeypatch.setenv("DATABASE_URL", "postgresql://not-for-the-child")
+    monkeypatch.setattr(_ghostscript, "_GS_BINARY", "/usr/bin/gs")
+    seen = {}
+
+    def fake_run(argv, **kwargs):
+        seen.update(kwargs)
+        return subprocess.CompletedProcess(argv, 0, stdout=b"", stderr=b"")
+
+    monkeypatch.setattr(_ghostscript.subprocess, "run", fake_run)
+    _ghostscript.rerender_to_pdfa(tmp_path / "in.pdf", tmp_path / "out.pdf", icc_bytes=b"icc")
+
+    assert "JWT_SECRET" not in seen["env"]
+    assert "DATABASE_URL" not in seen["env"]
+    assert seen["env"]["PATH"] == os.environ["PATH"]
+    assert os.environ["JWT_SECRET"] == "not-for-the-child"  # the app keeps it
 
 
 def test_building_child_env_does_not_mutate_the_process_and_stub_is_discoverable(tmp_path):

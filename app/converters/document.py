@@ -176,14 +176,15 @@ def _resolve_office_engine(
 
 
 # Environment-variable names whose values are application secrets that a
-# LibreOffice subprocess parsing an uploaded document has no need for. Matched
-# case-insensitively: the substrings cover the app's secret families
+# program the app starts on an upload (LibreOffice, Ghostscript, the
+# conversion children) has no need for. Matched case-insensitively: the
+# substrings cover the app's secret families
 # (``JWT_SECRET``, ``STRIPE_SECRET_KEY``, ``STRIPE_WEBHOOK_SECRET``,
 # ``SMTP_PASSWORD``, and any ``*_KEY`` such as a future AI-provider key), and
 # the exact set catches secret names without a telltale fragment. A secret
-# introduced under an unusual name must be added here. None of LibreOffice's or
-# fontconfig's own variables (``HOME``, ``LANG``/``LC_*``, ``XDG_*``,
-# ``FONTCONFIG_*``, ``TMPDIR``, ``PATH``, ``USER`` …) contain any of these, so
+# introduced under an unusual name must be added here. None of these programs'
+# own variables (``HOME``, ``LANG``/``LC_*``, ``XDG_*``, ``FONTCONFIG_*``,
+# ``TMPDIR``, ``PATH``, ``USER``, ``GS_*`` …) contain any of these, so
 # dropping the matches does not disturb the conversion.
 _SECRET_ENV_SUBSTRINGS = ("SECRET", "PASSWORD", "PASSWD", "TOKEN", "KEY")
 _SECRET_ENV_NAMES = ("DATABASE_URL", "SMTP_USERNAME")

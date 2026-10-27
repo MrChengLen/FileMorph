@@ -23,6 +23,7 @@ from fastapi import APIRouter, Request
 from app.compressors.image import _SUPPORTED_FORMATS as IMAGE_COMPRESS_FMTS
 from app.compressors.video import _SUPPORTED_FORMATS as VIDEO_COMPRESS_FMTS
 from app.converters.registry import get_public_conversions, get_supported_conversions
+from app.core import catalog
 from app.core import email as email_mod
 from app.core import pricing as pricing_mod
 from app.core.compress_content import get_compress_content
@@ -101,21 +102,6 @@ _CATEGORY_ORDER: tuple[str, ...] = (
     "audio",
     "video",
     "other",
-)
-
-# /pdf/{tool} "Related tools" cross-links (de-dead-ending, IA rework PR 2) —
-# curated PAIR_CONTENT pairs that are topically relevant to each structural
-# PDF operation, on top of the two sibling PDF tool pages. Only pairs that
-# exist in PAIR_CONTENT are ever listed here (no thin auto-links).
-_PDF_TOOL_RELATED_PAIRS: dict[str, tuple[tuple[str, str], ...]] = {
-    "split": (("docx", "pdf"),),
-    "extract": (("docx", "pdf"), ("eml", "pdf")),
-    "compress": (("docx", "pdf"), ("jpg", "pdf")),
-}
-# Import-time guard: an uncurated entry here would render a footer-style
-# link onto a 404 (G5) — fail loud at startup, not silently in prod.
-assert all(pair in PAIR_CONTENT for pairs in _PDF_TOOL_RELATED_PAIRS.values() for pair in pairs), (
-    "_PDF_TOOL_RELATED_PAIRS references an uncurated pair — that link would 404"
 )
 
 # Curated-pair membership for the /formats chip split — computed once.
@@ -214,13 +200,15 @@ async def compress_page(request: Request):
 @router.get("/convert/{pair_slug}")
 async def convert_pair_page(request: Request, pair_slug: str):
     # Per-pair landing page (Phase 2), e.g. /convert/jpg-to-pdf. The page exists
-    # only when curated content exists in convert_pairs.PAIR_CONTENT AND the
-    # conversion is actually registered — anything else 404s, which structurally
-    # prevents thin auto-generated pages (penalty-safe). The embedded tool is
-    # pre-set to this pair via preset_source/preset_target (read by app.js).
+    # only when it is in the page catalogue, curated content exists in
+    # convert_pairs.PAIR_CONTENT AND the conversion is actually registered —
+    # anything else 404s, which structurally prevents thin auto-generated pages
+    # (penalty-safe). The embedded tool is pre-set to this pair via
+    # preset_source/preset_target (read by app.js).
     src, sep, tgt = pair_slug.lower().partition("-to-")
     locale = getattr(request.state, "locale", settings.lang_default)
-    pair = get_pair_content(src, tgt, locale) if sep else None
+    listed = catalog.get(f"/convert/{pair_slug.lower()}") is not None
+    pair = get_pair_content(src, tgt, locale) if sep and listed else None
     if pair is None or tgt not in get_supported_conversions().get(src, []):
         return templates.TemplateResponse(
             request, "404.html", context=localized_context(request), status_code=404
@@ -401,18 +389,23 @@ async def redact_page(request: Request):
 async def pdf_tool_page(request: Request, tool: str):
     # Ungated core OSS feature (unlike /redact's commercial gating) — split /
     # extract / compress ride the same free, no-account Convert/Compress
-    # posture. The content lookup IS the route whitelist: an unknown tool
+    # posture. The page catalogue is the route whitelist: an unknown tool
     # (e.g. /pdf/rotate) 404s instead of rendering a hollow page.
     locale = getattr(request.state, "locale", settings.lang_default)
-    content = get_pdf_tool_content(tool, locale)
+    page = catalog.get(f"/pdf/{tool}")
+    content = get_pdf_tool_content(tool, locale) if page else None
     if content is None:
         return templates.TemplateResponse(
             request, "404.html", context=localized_context(request), status_code=404
         )
-    related_convert_pairs = [
-        {"label": f"{format_label(s)} → {format_label(t)}", "url_path": f"/convert/{s}-to-{t}"}
-        for (s, t) in _PDF_TOOL_RELATED_PAIRS.get(tool, ())
-    ]
+    # The curated convert pages related to this operation; the two sibling
+    # PDF tools are linked by the template itself.
+    related_convert_pairs = []
+    for path in page.related:
+        s, t = catalog.pair_of(path)
+        related_convert_pairs.append(
+            {"label": f"{format_label(s)} → {format_label(t)}", "url_path": path}
+        )
     return _render(
         request,
         "pdf_tool.html",

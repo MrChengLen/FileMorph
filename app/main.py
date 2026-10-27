@@ -1,9 +1,11 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 import asyncio
+import ctypes
 import glob
 import logging
 import re
 import shutil
+import sys
 import tempfile
 import time
 from contextlib import asynccontextmanager
@@ -75,6 +77,23 @@ if engine is not None:
     _jwt_secret_error = jwt_secret_error(settings.jwt_secret)
     if _jwt_secret_error:
         logger.critical(_jwt_secret_error)
+        raise SystemExit(3)
+
+# Linux: other processes of the app's user, the conversion children among
+# them, can't read this process's environment or memory through /proc or
+# attach to it, and it writes no core dump; a debugger that attaches to a
+# running process (gdb, py-spy) needs root for it. Afterwards /proc/self
+# belongs to root: this process can't write its own /proc files, such as
+# oom_score_adj. A program the app starts is dumpable again after execve;
+# the conversion children turn that off themselves
+# (app/converters/_isolated.py). On import, like the JWT check; if the
+# kernel refuses the setting, the app doesn't start.
+if sys.platform == "linux":
+    if ctypes.CDLL(None, use_errno=True).prctl(4, 0, 0, 0, 0) != 0:  # PR_SET_DUMPABLE
+        logger.critical(
+            "Refusing to start: the kernel refused PR_SET_DUMPABLE (errno %d).",
+            ctypes.get_errno(),
+        )
         raise SystemExit(3)
 
 _SITE_JSONLD, _SITE_JSONLD_CSP_SOURCE = build_site_jsonld(settings.app_base_url)
