@@ -186,6 +186,21 @@
     "meta": "PNG kostenlos online in WebP umwandeln, ohne Konto. Viel kleinere Web-Bilder mit erhaltener Transparenz. Dateien sofort gelöscht, Open Source.",
     "title": "PNG in WebP umwandeln — kostenlos | FileMorph"
   },
+  "/de/convert/video-to-gif": {
+    "headings": [
+      "h1: Video in GIF umwandeln",
+      "h2: Ehrliche Grenzen",
+      "h2: So funktioniert es",
+      "h2: Wann es sinnvoll ist",
+      "h2: Häufige Fragen",
+      "h3: Warum wurde mein Video abgelehnt?",
+      "h3: Behält das GIF den Ton?",
+      "h3: Brauche ich ein Konto?",
+      "h2: Verwandte Tools"
+    ],
+    "meta": "Kurze Videos (MP4, MOV, WebM und mehr, bis 30 Sekunden) kostenlos online in ein animiertes GIF umwandeln, ohne Konto. Dateien sofort gelöscht.",
+    "title": "Video in GIF umwandeln — kostenlos | FileMorph"
+  },
   "/de/convert/webp-to-jpg": {
     "headings": [
       "h1: WebP in JPG umwandeln",
@@ -265,7 +280,9 @@
       "h3: JPG in PNG",
       "h3: WebP in JPG",
       "h3: JPG in WebP",
-      "h3: PNG in WebP"
+      "h3: PNG in WebP",
+      "h2: Weitere Tools",
+      "h3: Video in GIF"
     ],
     "meta": "Alle FileMorph-Tools: Dateien konvertieren und komprimieren, PDF-Seiten aufteilen, extrahieren oder verkleinern. Kostenlos und ohne Konto.",
     "title": "Tools — konvertieren, komprimieren, PDF | FileMorph"
@@ -457,6 +474,21 @@
     "meta": "Convert PNG to WebP online for free, no account. Much smaller web images that keep transparency. Files deleted right after conversion, open source.",
     "title": "Convert PNG to WebP online — free | FileMorph"
   },
+  "/en/convert/video-to-gif": {
+    "headings": [
+      "h1: Convert a video to GIF",
+      "h2: Honest limits",
+      "h2: How it works",
+      "h2: When to use it",
+      "h2: Frequently asked questions",
+      "h3: Why was my video refused?",
+      "h3: Does the GIF keep the sound?",
+      "h3: Do I need an account?",
+      "h2: Related tools"
+    ],
+    "meta": "Turn a short video clip (MP4, MOV, WebM and more, up to 30 seconds) into an animated GIF online for free, no account. Files deleted right after.",
+    "title": "Convert a video to GIF online — free | FileMorph"
+  },
   "/en/convert/webp-to-jpg": {
     "headings": [
       "h1: Convert WebP to JPG",
@@ -536,7 +568,9 @@
       "h3: JPG to PNG",
       "h3: WebP to JPG",
       "h3: JPG to WebP",
-      "h3: PNG to WebP"
+      "h3: PNG to WebP",
+      "h2: More tools",
+      "h3: Video to GIF"
     ],
     "meta": "Browse every FileMorph tool — convert & compress files, split or extract PDF pages, or shrink a PDF to a target size. Free, no account needed.",
     "title": "File tools — convert, compress & PDF | FileMorph"

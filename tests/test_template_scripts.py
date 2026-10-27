@@ -33,6 +33,7 @@ _PAGES: dict[str, tuple[str | None, list[str]]] = {
     "tools.html": ("/tools", []),
     "compress.html": ("/compress", []),
     "convert_pair.html": ("/convert/jpg-to-pdf", []),
+    "video_to_gif.html": ("/convert/video-to-gif", []),
     "impressum.html": ("/impressum", []),
     "privacy.html": ("/privacy", []),
     "terms.html": ("/terms", []),

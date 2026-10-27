@@ -12,9 +12,10 @@ let supportedConversions = {};
 let currentMode = 'convert';
 let compressMode = 'quality'; // 'quality' | 'target' — only meaningful in compress mode
 let selectedFiles = [];
-// Per-pair landing pages (/convert/<src>-to-<tgt>) put the target format on
-// #drop-zone's data-preset-target; we pre-select it once the target list is
-// populated. Empty on the homepage. See app/templates/_components/convert_tool.html.
+// Pages pre-set to one target (/convert/<src>-to-<tgt>, /convert/video-to-gif)
+// put it on #drop-zone's data-preset-target; we pre-select it once the target
+// list is populated, for every file of a batch too. Empty on the homepage.
+// See app/templates/partials/convert_tool.html.
 let presetTarget = '';
 
 // Mirrors TARGET_SIZE_FORMATS in app/compressors/image.py — a parity test pins this.
@@ -290,6 +291,9 @@ function renderFileList() {
             opt.textContent = fmt.toUpperCase();
             perRowSelect.appendChild(opt);
           });
+          // A page pre-set to a target (pair pages, /convert/video-to-gif)
+          // keeps that target for every file of a batch, as for a single file.
+          if (presetTarget && targets.includes(presetTarget)) perRowSelect.value = presetTarget;
         }
         perRowSelect.addEventListener('change', () => updateQualityVisibility());
         // Row lives inside #drop-zone — without stopPropagation, a click on
@@ -443,8 +447,9 @@ function updateTargetFormats(filename) {
     opt.textContent = fmt.toUpperCase();
     select.appendChild(opt);
   });
-  // Per-pair landing page: pre-select the page's target if this file supports
-  // it (e.g. /convert/jpg-to-pdf → "pdf"). Not disabled — the user may change it.
+  // Pre-set page: pre-select the page's target if this file supports it
+  // (/convert/jpg-to-pdf → "pdf", /convert/video-to-gif → "gif"). Not
+  // disabled — the user may change it.
   if (presetTarget && targets.includes(presetTarget)) {
     select.value = presetTarget;
   }

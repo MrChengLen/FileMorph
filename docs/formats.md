@@ -334,6 +334,10 @@ every frame onto it with ordered dithering, so areas that don't change stay
 identical from frame to frame and the file stays small. `quality` doesn't
 apply: frame size and frame rate are fixed.
 
+**Web UI:** the dedicated, bilingual (DE/EN) page is `/convert/video-to-gif` —
+ungated, the same embedded Convert/Compress tool as the homepage, pre-set to
+GIF.
+
 These are answered with `400` and a `detail` that names the next step:
 
 - a video longer than 30 seconds (`X-FileMorph-Error-Code: video_too_long`).

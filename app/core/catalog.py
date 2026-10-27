@@ -212,7 +212,12 @@ PAGES: tuple[Page, ...] = (
             "Compress an image or video",
             "shrink a JPEG, WebP or AVIF to at most a target size in MB, or a video by quality",
         ),
-        related=("/convert/jpg-to-webp", "/convert/png-to-webp", "/pdf/compress"),
+        related=(
+            "/convert/jpg-to-webp",
+            "/convert/png-to-webp",
+            "/pdf/compress",
+            "/convert/video-to-gif",
+        ),
         family="image",
         label={"de": "Bild verkleinern (KB/MB)", "en": "Compress image (KB/MB)"},
         blurb={
@@ -237,6 +242,32 @@ PAGES: tuple[Page, ...] = (
     _pair("webp", "jpg", "image"),
     _pair("jpg", "webp", "image"),
     _pair("png", "webp", "image"),
+    # Video. One page for every video format: the task is the same whatever
+    # the container, so seven pair pages would only compete with each other.
+    Page(
+        "/convert/video-to-gif",
+        "tool",
+        priority="0.6",
+        llms=(
+            "Video to GIF",
+            "turn a short video clip (up to 30 seconds) into an animated GIF",
+        ),
+        # /compress shrinks videos too, and links back here.
+        related=("/compress",),
+        family="video",
+        label={"de": "Video in GIF", "en": "Video to GIF"},
+        blurb={
+            "de": (
+                "Einen kurzen Clip bis 30 Sekunden – MP4, MOV, WebM und mehr – in ein "
+                "animiertes GIF ohne Ton umwandeln."
+            ),
+            "en": (
+                "Turn a short clip of up to 30 seconds — MP4, MOV, WebM and more — into "
+                "an animated GIF without sound."
+            ),
+        },
+        footer=True,
+    ),
     # Privacy: the redaction add-on of the Cloud Edition, never a quick action
     # (a paid tool is not an idle-state teaser; product-ux.md #3).
     Page(
