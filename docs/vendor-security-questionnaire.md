@@ -557,9 +557,13 @@ The threat model lists the known classes:
   `app/core/image_hardening.py`.
 - **Audio and video parsers** — audio and video uploads are opened with
   ffmpeg limited to the demuxers of the formats FileMorph accepts (MP3,
-  WAV, FLAC, Ogg/Opus, AAC, WMA/WMV, MP4/MOV/M4A, AVI, MKV/WebM, FLV), and
-  only as a local file; an upload in another format gets `400` with
+  WAV, FLAC, Ogg/Opus, AAC, WMA/WMV, MP4/MOV/M4A, AVI, MKV/WebM, FLV) and
+  the decoders of their common codecs, frames up to 4K, and only as a
+  local file; an upload in another format gets `400` with
   `X-FileMorph-Error-Code: invalid_input` — `app/converters/_ffmpeg.py`.
+  On Linux ffmpeg and ffprobe run with memory, CPU time and file size
+  limits, and a request's audio and video work has one time limit —
+  `app/converters/_limited_exec.py`.
 - **Zip slip / archive escape** — extraction routines normalise paths
   to a fixed temp directory and reject `..` components.
 - **PDF metadata injection** — PDF/A-2b conversion strips uncontrolled

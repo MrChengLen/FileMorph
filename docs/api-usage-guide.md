@@ -847,9 +847,10 @@ client timeouts accordingly:
 - Document conversion: 1–5 s
 - Audio (re-encode): 2–10 s
 - Video (FFmpeg): can take **30+ seconds** for large inputs. The
-  server stops a single ffmpeg run (audio or video) after
-  `MEDIA_SUBPROCESS_TIMEOUT_SECONDS`, default 600 s; the request then
-  fails with `500` (in a batch, only that file fails)
+  server stops the audio and video work of a request after
+  `MEDIA_SUBPROCESS_TIMEOUT_SECONDS`, default 85 s for all its files
+  together; the file then gets a `400` whose message names the next
+  step (in a batch, the files not done in time fail)
 - Video → GIF: at most 85 s for all its steps; a clip that would take
   longer is answered `400` with `X-FileMorph-Error-Code: video_too_complex`
 

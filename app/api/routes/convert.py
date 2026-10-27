@@ -14,6 +14,7 @@ from starlette.background import BackgroundTask
 
 from app.api.deps import caller_tier, require_api_key
 from app.api.routes.auth import get_optional_user
+from app.converters._ffmpeg import media_time_limit
 from app.converters.base import (
     InvalidInputError,
     OutputTooLargeError,
@@ -92,7 +93,8 @@ async def convert_file(
 ) -> Response:
     tier = caller_tier(request, user)
     async with acquire_slot(actor_id=actor_id(request, user, tier), tier=tier):
-        return await _do_convert(request, file, target_format, quality, user, tier)
+        with media_time_limit():
+            return await _do_convert(request, file, target_format, quality, user, tier)
 
 
 async def _do_convert(
@@ -400,9 +402,11 @@ async def convert_batch(
     # the slot for 25× the per-file cost. Per-file accounting would
     # double-charge against the per-actor cap and starve real second
     # requests. The slot lives long enough that the global cap
-    # serialises bursts of large batches across users.
+    # serialises bursts of large batches across users. Its audio and
+    # video files share one time limit (media_time_limit).
     async with acquire_slot(actor_id=actor_id(request, user, tier), tier=tier):
-        return await _do_convert_batch(request, files, target_formats, quality, user, tier)
+        with media_time_limit():
+            return await _do_convert_batch(request, files, target_formats, quality, user, tier)
 
 
 async def _do_convert_batch(

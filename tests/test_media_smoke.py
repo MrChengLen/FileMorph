@@ -29,7 +29,10 @@ from app.compressors.video import _SUPPORTED_FORMATS as _COMPRESS_VIDEO_INPUTS
 from app.compressors.video import compress_video
 from app.converters._ffmpeg import (
     AUDIO_TARGETS,
+    INPUT_DECODERS,
     INPUT_DEMUXERS,
+    MAX_PIXELS,
+    THREADS,
     VIDEO_CODECS,
     FFmpegError,
     audio_output_args,
@@ -182,7 +185,7 @@ def test_a_refused_container_is_a_400_not_a_500(monkeypatch):
         run_ffmpeg(_fake_stream(), timeout=5)
 
 
-def test_uploads_are_opened_with_the_listed_demuxers_only(tmp_path, monkeypatch):
+def test_uploads_are_opened_with_the_listed_demuxers_and_decoders_only(tmp_path, monkeypatch):
     commands = []
 
     def capture(stream, **kwargs):
@@ -196,7 +199,11 @@ def test_uploads_are_opened_with_the_listed_demuxers_only(tmp_path, monkeypatch)
     assert len(commands) == 3
     for cmd in commands:
         options = cmd[1 : cmd.index("-i")]
-        assert options == ["-format_whitelist", INPUT_DEMUXERS, "-protocol_whitelist", "file"]
+        assert options == [
+            *("-codec_whitelist", INPUT_DECODERS, "-format_whitelist", INPUT_DEMUXERS),
+            *("-max_pixels", str(MAX_PIXELS), "-protocol_whitelist", "file"),
+            *("-threads", str(THREADS)),
+        ]
 
 
 def test_run_ffmpeg_missing_binary(monkeypatch):
@@ -216,7 +223,7 @@ def test_run_ffmpeg_timeout_translated(monkeypatch):
         raise subprocess.TimeoutExpired(cmd, kwargs.get("timeout"))
 
     monkeypatch.setattr(mod.subprocess, "run", fake_run)
-    with pytest.raises(FFmpegError, match="timed out"):
+    with pytest.raises(InvalidInputError, match="takes longer to convert"):
         run_ffmpeg(_fake_stream(), timeout=1)
 
 

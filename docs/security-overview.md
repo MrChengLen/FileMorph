@@ -333,9 +333,230 @@ an upload is opened as a local file only. The list is one constant,
 `INPUT_DEMUXERS`, and the media converters and the video compressor open
 every upload through `media_input()` (both in
 `app/converters/_ffmpeg.py`). Before a video becomes a GIF, ffprobe reads its
-frame size and length with the same list (`probe_video()`, numeric fields
-only). An upload in another format is answered with HTTP 400 and
+frame size and length with the same demuxer and decoder lists (`probe_video()`,
+numeric fields only). An upload in another format is answered with HTTP 400
+and `X-FileMorph-Error-Code: invalid_input`. The same goes for a
+stream in a codec outside `INPUT_DECODERS`, the decoders for the common audio,
+video and subtitle codecs of these formats, and for a video frame larger than
+4K, 4096 × 2160 pixels (`MAX_PIXELS`), which the decoder refuses to allocate.
+
+### Audio and video conversions: ffmpeg's limits
+
+The ffmpeg and ffprobe runs of a request share one time limit,
+`MEDIA_SUBPROCESS_TIMEOUT_SECONDS` (default 85 seconds, under the 100 seconds
+a CDN like Cloudflare waits for an answer), the files of a batch included.
+The program is stopped when the time is up, and the file gets a `400`
+(`invalid_input`; video → GIF: `video_too_complex`) whose message names the
+next step. On Linux ffmpeg and ffprobe start through
+`app/converters/_limited_exec.py`, which first caps its own address space at
+3 GiB, the size of each file it writes at the request's output cap (1 GiB
+where it has none) and its CPU time, as hard limits; turns off its core dump;
+sets no-new-privileges and SIGKILL for when the app process ends; and makes
+itself the first process the kernel stops when the host runs short of memory.
+Then it starts ffmpeg or ffprobe, which keeps all of that. ffmpeg's decoders,
+encoders and filters use 2 threads each, so the memory a conversion takes
+doesn't grow with the host's CPU count. Like the other child processes, both
+get the environment without application secrets and read no stdin.
+`tests/test_media_limits.py` pins the limits, the environment and how each
+way a run stops comes back to the caller.
+
+### Historical findings addressed in this area
+
+- **PT-002 (Critical).** Non-constant-time API-key comparison was
+  replaced with `hmac.compare_digest` in `app/core/security.py`.
+- **PT-006 (High).** Rate-limit bypass via `X-Forwarded-For`
+  spoofing. `get_remote_address` reads the socket peer, not the
+  header, so forging `X-Forwarded-For` only bites where uvicorn
+  has been configured to trust it. Item 3 of "Operational
+  Hardening" below covers both that case and the opposite
+  failure mode — the shipped default, where all traffic shares a
+  single bucket per endpoint. The account endpoints (API keys,
+  billing, email language) count per signed-in account, so they
+  stay per user either way. Rejected `X-API-Key` attempts have
+  their own budget: past 30 per minute per IP they get `429`
+  instead of `401`, while a valid key is never refused. The
+  per-endpoint limits are listed in
+  [`api-reference.md` § Rate Limiting](./api-reference.md#rate-limiting).
+
+### What is not provided
+
+FileMorph does not bundle an OAuth provider, SAML SSO, or built-in
+multi-factor authentication. Operators who require those should
+front the deployment with a reverse-proxy authenticator such as
+Authelia or oauth2-proxy.
+
+---
+
+## Input Validation
+
+### Upload pipeline
+
+Every upload passes through these checks before it reaches a
+converter:
+
+1. **Magic-byte deny-list.** The first bytes of the upload are
+   compared against `BLOCKED_MAGIC` (`[b"MZ", b"\x7fELF", b"#!/",
+   b"<?ph"]`). Files that start with a PE, ELF, shell-script or
+   PHP signature are rejected before any decoder touches them.
+2. **Format from the file extension.** The converter is chosen
+   from the file extension, not detected from content; the
+   `Content-Type` the client sends is not used. Image uploads are
+   then opened only by the readers listed under "Image formats"
+   below, audio and video uploads only by the demuxers listed under
+   "Audio and video formats".
+3. **Path safety.** The original filename is never used as a
+   filesystem path. Where a temporary path is needed, it uses a
+   UUID stem under a `fm_`-prefixed scratch directory.
+4. **Size cap, per tier.** Anonymous uploads cap at 30 MB; Free,
+   Pro, Business, Enterprise scale up — see `app/core/quotas.py`.
+
+### Download pipeline
+
+The original filename is preserved only in the
+`Content-Disposition` header, where it is filtered through
+`safe_download_name()` in `app/core/utils.py`. ASCII-unsafe
+characters are stripped or RFC 5987-encoded, so a malicious
+filename cannot inject header bytes or break the parser.
+
+### WeasyPrint SSRF hardening
+
+WeasyPrint accepts HTML and CSS, both of which can reference
+external URLs. To prevent server-side request forgery, every
+`weasyprint.HTML(...)` call passes `url_fetcher=_deny_url_fetcher()`,
+defined in `app/converters/document.py` and applied at all four
+call sites there (HTML, Markdown, email and the pure-Python DOCX
+path). The fetcher rejects every URL unconditionally, remote, `file:`
+and `data:` alike, so WeasyPrint never opens a network connection or
+reads a file the document points to. A test in
+`tests/test_to_pdf_converters.py` renders a page that asks for a
+resource of each kind (stylesheet, font, image, SVG image,
+attachment) through all four call sites and fails if any of them
+loads; CI fails if WeasyPrint cannot render on the test runner, so
+that test cannot skip there. Self-hosters should not disable this.
+
+### PDF → TXT, table conversions and PDF compression in a child process
+
+pypdf's text extraction runs in a child Python process
+(`app/converters/_pdf_text.py`), started by `PdfToTxtConverter` in
+`app/converters/document.py`. The parent stops it after 30 seconds and the
+conversion gets a `400`; on Linux the child caps its own address space at
+1 GiB, its CPU time at 35 seconds and the text file it writes at 1 GiB. Like
+the LibreOffice subprocess below, the child gets the environment without
+application secrets; it reads no stdin, its diagnostic output is discarded,
+and it reports its outcome on stdout (for an unreadable PDF with the exception
+class). `tests/test_pdf_to_text_process.py` pins the page cap, the time limit,
+the environment and the memory, CPU and file size caps.
+
+The table conversions (XLSX → CSV, CSV → XLSX, CSV → JSON, JSON → CSV) and
+PDF compression run the same way, through `app/converters/_isolated.py`:
+stopped after 90 seconds, on Linux capped at 1 GiB of address space (PDF
+compression: 3 GiB), slightly more CPU time than the time limit and 2 GiB per
+file written (PDF compression: 1 GiB), where a write past the limit ends the
+child. On Linux all of these caps, and those of the PDF → TXT child, are
+hard limits, which a child cannot raise again without root privileges; no
+child writes a core dump or gains privileges through a setuid program, each
+ends when the app process that started it ends, and none starts processes or
+threads of its own unless the app runs as root. A file over these limits gets
+a `400` (`invalid_input`; PDF compression: `pdf_too_complex`) whose message
+names the next step. The child's temporary files go to the request's own temp
+folder, which the route removes.
+`tests/test_isolated_conversions.py` pins the limits, the environment and how
+the child's errors come back.
+
+### Office image: LibreOffice subprocess hardening
+
+On the `filemorph:office` image, DOCX→PDF conversion can delegate to a
+LibreOffice (`soffice`) subprocess that parses the uploaded document. As
+defense-in-depth, that subprocess is run with a reduced environment
+(`_soffice_child_env` in `app/converters/document.py`): the application's
+secrets (signing key, database URL, Stripe and SMTP credentials) are dropped
+from the child environment, and a Ghostscript stub is placed ahead of any real
+`gs` on its `PATH`, so the subprocess cannot start Ghostscript. Every other
+system binary stays available, so the conversion itself is unaffected.
+FileMorph's own PDF/A re-render resolves Ghostscript in the app process and
+keeps working, as does the pure-Python (mammoth) path. This is in the same
+spirit as the Pillow setting that keeps WeasyPrint from reaching Ghostscript
+(`app/core/image_hardening.py`).
+
+The PDF/A re-render runs only on an upload whose first non-blank bytes are the
+`%PDF-` header (`_has_pdf_header` in `app/converters/pdfa.py`); any other upload
+is refused with a caller-safe `400` before that stage, so only files that
+present as PDFs reach Ghostscript.
+
+`tests/test_office_gs_isolation.py` pins the subprocess environment, and
+`.github/workflows/docker-pr.yml` exercises a DOCX→PDF conversion on the office
+image.
+
+### Decompression bombs
+
+`Image.MAX_IMAGE_PIXELS` is enforced as a *hard* limit (around 89
+megapixels by default, tunable via the
+`FILEMORPH_IMAGE_MAX_MEGAPIXELS` env var). Pillow's stock behaviour
+is to *warn but continue decoding* between the configured limit and
+2× the limit — a denial-of-service vector for a conversion service
+because a 200 kB PNG claiming 60 000 × 60 000 pixels in its IHDR
+chunk would coast past every input-size check and pin the worker
+decoding into ~14 GB of memory before the output-cap guard could
+reject the result. `app/core/image_hardening.py` flips the
+`DecompressionBombWarning` to a synchronously raised
+`DecompressionBombError` at startup so every `Image.open(...)` site
+in the codebase fails fast. The /convert and /compress route handlers
+catch the error specifically and return HTTP 400 with
+`X-FileMorph-Error-Code: decompression_bomb`, distinct from the
+generic 500 the catch-all handler would otherwise emit. The per-tier
+output cap (see "Output Bandwidth Guards") remains in place as a
+defence-in-depth second layer for any pathological input that passes
+the pixel check but produces an oversized output.
+
+### Image formats
+
+Image uploads to `/convert` and `/compress` (and their batch routes)
+are opened with Pillow limited to the formats FileMorph accepts: JPEG
+(multi-picture JPEGs included), PNG, WebP, GIF, BMP, TIFF, ICO,
+HEIC/HEIF and AVIF. Pillow ships readers for many other formats; they
+are not used on these uploads, which keeps the code that parses an
+uploaded image to what the service needs. The list is one constant,
+`IMAGE_INPUT_FORMATS`, and the image converters and compressors open
+every upload through `open_image()` (both in
+`app/core/image_hardening.py`). A file none of the listed readers
+recognises is answered with HTTP 400 and
 `X-FileMorph-Error-Code: invalid_input`.
+
+### Audio and video formats
+
+ffmpeg reads audio and video uploads only with the demuxers for the
+formats FileMorph accepts: MP3, WAV, FLAC, Ogg (incl. Opus), AAC, ASF
+(WMA, WMV), MP4/MOV/M4A, AVI, Matroska (MKV, WebM) and FLV. ffmpeg still
+recognises other formats, but refuses to open an upload in one of them, and
+an upload is opened as a local file only. The list is one constant,
+`INPUT_DEMUXERS`, and the media converters and the video compressor open
+every upload through `media_input()` (both in
+`app/converters/_ffmpeg.py`). Before a video becomes a GIF, ffprobe reads its
+frame size and length with the same demuxer and decoder lists (`probe_video()`,
+numeric fields only). An upload in another format is answered with HTTP 400
+and `X-FileMorph-Error-Code: invalid_input`. The same goes for a
+stream in a codec outside `INPUT_DECODERS`, the decoders for the common audio,
+video and subtitle codecs of these formats, and for a video frame larger than
+4K, 4096 × 2160 pixels (`MAX_PIXELS`), which the decoder refuses to allocate.
+
+### Audio and video conversions: ffmpeg's limits
+
+The ffmpeg runs of a request share one time limit,
+`MEDIA_SUBPROCESS_TIMEOUT_SECONDS` (default 85 seconds, under the 100 seconds
+a CDN like Cloudflare waits for an answer), the files of a batch included.
+ffmpeg is stopped when the time is up, and the file gets a `400`
+(`invalid_input`) whose message names the next step. On Linux ffmpeg and ffprobe start
+through `app/converters/_limited_exec.py`, which first caps its own address
+space at 3 GiB, the size of each file it writes at the request's output cap
+(1 GiB where it has none) and its CPU time, as hard limits; turns off its
+core dump; sets no-new-privileges and SIGKILL for when the app process ends;
+and makes itself the first process the kernel stops when the host runs short
+of memory. Then it starts ffmpeg (or ffprobe), which keeps all of that. ffmpeg's decoders,
+encoders and filters use 2 threads each, so the memory a conversion takes
+doesn't grow with the host's CPU count. Like the other child processes,
+both get the environment without application secrets and read no stdin.
+`tests/test_media_limits.py` pins the limits, the environment and how each
+way ffmpeg stops comes back to the caller.
 
 ### Historical findings addressed in this area
 
@@ -889,7 +1110,8 @@ For readers who want to jump directly to the code:
 | Rate limiter | `app/core/rate_limit.py` |
 | Magic-byte deny-list | `app/core/processing.py` (`BLOCKED_MAGIC`); enforced in `app/api/routes/convert.py`, `compress.py`, `pdf_pages.py` + `ai.py` |
 | Image-format allow-list | `app/core/image_hardening.py` (`IMAGE_INPUT_FORMATS`, `open_image`) |
-| Audio/video demuxer allow-list | `app/converters/_ffmpeg.py` (`INPUT_DEMUXERS`, `media_input`) |
+| Audio/video demuxer and decoder allow-lists, frame size limit | `app/converters/_ffmpeg.py` (`INPUT_DEMUXERS`, `INPUT_DECODERS`, `MAX_PIXELS`, `media_input`) |
+| ffmpeg's time, memory, CPU-time and file size limits | `app/converters/_ffmpeg.py` (`media_time_limit`, `run_ffmpeg`), `app/converters/_limited_exec.py` |
 | WeasyPrint SSRF hardening | `app/converters/document.py` (search `_deny_url_fetcher`) |
 | Office image: hardened LibreOffice subprocess env | `app/converters/document.py` (search `_soffice_child_env`) |
 | Security-headers middleware (HSTS, Permissions-Policy, CSP, etc.) | `app/main.py::security_headers` |

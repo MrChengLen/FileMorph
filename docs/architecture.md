@@ -93,9 +93,12 @@ Every conversion or compression request follows the same path:
    the external programs — ffmpeg, LibreOffice (`soffice`, office image
    only) and Ghostscript (`gs`, PDF/A) — do not block the event loop. Each
    external program runs under a time limit: ffmpeg
-   `MEDIA_SUBPROCESS_TIMEOUT_SECONDS` (default 600 s; video → GIF 85 s for
-   all its steps together), LibreOffice
-   `OFFICE_SUBPROCESS_TIMEOUT_SECONDS` (default 60 s), Ghostscript 60 s.
+   `MEDIA_SUBPROCESS_TIMEOUT_SECONDS` (default 85 s for all of a request's
+   audio and video work; video → GIF at most 85 s for all its steps
+   together), LibreOffice `OFFICE_SUBPROCESS_TIMEOUT_SECONDS` (default
+   60 s), Ghostscript 60 s. On Linux ffmpeg and ffprobe start through
+   `app/converters/_limited_exec.py`, capped at 3 GiB of address space and
+   at the request's output cap per file written.
    PDF → TXT runs pypdf in a child Python process
    (`app/converters/_pdf_text.py`) for the same reason: it is stopped after
    30 s, and on Linux its address space is capped at 1 GiB, its CPU time

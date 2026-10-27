@@ -795,7 +795,7 @@ defaults are sized for a 4 GB host:
 | `MAX_GLOBAL_CONCURRENCY` | `4` | Total parallel conversions across all callers. Past the cap → `503 Service Unavailable` + `Retry-After`. Raise this to roughly the CPU count on a bigger box. |
 | `CONCURRENCY_ACQUIRE_TIMEOUT_SECONDS` | `0.5` | How long a request waits for a free slot before giving up. Small values fail fast; raise to absorb longer micro-bursts. |
 | `CONCURRENCY_RETRY_AFTER_SECONDS` | `5` | Value sent in the `Retry-After` response header. Should match the typical drain time of a saturated pool. |
-| `MEDIA_SUBPROCESS_TIMEOUT_SECONDS` | `600` | Hard kill-switch for a single ffmpeg run (video/audio convert + video compress). Protects worker threads from a crafted or very long media file; raise it if you regularly convert long or HD footage. Video → GIF stops after 85 s for all its steps, or after this value if it is lower. |
+| `MEDIA_SUBPROCESS_TIMEOUT_SECONDS` | `85` | Time limit for the audio and video work of one request (video/audio convert + video compress); the files of a batch share it, and a file that runs out of time gets a `400` that names the next step. 85 s keeps the answer within the 100 s a CDN like Cloudflare waits; without one in front, raise it if you regularly convert long or HD footage. Video → GIF stops after 85 s for all its steps, or after this value if it is lower. |
 
 Per-actor limits (per user for authenticated callers, per client IP
 for everyone else) are tier-bound and not env-tunable: anonymous and

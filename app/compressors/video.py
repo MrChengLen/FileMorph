@@ -6,7 +6,9 @@ from app.converters._ffmpeg import media_input, run_ffmpeg, video_output_args
 _SUPPORTED_FORMATS = ["mp4", "avi", "mov", "mkv", "webm"]
 
 
-def compress_video(input_path: Path, output_path: Path, quality: int = 70) -> Path:
+def compress_video(
+    input_path: Path, output_path: Path, quality: int = 70, max_output_bytes: int | None = None
+) -> Path:
     """Compress a video by re-encoding it, keeping its container.
 
     quality: 1 (worst/smallest) – 100 (best/largest), mapped onto each
@@ -19,11 +21,14 @@ def compress_video(input_path: Path, output_path: Path, quality: int = 70) -> Pa
     (VP9/Opus) and a .mkv stays Matroska — previously every input was
     silently muxed into MP4 while keeping the original extension,
     producing mislabelled files.
+
+    ffmpeg stops writing at the ``max_output_bytes`` cap
+    (``OutputTooLargeError``).
     """
     container = output_path.suffix.lstrip(".").lower() or "mp4"
     stream = media_input(input_path).output(
         str(output_path),
         **video_output_args(container, quality, audio_bitrate="128k"),
     )
-    run_ffmpeg(stream)
+    run_ffmpeg(stream, max_output_bytes=max_output_bytes)
     return output_path

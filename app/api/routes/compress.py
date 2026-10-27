@@ -22,7 +22,8 @@ from app.compressors.image import (
 )
 from app.compressors.video import _SUPPORTED_FORMATS as VIDEO_FMTS
 from app.compressors.video import compress_video
-from app.converters.base import InvalidInputError
+from app.converters._ffmpeg import media_time_limit
+from app.converters.base import InvalidInputError, OutputTooLargeError
 from app.core.audit import record_event as audit_record
 from app.core.batch import (
     BatchFileError,
@@ -85,7 +86,8 @@ async def compress_file(
 ) -> Response:
     tier = caller_tier(request, user)
     async with acquire_slot(actor_id=actor_id(request, user, tier), tier=tier):
-        return await _do_compress(request, file, quality, target_size_kb, user, tier)
+        with media_time_limit():
+            return await _do_compress(request, file, quality, target_size_kb, user, tier)
 
 
 async def _do_compress(
@@ -186,10 +188,16 @@ async def _do_compress(
                 )
             else:
                 await asyncio.to_thread(
-                    compress_video, input_path, output_path, quality=effective_quality
+                    compress_video,
+                    input_path,
+                    output_path,
+                    quality=effective_quality,
+                    max_output_bytes=quota.output_cap_bytes,
                 )
         except HTTPException:
             raise
+        except OutputTooLargeError:
+            output_disk_size = None  # ffmpeg stopped writing at the cap: answered below
         except _PILImage.DecompressionBombError as exc:
             # P3-4: Same hard-reject path as /convert. See app/core/image_hardening.py
             # for the warning-to-error promotion at startup.
@@ -219,14 +227,19 @@ async def _do_compress(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Compression failed. Verify your file is valid and the format is supported.",
             )
+        else:
+            output_disk_size = output_path.stat().st_size
 
         # S1-B: Output-cap check — defensive guard; compression should shrink
         # files, but a pathological input (already-optimized PNG, very-low-bitrate
         # video) may not gain anything, and we still want an upper bound.
-        output_disk_size = output_path.stat().st_size
-        if output_disk_size > quota.output_cap_bytes:
+        if output_disk_size is None or output_disk_size > quota.output_cap_bytes:
             cap_mb = quota.output_cap_bytes // _MB
-            out_mb = output_disk_size // _MB
+            size = (
+                f"over the {cap_mb} MB cap"
+                if output_disk_size is None
+                else f"{output_disk_size // _MB} MB > {cap_mb} MB cap"
+            )
             # S4-foundation: count cap-rejections per tier / format so
             # dashboards can see compression-didn't-help hits.
             logger.info(
@@ -245,10 +258,7 @@ async def _do_compress(
             )
             raise HTTPException(
                 status_code=status.HTTP_413_CONTENT_TOO_LARGE,
-                detail=(
-                    f"Output too large ({out_mb} MB > {cap_mb} MB cap). "
-                    f"Lower the quality. {higher_cap_hint(tier)}"
-                ),
+                detail=f"Output too large ({size}). Lower the quality. {higher_cap_hint(tier)}",
                 headers={"X-FileMorph-Error-Code": "output_cap_exceeded"},
             )
 
@@ -381,9 +391,11 @@ async def compress_batch(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No files uploaded.")
 
     tier = caller_tier(request, user)
-    # NEU-D.1: same one-slot-per-batch policy as convert/batch.
+    # NEU-D.1: same one-slot-per-batch policy as convert/batch, and the
+    # same shared time limit for its videos.
     async with acquire_slot(actor_id=actor_id(request, user, tier), tier=tier):
-        return await _do_compress_batch(request, files, quality, target_size_kb, user, tier)
+        with media_time_limit():
+            return await _do_compress_batch(request, files, quality, target_size_kb, user, tier)
 
 
 async def _do_compress_batch(
@@ -481,9 +493,19 @@ async def _do_compress_batch(
                         compress_image, input_path, output_path, quality=effective_quality
                     )
                 else:
-                    await asyncio.to_thread(
-                        compress_video, input_path, output_path, quality=effective_quality
-                    )
+                    try:
+                        await asyncio.to_thread(
+                            compress_video,
+                            input_path,
+                            output_path,
+                            quality=effective_quality,
+                            max_output_bytes=quota.output_cap_bytes,
+                        )
+                    except OutputTooLargeError:  # ffmpeg stopped writing at the cap
+                        raise BatchFileError(
+                            f"Output too large (over the {quota.output_cap_bytes // _MB} MB "
+                            f"cap). Lower the quality. {higher_cap_hint(tier)}"
+                        ) from None
 
                 # S1-B: Output-cap check — reject before loading into memory.
                 output_disk_size = output_path.stat().st_size

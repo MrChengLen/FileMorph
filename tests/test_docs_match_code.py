@@ -38,7 +38,7 @@ import yaml
 
 from app.api.routes.auth import get_optional_user
 from app.api.routes.convert import _MAX_TARGET_LEN, _download_name
-from app.converters import _isolated, _pdf_text
+from app.converters import _ffmpeg, _isolated, _pdf_text
 from app.converters import document as document_converters
 from app.converters.pdf_pages import _MAX_SELECTION_CHARS
 from app.core.batch import BatchFileResult, build_batch_zip
@@ -281,6 +281,53 @@ def test_compose_the_systemd_unit_and_ci_cap_processes_alike():
     workflow = DOCS.parent / ".github" / "workflows" / "docker-pr.yml"
     assert f"--pids-limit {limit} --ulimit core=0" in workflow.read_text(encoding="utf-8")
     assert f"Processes and threads are capped too: at {limit} for" in _flat("self-hosting.md")
+
+
+def test_docs_quote_the_media_time_limit():
+    """``MEDIA_SUBPROCESS_TIMEOUT_SECONDS`` bounds a request's audio and video work."""
+    default = Settings.model_fields["media_subprocess_timeout_seconds"].default
+    quoted = {}
+    for doc in sorted(DOCS.glob("*.md")):
+        text = " ".join(doc.read_text(encoding="utf-8").split())
+        found = re.findall(r"MEDIA_SUBPROCESS_TIMEOUT_SECONDS`,? \(?default:? (\d+)", text)
+        found += re.findall(r"\| `MEDIA_SUBPROCESS_TIMEOUT_SECONDS` \| `(\d+)` \|", text)
+        if found:
+            quoted[doc.name] = {int(n) for n in found}
+    env_example = (DOCS.parent / ".env.example").read_text(encoding="utf-8")
+    quoted[".env.example"] = {
+        int(n) for n in re.findall(r"^MEDIA_SUBPROCESS_TIMEOUT_SECONDS=(\d+)$", env_example, re.M)
+    }
+    docs = {"api-usage-guide.md", "architecture.md", "formats.md", "security-overview.md"}
+    assert docs | {"self-hosting.md", ".env.example"} <= set(quoted)
+    assert quoted == {name: {default} for name in quoted}
+
+
+@pytest.mark.parametrize(
+    ("doc", "sentence"),
+    [
+        (
+            "architecture.md",
+            "capped at {gib} GiB of address space and at the request's output cap per file written",
+        ),
+        (
+            "security-overview.md",
+            "caps its own address space at {gib} GiB, the size of each file it writes at the "
+            "request's output cap ({file_gib} GiB where it has none) and its CPU time",
+        ),
+        ("security-overview.md", "encoders and filters use {threads} threads each"),
+        ("security-overview.md", "a video frame larger than 4K, {width} × {height} pixels"),
+        ("formats.md", "A video larger than 4K ({width} × {height} pixels"),
+    ],
+)
+def test_docs_quote_the_ffmpeg_limits(doc, sentence):
+    expected = sentence.format(
+        gib=_ffmpeg._MEMORY_LIMIT_BYTES // _isolated._GIB,
+        file_gib=_ffmpeg._FILE_LIMIT_BYTES // _isolated._GIB,
+        threads=_ffmpeg.THREADS,
+        width=_ffmpeg._MAX_WIDTH,
+        height=_ffmpeg._MAX_HEIGHT,
+    )
+    assert expected in " ".join(_text(doc).split())
 
 
 def test_self_hosting_quotes_the_per_tier_concurrency():

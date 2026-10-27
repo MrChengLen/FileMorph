@@ -26,6 +26,9 @@ import subprocess
 import sys
 from pathlib import Path
 
+# The environment variable in which spawn tells the child its parent's PID,
+# the same one run_ffmpeg sets for _limited_exec.py.
+from app.converters._limited_exec import PARENT_PID_ENV as _PARENT_PID_ENV
 from app.converters.base import (
     EncryptedPdfError,
     InvalidInputError,
@@ -37,8 +40,6 @@ logger = logging.getLogger(__name__)
 
 _APP_ROOT = Path(__file__).resolve().parents[2]  # the directory holding the ``app`` package
 _GIB = 1024 * 1024 * 1024
-# The environment variable in which spawn tells the child its parent's PID.
-_PARENT_PID_ENV = "FILEMORPH_PARENT_PID"
 
 # What a child may run: step → (module, function, memory limit, time limit in
 # s, size limit of each file it writes). 90 s stays under the 100 s a CDN in
