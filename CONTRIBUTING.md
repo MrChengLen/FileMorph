@@ -69,8 +69,11 @@ your change touches before you push:
   and clear any `#, fuzzy` marks, since compiling skips fuzzy entries. Then run
   `python scripts/i18n.py compile` and commit `locale/`. CI runs
   `python scripts/i18n.py drift-check`.
-- **Dependency audit** — `pip-audit -r requirements.lock` (CI adds the
-  `--ignore-vuln` flags listed in `ci.yml`).
+- **Dependency audit** — `pip-audit -r requirements.lock`, then again with
+  `-s osv` (CI adds the `--ignore-vuln` flags listed in `ci.yml`). CI asks
+  both advisory sources, PyPI's feed and OSV, about the two lockfiles it
+  installs its own tools from too: `requirements-uv.lock` and
+  `requirements-sbom.lock`.
 - **Vendored browser code audit** — `python scripts/check_vendor_advisories.py`
   asks the OSV database about every package in
   `app/static/vendor/manifest.json`, plus the libraries a file's `bundles`

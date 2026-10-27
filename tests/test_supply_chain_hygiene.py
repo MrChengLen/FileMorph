@@ -24,6 +24,9 @@ silently undo it:
     run the uv that requirements-dev.txt pins, hash-checked from
     requirements-uv.lock, and deps-lock.yml recompiles with read access only
     and pushes from a job that installs nothing;
+  * pip-audit checks every lockfile, the image's and those of the tools CI
+    runs, against PyPI's advisory feed and against OSV, in the required
+    ``lint-and-test`` job and weekly in deps-latest.yml;
   * the SBOM generator installs from its own hash-pinned lockfile, as wheels
     only, and in release.yml it runs in a job without write access — the job
     that holds ``contents: write`` installs nothing, restores no cache and
@@ -132,6 +135,22 @@ _FROM_ANY_RE = re.compile(r"^FROM\s+\S+", re.MULTILINE)
 # backslash may continue the line. The file name must end in a word character
 # or hyphen, so a sentence's full stop is not captured.
 _PIP_AUDIT_RE = re.compile(r"pip[-_]audit\b[^\n`]*?\s+(?:-r|--requirement)(?:\s+|=)([\w./-]*[\w-])")
+# The advisory sources every lockfile is audited against: PyPI's feed,
+# pip-audit's default, and OSV. Either can lack an advisory the other lists.
+_AUDIT_SERVICES = ("pypi", "osv")
+_AUDIT_SERVICE_RE = re.compile(r"\s(?:-s|--vulnerability-service)(?:\s+|=)(\w+)")
+# The only options a CI audit passes. Any other can let a vulnerable pin through:
+# --fix rewrites the runner's copy of the lockfile and exits 0, --dry-run audits
+# nothing, --osv-url asks another server.
+_AUDIT_OPTIONS = {
+    "-r",
+    "--requirement",
+    "-s",
+    "--vulnerability-service",
+    "--disable-pip",
+    "--strict",
+    "--ignore-vuln",
+}
 # An image tag that starts with `v`, with or without the registry path in
 # front (`filemorph:v1.2.3`, `filemorph:vX.Y.Z`). docker.yml pushes none.
 _V_IMAGE_TAG_RE = re.compile(r"\bfilemorph:v", re.IGNORECASE)
@@ -325,29 +344,119 @@ def test_dockerfile_installs_from_the_hash_pinned_lockfile() -> None:
         )
 
 
-def test_ci_audits_the_lockfile_the_image_installs() -> None:
-    """CI's pip-audit scans ``requirements.lock``, not the manifest.
+def _lockfile_names() -> set[str]:
+    """Every ``requirements*.lock``: what the image and CI's tools install from."""
+    return {path.name for path in _REPO_ROOT.glob("requirements*.lock")}
+
+
+def _script_commands(script: str) -> list[str]:
+    """A ``run:`` script's commands, one per line: continuations joined,
+    comments and blank lines dropped."""
+    commands = []
+    for line in re.sub(r"\\\n", " ", script).splitlines():
+        command = re.split(r"(?:^|\s)#", line, maxsplit=1)[0].strip()
+        if command:
+            commands.append(command)
+    return commands
+
+
+def _pip_audit_runs(script: str) -> list[tuple[str, str, str]]:
+    """``(file, service, command)`` for every command of a ``run:`` script
+    that starts with ``pip-audit`` and audits ``-r <file>``. The service is
+    pip-audit's default, ``pypi``, unless ``-s``/``--vulnerability-service``
+    names another; as in pip-audit, the last one counts."""
+    runs = []
+    for command in _script_commands(script):
+        if not re.match(r"pip-audit\b", command):
+            continue
+        for target in _PIP_AUDIT_RE.findall(command):
+            services = _AUDIT_SERVICE_RE.findall(command)
+            runs.append((target, services[-1] if services else "pypi", command))
+    return runs
+
+
+@pytest.mark.parametrize(
+    ("workflow", "job"),
+    [("ci.yml", "lint-and-test"), ("deps-latest.yml", "lockfile-advisories")],
+)
+def test_every_lockfile_is_audited_against_pypi_and_osv(workflow: str, job: str) -> None:
+    """pip-audit checks every lockfile, and no manifest, against both sources.
 
     Auditing ``requirements.txt`` checks a dependency set nobody ships: its
     ``>=`` constraints resolve to the newest releases at audit time, so a CVE
-    in an older version the image still carries would go unreported.
+    in an older version the image still carries would go unreported. Each
+    lockfile holds code that runs, though: requirements.lock in production,
+    requirements-uv.lock the uv that writes the lockfiles, and
+    requirements-sbom.lock the SBOM generator of every release. Only the first
+    was audited until 2026-10, and uv 0.12.23 sat on main although its CA
+    store trusted a root with compromised intermediates (GHSA-hq85-5cpj-mr62).
+    Either source can lack an advisory the other lists: PyPI's feed lacked
+    PYSEC-2026-4243 for mako 1.4.1, which OSV had.
+
+    ``lint-and-test`` is a required check, so nothing may let an audit pass
+    without its verdict or change what it checks: the audit step holds only
+    its name and script (no ``if:``, ``continue-on-error``, ``shell:``,
+    ``env:`` or ``working-directory:``), the job and the workflow set no
+    ``defaults:`` or ``PIP_AUDIT_*`` variable, the script runs the pip-audit
+    commands and nothing else (after a ``set +e`` only the last exit code
+    counts), no command is chained to another, and each passes only the
+    options in ``_AUDIT_OPTIONS``: ``--disable-pip``, which audits each pin as
+    written, and ``--strict``, which fails on a package the source cannot look
+    up instead of skipping it, every time. deps-latest.yml repeats the audits
+    weekly, for advisories published in a week without pushes.
     """
-    text = (_WORKFLOW_DIR / "ci.yml").read_text(encoding="utf-8")
-    # Comment lines may quote an old command; only executed lines count.
-    code = "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
-    targets = set(_PIP_AUDIT_RE.findall(code))
-    assert targets, (
-        "ci.yml runs no `pip-audit -r ...` step, but the public docs describe "
-        "one as a blocking CVE gate."
+    parsed = _workflow(_WORKFLOW_DIR / workflow)
+    assert job in parsed["jobs"], f"{workflow} has no job `{job}` — update this guard"
+    definition = parsed["jobs"][job]
+    assert not {"if", "defaults"} & definition.keys() and "defaults" not in parsed, (
+        f"{workflow} job `{job}`: an `if:` or a `defaults:` shell can let it pass without auditing"
     )
-    assert targets == {_LOCKFILE.name}, (
-        f"ci.yml audits {sorted(targets)}, but the image installs "
-        f"{_LOCKFILE.name}. Audit the lockfile — it is what reaches production."
+    assert not definition.get("continue-on-error"), (
+        f"{workflow} job `{job}`: `continue-on-error` lets it pass without auditing"
+    )
+    assert "PIP_AUDIT_" not in _workflow_code(workflow), (
+        f"{workflow} sets a PIP_AUDIT_* variable, which changes what every pip-audit command does"
+    )
+    runs = set()
+    for step in _steps(definition):
+        audits = _pip_audit_runs(step.get("run") or "")
+        if not audits:
+            continue
+        label = f"{workflow} job `{job}`, step {step.get('name')!r}"
+        assert set(step) <= {"name", "id", "run"}, (
+            f"{label}: only `name`, `id` and `run` — an `if:`, `continue-on-error`, `shell:`, "
+            f"`env:` or `working-directory:` can let the job pass without the pip-audit verdict "
+            f"or change what it checks"
+        )
+        for command in _script_commands(step["run"]):
+            assert command.startswith("pip-audit "), (
+                f"{label} runs `{command}` — the audit step runs pip-audit commands and nothing "
+                f"else, so that none of them can lose its exit code"
+            )
+        for target, service, command in audits:
+            flags = command.split()
+            assert not re.search(r"[;&|`]|\$\(", command), (
+                f"{label} runs `{command}` — run each pip-audit as a command of its own"
+            )
+            assert {"--disable-pip", "--strict"} <= set(flags), (
+                f"{label} runs `{command}` without --disable-pip and --strict, so it can leave "
+                f"packages out"
+            )
+            options = {flag.split("=")[0] for flag in flags[1:] if flag.startswith("-")}
+            assert options <= _AUDIT_OPTIONS, (
+                f"{label}: `{command}` passes {sorted(options - _AUDIT_OPTIONS)}, which can let "
+                f"a vulnerable pin through"
+            )
+            runs.add((target, service))
+    expected = {(name, service) for name in _lockfile_names() for service in _AUDIT_SERVICES}
+    assert runs == expected, (
+        f"{workflow} job `{job}` audits {sorted(runs)}; it must audit every lockfile against "
+        f"each of {_AUDIT_SERVICES}, and nothing else: {sorted(expected)}"
     )
 
 
-def test_docs_quote_the_lockfile_as_the_pip_audit_target() -> None:
-    """Every ``pip-audit -r`` command in the public docs names the lockfile.
+def test_docs_quote_a_lockfile_as_the_pip_audit_target() -> None:
+    """Every ``pip-audit -r`` command in the public docs names a lockfile.
 
     When CI moved to the lockfile (2026-09-09), four docs — the DPA's TOM
     annex among them — kept quoting ``pip-audit -r requirements.txt`` for more
@@ -355,15 +464,16 @@ def test_docs_quote_the_lockfile_as_the_pip_audit_target() -> None:
     local notes (e.g. a gitignored CLAUDE.md). CHANGELOG.md records history
     and is not checked.
     """
+    lockfiles = _lockfile_names()
     stale = [
         f"{rel}: pip-audit -r {target}"
         for rel in _tracked_docs()
         for target in _PIP_AUDIT_RE.findall((_REPO_ROOT / rel).read_text(encoding="utf-8"))
-        if target != _LOCKFILE.name
+        if target not in lockfiles
     ]
     assert not stale, (
-        f"docs quote a pip-audit target other than {_LOCKFILE.name}, the file "
-        f"CI audits and the image installs: {stale}"
+        f"docs quote a pip-audit target other than the lockfiles CI audits, "
+        f"{sorted(lockfiles)}: {stale}"
     )
 
 
@@ -422,7 +532,9 @@ def test_lockfile_is_hash_pinned_and_matches_the_image_python() -> None:
     Each entry must be an exact, hashed pin and nothing else. deps-lock
     commits what a job running third-party code compiled, and lockfile-drift,
     the gate that would notice a stray ``--extra-index-url`` or URL
-    requirement, is not a required check; this test runs in one.
+    requirement, is not a required check; this test runs in one. Nor may an
+    entry carry a marker: CI audits every lockfile with pip-audit
+    ``--disable-pip``, which drops an entry whose marker is false where it runs.
     """
     assert _LOCKFILE.is_file(), (
         "requirements.lock missing, but the Dockerfile installs from it. "
@@ -435,7 +547,7 @@ def test_lockfile_is_hash_pinned_and_matches_the_image_python() -> None:
         "Dockerfile will reject it."
     )
     for entry in _lock_entries(_LOCKFILE):
-        assert re.fullmatch(r"[A-Za-z0-9._-]+==\S+( --hash=sha256:[0-9a-f]{64})+", entry), (
+        assert re.fullmatch(r"[A-Za-z0-9._-]+==[^\s;]+( --hash=sha256:[0-9a-f]{64})+", entry), (
             f"requirements.lock: `{entry.split()[0]}` is not an exact, hashed pin — an option "
             f"such as --extra-index-url, or a URL, lets the image install from elsewhere"
         )
@@ -487,13 +599,28 @@ def test_deps_latest_mirrors_lint_and_test() -> None:
 
     Otherwise a system package or pytest option added to ci.yml alone turns the
     weekly run red, and its header tells the reader to blame an upstream
-    release.
+    release. Its pip-audit commands are lint-and-test's too: an
+    ``--ignore-vuln`` added to ci.yml alone would fail the weekly audit.
     """
     ci, latest = _workflow_code("ci.yml"), _workflow_code("deps-latest.yml")
     for pattern in (r"apt-get install -y .*", r"pytest tests/.*"):
         assert re.findall(pattern, latest) == re.findall(pattern, ci), (
             f"deps-latest.yml and ci.yml disagree on `{pattern}` — keep them in step"
         )
+    ci_audits, latest_audits = (
+        [
+            command
+            for job in _workflow(_WORKFLOW_DIR / name)["jobs"].values()
+            for step in _steps(job)
+            for command in _script_commands(step.get("run") or "")
+            if command.startswith("pip-audit ")
+        ]
+        for name in ("ci.yml", "deps-latest.yml")
+    )
+    assert latest_audits == ci_audits, (
+        f"deps-latest.yml runs {latest_audits}, ci.yml {ci_audits} — keep the pip-audit "
+        f"commands in step"
+    )
 
 
 @pytest.mark.parametrize("workflow", ["sbom.yml", "release.yml", "docker.yml"])
@@ -576,7 +703,7 @@ def test_sbom_generator_lockfile_is_hash_pinned() -> None:
         "workflow"
     )
     for entry in _lock_entries(_SBOM_LOCKFILE):
-        assert re.fullmatch(r"[A-Za-z0-9._-]+==\S+( --hash=sha256:[0-9a-f]{64})+", entry), (
+        assert re.fullmatch(r"[A-Za-z0-9._-]+==[^\s;]+( --hash=sha256:[0-9a-f]{64})+", entry), (
             f"requirements-sbom.lock: `{entry.split()[0]}` is not an exact, hashed pin"
         )
     pins = _lock_pins(_SBOM_LOCKFILE)
@@ -640,7 +767,7 @@ def test_lockfile_jobs_install_the_uv_requirements_dev_pins() -> None:
     )
     entries = _lock_entries(_UV_LOCKFILE)
     assert len(entries) == 1 and re.fullmatch(
-        r"uv==\S+( --hash=sha256:[0-9a-f]{64})+", entries[0]
+        r"uv==[^\s;]+( --hash=sha256:[0-9a-f]{64})+", entries[0]
     ), f"requirements-uv.lock must pin uv alone, exactly and with its hashes — found {entries}"
     locked = entries[0].split()[0]
     assert locked == pins[0], (

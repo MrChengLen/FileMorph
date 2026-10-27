@@ -264,10 +264,13 @@ physical assets of its own.
   `Dockerfile`.
 - `pip-audit -r requirements.lock` is a blocking CI gate. It checks the
   pinned versions the image installs (not `pip` itself or the base
-  image's OS packages), and a finding passes only if waived by an
+  image's OS packages) against PyPI's advisory feed and the OSV
+  database, and a finding passes only if waived by an
   `--ignore-vuln` entry justified in a comment —
-  `.github/workflows/ci.yml`; regression guard for the audit target:
-  `tests/test_supply_chain_hygiene.py`.
+  `.github/workflows/ci.yml` (weekly also in `deps-latest.yml`, and the
+  same way for `requirements-uv.lock` and `requirements-sbom.lock`, the
+  two lockfiles CI installs its own tools from); regression guard for
+  the audit targets: `tests/test_supply_chain_hygiene.py`.
 - `scripts/check_vendor_advisories.py` is the matching gate for the
   browser code vendored under `app/static/vendor/`, which pip-audit does
   not see: it checks the versions listed in

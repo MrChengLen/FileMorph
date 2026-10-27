@@ -1109,10 +1109,12 @@ lxml==6.1.3 \
     # via
     #   pikepdf
     #   python-docx
-mako==1.4.1 \
-    --hash=sha256:a359d9a94a541213958742b2698d0a7757bb83551767bc468a74b9905aba9617 \
-    --hash=sha256:d7904710b662996425a21627710c4777c45053146942cf8a7aebf757c92b8c27
-    # via alembic
+mako==1.4.3 \
+    --hash=sha256:723296007c870bfd6b3f0c3230dba7198096e5269297ebf5e4eff9e7ffa39d4f \
+    --hash=sha256:cd6537fe88d5fec315c55c2f8529bc4ce7a9a352ad7db3eeaa6a66e2dd4ec37a
+    # via
+    #   -r requirements.txt
+    #   alembic
 mammoth==1.13.0 \
     --hash=sha256:b359bee7bc00caba47dacc64286928133dd947917bab852eea01d0c8d8997296 \
     --hash=sha256:dd7629fa9d0a5e82207b3f481a9dcb8308fb43f6206258e062f11121efba9991

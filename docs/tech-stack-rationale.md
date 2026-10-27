@@ -321,7 +321,8 @@ workflow:
    from the lockfile, and CI's `lockfile-drift` job fails until it
    matches `requirements.txt`.
 2. **Run `pip-audit -r requirements.lock`** with the `--ignore-vuln`
-   IDs from `.github/workflows/ci.yml` — CI runs the same audit as a
+   IDs from `.github/workflows/ci.yml`, then again with `-s osv` — CI
+   runs the same audits, against PyPI's advisory feed and OSV, as a
    blocking gate, so a new dependency must not add a finding. On
    Windows, add `--disable-pip`: the lockfile is resolved for the
    Linux image, and the flag audits its hashed pins without
