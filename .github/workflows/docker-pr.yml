@@ -94,7 +94,9 @@ jobs:
           tags: ${{ env.IMAGE }}
 
       # The image as built, not a running container: the first start writes
-      # data/api_keys.json itself.
+      # data/api_keys.json itself. appuser, whom the container runs as, can
+      # change nothing of the app's code or its Python packages; of the app's
+      # files, only /app/data is writable for it.
       - name: Check what the image holds
         run: |
           docker run --rm --entrypoint sh "$IMAGE" -c '
@@ -105,6 +107,12 @@ jobs:
             for path in /app/context-canary /app/scripts/first_run.py /app/locale/de/LC_MESSAGES/messages.mo /app/alembic.ini; do
               if [ ! -e "$path" ]; then echo "::error::$path is missing from the image"; status=1; fi
             done
+            changeable="$(find /app /opt/venv -path /app/data -prune -o \( -writable -o -user appuser \) -print | head -n 3 | tr "\n" " ")"
+            if [ -n "$changeable" ]; then echo "::error::appuser can change $changeable"; status=1; fi
+            # The same test on /app/data: a find that fails cannot pass the one above.
+            if [ "$(find /app/data -maxdepth 0 \( -writable -o -user appuser \) -print)" != /app/data ]; then
+              echo "::error::appuser cannot write to /app/data"; status=1
+            fi
             exit $status
           '
 
@@ -254,6 +262,49 @@ jobs:
           print("ok: no process, no thread, SIGKILL when the parent ends")
           PY
           docker run --rm --entrypoint python "$IMAGE" -c "import ctypes; from app.converters._isolated import limit_resources; prctl = ctypes.CDLL(None).prctl; assert prctl(39, 0, 0, 0, 0) == 0, 'set before'; limit_resources(2**30, 95, 2**30); assert prctl(39, 0, 0, 0, 0) == 1; print('ok: no-new-privileges set by the child')"
+
+      # The app process marks itself non-dumpable as it loads (app/main.py):
+      # a process of appuser, as the conversion children are, reads the
+      # environment of another process of appuser, but not the app's. PID 1
+      # is the app, as entrypoint.sh hands over to uvicorn with exec. Then
+      # the app at work: a conversion through it runs in a child it starts,
+      # and its process metrics still read its own /proc files.
+      - name: Check the app process's isolation
+        run: |
+          docker exec -i filemorph python - <<'PY'
+          import os, pathlib, subprocess
+          assert b"uvicorn" in pathlib.Path("/proc/1/cmdline").read_bytes(), "PID 1 is not uvicorn"
+          status = pathlib.Path("/proc/1/status").read_text().splitlines()
+          uids = next(line for line in status if line.startswith("Uid:")).split()[1:]
+          assert uids == [str(os.getuid())] * 4, f"PID 1 runs as {uids}, not as this user"
+          # Non-dumpable: the kernel hands the app's /proc files to root.
+          assert os.stat("/proc/1/environ").st_uid == 0, "PID 1 is dumpable"
+          other = subprocess.Popen(["sleep", "30"])
+          try:
+              pathlib.Path(f"/proc/{other.pid}/environ").read_bytes()
+          finally:
+              other.kill()
+              other.wait()
+          try:
+              pathlib.Path("/proc/1/environ").read_bytes()
+          except PermissionError:
+              print("ok: the app process's environment is out of reach")
+          else:
+              raise SystemExit("a process of appuser read the app process's environment")
+          PY
+          printf 'a,b\n1,2\n' > "$RUNNER_TEMP/in.csv"
+          if ! curl -fsS --max-time 60 -F "file=@$RUNNER_TEMP/in.csv" -F target_format=json \
+              -o "$RUNNER_TEMP/out.json" http://localhost:8000/api/v1/convert; then
+            docker logs filemorph
+            echo "::error::A conversion through the app failed"
+            exit 1
+          fi
+          python3 -c "import json, sys; assert json.load(open(sys.argv[1])) == [{'a': '1', 'b': '2'}]" "$RUNNER_TEMP/out.json"
+          metrics="$(curl -fsS --max-time 10 http://localhost:8000/api/v1/metrics)"
+          if ! grep -q '^process_open_fds ' <<< "$metrics"; then
+            echo "::error::/api/v1/metrics reports no process_open_fds"
+            exit 1
+          fi
 
       # Outgoing TLS other than Stripe's (the app's mail through aiosmtplib,
       # anything on ssl.create_default_context()) trusts the system CA store:

@@ -126,9 +126,12 @@ RUN mkdir -p data && \
     sed -i 's/\r$//' entrypoint.sh && \
     chmod +x entrypoint.sh
 
-# Security: run as non-root user (principle of least privilege — PT-012)
+# Security: run as non-root user (principle of least privilege — PT-012).
+# The app's code stays owned by root and, whatever the build folder's
+# permissions, read-only for appuser; the app writes only to /app/data (the
+# API key file entrypoint.sh creates on the first start) and to the temp dir.
 RUN groupadd --system appuser && useradd --system --gid appuser appuser && \
-    chown -R appuser:appuser /app && \
+    chmod -R go-w /app && \
     mkdir -p /app/data && chown -R appuser:appuser /app/data
 USER appuser
 
