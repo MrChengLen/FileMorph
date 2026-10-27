@@ -92,7 +92,7 @@ def test_footer_tools_group_links(client):
     )
     assert tools_group.index('href="/en/pdf/compress"') < tools_group.index(
         'href="/en/compress"'
-    ), '"Compress to size" must come after the PDF entries'
+    ), '"Compress image (KB/MB)" must come after the PDF entries'
 
 
 def test_footer_product_group_links(client, pricing_enabled):

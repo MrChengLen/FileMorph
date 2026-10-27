@@ -655,17 +655,11 @@ msgstr "PDF verkleinern"
 msgid "Compress a PDF →"
 msgstr "PDF verkleinern →"
 
-msgid "Compress image (KB/MB)"
-msgstr "Bild verkleinern (KB/MB)"
-
 msgid "Compress images to a target size"
 msgstr "Bilder auf eine Zielgröße komprimieren"
 
 msgid "Compress to a target size"
 msgstr "Auf eine Zielgröße komprimieren"
-
-msgid "Compress to size"
-msgstr "Auf Zielgröße verkleinern"
 
 #, python-brace-format
 msgid "Compressed to {size} MB"
@@ -767,9 +761,6 @@ msgstr "%(src)s konvertieren in"
 
 msgid "Convert & Compress Files"
 msgstr "Dateien konvertieren & komprimieren"
-
-msgid "Convert & compress"
-msgstr "Konvertieren & komprimieren"
 
 msgid ""
 "Convert & compress files online free — HEIC, JPG, PNG, WebP, PDF, DOCX, "
@@ -1406,9 +1397,6 @@ msgstr ""
 msgid "Got it"
 msgstr "Verstanden"
 
-msgid "HEIC to JPG"
-msgstr "HEIC in JPG"
-
 msgid "Hetzner's privacy policy"
 msgstr "Hetzners Datenschutzerklärung"
 
@@ -1765,9 +1753,6 @@ msgstr ""
 msgid "JPEG, WebP and AVIF only."
 msgstr "Nur JPEG, WebP und AVIF."
 
-msgid "JPG to PDF"
-msgstr "JPG in PDF"
-
 msgid "Joined"
 msgstr "Beigetreten"
 
@@ -1875,6 +1860,9 @@ msgstr ""
 "keine Parallelitäts-Garantien. Jeder Tarif begrenzt die gleichzeitigen "
 "Anfragen pro Konto (ohne Konto: pro IP-Adresse), damit ein Batch nicht "
 "den ganzen Worker-Pool blockiert — Anfragen über dem Limit erhalten"
+
+msgid "More tools"
+msgstr "Weitere Tools"
 
 msgid "Most popular"
 msgstr "Am beliebtesten"
@@ -2375,9 +2363,6 @@ msgstr "Berichtigung (Art. 16 DSGVO) unrichtiger Daten."
 msgid "Redact & download"
 msgstr "Schwärzen & herunterladen"
 
-msgid "Redact PII"
-msgstr "PII schwärzen"
-
 msgid "Redact another file"
 msgstr "Weitere Datei schwärzen"
 
@@ -2547,6 +2532,9 @@ msgid ""
 msgstr ""
 "Läuft hinter Ihrer Firewall — Bürger-, Patienten- und Mandantendaten "
 "verlassen Ihre Infrastruktur nie. EU-Anbieter, deutsches Impressum."
+
+msgid "Runs via our server"
+msgstr "Läuft über unseren Server"
 
 msgid ""
 "Runs via our server — files are uploaded and deleted right after "
@@ -3349,6 +3337,9 @@ msgstr ""
 msgid "Too many requests. Please wait a moment and try again."
 msgstr "Zu viele Anfragen. Bitte warte einen Moment und versuche es erneut."
 
+msgid "Tool sections"
+msgstr "Tool-Bereiche"
+
 msgid "Tools"
 msgstr "Tools"
 
@@ -3777,9 +3768,6 @@ msgstr "Mit kostenlosem Konto:"
 
 msgid "Without an account:"
 msgstr "Ohne Konto:"
-
-msgid "Word to PDF"
-msgstr "Word in PDF"
 
 msgid ""
 "Yes. FileMorph can compress JPEG, WebP and AVIF images to at most a "

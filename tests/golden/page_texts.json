@@ -248,13 +248,24 @@
   "/de/tools": {
     "headings": [
       "h1: Alle FileMorph-Tools",
-      "h2: Konvertieren & komprimieren",
-      "h3: Dateien konvertieren & komprimieren",
-      "h3: Auf Zielgröße komprimieren",
       "h2: PDF-Tools",
+      "h3: PDF verkleinern",
+      "h3: JPG in PDF",
+      "h3: PNG in PDF",
+      "h3: HEIC in PDF",
+      "h3: Word in PDF",
+      "h3: HTML-Datei in PDF",
+      "h3: E-Mail (.eml) in PDF",
       "h3: PDF aufteilen",
       "h3: PDF-Seiten extrahieren",
-      "h3: PDF verkleinern"
+      "h2: Bilder",
+      "h3: Bild verkleinern (KB/MB)",
+      "h3: HEIC in JPG",
+      "h3: PNG in JPG",
+      "h3: JPG in PNG",
+      "h3: WebP in JPG",
+      "h3: JPG in WebP",
+      "h3: PNG in WebP"
     ],
     "meta": "Alle FileMorph-Tools: Dateien konvertieren und komprimieren, PDF-Seiten aufteilen, extrahieren oder verkleinern. Kostenlos und ohne Konto.",
     "title": "Tools — konvertieren, komprimieren, PDF | FileMorph"
@@ -508,13 +519,24 @@
   "/en/tools": {
     "headings": [
       "h1: All FileMorph tools",
-      "h2: Convert & compress",
-      "h3: Convert & compress files",
-      "h3: Compress to a target size",
       "h2: PDF tools",
-      "h3: Split a PDF",
+      "h3: Compress PDF",
+      "h3: JPG to PDF",
+      "h3: PNG to PDF",
+      "h3: HEIC to PDF",
+      "h3: Word to PDF",
+      "h3: HTML file to PDF",
+      "h3: Email (.eml) to PDF",
+      "h3: Split PDF",
       "h3: Extract PDF pages",
-      "h3: Compress a PDF"
+      "h2: Images",
+      "h3: Compress image (KB/MB)",
+      "h3: HEIC to JPG",
+      "h3: PNG to JPG",
+      "h3: JPG to PNG",
+      "h3: WebP to JPG",
+      "h3: JPG to WebP",
+      "h3: PNG to WebP"
     ],
     "meta": "Browse every FileMorph tool — convert & compress files, split or extract PDF pages, or shrink a PDF to a target size. Free, no account needed.",
     "title": "File tools — convert, compress & PDF | FileMorph"

@@ -271,6 +271,13 @@ def _ranking_texts(html: str) -> dict:
     }
 
 
+def test_footer_stays_within_forty_links(client, every_page_on):
+    # IA rule: the footer carries curated links per group, capped at about 40;
+    # completeness lives on /tools. With every switch on it is at its longest.
+    footer = client.get("/en/").text.split("<footer", 1)[1]
+    assert footer.count("<a ") <= 40, f"the footer has {footer.count('<a ')} links"
+
+
 def test_ranking_texts_change_only_on_purpose(client, pricing_on, redact_off, stripe_off):
     current = {}
     for page in catalog.pages():

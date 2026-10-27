@@ -563,16 +563,10 @@ msgstr ""
 msgid "Compress a PDF →"
 msgstr ""
 
-msgid "Compress image (KB/MB)"
-msgstr ""
-
 msgid "Compress images to a target size"
 msgstr "Compress images to a target size"
 
 msgid "Compress to a target size"
-msgstr ""
-
-msgid "Compress to size"
 msgstr ""
 
 #, python-brace-format
@@ -668,9 +662,6 @@ msgid "Convert %(src)s to"
 msgstr ""
 
 msgid "Convert & Compress Files"
-msgstr ""
-
-msgid "Convert & compress"
 msgstr ""
 
 msgid ""
@@ -1204,9 +1195,6 @@ msgstr ""
 msgid "Got it"
 msgstr "Got it"
 
-msgid "HEIC to JPG"
-msgstr ""
-
 msgid "Hetzner's privacy policy"
 msgstr ""
 
@@ -1457,9 +1445,6 @@ msgstr ""
 msgid "JPEG, WebP and AVIF only."
 msgstr ""
 
-msgid "JPG to PDF"
-msgstr ""
-
 msgid "Joined"
 msgstr ""
 
@@ -1560,6 +1545,9 @@ msgstr ""
 "guarantees. Each tier has a concurrency cap per account (per IP address "
 "without an account) so one batch can't starve the whole worker pool — "
 "requests past the cap return"
+
+msgid "More tools"
+msgstr ""
 
 msgid "Most popular"
 msgstr ""
@@ -1983,9 +1971,6 @@ msgstr ""
 msgid "Redact & download"
 msgstr ""
 
-msgid "Redact PII"
-msgstr ""
-
 msgid "Redact another file"
 msgstr ""
 
@@ -2126,6 +2111,9 @@ msgstr ""
 msgid ""
 "Runs behind your firewall — citizen, patient and client data never leaves"
 " your infrastructure. EU vendor, German imprint."
+msgstr ""
+
+msgid "Runs via our server"
 msgstr ""
 
 msgid ""
@@ -2790,6 +2778,9 @@ msgstr ""
 msgid "Too many requests. Please wait a moment and try again."
 msgstr ""
 
+msgid "Tool sections"
+msgstr ""
+
 msgid "Tools"
 msgstr ""
 
@@ -3118,9 +3109,6 @@ msgid "With a free account:"
 msgstr ""
 
 msgid "Without an account:"
-msgstr ""
-
-msgid "Word to PDF"
 msgstr ""
 
 msgid ""

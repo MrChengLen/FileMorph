@@ -21,8 +21,8 @@ from __future__ import annotations
 import re
 import xml.etree.ElementTree as ET
 
+from app.core import catalog
 from app.core.compress_content import COMPRESS_CONTENT
-from app.core.tools_content import TOOLS_CONTENT
 
 
 def _main(html: str) -> str:
@@ -225,14 +225,14 @@ def test_llms_txt_lists_compress_page(client):
 
 
 def test_tools_hub_links_compress_target_card(client):
-    """/tools gets a second card, "Compress to a target size", next to
-    Convert & Compress (IA rework PR 4) — card body renders, not just the
-    link, and it's scoped inside <main> so this doesn't pass merely because
-    the footer links the same URL."""
+    """/tools has a card for /compress (IA rework PR 4) under the tool's
+    catalogue name — card body renders, not just the link, and it's scoped
+    inside <main> so this doesn't pass merely because the footer links the
+    same URL."""
     r = client.get("/en/tools")
     main = _main(r.text)
     assert 'href="/en/compress"' in main
-    assert TOOLS_CONTENT["en"]["cards"]["compress_target"]["title"] in main
+    assert catalog.get("/compress").label["en"] in main
 
 
 def test_compress_target_card_links_compress_page_both_locales(client):
@@ -240,8 +240,9 @@ def test_compress_target_card_links_compress_page_both_locales(client):
     de_main = _main(client.get("/de/tools").text)
     assert 'href="/en/compress"' in en_main
     assert 'href="/de/compress"' in de_main
-    assert "target size" in TOOLS_CONTENT["en"]["cards"]["compress_target"]["desc"]
-    assert "Zielgröße" in TOOLS_CONTENT["de"]["cards"]["compress_target"]["desc"]
+    blurb = catalog.get("/compress").blurb
+    assert "target size" in blurb["en"] and blurb["en"] in en_main
+    assert "Zielgröße" in blurb["de"] and blurb["de"] in de_main
 
 
 def test_formats_page_target_size_cta_links_compress(client):

@@ -34,6 +34,7 @@ macros are just function-like calls.
 | `button.button(label, href=None, variant='primary', size='md', disabled=False, type='button', id=None)` | `button.html` | simple | Variants: primary / secondary / ghost. Sizes: sm / md / lg |
 | `eyebrow.eyebrow(text, color='gray')` | `eyebrow.html` | simple | Small all-caps tracking-wide label above headings |
 | `text_input.text_input(name, type='text', label=None, placeholder='', autocomplete=None, required=False, value='', id=None)` | `text_input.html` | simple | Form input with optional label. Used in auth + cockpit + index |
+| `icon.icon(name)` | `icon.html` | simple | Quick-action icon; `name` is one of `catalog.ICONS` (app/core/catalog.py) |
 
 ### Tier 2 — Repeated patterns (≥3 sites)
 

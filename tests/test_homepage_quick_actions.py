@@ -4,9 +4,10 @@
 
 Replaces tests/test_homepage_more_tools.py: the old "More tools" box is
 gone, and its links now live in a 7-chip quick-actions row rendered inside
-the shared partials/convert_tool.html, gated by show_quick_actions (set
-only by pages.py::index so /compress and the 12 /convert/<pair> pages,
-which render the same partial, don't get self-links or a diluted row).
+the shared partials/convert_tool.html, gated by quick_actions (passed only
+by pages.py::index so /compress and the /convert/<pair> pages, which render
+the same partial, don't get self-links or a diluted row). The chips come
+from the page catalogue (app/core/catalog.py); this file pins the result.
 The heading-outline guards that used to live next to the old box moved to
 tests/test_homepage_outline.py.
 

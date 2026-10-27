@@ -1,0 +1,26 @@
+{#- Tool icons for the quick-action chips: ``icon(name)``, where name is a
+    catalogue entry's ``icon`` (app/core/catalog.py). One literal <svg> per
+    name, so Tailwind's scanner sees every class (README "dynamic-class rule").
+    Decorative only: the chip's text names the tool. -#}
+{% macro icon(name) -%}
+<svg class="w-4 h-4 text-brand-light" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+  {%- if name == "compress" %}
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+    d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25" />
+  {%- elif name == "image" %}
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+    d="M2.25 15.75l5.16-5.16a2.25 2.25 0 013.18 0l5.16 5.16m-1.5-1.5l1.41-1.41a2.25 2.25 0 013.18 0l2.91 2.91M3.75 19.5h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5z" />
+  {%- elif name == "document" %}
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+    d="M14 2.5H6.5A1.5 1.5 0 005 4v16a1.5 1.5 0 001.5 1.5h11A1.5 1.5 0 0019 20V7.5L14 2.5z" />
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+    d="M14 2.5v5h5M8.5 12.5l1.2 5 1.8-4 1.8 4 1.2-5" />
+  {%- elif name == "split" %}
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+    d="M6 9a3 3 0 100-6 3 3 0 000 6zM6 21a3 3 0 100-6 3 3 0 000 6zM20 4L8.12 15.88M14.47 14.48L20 20M8.12 8.12L12 12" />
+  {%- elif name == "pages" %}
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+    d="M8 7V4.5A1.5 1.5 0 019.5 3h9A1.5 1.5 0 0120 4.5v12a1.5 1.5 0 01-1.5 1.5H16M4 8.5A1.5 1.5 0 015.5 7h9A1.5 1.5 0 0116 8.5v11a1.5 1.5 0 01-1.5 1.5h-9A1.5 1.5 0 014 19.5z" />
+  {%- endif %}
+</svg>
+{%- endmacro %}
