@@ -816,10 +816,11 @@ slot-hold time linearly without inflating the parallelism cost.
 
 Processes and threads are capped too: at 4096 for the container
 (`pids_limit` in `docker-compose.yml`) and for the systemd service
-below (`TasksMax=`). The programs a conversion runs start a few
-threads per CPU core (ffmpeg), so on a host with many cores raise this
-cap together with `MAX_GLOBAL_CONCURRENCY`: allow about 200, plus 3 per
-CPU core for each parallel conversion.
+below (`TasksMax=`). ffmpeg runs a conversion with up to about 20
+threads, however many CPU cores the host has (2 per decoder, encoder
+and filter graph), so raise this cap only together with
+`MAX_GLOBAL_CONCURRENCY`: allow about 200, plus 20 for each parallel
+conversion.
 
 ### PDF/A-2b conformance (optional ghostscript)
 

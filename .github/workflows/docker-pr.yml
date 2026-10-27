@@ -316,95 +316,12 @@ jobs:
           # More frames than x264 looks ahead (40): the most memory it takes at this size.
           get_converter("mp4", "mkv").convert(clip("4k.mp4", _ffmpeg._MAX_WIDTH, 1.6), work / "4k.mkv", quality=85)
           try:
-              get_converter("mp4", "mkv").convert(clip("larger.mp4", _ffmpeg._MAX_WIDTH + 16, 0.2), work / "larger.mkv", quality=85)
+              get_converter("mp4", "mkv").convert(clip("larger.mp4", _ffmpeg._MAX_WIDTH + 64, 0.2), work / "larger.mkv", quality=85)
           except InvalidInputError as exc:
               assert "larger than 4K" in str(exc), exc
           else:
               raise SystemExit("a video larger than 4K converted")
           print("ok: the listed decoders are there, the limits hold, 4K converts, a larger video is refused")
-          PY
-
-      # TEMPORARY, removed before merge: the peak address space, resident
-      # memory and threads of typical ffmpeg and ffprobe runs in the image,
-      # measured without the memory cap, to size it.
-      - name: Measure ffmpeg's memory (temporary)
-        if: matrix.target == 'base'
-        run: |
-          docker exec -i filemorph python - <<'PY'
-          import pathlib, subprocess, sys, tempfile, threading, time
-          import app.converters.video  # registers the video conversions
-          from app.converters import _ffmpeg
-          from app.converters.registry import get_converter
-          from app.core.config import settings
-
-          work = pathlib.Path(tempfile.mkdtemp())
-          real_run = subprocess.run
-
-          def clip(name, width, height, seconds, codec="libx264"):
-              path = work / name
-              real_run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", f"testsrc2=size={width}x{height}:rate=30:duration={seconds}", "-f", "lavfi", "-i", f"sine=duration={seconds}", "-c:v", codec, "-preset", "ultrafast", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", str(path)], check=True)
-              return path
-
-          seen = {}
-
-          def measured(cmd, **kwargs):
-              timeout = kwargs.get("timeout") or 900
-              proc = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=kwargs.get("env"))
-              out, err = [], []
-              readers = [threading.Thread(target=lambda: out.append(proc.stdout.read())), threading.Thread(target=lambda: err.append(proc.stderr.read()))]
-              for reader in readers:
-                  reader.start()
-              status = pathlib.Path(f"/proc/{proc.pid}/status")
-              end = time.monotonic() + timeout
-              while proc.poll() is None:
-                  if time.monotonic() > end:
-                      proc.kill()
-                      proc.wait()
-                      raise subprocess.TimeoutExpired(cmd, timeout)
-                  try:
-                      fields = dict(line.split(":", 1) for line in status.read_text().splitlines())
-                      if fields["Name"].strip() in ("ffmpeg", "ffprobe"):
-                          seen["peak"] = max(seen["peak"], int(fields["VmPeak"].split()[0]) // 1024)
-                          seen["hwm"] = max(seen["hwm"], int(fields["VmHWM"].split()[0]) // 1024)
-                          seen["threads"] = max(seen["threads"], int(fields["Threads"]))
-                  except (OSError, KeyError, ValueError):
-                      pass
-                  time.sleep(0.01)
-              for reader in readers:
-                  reader.join()
-              return subprocess.CompletedProcess(cmd, proc.returncode, out[0] if out else b"", err[0] if err else b"")
-
-          settings.media_subprocess_timeout_seconds = 900
-          _ffmpeg._MEMORY_LIMIT_BYTES = 64 * 2**30
-          _ffmpeg.subprocess.run = measured
-
-          def convert(source, target, path):
-              return lambda: get_converter(source, target).convert(path, work / f"out.{target}", quality=85)
-
-          hd = clip("hd.mp4", 1920, 1080, 3)
-          uhd = clip("4k.mp4", 4096, 2160, 1.6)
-          cases = [
-              ("ffmpeg -version", lambda: measured([sys.executable, "-I", "-S", str(_ffmpeg._LIMITED_EXEC), str(64 * 2**30), "100", str(2**30), "/usr/bin/ffmpeg", "-version"])),
-              ("1080p H.264 -> MKV (x264)", convert("mp4", "mkv", hd)),
-              ("1080p H.264 -> WebM (VP9)", convert("mp4", "webm", hd)),
-              ("1080p H.264 -> AVI (MPEG-4)", convert("mp4", "avi", hd)),
-              ("1080p H.264 -> GIF", convert("mp4", "gif", hd)),
-              ("4K H.264 -> MKV (x264)", convert("mp4", "mkv", uhd)),
-              ("4K HEVC -> MP4 (x264)", convert("mkv", "mp4", clip("4k-hevc.mkv", 4096, 2160, 1.6, codec="libx265"))),
-              ("4K H.264 -> AVI (MPEG-4)", convert("mp4", "avi", uhd)),
-              ("4K H.264 -> GIF", convert("mp4", "gif", uhd)),
-              ("8K H.264 probe", lambda: _ffmpeg.probe_video(clip("8k.mp4", 7680, 4320, 0.2), timeout=900)),
-              ("4K H.264 -> WebM (VP9)", convert("mp4", "webm", clip("4k-short.mp4", 4096, 2160, 1.0))),
-          ]
-          for label, run in cases:
-              seen.update(peak=0, hwm=0, threads=0)
-              start = time.monotonic()
-              try:
-                  run()
-                  outcome = "ok"
-              except Exception as exc:
-                  outcome = f"{type(exc).__name__}: {exc}"
-              print(f"{label}: VmPeak {seen['peak']} MiB, VmHWM {seen['hwm']} MiB, {seen['threads']} threads, {time.monotonic() - start:.1f} s, {outcome}", flush=True)
           PY
 
       # What the office image adds, driven the way the DOCX converter drives

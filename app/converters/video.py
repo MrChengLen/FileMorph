@@ -95,13 +95,11 @@ class VideoToGifConverter(BaseConverter):
     def convert(self, input_path: Path, output_path: Path, **kwargs) -> Path:
         max_output_bytes = kwargs.get("max_output_bytes")
         budget = min(GIF_TIME_BUDGET_SECONDS, settings.media_subprocess_timeout_seconds)
-        # In a batch, the files before this one may have used a good part of
-        # the request's time: then running out of it isn't this clip's fault.
+        # In a batch, the files before this one may have left less of the
+        # request's time than the GIF's own budget: then running out of it
+        # isn't this clip's fault.
         request_left = media_time_left()
-        late = (
-            request_left is not None
-            and request_left < 0.8 * settings.media_subprocess_timeout_seconds
-        )
+        late = request_left is not None and request_left < 0.8 * budget
         if request_left is not None:
             budget = min(budget, request_left)
         deadline = time.monotonic() + budget

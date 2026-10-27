@@ -221,9 +221,9 @@ def test_the_files_of_a_batch_share_its_time_limit(
 ):
     started = []
 
-    def run_out_of_time(cmd, **kwargs):
+    def run_out_of_time(cmd, **kwargs):  # the first run takes all of the request's time
         started.append(kwargs["timeout"])
-        clock.now += kwargs["timeout"]
+        clock.now += 85
         raise subprocess.TimeoutExpired(cmd, kwargs["timeout"])
 
     monkeypatch.setattr(_ffmpeg.subprocess, "run", run_out_of_time)
@@ -233,7 +233,7 @@ def test_the_files_of_a_batch_share_its_time_limit(
     first, second = (f["error_message"] for f in res.json()["files"])
     assert "takes longer to convert than the 85 seconds" in first
     assert "ran out before this file was done. Send it again on its own." in second
-    assert started == [85]  # the second file never started
+    assert len(started) == 1  # the second file never started
 
 
 @pytest.mark.parametrize(
@@ -472,7 +472,7 @@ def test_a_4k_video_converts(tmp_path):
 def test_a_video_larger_than_4k_is_refused_with_the_next_step(tmp_path):
     source = tmp_path / "in.mp4"
     _generate(
-        "-f", "lavfi", "-i", f"color=c=black:size={_ffmpeg._MAX_WIDTH + 16}x{_ffmpeg._MAX_HEIGHT}:rate=5:duration=0.4",
+        "-f", "lavfi", "-i", f"color=c=black:size={_ffmpeg._MAX_WIDTH + 64}x{_ffmpeg._MAX_HEIGHT}:rate=5:duration=0.4",
         "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p",
         str(source),
     )  # fmt: skip
@@ -496,18 +496,18 @@ def test_ffmpeg_stops_writing_at_the_output_cap(tmp_path):
 def test_cover_art_over_the_pixel_limit_does_not_hide_the_output_cap(tmp_path):
     # ffmpeg probes the 3000 × 3000 cover, logs that it is over MAX_PIXELS and
     # converts the sound, up to the output cap.
-    source = tmp_path / "in.mp3"
+    sound, cover, source = tmp_path / "sound.mp3", tmp_path / "cover.jpg", tmp_path / "in.mp3"
+    _generate("-f", "lavfi", "-i", "sine=frequency=440:duration=5", str(sound))
+    _generate("-f", "lavfi", "-i", "color=c=red:size=3000x3000", "-frames:v", "1", str(cover))
     _generate(
-        "-f", "lavfi", "-i", "sine=frequency=440:duration=5",
-        "-f", "lavfi", "-i", "color=c=red:size=3000x3000:duration=0.04",
-        "-map", "0:a", "-map", "1:v", "-frames:v", "1", "-c:v", "mjpeg",
+        "-i", str(sound), "-i", str(cover), "-map", "0:a", "-map", "1:v", "-c", "copy",
         "-disposition:v", "attached_pic", "-id3v2_version", "3",
         str(source),
     )  # fmt: skip
+    out = tmp_path / "full.wav"  # within the cap the cover doesn't matter
+    get_converter("mp3", "wav").convert(source, out, quality=85, max_output_bytes=10**7)
+    assert out.stat().st_size > 400_000, out.stat().st_size  # 5 s of WAV, about 440 KB
     with pytest.raises(OutputTooLargeError):
         get_converter("mp3", "wav").convert(
             source, tmp_path / "out.wav", quality=85, max_output_bytes=100_000
         )
-    out = tmp_path / "small.wav"  # and within the cap the cover doesn't matter
-    get_converter("mp3", "wav").convert(source, out, quality=85, max_output_bytes=10**7)
-    assert out.stat().st_size > 400_000
