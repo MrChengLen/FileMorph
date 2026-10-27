@@ -823,47 +823,9 @@ def test_homepage_teaser_no_legacy_hardcoded_prices(client, monkeypatch):
 # docs-internal/seo-geo-strategie-2026.md (gitignored).
 
 
-# Every indexable page in both locales. /pricing + /enterprise need the
-# commercial surface enabled (self-host default 404s them).
-_INDEXABLE_PATHS = [
-    "/",
-    "/en/",
-    "/de/",
-    "/formats",
-    "/en/formats",
-    "/de/formats",
-    "/pricing",
-    "/en/pricing",
-    "/enterprise",
-    "/en/enterprise",
-]
-
-
-def test_all_indexable_pages_title_and_meta_within_serp_limits(client, monkeypatch):
-    """Google truncates the SERP title at ~60 chars and the meta description
-    at ~160. Keyword-rich copy is worthless if it's cut off. Every indexable
-    page, in both locales, must keep title ≤60 and meta ≤160 — this is the
-    discipline that the homepage-only AT-03/04 guards enforced, generalised
-    so /formats, /pricing and /enterprise can't drift out of range either.
-    """
-    from app.core.config import settings
-
-    monkeypatch.setattr(settings, "pricing_page_enabled", True)
-    for path in _INDEXABLE_PATHS:
-        r = client.get(path)
-        assert r.status_code == 200, f"{path} did not render"
-        tm = re.search(r"<title[^>]*>([^<]+)</title>", r.text, re.IGNORECASE)
-        mm = re.search(
-            r'<meta\s+name=["\']description["\']\s+content=["\']([^"\']+)["\']',
-            r.text,
-            re.IGNORECASE,
-        )
-        assert tm, f"{path} missing <title>"
-        assert mm, f"{path} missing meta description"
-        title, desc = tm.group(1).strip(), mm.group(1).strip()
-        assert len(title) <= 60, f"{path} title {len(title)} > 60: {title!r}"
-        assert len(desc) <= 160, f"{path} meta {len(desc)} > 160: {desc!r}"
-        assert len(title) >= 10 and len(desc) >= 50, f"{path} title/meta too short"
+# The SERP-limit check for every indexable page (title ≤60, meta ≤160) lives
+# in tests/test_catalog.py, which walks the page catalogue instead of a list
+# of paths kept here by hand.
 
 
 def test_homepage_money_keywords_present_both_locales(client):

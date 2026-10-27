@@ -1,0 +1,522 @@
+{
+  "/de/": {
+    "headings": [
+      "h1: Dateien konvertieren & komprimieren",
+      "h2: FileMorph auf eigener Infrastruktur betreiben",
+      "h2: Kostenlos",
+      "h2: Für Entwickler",
+      "h2: Warum FileMorph statt eines typischen Online-Konverters?",
+      "h2: Häufige Fragen",
+      "h3: Ist FileMorph kostenlos?",
+      "h3: Sind meine Dateien privat?",
+      "h3: Welche Dateiformate kann ich konvertieren?",
+      "h3: Kann ich eine Datei auf eine Zielgröße komprimieren?",
+      "h3: Kann ich FileMorph selbst hosten oder als API nutzen?"
+    ],
+    "meta": "Dateien kostenlos online konvertieren & komprimieren — HEIC, JPG, PNG, WebP, PDF, DOCX, MP4 & mehr. Auf Zielgröße verkleinern. Kein Konto, Open Source.",
+    "title": "Dateien online konvertieren & komprimieren | FileMorph"
+  },
+  "/de/compress": {
+    "headings": [
+      "h1: Bild oder Video verkleinern — Zielgröße für JPEG/WebP/AVIF",
+      "h2: Ehrliche Grenzen",
+      "h2: So funktioniert es",
+      "h2: Wann es sinnvoll ist",
+      "h2: Häufige Fragen",
+      "h3: Welche Dateien kann ich auf eine Zielgröße komprimieren?",
+      "h3: Ich will ein PDF komprimieren — geht das hier auch?",
+      "h3: Brauche ich ein Konto?",
+      "h2: PDFs?",
+      "h2: Verwandte Tools"
+    ],
+    "meta": "Verkleinere ein JPG, WebP oder AVIF auf eine Zielgröße in MB, oder komprimiere ein Video — kostenlos, ohne Konto, Dateien sofort gelöscht.",
+    "title": "JPG/WebP/AVIF auf Zielgröße verkleinern — gratis | FileMorph"
+  },
+  "/de/convert/docx-to-pdf": {
+    "headings": [
+      "h1: DOCX in PDF umwandeln",
+      "h2: Wann diese Umwandlung sinnvoll ist",
+      "h2: Technische Details",
+      "h2: Häufige Fragen",
+      "h3: Bleibt meine Formatierung erhalten?",
+      "h3: Ist das PDF bearbeitbar?",
+      "h3: Brauche ich ein Konto?",
+      "h2: Verwandte Konvertierungen"
+    ],
+    "meta": "Word-DOCX kostenlos online in PDF umwandeln, ohne Konto. Layout fixieren zum Teilen, Drucken und Archivieren. Dateien sofort gelöscht.",
+    "title": "DOCX in PDF umwandeln — kostenlos | FileMorph"
+  },
+  "/de/convert/eml-to-pdf": {
+    "headings": [
+      "h1: EML (E-Mail) in PDF umwandeln",
+      "h2: Wann diese Umwandlung sinnvoll ist",
+      "h2: Technische Details",
+      "h2: Häufige Fragen",
+      "h3: Welche E-Mail-Dateien werden unterstützt?",
+      "h3: Werden Tracking-Pixel geladen?",
+      "h3: Sind Anhänge enthalten?",
+      "h2: Verwandte Konvertierungen"
+    ],
+    "meta": ".eml-E-Mails kostenlos online in PDF umwandeln, ohne Konto. E-Mails mit Kopfzeilen und Text als PDF archivieren. Keine Tracking-Pixel.",
+    "title": "EML-E-Mail in PDF umwandeln — gratis | FileMorph"
+  },
+  "/de/convert/heic-to-jpg": {
+    "headings": [
+      "h1: HEIC in JPG umwandeln",
+      "h2: Wann diese Umwandlung sinnvoll ist",
+      "h2: Technische Details",
+      "h2: Häufige Fragen",
+      "h3: Sinkt die Qualität?",
+      "h3: Warum ist das JPG größer als das HEIC?",
+      "h3: Brauche ich ein Konto?",
+      "h2: Verwandte Konvertierungen"
+    ],
+    "meta": "iPhone-HEIC-Fotos kostenlos online in JPG umwandeln, ohne Konto. Universell kompatibel zum Teilen und Bearbeiten. Dateien sofort gelöscht.",
+    "title": "HEIC in JPG umwandeln — kostenlos | FileMorph"
+  },
+  "/de/convert/heic-to-pdf": {
+    "headings": [
+      "h1: HEIC in PDF umwandeln",
+      "h2: Wann diese Umwandlung sinnvoll ist",
+      "h2: Technische Details",
+      "h2: Häufige Fragen",
+      "h3: Warum HEIC direkt in PDF?",
+      "h3: Geht etwas verloren?",
+      "h3: Kostet das etwas?",
+      "h2: Verwandte Konvertierungen"
+    ],
+    "meta": "iPhone-HEIC-Fotos kostenlos online in PDF umwandeln, ohne Konto. Fotos als Dokument einreichen — ohne Umweg über JPG. Dateien sofort gelöscht.",
+    "title": "HEIC in PDF umwandeln — kostenlos | FileMorph"
+  },
+  "/de/convert/html-to-pdf": {
+    "headings": [
+      "h1: HTML in PDF umwandeln",
+      "h2: Wann diese Umwandlung sinnvoll ist",
+      "h2: Technische Details",
+      "h2: Häufige Fragen",
+      "h3: Werden entfernte Bilder und Styles eingebunden?",
+      "h3: Sieht es genau wie im Browser aus?",
+      "h3: Ist es kostenlos?",
+      "h2: Verwandte Konvertierungen"
+    ],
+    "meta": "HTML kostenlos online in PDF umwandeln, ohne Konto. Eine Webseite oder einen Bericht als layouttreues PDF archivieren. Keine externen Ressourcen.",
+    "title": "HTML in PDF umwandeln — kostenlos | FileMorph"
+  },
+  "/de/convert/jpg-to-pdf": {
+    "headings": [
+      "h1: JPG in PDF umwandeln",
+      "h2: Wann diese Umwandlung sinnvoll ist",
+      "h2: Technische Details",
+      "h2: Häufige Fragen",
+      "h3: Kann ich mehrere JPGs in ein PDF zusammenfassen?",
+      "h3: Bleibt die Bildqualität erhalten?",
+      "h3: Muss ich mich registrieren?",
+      "h2: Verwandte Konvertierungen"
+    ],
+    "meta": "JPG-Bilder kostenlos online in PDF umwandeln, ohne Konto. Fotos und Scans in ein sauberes PDF-Dokument verwandeln. Dateien sofort gelöscht.",
+    "title": "JPG in PDF umwandeln — kostenlos | FileMorph"
+  },
+  "/de/convert/jpg-to-png": {
+    "headings": [
+      "h1: JPG in PNG umwandeln",
+      "h2: Wann diese Umwandlung sinnvoll ist",
+      "h2: Technische Details",
+      "h2: Häufige Fragen",
+      "h3: Sieht das Bild als PNG besser aus?",
+      "h3: Warum ist das PNG so viel größer?",
+      "h3: Brauche ich ein Konto?",
+      "h2: Verwandte Konvertierungen"
+    ],
+    "meta": "JPG kostenlos online in PNG umwandeln, ohne Konto. Verlustfreies Format für Bearbeitung und Transparenz. Hinweis: PNG ist größer. Sofort gelöscht.",
+    "title": "JPG in PNG umwandeln — kostenlos | FileMorph"
+  },
+  "/de/convert/jpg-to-webp": {
+    "headings": [
+      "h1: JPG in WebP umwandeln",
+      "h2: Wann diese Umwandlung sinnvoll ist",
+      "h2: Technische Details",
+      "h2: Häufige Fragen",
+      "h3: Wie viel kleiner ist WebP?",
+      "h3: Unterstützen alle Browser WebP?",
+      "h3: Ist es kostenlos?",
+      "h2: Verwandte Konvertierungen"
+    ],
+    "meta": "JPG kostenlos online in WebP umwandeln, ohne Konto. Kleinere Dateien für schnellere Websites bei gleicher Qualität. Dateien sofort gelöscht.",
+    "title": "JPG in WebP umwandeln — kostenlos | FileMorph"
+  },
+  "/de/convert/png-to-jpg": {
+    "headings": [
+      "h1: PNG in JPG umwandeln",
+      "h2: Wann diese Umwandlung sinnvoll ist",
+      "h2: Technische Details",
+      "h2: Häufige Fragen",
+      "h3: Wie viel kleiner wird es?",
+      "h3: Ich verliere Transparenz — warum?",
+      "h3: Ist es kostenlos?",
+      "h2: Verwandte Konvertierungen"
+    ],
+    "meta": "PNG kostenlos online in JPG umwandeln, ohne Konto. Screenshots und Fotos für Web und E-Mail verkleinern. Dateien sofort gelöscht, Open Source.",
+    "title": "PNG in JPG umwandeln — kostenlos | FileMorph"
+  },
+  "/de/convert/png-to-pdf": {
+    "headings": [
+      "h1: PNG in PDF umwandeln",
+      "h2: Wann diese Umwandlung sinnvoll ist",
+      "h2: Technische Details",
+      "h2: Häufige Fragen",
+      "h3: Was passiert mit der PNG-Transparenz?",
+      "h3: Geht Qualität verloren?",
+      "h3: Ist es wirklich kostenlos?",
+      "h2: Verwandte Konvertierungen"
+    ],
+    "meta": "PNG-Bilder kostenlos online in PDF umwandeln, ohne Konto. Ideal für Screenshots, Diagramme und Logos. Dateien sofort gelöscht, Open Source.",
+    "title": "PNG in PDF umwandeln — kostenlos | FileMorph"
+  },
+  "/de/convert/png-to-webp": {
+    "headings": [
+      "h1: PNG in WebP umwandeln",
+      "h2: Wann diese Umwandlung sinnvoll ist",
+      "h2: Technische Details",
+      "h2: Häufige Fragen",
+      "h3: Behält WebP die Transparenz?",
+      "h3: Wie viel kleiner ist es?",
+      "h3: Ist es kostenlos?",
+      "h2: Verwandte Konvertierungen"
+    ],
+    "meta": "PNG kostenlos online in WebP umwandeln, ohne Konto. Viel kleinere Web-Bilder mit erhaltener Transparenz. Dateien sofort gelöscht, Open Source.",
+    "title": "PNG in WebP umwandeln — kostenlos | FileMorph"
+  },
+  "/de/convert/webp-to-jpg": {
+    "headings": [
+      "h1: WebP in JPG umwandeln",
+      "h2: Wann diese Umwandlung sinnvoll ist",
+      "h2: Technische Details",
+      "h2: Häufige Fragen",
+      "h3: Warum öffnet mein WebP woanders nicht?",
+      "h3: Geht Qualität verloren?",
+      "h3: Ist es kostenlos?",
+      "h2: Verwandte Konvertierungen"
+    ],
+    "meta": "WebP kostenlos online in JPG umwandeln, ohne Konto. Universell kompatibel für Apps und Software ohne WebP-Unterstützung. Sofort gelöscht.",
+    "title": "WebP in JPG umwandeln — kostenlos | FileMorph"
+  },
+  "/de/pdf/compress": {
+    "headings": [
+      "h1: PDF auf eine Zielgröße verkleinern",
+      "h2: Ehrliche Grenzen",
+      "h2: So funktioniert es",
+      "h2: Wann es sinnvoll ist",
+      "h2: Häufige Fragen",
+      "h3: Bleibt mein PDF immer unter der Zielgröße?",
+      "h3: Was passiert, wenn mein PDF keine Bilder zum Komprimieren hat?",
+      "h3: Brauche ich ein Konto?",
+      "h2: Verwandte Tools"
+    ],
+    "meta": "PDF kostenlos online auf eine Zielgröße verkleinern, ohne Konto. Rekomprimiert Bilder, meldet ehrlich, wenn nichts zu verkleinern ist.",
+    "title": "PDF auf Zielgröße verkleinern — kostenlos | FileMorph"
+  },
+  "/de/pdf/extract": {
+    "headings": [
+      "h1: Seiten aus einem PDF extrahieren",
+      "h2: Ehrliche Grenzen",
+      "h2: So funktioniert es",
+      "h2: Wann es sinnvoll ist",
+      "h2: Häufige Fragen",
+      "h3: Wie schreibe ich die Seitenauswahl?",
+      "h3: Spielt die Reihenfolge meiner Eingabe eine Rolle?",
+      "h3: Gibt es ein Limit für die Anzahl extrahierbarer Seiten?",
+      "h2: Verwandte Tools"
+    ],
+    "meta": "Bestimmte Seiten kostenlos online aus einem PDF extrahieren, ohne Konto. Seitenbereich wie 1-3,5 eingeben und nur diese Seiten herunterladen.",
+    "title": "PDF-Seiten extrahieren — kostenlos | FileMorph"
+  },
+  "/de/pdf/split": {
+    "headings": [
+      "h1: PDF in Einzelseiten aufteilen",
+      "h2: Ehrliche Grenzen",
+      "h2: So funktioniert es",
+      "h2: Wann es sinnvoll ist",
+      "h2: Häufige Fragen",
+      "h3: Kann ich nur bestimmte Seiten aufteilen statt alle?",
+      "h3: Gibt es ein Limit für die Seitenzahl?",
+      "h3: Brauche ich ein Konto?",
+      "h2: Verwandte Tools"
+    ],
+    "meta": "PDF kostenlos online in Einzelseiten aufteilen, ohne Konto. Ein ZIP mit einem PDF pro Seite. Dateien sofort gelöscht.",
+    "title": "PDF in Einzelseiten aufteilen — kostenlos | FileMorph"
+  },
+  "/de/tools": {
+    "headings": [
+      "h1: Alle FileMorph-Tools",
+      "h2: Konvertieren & komprimieren",
+      "h3: Dateien konvertieren & komprimieren",
+      "h3: Auf Zielgröße komprimieren",
+      "h2: PDF-Tools",
+      "h3: PDF aufteilen",
+      "h3: PDF-Seiten extrahieren",
+      "h3: PDF verkleinern"
+    ],
+    "meta": "Alle FileMorph-Tools: Dateien konvertieren und komprimieren, PDF-Seiten aufteilen, extrahieren oder verkleinern. Kostenlos und ohne Konto.",
+    "title": "Tools — konvertieren, komprimieren, PDF | FileMorph"
+  },
+  "/en/": {
+    "headings": [
+      "h1: Convert & Compress Files",
+      "h2: Run FileMorph on your own infrastructure",
+      "h2: Free",
+      "h2: For Developers",
+      "h2: Why FileMorph instead of a typical online converter?",
+      "h2: Frequently asked questions",
+      "h3: Is FileMorph free?",
+      "h3: Are my files private?",
+      "h3: Which file formats can I convert?",
+      "h3: Can I compress a file to a target size?",
+      "h3: Can I self-host FileMorph or use it as an API?"
+    ],
+    "meta": "Convert & compress files online free — HEIC, JPG, PNG, WebP, PDF, DOCX, MP4 & more. Shrink images to a target size. No account, open source.",
+    "title": "Free Online File Converter & Compressor | FileMorph"
+  },
+  "/en/compress": {
+    "headings": [
+      "h1: Compress an image or video — target size for JPEG/WebP/AVIF",
+      "h2: Honest limits",
+      "h2: How it works",
+      "h2: When to use it",
+      "h2: Frequently asked questions",
+      "h3: Which files can I compress to a target size?",
+      "h3: I need to compress a PDF — is that here too?",
+      "h3: Do I need an account?",
+      "h2: PDFs?",
+      "h2: Related tools"
+    ],
+    "meta": "Shrink a JPG, WebP or AVIF image to a target size in MB, or compress a video — free, no account, files deleted right after.",
+    "title": "Compress JPEG/WebP/AVIF to a target size — free | FileMorph"
+  },
+  "/en/convert/docx-to-pdf": {
+    "headings": [
+      "h1: Convert DOCX to PDF",
+      "h2: When to use this conversion",
+      "h2: Technical details",
+      "h2: Frequently asked questions",
+      "h3: Will my formatting be preserved?",
+      "h3: Is the PDF editable?",
+      "h3: Do I need an account?",
+      "h2: Related conversions"
+    ],
+    "meta": "Convert Word DOCX to PDF online for free, no account. Lock the layout for sharing, printing and archiving. Files deleted right after conversion.",
+    "title": "Convert DOCX to PDF online — free | FileMorph"
+  },
+  "/en/convert/eml-to-pdf": {
+    "headings": [
+      "h1: Convert EML (email) to PDF",
+      "h2: When to use this conversion",
+      "h2: Technical details",
+      "h2: Frequently asked questions",
+      "h3: Which email files are supported?",
+      "h3: Are tracking pixels loaded?",
+      "h3: Does it include attachments?",
+      "h2: Related conversions"
+    ],
+    "meta": "Convert .eml email to PDF online for free, no account. Archive emails as PDF with headers and body for records. No tracking pixels fetched.",
+    "title": "Convert EML email to PDF — free | FileMorph"
+  },
+  "/en/convert/heic-to-jpg": {
+    "headings": [
+      "h1: Convert HEIC to JPG",
+      "h2: When to use this conversion",
+      "h2: Technical details",
+      "h2: Frequently asked questions",
+      "h3: Will the quality drop?",
+      "h3: Why is the JPG bigger than the HEIC?",
+      "h3: Do I need an account?",
+      "h2: Related conversions"
+    ],
+    "meta": "Convert iPhone HEIC photos to JPG online for free, no account. Universal compatibility for sharing and editing. Files deleted right after conversion.",
+    "title": "Convert HEIC to JPG online — free | FileMorph"
+  },
+  "/en/convert/heic-to-pdf": {
+    "headings": [
+      "h1: Convert HEIC to PDF",
+      "h2: When to use this conversion",
+      "h2: Technical details",
+      "h2: Frequently asked questions",
+      "h3: Why convert HEIC straight to PDF?",
+      "h3: Is anything lost?",
+      "h3: Does it cost anything?",
+      "h2: Related conversions"
+    ],
+    "meta": "Convert iPhone HEIC photos to PDF online for free, no account. Submit photos as documents without the HEIC→JPG detour. Files deleted right after.",
+    "title": "Convert HEIC to PDF online — free | FileMorph"
+  },
+  "/en/convert/html-to-pdf": {
+    "headings": [
+      "h1: Convert HTML to PDF",
+      "h2: When to use this conversion",
+      "h2: Technical details",
+      "h2: Frequently asked questions",
+      "h3: Are remote images and styles included?",
+      "h3: Will it look exactly like my browser?",
+      "h3: Is it free?",
+      "h2: Related conversions"
+    ],
+    "meta": "Convert HTML to PDF online for free, no account. Archive a web page or report as a fixed-layout PDF. No external resources fetched. Files deleted right after.",
+    "title": "Convert HTML to PDF online — free | FileMorph"
+  },
+  "/en/convert/jpg-to-pdf": {
+    "headings": [
+      "h1: Convert JPG to PDF",
+      "h2: When to use this conversion",
+      "h2: Technical details",
+      "h2: Frequently asked questions",
+      "h3: Can I combine several JPGs into one PDF?",
+      "h3: Is the image quality kept?",
+      "h3: Do I need to sign up?",
+      "h2: Related conversions"
+    ],
+    "meta": "Convert JPG images to PDF online for free, no account. Turn photos and scans into a tidy PDF document. Files deleted right after conversion.",
+    "title": "Convert JPG to PDF online — free | FileMorph"
+  },
+  "/en/convert/jpg-to-png": {
+    "headings": [
+      "h1: Convert JPG to PNG",
+      "h2: When to use this conversion",
+      "h2: Technical details",
+      "h2: Frequently asked questions",
+      "h3: Will the image look better as PNG?",
+      "h3: Why is the PNG so much bigger?",
+      "h3: Do I need an account?",
+      "h2: Related conversions"
+    ],
+    "meta": "Convert JPG to PNG online for free, no account. Lossless format for editing and transparency. Note: PNG files are larger. Files deleted right after.",
+    "title": "Convert JPG to PNG online — free | FileMorph"
+  },
+  "/en/convert/jpg-to-webp": {
+    "headings": [
+      "h1: Convert JPG to WebP",
+      "h2: When to use this conversion",
+      "h2: Technical details",
+      "h2: Frequently asked questions",
+      "h3: How much smaller is WebP?",
+      "h3: Do all browsers support WebP?",
+      "h3: Is it free?",
+      "h2: Related conversions"
+    ],
+    "meta": "Convert JPG to WebP online for free, no account. Smaller files for faster websites at the same quality. Files deleted right after conversion.",
+    "title": "Convert JPG to WebP online — free | FileMorph"
+  },
+  "/en/convert/png-to-jpg": {
+    "headings": [
+      "h1: Convert PNG to JPG",
+      "h2: When to use this conversion",
+      "h2: Technical details",
+      "h2: Frequently asked questions",
+      "h3: How much smaller will it get?",
+      "h3: I lose transparency — why?",
+      "h3: Is it free?",
+      "h2: Related conversions"
+    ],
+    "meta": "Convert PNG to JPG online for free, no account. Shrink screenshots and photos for web and email. Files deleted right after conversion, open source.",
+    "title": "Convert PNG to JPG online — free | FileMorph"
+  },
+  "/en/convert/png-to-pdf": {
+    "headings": [
+      "h1: Convert PNG to PDF",
+      "h2: When to use this conversion",
+      "h2: Technical details",
+      "h2: Frequently asked questions",
+      "h3: What happens to PNG transparency?",
+      "h3: Is quality lost?",
+      "h3: Is it really free?",
+      "h2: Related conversions"
+    ],
+    "meta": "Convert PNG images to PDF online for free, no account. Ideal for screenshots, diagrams and logos. Files deleted right after conversion, open source.",
+    "title": "Convert PNG to PDF online — free | FileMorph"
+  },
+  "/en/convert/png-to-webp": {
+    "headings": [
+      "h1: Convert PNG to WebP",
+      "h2: When to use this conversion",
+      "h2: Technical details",
+      "h2: Frequently asked questions",
+      "h3: Does WebP keep transparency?",
+      "h3: How much smaller is it?",
+      "h3: Is it free?",
+      "h2: Related conversions"
+    ],
+    "meta": "Convert PNG to WebP online for free, no account. Much smaller web images that keep transparency. Files deleted right after conversion, open source.",
+    "title": "Convert PNG to WebP online — free | FileMorph"
+  },
+  "/en/convert/webp-to-jpg": {
+    "headings": [
+      "h1: Convert WebP to JPG",
+      "h2: When to use this conversion",
+      "h2: Technical details",
+      "h2: Frequently asked questions",
+      "h3: Why won't my WebP open elsewhere?",
+      "h3: Is quality lost?",
+      "h3: Is it free?",
+      "h2: Related conversions"
+    ],
+    "meta": "Convert WebP to JPG online for free, no account. A universally compatible JPG for apps that don't support WebP. Files deleted right after conversion.",
+    "title": "Convert WebP to JPG online — free | FileMorph"
+  },
+  "/en/pdf/compress": {
+    "headings": [
+      "h1: Compress a PDF to a target size",
+      "h2: Honest limits",
+      "h2: How it works",
+      "h2: When to use it",
+      "h2: Frequently asked questions",
+      "h3: Will my PDF always end up under the target size?",
+      "h3: What happens if my PDF has no images to compress?",
+      "h3: Do I need an account?",
+      "h2: Related tools"
+    ],
+    "meta": "Compress a PDF to at most a target size online for free, no account. Recompresses embedded images; honestly reports when there's nothing to shrink.",
+    "title": "Compress a PDF to a target size — free | FileMorph"
+  },
+  "/en/pdf/extract": {
+    "headings": [
+      "h1: Extract pages from a PDF",
+      "h2: Honest limits",
+      "h2: How it works",
+      "h2: When to use it",
+      "h2: Frequently asked questions",
+      "h3: How do I write the page selection?",
+      "h3: Does the page order in my input matter?",
+      "h3: Is there a limit on how many pages I can extract?",
+      "h2: Related tools"
+    ],
+    "meta": "Extract specific pages from a PDF online for free, no account. Enter a page range like 1-3,5 and download just those pages.",
+    "title": "Extract pages from a PDF online — free | FileMorph"
+  },
+  "/en/pdf/split": {
+    "headings": [
+      "h1: Split a PDF into pages",
+      "h2: Honest limits",
+      "h2: How it works",
+      "h2: When to use it",
+      "h2: Frequently asked questions",
+      "h3: Can I split only some pages instead of all of them?",
+      "h3: Is there a limit on how many pages I can split?",
+      "h3: Do I need an account?",
+      "h2: Related tools"
+    ],
+    "meta": "Split a PDF into individual pages online for free, no account. Get a ZIP with one PDF per page. Files deleted right after.",
+    "title": "Split a PDF into pages online — free | FileMorph"
+  },
+  "/en/tools": {
+    "headings": [
+      "h1: All FileMorph tools",
+      "h2: Convert & compress",
+      "h3: Convert & compress files",
+      "h3: Compress to a target size",
+      "h2: PDF tools",
+      "h3: Split a PDF",
+      "h3: Extract PDF pages",
+      "h3: Compress a PDF"
+    ],
+    "meta": "Browse every FileMorph tool — convert & compress files, split or extract PDF pages, or shrink a PDF to a target size. Free, no account needed.",
+    "title": "File tools — convert, compress & PDF | FileMorph"
+  }
+}
