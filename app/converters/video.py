@@ -13,6 +13,8 @@ from app.converters._ffmpeg import (
     gif_palette_stream,
     gif_stream,
     media_input,
+    media_time_left,
+    out_of_time,
     probe_video,
     run_ffmpeg,
     video_output_args,
@@ -39,8 +41,8 @@ class _VideoConverter(BaseConverter):
     ``app/converters/_ffmpeg.py`` — WebM only accepts VP9/Opus, AVI and
     WMV carry their legacy codecs, everything else is H.264/AAC. The
     ``quality`` kwarg (1-100, route default 85) drives the encoder's
-    rate control; the invocation runs under the media subprocess
-    timeout.
+    rate control; the invocation runs within the request's media time
+    limit and stops writing at the ``max_output_bytes`` cap.
     """
 
     def __init__(self, tgt_fmt: str):
@@ -52,7 +54,7 @@ class _VideoConverter(BaseConverter):
             str(output_path),
             **video_output_args(self._tgt_fmt, quality, audio_bitrate="192k"),
         )
-        run_ffmpeg(stream)
+        run_ffmpeg(stream, max_output_bytes=kwargs.get("max_output_bytes"))
         return output_path
 
 
@@ -83,7 +85,8 @@ class VideoToGifConverter(BaseConverter):
     so ``quality`` doesn't apply. Two ffmpeg passes — a palette for the whole
     clip, then the frames mapped onto it — because in one pass ffmpeg would
     hold every frame in memory until the palette is known. The probe, both
-    passes and the frame count share one time budget.
+    passes and the frame count share one time budget, within what is left of
+    the request's (``media_time_limit``).
     """
 
     # The routes' tip when the GIF passes the output cap (read via getattr).
@@ -92,6 +95,13 @@ class VideoToGifConverter(BaseConverter):
     def convert(self, input_path: Path, output_path: Path, **kwargs) -> Path:
         max_output_bytes = kwargs.get("max_output_bytes")
         budget = min(GIF_TIME_BUDGET_SECONDS, settings.media_subprocess_timeout_seconds)
+        # In a batch, the files before this one may have left less of the
+        # request's time than the GIF's own budget: then running out of it
+        # isn't this clip's fault.
+        request_left = media_time_left()
+        late = request_left is not None and request_left < 0.8 * budget
+        if request_left is not None:
+            budget = min(budget, request_left)
         deadline = time.monotonic() + budget
         limit = GIF_MAX_SECONDS + GIF_SLACK_SECONDS
         # One second past the limit is read: frames from beyond it prove the
@@ -115,7 +125,7 @@ class VideoToGifConverter(BaseConverter):
             # Pass 2 decodes the clip again and does more per frame: with less
             # time left than pass 1 took, it would only run into the budget.
             if time.monotonic() - started > _time_left(deadline):
-                raise VideoTooComplexError()
+                raise out_of_time()
             run_ffmpeg(
                 gif_stream(
                     input_path,
@@ -125,12 +135,15 @@ class VideoToGifConverter(BaseConverter):
                     max_output_bytes=max_output_bytes,
                 ),
                 timeout=_time_left(deadline),
+                max_output_bytes=max_output_bytes,
             )
             if max_output_bytes is not None and output_path.stat().st_size > max_output_bytes:
                 raise OutputTooLargeError()
             if count_gif_frames(output_path, timeout=_time_left(deadline)) > limit * GIF_FPS:
                 raise VideoTooLongError()
         except FFmpegTimeoutError as exc:
+            if late:  # on its own it may convert
+                raise out_of_time() from exc
             raise VideoTooComplexError() from exc
         finally:
             palette_path.unlink(missing_ok=True)
@@ -141,7 +154,7 @@ def _time_left(deadline: float) -> float:
     """Seconds until ``deadline``; FFmpegTimeoutError once there are none."""
     left = deadline - time.monotonic()
     if left <= 0:
-        raise FFmpegTimeoutError("GIF time budget used up")
+        raise out_of_time()
     return left
 
 

@@ -333,9 +333,32 @@ an upload is opened as a local file only. The list is one constant,
 `INPUT_DEMUXERS`, and the media converters and the video compressor open
 every upload through `media_input()` (both in
 `app/converters/_ffmpeg.py`). Before a video becomes a GIF, ffprobe reads its
-frame size and length with the same list (`probe_video()`, numeric fields
-only). An upload in another format is answered with HTTP 400 and
-`X-FileMorph-Error-Code: invalid_input`.
+frame size and length with the same demuxer and decoder lists (`probe_video()`,
+numeric fields only). An upload in another format is answered with HTTP 400
+and `X-FileMorph-Error-Code: invalid_input`. The same goes for a
+stream in a codec outside `INPUT_DECODERS`, the decoders for the common audio,
+video and subtitle codecs of these formats, and for a video frame larger than
+4K, 4096 × 2160 pixels (`MAX_PIXELS`), which the decoder refuses to allocate.
+
+### Audio and video conversions: ffmpeg's limits
+
+The ffmpeg and ffprobe runs of a request share one time limit,
+`MEDIA_SUBPROCESS_TIMEOUT_SECONDS` (default 85 seconds, under the 100 seconds
+a CDN like Cloudflare waits for an answer), the files of a batch included.
+The program is stopped when the time is up, and the file gets a `400`
+(`invalid_input`; video → GIF: `video_too_complex`) whose message names the
+next step. On Linux ffmpeg and ffprobe start through
+`app/converters/_limited_exec.py`, which first caps its own address space at
+3 GiB, the size of each file it writes at the request's output cap (1 GiB
+where it has none) and its CPU time, as hard limits; turns off its core dump;
+sets no-new-privileges and SIGKILL for when the app process ends; and makes
+itself the first process the kernel stops when the host runs short of memory.
+Then it starts ffmpeg or ffprobe, which keeps all of that. ffmpeg's decoders,
+encoders and filters use 2 threads each, so the memory a conversion takes
+doesn't grow with the host's CPU count. Like the other child processes, both
+get the environment without application secrets and read no stdin.
+`tests/test_media_limits.py` pins the limits, the environment and how each
+way a run stops comes back to the caller.
 
 ### Historical findings addressed in this area
 
@@ -900,7 +923,8 @@ For readers who want to jump directly to the code:
 | Rate limiter | `app/core/rate_limit.py` |
 | Magic-byte deny-list | `app/core/processing.py` (`BLOCKED_MAGIC`); enforced in `app/api/routes/convert.py`, `compress.py`, `pdf_pages.py` + `ai.py` |
 | Image-format allow-list | `app/core/image_hardening.py` (`IMAGE_INPUT_FORMATS`, `open_image`) |
-| Audio/video demuxer allow-list | `app/converters/_ffmpeg.py` (`INPUT_DEMUXERS`, `media_input`) |
+| Audio/video demuxer and decoder allow-lists, frame size limit | `app/converters/_ffmpeg.py` (`INPUT_DEMUXERS`, `INPUT_DECODERS`, `MAX_PIXELS`, `media_input`) |
+| ffmpeg's time, memory, CPU-time and file size limits | `app/converters/_ffmpeg.py` (`media_time_limit`, `run_ffmpeg`), `app/converters/_limited_exec.py` |
 | WeasyPrint SSRF hardening | `app/converters/document.py` (search `_deny_url_fetcher`) |
 | Office image: hardened LibreOffice subprocess env | `app/converters/document.py` (search `_soffice_child_env`) |
 | Security-headers middleware (HSTS, Permissions-Policy, CSP, etc.) | `app/main.py::security_headers` |

@@ -244,14 +244,14 @@ class Settings(BaseSettings):
     # flag above: while off, every engine URL is a 404.
     local_tools_enabled: bool = False
 
-    # Hard upper bound for a single ffmpeg invocation (video/audio
-    # convert + video compress) before it is killed. Bounds the worker
+    # Time limit for the audio and video work of one request (video/audio
+    # convert + video compress): its ffmpeg runs, a batch's included,
+    # share it, and ffmpeg is stopped when it is up. Bounds the worker
     # pool the same way the LibreOffice and ghostscript subprocesses
-    # already are — without it a crafted or merely very long media file
-    # pins a worker thread forever. 600 s covers a feature-length SD
-    # transcode on a 4 GB host; raise it if your deployment regularly
-    # converts long or HD footage.
-    media_subprocess_timeout_seconds: int = 600
+    # already are. 85 s keeps the answer within the 100 s a CDN in front
+    # of the app (Cloudflare) waits for it; without one, raise it if your
+    # deployment regularly converts long or HD footage.
+    media_subprocess_timeout_seconds: int = 85
 
     @field_validator("api_keys_file_tier")
     @classmethod

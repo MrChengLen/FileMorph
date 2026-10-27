@@ -30,7 +30,10 @@ from app.converters._ffmpeg import (
     GIF_MAX_SECONDS,
     GIF_MAX_SIDE,
     GIF_TIME_BUDGET_SECONDS,
+    INPUT_DECODERS,
     INPUT_DEMUXERS,
+    MAX_PIXELS,
+    THREADS,
     FFmpegError,
     FFmpegTimeoutError,
     VideoProbe,
@@ -97,7 +100,11 @@ def _passes(tmp_path, max_output_bytes=1000) -> tuple[list[str], list[str]]:
 
 def test_both_passes_read_the_upload_with_the_listed_demuxers_and_a_time_cap(tmp_path):
     pass1, pass2 = _passes(tmp_path)
-    upload = ["-format_whitelist", INPUT_DEMUXERS, "-protocol_whitelist", "file", "-t", "31"]
+    upload = [
+        *("-codec_whitelist", INPUT_DECODERS, "-format_whitelist", INPUT_DEMUXERS),
+        *("-max_pixels", str(MAX_PIXELS), "-protocol_whitelist", "file"),
+        *("-t", "31", "-threads", str(THREADS)),
+    ]
     assert _options_before_each_input(pass1) == [upload]
     # The palette is the file pass 1 wrote, read as a PNG only.
     palette = ["-format_whitelist", "image2,png_pipe", "-protocol_whitelist", "file"]
@@ -149,7 +156,7 @@ class _FakeMedia:
             self.timeouts.append(timeout)
             return probe
 
-        def fake_run(stream, *, timeout):
+        def fake_run(stream, *, timeout, max_output_bytes=None):
             self.steps.append("ffmpeg")
             self.timeouts.append(timeout)
             if run_error is not None:
@@ -299,7 +306,7 @@ def _fake_ffprobe(monkeypatch, payload: dict, *, returncode=0, stderr=b"") -> li
             self.stderr = stderr
 
     def fake_run(cmd, **kwargs):
-        calls.append(cmd)
+        calls.append(cmd[cmd.index("ffprobe") :])  # on Linux after _limited_exec.py's limits
         return _Result()
 
     monkeypatch.setattr(ffmpeg_mod.shutil, "which", lambda _: "ffprobe")
@@ -341,6 +348,7 @@ def test_the_probe_reads_size_and_duration(tmp_path, monkeypatch, payload, expec
         "-protocol_whitelist",
         "file",
     ]
+    assert cmd[cmd.index("-codec_whitelist") + 1] == INPUT_DECODERS  # as media_input
     assert cmd[cmd.index("-select_streams") + 1] == "V:0"
     # Numeric fields only: the probe never prints the upload's tags.
     assert "tags" not in cmd[cmd.index("-show_entries") + 1]
@@ -373,9 +381,11 @@ def test_timeouts_are_ffmpeg_timeout_errors(tmp_path, monkeypatch):
     with pytest.raises(FFmpegTimeoutError):
         probe_video(tmp_path / "in.mp4", timeout=1)
     _timing_out(monkeypatch, "ffmpeg")
-    with pytest.raises(FFmpegTimeoutError, match="timed out"):
+    with pytest.raises(FFmpegTimeoutError, match="takes longer to convert"):
         run_ffmpeg(ffmpeg.input("in.mp4").output("out.gif"), timeout=1)
-    assert issubclass(FFmpegTimeoutError, FFmpegError)
+    # Outside the GIF converter, which answers it itself, the routes answer
+    # a run out of time with a 400 that names the next step.
+    assert issubclass(FFmpegTimeoutError, InvalidInputError)
 
 
 def test_the_frame_count_reads_the_gif_as_a_gif_only(tmp_path, monkeypatch):

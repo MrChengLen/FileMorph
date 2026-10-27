@@ -282,6 +282,48 @@ jobs:
           print(f"ok: {len(ctx.get_ca_certs())} CA certificates, emSign ECC Root CA - G3 not among them")
           PY
 
+      # Audio and video conversions start ffmpeg through
+      # app/converters/_limited_exec.py, which sets the limits first. In the
+      # image, with all capabilities dropped: every decoder media_input()
+      # allows is there, the program keeps the limits, a 4K video converts
+      # within them, and a larger one gets the message that names the next
+      # step.
+      - name: Check ffmpeg's limits
+        run: |
+          docker exec -i filemorph python - <<'PY'
+          import pathlib, re, subprocess, sys, tempfile
+          import app.converters.video  # registers the video conversions
+          from app.converters import _ffmpeg
+          from app.converters.base import InvalidInputError
+          from app.converters.registry import get_converter
+
+          listed = subprocess.run(["ffmpeg", "-hide_banner", "-decoders"], capture_output=True, encoding="utf-8", check=True).stdout
+          missing = set(_ffmpeg.INPUT_DECODERS.split(",")) - set(re.findall(r"^ [VAS][A-Z.]{5} (\S+)", listed, re.M))
+          assert not missing, sorted(missing)
+
+          memory, cpu, file_bytes = _ffmpeg._MEMORY_LIMIT_BYTES, 100, 2**20
+          limits = [str(memory), str(cpu), str(file_bytes)]
+          report = subprocess.run([sys.executable, "-I", "-S", str(_ffmpeg._LIMITED_EXEC), *limits, "/bin/cat", "/proc/self/limits", "/proc/self/oom_score_adj"], capture_output=True, encoding="utf-8", check=True).stdout
+          for name, value in (("Max address space", memory), ("Max cpu time", cpu), ("Max file size", file_bytes)):
+              assert re.search(rf"^{name}\s+{value}\s+{value}\s", report, re.M), name
+          assert report.split()[-1] == "1000"
+
+          work = pathlib.Path(tempfile.mkdtemp())
+          def clip(name, width, seconds):
+              path = work / name
+              subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", f"testsrc2=size={width}x{_ffmpeg._MAX_HEIGHT}:rate=30:duration={seconds}", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", str(path)], check=True)
+              return path
+          # More frames than x264 looks ahead (40): the most memory it takes at this size.
+          get_converter("mp4", "mkv").convert(clip("4k.mp4", _ffmpeg._MAX_WIDTH, 1.6), work / "4k.mkv", quality=85)
+          try:
+              get_converter("mp4", "mkv").convert(clip("larger.mp4", _ffmpeg._MAX_WIDTH + 64, 0.2), work / "larger.mkv", quality=85)
+          except InvalidInputError as exc:
+              assert "larger than 4K" in str(exc), exc
+          else:
+              raise SystemExit("a video larger than 4K converted")
+          print("ok: the listed decoders are there, the limits hold, 4K converts, a larger video is refused")
+          PY
+
       # What the office image adds, driven the way the DOCX converter drives
       # it: headless, with a throwaway profile, through Writer to PDF.
       - name: Check that LibreOffice converts
