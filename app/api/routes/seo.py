@@ -3,9 +3,10 @@
 and ``/.well-known/security.txt``.
 
 Mounted at the root (no ``/api/v1`` prefix) so the conventional discovery
-paths are honored. The route list is built per-request from ``settings`` so
-that a self-hoster who has not configured Stripe does not advertise a
-``/pricing`` route they don't actually serve. The same per-request principle
+paths are honored. The route list is built per request from the page
+catalogue (``app/core/catalog.py``), so a deployment with the commercial
+pages switched off (``pricing_page_enabled``) does not advertise a
+``/pricing`` route it doesn't serve. The same per-request principle
 keeps ``/.well-known/security.txt`` deployment-agnostic — the contact email
 and canonical URL are derived from ``app_base_url``.
 """
@@ -17,37 +18,13 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter
 from fastapi.responses import PlainTextResponse, Response
 
+from app.core import catalog
 from app.core.config import settings
-from app.core.convert_pairs import PAIR_CONTENT, format_label
+from app.core.convert_pairs import format_label
 from app.core.i18n import SUPPORTED_LOCALES, localized_url
 from app.core.jsonld import GITHUB_URL
 
 router = APIRouter()
-
-
-# Routes that every deployment serves. Each base path becomes three URLs
-# in the sitemap (x-default + one per supported locale) with hreflang
-# alternates wired up — Google then treats them as language variants of
-# the same page rather than duplicates.
-_BASE_ROUTES: list[tuple[str, str]] = [
-    ("/", "1.0"),
-    # Operations-first hub (IA rework PR 2) — ungated, always-on.
-    ("/tools", "0.8"),
-    ("/formats", "0.5"),
-    ("/privacy", "0.3"),
-    ("/terms", "0.3"),
-    ("/impressum", "0.3"),
-    ("/contact", "0.3"),
-    # PDF structural-op tools — ungated core OSS feature, so (unlike /redact
-    # below) these are always-on rather than settings-gated.
-    ("/pdf/compress", "0.7"),
-    ("/pdf/split", "0.6"),
-    ("/pdf/extract", "0.6"),
-    # Image/video target-size landing page (IA rework PR 4) — ungated,
-    # same priority tier as /pdf/compress per the sitemap ladder in
-    # docs-internal/ia-navigation-konzept.md.
-    ("/compress", "0.7"),
-]
 
 # AI / LLM crawlers we explicitly welcome. The wildcard ``User-agent: *``
 # group below already allows them; naming each one is an *intent* signal
@@ -66,29 +43,17 @@ _AI_CRAWLERS: tuple[str, ...] = (
 
 
 def _sitemap_routes() -> list[tuple[str, str]]:
-    """Resolve the active route list against runtime settings.
+    """The catalogue's pages that carry a sitemap priority, in display order.
 
-    ``/pricing`` and ``/enterprise`` share the ``pricing_page_enabled``
-    gate — both are part of the commercial-offer surface. A self-hosted
-    Community deployment leaves the flag off and neither route is listed
-    or rendered, so search engines never index a 404. When enabled, the
-    enterprise page sits at priority 0.8 alongside pricing because
-    procurement-driven traffic is the higher-revenue funnel.
+    Resolved per request: a gated page (``/pricing`` and ``/enterprise``
+    behind ``pricing_page_enabled``, ``/redact`` behind
+    ``ai_operations_enabled``) drops out where its switch is off, so a
+    self-hosted Community deployment never lists its own 404s. Each base
+    path becomes three URLs (x-default + one per supported locale) with
+    hreflang alternates, so Google treats them as language variants of the
+    same page rather than duplicates.
     """
-    routes = list(_BASE_ROUTES)
-    if settings.pricing_page_enabled:
-        routes.insert(1, ("/pricing", "0.8"))
-        routes.insert(2, ("/enterprise", "0.8"))
-    # /redact is a real, usable tool (the free findings preview), so it's
-    # indexable — but only where the feature exists (AI enabled), else it 404s.
-    if settings.ai_operations_enabled:
-        routes.append(("/redact", "0.7"))
-    # Per-pair landing pages (Phase 2) — curated, always-present content, so
-    # they're listed on every deployment. _url_entry/_alternate_links emit the
-    # de/en/x-default variants + hreflang automatically.
-    for src, tgt in sorted(PAIR_CONTENT):
-        routes.append((f"/convert/{src}-to-{tgt}", "0.6"))
-    return routes
+    return [(page.path, page.priority) for page in catalog.pages() if page.priority]
 
 
 def _alternate_links(base: str, abs_base: str) -> str:
@@ -146,9 +111,13 @@ async def llms_txt() -> str:
     curated entry point to a site (https://llmstxt.org). It does nothing for
     Google's AI Overviews (Google has said so explicitly), but ChatGPT,
     Claude, Perplexity et al. increasingly look for it. Cheap to serve, so we
-    do — listing only routes that exist on *every* deployment (``/pricing``
-    and ``/enterprise`` are gated, so they're omitted to stay deployment-
-    agnostic). English-only by design: it targets crawlers, not end users.
+    do. English-only by design: it targets crawlers, not end users.
+
+    The links come from the page catalogue (``app/core/catalog.py``): every
+    page with an ``llms`` line under "Core pages", every convert page under
+    "Conversions". A gated page is listed only where it exists, and
+    ``/pricing`` and ``/enterprise`` carry no line, which keeps the file
+    deployment-agnostic.
     """
     base = settings.app_base_url.rstrip("/")
     # Where filemorph.io runs — only on the commercial surface, so a
@@ -160,6 +129,15 @@ async def llms_txt() -> str:
         if settings.pricing_page_enabled
         else ""
     )
+    core = []
+    for page in catalog.pages():
+        if page.llms:
+            title, description = page.llms
+            core.append(f"- [{title}]({base}{page.path}): {description}")
+    conversions = []
+    for page in catalog.pages(kind="convert"):
+        src, tgt = catalog.pair_of(page.path)
+        conversions.append(f"- [{format_label(src)} → {format_label(tgt)}]({base}{page.path})")
     lines = [
         "# FileMorph",
         "",
@@ -170,14 +148,11 @@ async def llms_txt() -> str:
         "",
         "## Core pages",
         "",
-        f"- [Convert & compress files]({base}/): the main tool — convert and "
-        "compress files for free, no account",
-        f"- [All tools]({base}/tools): every FileMorph operation in one place "
-        "— convert, compress, split or extract PDF pages",
-        f"- [Supported formats]({base}/formats): the full list of supported "
-        "conversions, grouped by category",
-        f"- [API documentation]({base}/docs): REST API reference for "
-        "programmatic conversion and compression",
+        *core,
+        "",
+        "## Conversions",
+        "",
+        *conversions,
         "",
         "## About",
         "",
@@ -196,58 +171,6 @@ async def llms_txt() -> str:
         f"Open source under AGPLv3: {GITHUB_URL}",
         "",
     ]
-    # Redaction is a gated Cloud-Edition add-on — list it only where it exists.
-    if settings.ai_operations_enabled:
-        for i, ln in enumerate(lines):
-            if ln.startswith("- [Supported formats]"):
-                lines.insert(
-                    i + 1,
-                    f"- [Redact PII from documents]({base}/redact): detect and remove "
-                    "IBANs, emails, phone numbers, IPv4 addresses and card numbers from "
-                    "TXT, DOCX and XLSX — free findings preview, no third-party AI",
-                )
-                break
-    # PDF structural operations (split / extract pages / compress) are a
-    # core, always-on OSS feature (unlike the gated redaction add-on above),
-    # so they're listed unconditionally on every deployment.
-    for i, ln in enumerate(lines):
-        if ln.startswith("- [Supported formats]"):
-            lines[i + 1 : i + 1] = [
-                f"- [Split a PDF]({base}/pdf/split): split a multi-page PDF into "
-                "one file per page, bundled as a ZIP",
-                f"- [Extract PDF pages]({base}/pdf/extract): keep only a chosen "
-                "page range from a PDF, e.g. pages 1-3,5",
-                f"- [Compress a PDF]({base}/pdf/compress): shrink a PDF to at most a "
-                "target size by recompressing its embedded images, scaling them down "
-                "if needed",
-            ]
-            break
-    # /compress (IA rework PR 4) is a core, always-on OSS feature (image/video
-    # target-size compression) — inserted right after the PDF compress bullet
-    # above so the two "compress" tools read as a clear pair, not a duplicate.
-    for i, ln in enumerate(lines):
-        if ln.startswith("- [Compress a PDF]"):
-            lines.insert(
-                i + 1,
-                f"- [Compress an image or video]({base}/compress): shrink a JPEG, "
-                "WebP or AVIF to at most a target size in MB, or a video by quality",
-            )
-            break
-    # Per-pair landing pages (Phase 2) — generated from PAIR_CONTENT (the
-    # content source of truth) so every curated pair appears here even if
-    # the footer grid is ever capped to a subset.
-    conversions_section = (
-        ["## Conversions", ""]
-        + [
-            f"- [{format_label(src)} → {format_label(tgt)}]({base}/convert/{src}-to-{tgt})"
-            for src, tgt in PAIR_CONTENT
-        ]
-        + [""]
-    )
-    for i, ln in enumerate(lines):
-        if ln == "## About":
-            lines[i:i] = conversions_section
-            break
     return "\n".join(lines)
 
 

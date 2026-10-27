@@ -505,6 +505,7 @@ def test_content_modules_and_docs_make_no_bare_eu_hosting_claim():
     sources = [
         ROOT / "app" / "core" / f"{name}.py"
         for name in (
+            "catalog",  # page names and descriptions: llms.txt, /tools, footer
             "compress_content",
             "tools_content",
             "pdf_tools_content",
