@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import signal
 import subprocess
 import sys
@@ -145,10 +146,14 @@ def test_the_child_hardens_pillow_and_caps_itself(tmp_path):
     if sys.platform == "linux":
         probe += (
             "\nimport ctypes, resource, signal"
+            "\nlibc, deathsig = ctypes.CDLL(None), ctypes.c_int()"
+            "\nlibc.prctl(2, ctypes.byref(deathsig), 0, 0, 0)"  # PR_GET_PDEATHSIG
             "\nprint(*('%d/%d' % resource.getrlimit(limit) for limit in (resource.RLIMIT_AS, "
-            "resource.RLIMIT_CPU, resource.RLIMIT_FSIZE, resource.RLIMIT_CORE)), "
-            "ctypes.CDLL(None).prctl(3, 0, 0, 0, 0), "  # PR_GET_DUMPABLE
-            "signal.getsignal(signal.SIGXFSZ) == signal.SIG_DFL)"
+            "resource.RLIMIT_CPU, resource.RLIMIT_FSIZE, resource.RLIMIT_CORE, "
+            "resource.RLIMIT_NPROC)), "
+            "libc.prctl(3, 0, 0, 0, 0), "  # PR_GET_DUMPABLE
+            "libc.prctl(39, 0, 0, 0, 0), "  # PR_GET_NO_NEW_PRIVS
+            "deathsig.value, signal.getsignal(signal.SIGXFSZ) == signal.SIG_DFL)"
         )
     res = subprocess.run(
         [sys.executable, "-c", probe],
@@ -162,11 +167,12 @@ def test_the_child_hardens_pillow_and_caps_itself(tmp_path):
     assert lines[1:3] == ["raised", "False"]  # bomb warnings raise; no Ghostscript
     if sys.platform == "linux":
         # The limits, soft/hard alike so the child can't raise them again; no
-        # core dump; and SIGXFSZ's default action, so a write past the file
-        # size limit ends the child.
+        # core dump, no processes or threads of its own; no new privileges;
+        # SIGKILL when its parent ends; and SIGXFSZ's default action, so a
+        # write past the file size limit ends the child.
         memory, _, file_bytes = limits
-        caps = [f"{cap}/{cap}" for cap in (memory, "65", file_bytes, "0")]
-        assert lines[3].split() == [*caps, "0", "True"]
+        caps = [f"{cap}/{cap}" for cap in (memory, "65", file_bytes, "0", "0")]
+        assert lines[3].split() == [*caps, "0", "1", str(int(signal.SIGKILL)), "True"]
     assert json.loads(out.read_text(encoding="utf-8")) == [{"a": "1"}]
 
 
@@ -210,6 +216,97 @@ def test_a_child_that_ignores_sigxcpu_is_killed_at_its_cpu_limit():
         check=False,
     )
     assert res.returncode == -signal.SIGKILL, res.stderr
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="the limits apply on Linux")
+@pytest.mark.skipif(
+    sys.platform == "linux" and os.getuid() == 0, reason="root starts processes past the limit"
+)
+def test_the_child_can_start_no_process_or_thread():
+    probe = "\n".join(
+        [
+            "import os, threading",
+            "from app.converters._isolated import limit_resources",
+            "limit_resources(2**30, 60, 2**30)",
+            "try:",
+            "    pid = os.fork()",
+            "except BlockingIOError:",
+            "    print('no process')",
+            "else:",
+            "    if pid == 0:",
+            "        os._exit(0)",
+            "    print('process')",
+            "try:",
+            "    threading.Thread(target=int).start()",
+            "except RuntimeError:",
+            "    print('no thread')",
+            "else:",
+            "    print('thread')",
+        ]
+    )
+    res = subprocess.run(
+        [sys.executable, "-c", probe],
+        capture_output=True,
+        encoding="utf-8",
+        cwd=_isolated._APP_ROOT,
+        check=True,
+    )
+    assert res.stdout.splitlines() == ["no process", "no thread"]
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="the limits apply on Linux")
+def test_a_child_ends_with_its_parent():
+    # A parent starts a child the way spawn does and exits once the child has
+    # set itself up. The child would sleep on, but it holds this test's stderr
+    # pipe, so the run below returns only when the child has ended too.
+    child = "\n".join(
+        [
+            "import os, time",
+            "from app.converters._isolated import limit_resources",
+            "limit_resources(2**30, 60, 2**30)",
+            "print(os.getpid(), flush=True)",
+            "time.sleep(30)",
+        ]
+    )
+    parent = "\n".join(
+        [
+            "import os, subprocess, sys",
+            f"env = dict(os.environ, {_isolated._PARENT_PID_ENV}=str(os.getpid()))",
+            f"cmd = [sys.executable, '-c', {child!r}]",
+            "child = subprocess.Popen(cmd, stdout=subprocess.PIPE, env=env)",
+            "print(child.stdout.readline().decode().strip(), flush=True)",
+            "os._exit(0)",  # without waiting for the child
+        ]
+    )
+    res = subprocess.run(
+        [sys.executable, "-c", parent],
+        capture_output=True,
+        encoding="utf-8",
+        cwd=_isolated._APP_ROOT,
+        timeout=20,
+        check=True,
+    )
+    assert res.stdout.strip().isdigit(), res.stderr  # the child had set itself up
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="the limits apply on Linux")
+def test_a_child_whose_parent_ended_first_ends_at_once():
+    # A parent that ends before the child has set itself up leaves the child
+    # to another process: the child's parent is no longer the one spawn named.
+    probe = (
+        "from app.converters._isolated import limit_resources; "
+        "limit_resources(2**30, 60, 2**30); print('still running')"
+    )
+    env = {**os.environ, _isolated._PARENT_PID_ENV: str(os.getpid() + 1)}  # not this process
+    res = subprocess.run(
+        [sys.executable, "-c", probe],
+        capture_output=True,
+        encoding="utf-8",
+        cwd=_isolated._APP_ROOT,
+        env=env,
+        check=False,
+    )
+    assert (res.returncode, res.stdout) == (1, "")
 
 
 # ── Within the child's memory limit ──────────────────────────────────────────
@@ -258,6 +355,8 @@ def test_the_child_gets_no_secrets_and_the_request_temp_folder(tmp_path, monkeyp
     assert "JWT_SECRET" not in seen["env"]
     assert seen["env"]["TMPDIR"] == seen["env"]["TEMP"] == str(tmp_path)
     assert seen["env"]["MALLOC_ARENA_MAX"] == "2"
+    assert seen["env"]["OPENBLAS_NUM_THREADS"] == "1"
+    assert seen["env"][_isolated._PARENT_PID_ENV] == str(os.getpid())
     assert seen["stdin"] is subprocess.DEVNULL
     assert seen["stderr"] is subprocess.DEVNULL
     assert seen["timeout"] == seconds

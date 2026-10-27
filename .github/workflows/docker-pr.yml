@@ -109,12 +109,13 @@ jobs:
           '
 
       # Started the way docker-compose.yml runs it (all capabilities dropped,
-      # no privilege escalation) and asked through the published port, where a
-      # self-hoster reaches it.
+      # no privilege escalation, its process limit, no core dumps) and asked
+      # through the published port, where a self-hoster reaches it.
       - name: Start the container and wait for /api/v1/health
         run: |
           docker run --detach --name filemorph --publish 8000:8000 \
-            --cap-drop ALL --security-opt no-new-privileges "$IMAGE"
+            --cap-drop ALL --security-opt no-new-privileges \
+            --pids-limit 4096 --ulimit core=0 "$IMAGE"
           for _ in $(seq 30); do
             if curl -fsS --max-time 5 http://localhost:8000/api/v1/health; then
               echo
@@ -161,6 +162,25 @@ jobs:
       - name: Check the converters' programs and libraries
         run: |
           docker exec filemorph ffmpeg -version > /dev/null
+          # Video -> GIF (app/converters/video.py): the ffprobe check, both
+          # ffmpeg passes and the frame count with the image's ffmpeg (newer
+          # than the CI runner's); then a GIF over a tiny output cap.
+          docker exec -i filemorph python - <<'PY'
+          import pathlib, subprocess, tempfile
+          from app.converters.base import OutputTooLargeError
+          from app.converters.video import VideoToGifConverter
+          d = pathlib.Path(tempfile.mkdtemp())
+          clip = ["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "testsrc2=duration=1:size=640x360:rate=25"]
+          subprocess.run([*clip, "-pix_fmt", "yuv420p", str(d / "in.mp4")], check=True)
+          VideoToGifConverter().convert(d / "in.mp4", d / "out.gif", max_output_bytes=10**7)
+          assert (d / "out.gif").read_bytes()[:6] == b"GIF89a"
+          try:
+              VideoToGifConverter().convert(d / "in.mp4", d / "cap.gif", max_output_bytes=1000)
+          except OutputTooLargeError:
+              print("ok: GIF made, a GIF over the cap refused")
+          else:
+              raise SystemExit("a GIF over the cap was not refused")
+          PY
           docker exec filemorph gs --version
           docker exec filemorph python -c "import weasyprint; assert weasyprint.HTML(string='<p>probe</p>').write_pdf().startswith(b'%PDF')"
           # PDF -> TXT runs pypdf in a child process (app/converters/_pdf_text.py):
@@ -172,10 +192,10 @@ jobs:
           docker exec filemorph python -c "import pathlib, tempfile; from pypdf import PdfWriter; from app.converters._isolated import run_isolated; d = pathlib.Path(tempfile.mkdtemp()); w = PdfWriter(); w.add_blank_page(width=200, height=200); w.write(d / 'in.pdf'); r = run_isolated('pdf-compress', too_large='-', tmp_dir=d, input_path=d / 'in.pdf', output_path=d / 'out.pdf', target_bytes=100000); assert r['achieved_bytes'] > 0 and (d / 'out.pdf').read_bytes()[:4] == b'%PDF', r"
           # The limits these children set on themselves hold in the container
           # too, with all capabilities dropped: address space, CPU time, file
-          # size (a write past it ends the process) and no core dump, each as
-          # a hard limit the process can't raise again; first in line for the
-          # OOM killer.
-          docker exec filemorph python -c "import ctypes, resource, signal; from app.converters._isolated import limit_resources; limit_resources(2**30, 95, 2**30); assert [resource.getrlimit(r) for r in (resource.RLIMIT_AS, resource.RLIMIT_CPU, resource.RLIMIT_FSIZE, resource.RLIMIT_CORE)] == [(2**30, 2**30), (95, 95), (2**30, 2**30), (0, 0)]; assert signal.getsignal(signal.SIGXFSZ) == signal.SIG_DFL; assert ctypes.CDLL(None).prctl(3, 0, 0, 0, 0) == 0; assert open('/proc/self/oom_score_adj').read().strip() == '1000'"
+          # size (a write past it ends the process), no core dump and no
+          # process or thread of their own, each as a hard limit the process
+          # can't raise again; first in line for the OOM killer.
+          docker exec filemorph python -c "import ctypes, resource, signal; from app.converters._isolated import limit_resources; limit_resources(2**30, 95, 2**30); assert [resource.getrlimit(r) for r in (resource.RLIMIT_AS, resource.RLIMIT_CPU, resource.RLIMIT_FSIZE, resource.RLIMIT_CORE, resource.RLIMIT_NPROC)] == [(2**30, 2**30), (95, 95), (2**30, 2**30), (0, 0), (0, 0)]; assert signal.getsignal(signal.SIGXFSZ) == signal.SIG_DFL; assert ctypes.CDLL(None).prctl(3, 0, 0, 0, 0) == 0; assert open('/proc/self/oom_score_adj').read().strip() == '1000'"
           # A write past the file size limit ends the process with SIGXFSZ,
           # which docker exec reports as status 128 + 25.
           status=0
@@ -184,6 +204,39 @@ jobs:
             echo "::error::A write past the file size limit ended with status $status, not 153 (SIGXFSZ)"
             exit 1
           fi
+
+      # What else these children do to themselves (limit_resources in
+      # app/converters/_isolated.py), checked where they run: a fork or a new
+      # thread fails, they are set to get SIGKILL when their parent ends (that
+      # it arrives, tests/test_isolated_conversions.py shows), and they set
+      # no-new-privileges themselves, here in a container started without
+      # docker-compose.yml's.
+      - name: Check the conversion children's isolation
+        run: |
+          docker exec -i filemorph python - <<'PY'
+          import ctypes, os, signal, threading
+          from app.converters._isolated import limit_resources
+          limit_resources(2**30, 95, 2**30)
+          try:
+              pid = os.fork()
+          except BlockingIOError:
+              pass
+          else:
+              if pid == 0:
+                  os._exit(0)
+              raise SystemExit("a child started a process")
+          try:
+              threading.Thread(target=int).start()
+          except RuntimeError:
+              pass
+          else:
+              raise SystemExit("a child started a thread")
+          deathsig = ctypes.c_int()
+          ctypes.CDLL(None).prctl(2, ctypes.byref(deathsig), 0, 0, 0)  # PR_GET_PDEATHSIG
+          assert deathsig.value == signal.SIGKILL, deathsig.value
+          print("ok: no process, no thread, SIGKILL when the parent ends")
+          PY
+          docker run --rm --entrypoint python "$IMAGE" -c "import ctypes; from app.converters._isolated import limit_resources; prctl = ctypes.CDLL(None).prctl; assert prctl(39, 0, 0, 0, 0) == 0, 'set before'; limit_resources(2**30, 95, 2**30); assert prctl(39, 0, 0, 0, 0) == 1; print('ok: no-new-privileges set by the child')"
 
       # Outgoing TLS other than Stripe's (the app's mail through aiosmtplib,
       # anything on ssl.create_default_context()) trusts the system CA store:

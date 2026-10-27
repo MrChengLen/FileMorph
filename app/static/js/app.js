@@ -391,6 +391,20 @@ const DOWNLOAD_SUFFIX = { pdfa: '_pdfa.pdf' };
 // File types where quality slider is relevant
 const QUALITY_TYPES = ['jpg', 'jpeg', 'png', 'webp', 'mp4', 'avi', 'mov', 'mkv', 'webm'];
 
+// Mirrors _VIDEO_FORMATS in app/converters/video.py — a parity test pins this.
+const VIDEO_TYPES = ['mp4', 'avi', 'mov', 'mkv', 'webm', 'flv', 'wmv'];
+
+function isVideoToGif(ext, target) {
+  return target === 'gif' && VIDEO_TYPES.includes(ext);
+}
+
+// A GIF target ignores the quality setting (video → GIF has a fixed size and
+// frame rate, image → GIF is lossless), so the slider hides for it.
+function pairUsesQuality(ext, target) {
+  if (target === 'gif') return false;
+  return QUALITY_TYPES.includes(ext) || QUALITY_TYPES.includes(target);
+}
+
 // S1-B: src→tgt pairs that inflate output size. Keys are source extensions,
 // values map bad target → {factor: display string, suggest: better target}.
 // Driven by measured amplification: JPG→PNG ≈ 5-10×, MP3→WAV ≈ 11×. The
@@ -450,6 +464,7 @@ function updateFormatWarning() {
   if (hideAll) {
     warnEl.classList.add('hidden');
     hideEngineNotice();
+    updateGifNotice('', '');
     return;
   }
 
@@ -459,6 +474,7 @@ function updateFormatWarning() {
   // Engine-fidelity notice for docx→pdf — independent of the bandwidth
   // amplification banner; both can show together (different colour bands).
   updateEngineNotice(ext, target);
+  updateGifNotice(ext, target);
 
   const match = (AMPLIFIERS[ext] || {})[target];
   if (!match) {
@@ -503,6 +519,12 @@ function updateEngineNotice(ext, target) {
 function hideEngineNotice() {
   const el = document.getElementById('engine-notice');
   if (el) el.classList.add('hidden');
+}
+
+// Video → GIF: the clip-length and size limits, shown before the upload.
+function updateGifNotice(ext, target) {
+  const el = document.getElementById('gif-notice');
+  if (el) el.classList.toggle('hidden', !isVideoToGif(ext, target));
 }
 
 // ── X-FileMorph-Warnings parsing ─────────────────────────────────────────────
@@ -748,18 +770,15 @@ function updateQualityVisibility() {
   if (cmodeToggle) cmodeToggle.classList.add('hidden');
   if (targetSection) targetSection.classList.add('hidden');
 
+  // Batch: one target per file, the rows in the order of selectedFiles.
   const isBatch = selectedFiles.length > 1;
-  let relevant = selectedFiles.some(f => QUALITY_TYPES.includes(getExtension(f.name)));
-  if (!relevant) {
-    if (isBatch) {
-      document.querySelectorAll('.per-row-target').forEach(sel => {
-        if (QUALITY_TYPES.includes(sel.value)) relevant = true;
-      });
-    } else {
-      const target = document.getElementById('target-format').value;
-      if (QUALITY_TYPES.includes(target)) relevant = true;
-    }
-  }
+  const rows = document.querySelectorAll('.per-row-target');
+  const relevant = selectedFiles.some((f, i) => {
+    const target = isBatch
+      ? (rows[i] ? rows[i].value : '')
+      : document.getElementById('target-format').value;
+    return pairUsesQuality(getExtension(f.name), target);
+  });
   section.classList.toggle('hidden', !relevant);
 }
 
@@ -775,6 +794,9 @@ async function submitForm() {
   const quality = document.getElementById('quality-slider').value;
 
   const useTargetSize = currentMode === 'compress' && compressMode === 'target';
+  // Read before the upload: the selection may change while the server works.
+  const videoToGif = !isBatch && currentMode === 'convert' && isVideoToGif(
+    getExtension(selectedFiles[0].name), document.getElementById('target-format').value);
 
   const formData = new FormData();
   if (isBatch) {
@@ -859,6 +881,10 @@ async function submitForm() {
           msg = i18n.pdfEncrypted || data.detail;
         } else if (errCode === 'pdf_encryption_unsupported') {
           msg = i18n.pdfEncryptionUnsupported || data.detail;
+        } else if (errCode === 'video_too_long') {
+          msg = i18n.errorVideoTooLong || data.detail;
+        } else if (errCode === 'video_too_complex') {
+          msg = i18n.errorVideoTooComplex || data.detail;
         }
         showError(msg, errCode);
       } else if (res.status === 401) {
@@ -872,7 +898,9 @@ async function submitForm() {
         const i18n = window.FM_I18N || {};
         let msg;
         if (errCode === 'output_cap_exceeded') {
-          msg = i18n.errorOutputCapExceeded || data.detail;
+          // A GIF from a video shrinks only with a shorter clip — not with
+          // the "more efficient format or lower quality" of the general text.
+          msg = (videoToGif ? i18n.errorOutputCapGif : i18n.errorOutputCapExceeded) || data.detail;
         } else if (errCode === 'target_size_exceeds_cap') {
           msg = i18n.errorTargetSizeExceedsCap || data.detail;
         } else if (errCode === 'input_too_large') {

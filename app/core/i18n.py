@@ -345,6 +345,20 @@ def _js_i18n_strings(_: gettext.GNUTranslations.gettext) -> dict[str, str]:
                 "limits."
             )
         ),
+        # The same code for a GIF made from a video: its size and frame rate
+        # are fixed, so only a shorter clip makes it smaller.
+        "errorOutputCapGif": (
+            _(
+                "The GIF would be larger than allowed. Use a shorter clip, or self-host "
+                "FileMorph — there you set the limits. No account yet? Register free for "
+                "a higher limit."
+            )
+            if accounts
+            else _(
+                "The GIF would be larger than allowed. Use a shorter clip, or self-host "
+                "FileMorph — there you set the limits."
+            )
+        ),
         "errorTargetSizeExceedsCap": (
             _(
                 "The target size is above the output limit. Choose a smaller target "
@@ -373,6 +387,18 @@ def _js_i18n_strings(_: gettext.GNUTranslations.gettext) -> dict[str, str]:
                 "Too many files at once. Select one file at a time or self-host "
                 "FileMorph — there you set the limits."
             )
+        ),
+        # X-FileMorph-Error-Code: video_too_long / video_too_complex — /convert
+        # video → GIF (VideoTooLongError / VideoTooComplexError in
+        # app/converters/base.py; a test pins the 30 seconds).
+        "errorVideoTooLong": _(
+            "This video is longer than 30 seconds, the maximum for a GIF. Shorten it to "
+            "30 seconds or less (for example in your phone's gallery or a video editor), "
+            "or convert it to MP4 or WebM instead."
+        ),
+        "errorVideoTooComplex": _(
+            "This video is too large to turn into a GIF in time. Use a shorter clip or "
+            "a lower resolution (for example 1080p), then try again."
         ),
         # pdf-tools.js — the 2 GB form ceiling no account or self-host lifts
         "errorTargetSizeTooHigh": _("The target size is above the allowed maximum of 2 GB."),

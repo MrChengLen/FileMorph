@@ -222,12 +222,16 @@ def test_formats_md_conversion_targets_match_registry():
 
 def test_formats_md_any_to_any_lists_match_registry():
     """The claim under the Audio and Video lists — "any of the above can be
-    converted to any other format" — holds for every format in them."""
+    converted to any other format" — holds for every format in them. Targets
+    that a "| From | To | Notes |" row documents for the format (video → GIF)
+    are left out here; the conversion-table test above checks them."""
     conversions = get_public_conversions()
+    rows = _formats_md_conversions().values()
     drift: list[str] = []
     for group in _formats_md_any_to_any():
         for fmt in sorted(group):
-            actual = {_alias(tgt) for tgt in conversions.get(fmt, [])}
+            in_rows = {tgt for ins, outs in rows if fmt in ins for tgt in outs}
+            actual = {_alias(tgt) for tgt in conversions.get(fmt, [])} - in_rows
             expected = group - {fmt}
             if actual != expected:
                 drift.append(

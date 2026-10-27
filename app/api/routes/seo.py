@@ -187,6 +187,7 @@ async def llms_txt() -> str:
         "ICO), documents (DOCX, PDF, TXT, Markdown, HTML, EML), spreadsheets (XLSX, "
         "CSV, JSON), audio (MP3, WAV, FLAC, OGG, M4A, AAC, WMA, Opus) and video (MP4, "
         "MOV, AVI, MKV, WebM, FLV, WMV). "
+        "It turns short video clips (up to 30 seconds) into animated GIFs. "
         "It can compress JPEG, WebP and AVIF images to at most a target size: it "
         "searches for the best quality that fits and scales an image down if even "
         "the lowest quality is too big. Files are processed server-side and "

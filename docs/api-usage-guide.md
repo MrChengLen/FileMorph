@@ -247,7 +247,8 @@ def convert(path: str, target_format: str, key: str, quality: int = 85) -> tuple
 - **Video** — `quality` is mapped onto the encoder's rate control: CRF
   40 → 18 for H.264, CRF 45 → 18 for VP9 (WebM), qscale 31 → 2 for AVI
   and WMV. The table is in [`formats.md`](formats.md#video).
-- **PNG, TIFF, BMP, GIF, ICO** — `quality` is ignored on `/convert`.
+- **PNG, TIFF, BMP, GIF, ICO** — `quality` is ignored on `/convert`
+  (video → GIF too: its frame size and rate are fixed).
   (On `/compress`, PNG turns quality into the zlib compression level,
   which changes speed and size, never the pixels.)
 - **Audio** — `quality` sets the bitrate: the VBR level for MP3 and
@@ -849,6 +850,8 @@ client timeouts accordingly:
   server stops a single ffmpeg run (audio or video) after
   `MEDIA_SUBPROCESS_TIMEOUT_SECONDS`, default 600 s; the request then
   fails with `500` (in a batch, only that file fails)
+- Video → GIF: at most 85 s for all its steps; a clip that would take
+  longer is answered `400` with `X-FileMorph-Error-Code: video_too_complex`
 
 Use a generous client timeout (`requests.post(..., timeout=300)`) for
 video and AVIF, and avoid wrapping the call in tight per-request UI
