@@ -72,7 +72,7 @@ FileMorph runs in three editions, all built from this repository:
 |---|---|---|
 | **Community** | Self-hosted (Docker, source) | File conversion + compression, REST API, single-user API-key auth |
 | **Cloud SaaS** | [filemorph.io](https://filemorph.io) | Community features + user accounts (JWT), tier quotas, admin cockpit; Stripe billing ships too, but filemorph.io has no paid plans |
-| **Compliance** | Self-hosted with commercial licence | Cloud-Edition features + tamper-evident audit log (SHA-256 hash chain), `X-Output-SHA256` integrity header, PDF/A-2b output (CI gate validated against veraPDF for a worst-case fixture), default-on EXIF/XMP/IPTC strip, `X-Data-Classification` header, self-service account deletion, signed images (cosign) + cryptographically signed releases. For DACH Behörden, Krankenhäuser, and Anwaltskanzleien. |
+| **Compliance** | Self-hosted with commercial licence | Cloud-Edition features + tamper-evident audit log (SHA-256 hash chain), `X-Output-SHA256` integrity header, PDF/A-2b output (CI gate validated against veraPDF for a worst-case fixture), default-on metadata strip (EXIF/XMP/IPTC in images, tags and chapters in video, all but the music tags in audio), `X-Data-Classification` header, self-service account deletion, signed images (cosign) + cryptographically signed releases. For DACH Behörden, Krankenhäuser, and Anwaltskanzleien. |
 
 > **PII redaction** (commercial add-on, `app/ee/`, inert unless
 > `AI_OPERATIONS_ENABLED`): detect + remove structured PII — IBAN, email, phone,
@@ -81,7 +81,7 @@ FileMorph runs in three editions, all built from this repository:
 > [`docs/pii-redaction.md`](docs/pii-redaction.md). It is **not** a format
 > conversion, so it is absent from the Supported Formats table.
 
-PDF/A-2b output, the default-on EXIF/XMP/IPTC strip and the `X-Output-SHA256`
+PDF/A-2b output, the default-on metadata strip and the `X-Output-SHA256`
 header are part of the AGPL engine and work in every edition; the hash-chained
 audit log is AGPL code too and records whenever `DATABASE_URL` is set (Cloud
 overlay). What the Compliance Edition adds is the commercial licence, a
@@ -132,11 +132,11 @@ request.
 | Enterprise | unlimited servers, custom SLA |
 
 Includes the commercial licence, the SHA-256 audit log, PDF/A-2b (veraPDF
-CI-gated), default-on EXIF/XMP strip, and signed images (cosign) + SBOM. See
+CI-gated), default-on metadata strip, and signed images (cosign) + SBOM. See
 [`/enterprise`](https://filemorph.io/enterprise) and
 [`COMMERCIAL-LICENSE.md`](COMMERCIAL-LICENSE.md). Internal use by an authority is
 already free under AGPL — the Compliance Edition sells accountability (SLA,
-a liable EU contact), not permission. The audit log, PDF/A-2b, the EXIF/XMP
+a liable EU contact), not permission. The audit log, PDF/A-2b, the metadata
 strip and the signed images in that list are the same AGPL code and builds
 every edition runs.
 
