@@ -7,10 +7,7 @@
   <main class="flex-1 flex items-center justify-center p-4 sm:p-6">
     <div class="w-full max-w-2xl space-y-6">
 
-      <div>
-        <a href="{{ localized_url('/', current_prefix) }}"
-           class="text-sm text-gray-500 hover:text-gray-300 transition-colors">{{ _('← Back to Convert') }}</a>
-      </div>
+      {% include "partials/breadcrumb.html" %}
 
       <!-- Title -->
       <div class="text-center space-y-2">

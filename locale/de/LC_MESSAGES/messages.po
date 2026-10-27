@@ -315,9 +315,6 @@ msgstr ""
 "empfängst – auch hochgeladene und umgewandelte Dateien. Cloudflare "
 "speichert keine hochgeladenen oder umgewandelten Dateien."
 
-msgid "All formats"
-msgstr "Alle Formate"
-
 msgid "All formats + smart-tech"
 msgstr "Alle Formate + Smart-Tech"
 
@@ -499,6 +496,9 @@ msgstr "Monatlich abgerechnet, jederzeit kündbar"
 
 msgid "Billing is not available right now."
 msgstr "Die Abrechnung ist gerade nicht verfügbar."
+
+msgid "Breadcrumb"
+msgstr "Brotkrumenpfad"
 
 msgid "Building a closed-source product, SaaS, or OEM integration on FileMorph?"
 msgstr ""
@@ -3414,6 +3414,9 @@ msgstr ""
 "Befugnis hochzuladen. Die Schwärzungsfunktion entbindet Sie nicht von "
 "dieser Pflicht."
 
+msgid "Use it via the API ↗"
+msgstr "Per API nutzen ↗"
+
 msgid ""
 "Use the Service for automated large-scale processing without prior "
 "agreement"
@@ -4387,14 +4390,8 @@ msgstr "— ein PGP-Schlüssel ist auf Anfrage erhältlich."
 msgid "— select a file first —"
 msgstr "— erst eine Datei wählen —"
 
-msgid "← All formats"
-msgstr "← Alle Formate"
-
 msgid "← Back"
 msgstr "← Zurück"
-
-msgid "← Back to Convert"
-msgstr "← Zurück zum Konverter"
 
 msgid "← Back to FileMorph"
 msgstr "← Zurück zu FileMorph"

@@ -78,9 +78,11 @@ def test_pair_page_localised(client):
 def test_pair_page_has_related_links(client):
     r = client.get("/en/convert/jpg-to-pdf")
     assert r.status_code == 200
+    # Inside <main> only: the footer grid links all twelve pairs anyway.
+    main = r.text[r.text.index("<main") : r.text.index("</main>")]
     # same-target family first — png-to-pdf / heic-to-pdf should be linked
-    assert "/convert/png-to-pdf" in r.text
-    assert "/convert/heic-to-pdf" in r.text
+    assert "/convert/png-to-pdf" in main
+    assert "/convert/heic-to-pdf" in main
 
 
 def test_pair_page_deployment_agnostic(client):

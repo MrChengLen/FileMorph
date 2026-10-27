@@ -275,9 +275,6 @@ msgid ""
 "Cloudflare does not store uploaded or converted files."
 msgstr ""
 
-msgid "All formats"
-msgstr ""
-
 msgid "All formats + smart-tech"
 msgstr ""
 
@@ -420,6 +417,9 @@ msgid "Billed monthly, cancel anytime"
 msgstr ""
 
 msgid "Billing is not available right now."
+msgstr ""
+
+msgid "Breadcrumb"
 msgstr ""
 
 msgid "Building a closed-source product, SaaS, or OEM integration on FileMorph?"
@@ -2739,6 +2739,9 @@ msgid ""
 "obligation."
 msgstr ""
 
+msgid "Use it via the API ↗"
+msgstr ""
+
 msgid ""
 "Use the Service for automated large-scale processing without prior "
 "agreement"
@@ -3484,13 +3487,7 @@ msgstr ""
 msgid "— select a file first —"
 msgstr ""
 
-msgid "← All formats"
-msgstr ""
-
 msgid "← Back"
-msgstr ""
-
-msgid "← Back to Convert"
 msgstr ""
 
 msgid "← Back to FileMorph"

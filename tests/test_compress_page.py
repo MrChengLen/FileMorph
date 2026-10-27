@@ -176,10 +176,17 @@ def test_compress_page_pdf_handoff_localised_on_de(client):
 # ── related tools + deployment-agnostic ──────────────────────────────────────
 
 
-def test_compress_page_related_tools_link_hub_and_formats(client):
+def test_compress_page_related_tools_link_hub_pdf_compress_and_api(client):
+    """The tool-page layout's related block: the curated neighbours (WebP makes
+    an image smaller too, /pdf/compress for PDFs), the way up to the whole
+    catalogue, and the same task via the API."""
     main = _main(client.get("/en/compress").text)
-    assert 'href="/en/tools"' in main
-    assert 'href="/en/formats"' in main
+    related = main[main.rindex("Related tools") :]
+    assert 'href="/en/convert/jpg-to-webp"' in related
+    assert 'href="/en/convert/png-to-webp"' in related
+    assert 'href="/en/pdf/compress"' in related
+    assert 'href="/en/tools"' in related
+    assert 'href="/docs"' in related
 
 
 def test_compress_page_deployment_agnostic(client):
