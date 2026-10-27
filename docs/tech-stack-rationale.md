@@ -266,15 +266,18 @@ libheif) caveats, and the machine-readable SBOM — is in
 | python-dotenv | BSD-3-Clause | Permissive. |
 | slowapi | MIT | Permissive. |
 | SQLAlchemy, Alembic | MIT | Permissive. |
+| Mako | MIT | Permissive; comes in through Alembic (migration template). |
 | asyncpg | Apache-2.0 | Permissive. |
 | PyJWT | MIT | Permissive. |
 | bcrypt | Apache-2.0 | Permissive. |
 | email-validator | The Unlicense | Public-domain-equivalent. |
+| dnspython | ISC | Permissive; comes in through email-validator. |
 | aiosmtplib | MIT | Permissive. |
 | stripe | MIT | Permissive. |
 | certifi | MPL-2.0 | File-level (weak) copyleft, shipped unmodified; the CA bundle Stripe calls verify against (`app/core/billing.py`). |
 | Babel | BSD-3-Clause | Permissive (i18n message catalogs). |
 | prometheus-client | Apache-2.0 AND BSD-2-Clause | Permissive (`/api/v1/metrics`). |
+| opentelemetry-api | Apache-2.0 | Permissive; comes in through FastAPI. |
 
 Everything in the current runtime tree declares a permissive licence
 (MIT, BSD, Apache-2.0, ISC, Unlicense, PSF, MIT-CMU) or a weak/file-level
