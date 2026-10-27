@@ -14,23 +14,28 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [1.3.0] — 2026-10-24
+## [1.3.0] — 2026-10-27
 
 **Upgrading from 1.2.1.** No format or env var was removed, and no database
 migration runs; `/redoc`, which rendered empty, is switched off. Every
 deployment should update: this release carries the fixes for critical
 advisories in the Python packages Pillow (GHSA-8g5g-8vmr-9782), certifi
-(GHSA-6q48-6c7w-9gw2) and brotli (CVE-2026-111497); see the Security entries.
-Still accepted until 2026-11-02, because Swagger UI does not use the options
-they need: five DOMPurify advisories in the Swagger UI bundle on `/docs`, one
-rated critical and one high upstream (listed in `docs/security-overview.md`).
-Check before pulling:
+(GHSA-6q48-6c7w-9gw2) and brotli (CVE-2026-111497), and for two medium ones in
+the libheif that pillow-heif bundles (GHSA-9c75-9g8r-4728,
+GHSA-vv35-6hxg-95x8); see the Security entries. Still accepted until
+2026-11-02, because Swagger UI does not use the options they need: five
+DOMPurify advisories in the Swagger UI bundle on `/docs`, one rated critical
+and one high upstream (listed in `docs/security-overview.md`). Check before
+pulling:
 
 - **Pinned to `1.2` or `1.2.1` (or their `-office` variants):** there is no
   1.2.2, so these image tags stay on 1.2.1 without the fixes. Move to `1.3`
   (or `1.3.0`); for a backport onto 1.2, write to `security@filemorph.io`.
 - **New setting:** `LOCAL_TOOLS_ENABLED` (default `false`) prepares processing
-  in the browser. Left off, nothing changes.
+  in the browser. Left off, nothing changes. FastAPI's automatic OpenTelemetry
+  exporter setup now needs `FASTAPI_OTEL_AUTO_CONFIGURE=true`; this concerns
+  only an install that added an OpenTelemetry SDK itself, as the image ships
+  none.
 - **New refusals:** the table conversions (XLSX → CSV, CSV → XLSX,
   CSV → JSON, JSON → CSV) and PDF compression now run in a child process, as
   PDF → TXT already did, and stop after 90 seconds; on Linux the child is also
@@ -47,13 +52,24 @@ Check before pulling:
   `/pdf/compress`, `X-FileMorph-Converged` now means "at most the target".
 - **Messages and codes:** the limit messages no longer say "upgrade your
   plan"; they name a free account where accounts exist, or self-hosting. New
-  error codes: `pdf_too_complex` and `batch_too_large`. A client that matches
-  message texts needs updating.
+  error codes: `pdf_too_complex` and `batch_too_large`, and for the new
+  video → GIF conversion `video_too_long` and `video_too_complex`. A file part
+  with no file in it, which a plain browser form sends for an empty file
+  input, now counts as missing: the upload routes answer the generic `422`,
+  and a batch that also carries real files leaves it out. A client that
+  matches message texts needs updating.
 - **Instances without accounts (no `DATABASE_URL`):** no Sign In link, and the
   account pages answer 404.
 - **`APP_BASE_URL`:** the home page's curl example now targets it on every
   instance instead of filemorph.io; left at the default it shows
   `http://localhost:8000`.
+- **Compose and systemd:** `docker-compose.yml` caps the container at 4096
+  processes and threads and turns off core dumps. The systemd unit in
+  `docs/self-hosting.md` gains the same limits plus `NoNewPrivileges=yes`,
+  `PrivateTmp=yes` and `ProtectSystem=strict`; a compose file or unit copied
+  earlier can take them over. Where `MAX_GLOBAL_CONCURRENCY` was raised on a
+  host with many cores, raise the cap too (about 200, plus 3 per CPU core for
+  each parallel conversion; "Capacity tuning" in `docs/self-hosting.md`).
 - **Logs:** logged errors keep their type and traceback but no longer their
   text unless `APP_DEBUG=true`; the WeasyPrint, fontTools and pypdf loggers
   are silent; a child stopped at its CPU-time limit shows status `-9`. An
@@ -62,6 +78,111 @@ Check before pulling:
   2026-10-21 (Python 3.14.8, a CA store without the compromised emSign root).
   Installed without the image, update the operating system's ca-certificates
   package: outgoing mail trusts it.
+
+### Added — Video to GIF: short clips become animated GIFs
+
+Every video FileMorph reads (MP4, MOV, AVI, MKV, WebM, FLV, WMV) now converts
+to GIF, in the web UI and through `POST /api/v1/convert` with
+`target_format=gif`.
+
+- **Made for short clips:** up to 30 seconds, 10 frames per second, endless
+  loop, no sound. Frames fit into 480 × 480 pixels and are never upscaled; a
+  portrait clip stays portrait.
+- **Good colours, small files:** two ffmpeg passes — one 256-colour palette
+  for the whole clip, then every frame mapped onto it with ordered dithering,
+  so areas that don't change stay identical from frame to frame.
+- **No metadata:** the GIF carries nothing from the video — no location,
+  device or recording date.
+- **Refused, not cut short:** a video longer than 30 seconds is answered
+  `400` with `X-FileMorph-Error-Code: video_too_long`, and the message names
+  the way out (shorten it first, or convert to MP4 or WebM). A video above
+  4096 × 2160 pixels, or one that would take longer than 85 seconds, gets
+  `video_too_complex`; a file without a video picture gets `invalid_input`.
+  A GIF over the output cap names a shorter clip as the fix.
+- **Web UI:** with a video selected and GIF as the target, a note shows the
+  limits before the upload, and the quality slider hides — it has no effect
+  on GIF (image → GIF included). German and English texts.
+
+Docs: `docs/formats.md` (Video → GIF), `docs/api-reference.md` (error codes),
+README format table.
+
+### Security — libheif 1.23.6 through pillow-heif 1.8.1, uv 0.13.4 in the lockfile jobs
+
+- pillow-heif 1.8.1 bundles libheif 1.23.6 (was 1.23.4). libheif 1.23.5 and
+  1.23.6 are security releases, and HEIC uploads are decoded in the server
+  process. Three of the fixes concern files FileMorph opens. A crafted file
+  that declares a small picture but codes a much larger frame is now refused
+  before any decoder sees it (GHSA-v8qw-hwjv-44hw, high). The advisory was
+  confirmed with the AV1 decoder libaom, which the wheels leave out; their HEVC
+  decoder, libde265, already enforced libheif's size limit, so for FileMorph
+  this is hardening (1.23.5 checks the HEVC parameter sets too). A JPEG 2000 palette box with no
+  columns no longer allocates 65,535 entries, which nested boxes multiplied to
+  about 330 MB for a 3 KB file (GHSA-9c75-9g8r-4728, medium): libheif parses
+  these boxes in any file, also where it cannot decode JPEG 2000. A decoded
+  image whose bit depth contradicts its configuration box or the other tiles
+  of its grid is now refused (GHSA-vv35-6hxg-95x8, medium). Most of the other
+  fixes are in decoders the pillow-heif wheels leave out (AV1, JPEG,
+  JPEG 2000, uncompressed, FFmpeg), in sharp YUV, or in encoding, which
+  FileMorph does not do with HEIC. Deployments that accept HEIC uploads should
+  update.
+- The lockfile jobs (`lockfile-drift` in CI and the `deps-lock` workflow)
+  install uv 0.13.4. Older releases trust the emSign ECC Root CA - G3 in their
+  bundled CA store, whose intermediate keys were compromised
+  (GHSA-hq85-5cpj-mr62); certifi 2026.10.19 dropped the same root. These jobs
+  take from PyPI the hashes that the image's hash-checked install trusts.
+  Images built from the committed lockfile need nothing; whoever recompiles
+  the lockfiles should use uv 0.13.4 or newer.
+
+### Changed — dependency batch: FastAPI 0.154, Pydantic 2.14, SQLAlchemy 2.1.5 and eight smaller updates
+
+Dependabot's weekly `python-all` group (#259) lands in one pull request, with
+`requirements.lock` recompiled once. What the image ships now:
+
+- **FastAPI 0.154.0** (from 0.142.2). In between, FastAPI changed how it reads
+  request data. One change shows in FileMorph's routes: a file part with no
+  file in it, which a plain browser form sends for an empty file input, now
+  counts as missing. The upload routes answer it with the generic 422 for a
+  missing field instead of their own message about the file name, and a batch
+  that also carries real files leaves it out. FileMorph's pages only send
+  files the user picked, and a missing file or an empty quality field gets the
+  same answer as before. The
+  automatic OpenTelemetry exporter setup now needs
+  `FASTAPI_OTEL_AUTO_CONFIGURE=true`; the image ships no OpenTelemetry SDK
+  either way. 0.154.0 is the version Dependabot proposed under its three-day
+  cooldown; the newest release, 0.161.1, was younger.
+- **Pydantic 2.14.1** (from 2.13.5, with pydantic-core 2.50.1) and
+  pydantic-settings 2.16.1 (from 2.15.0).
+- **SQLAlchemy 2.1.5** (from 2.1.4) and asyncpg 0.32.0 (from 0.31.0), on the
+  account database path. 2.1.5 fixes a bug on the asyncio path FileMorph uses:
+  a connection the pool closed after its task was cancelled twice, as AnyIO
+  cancel scopes do, stayed in the pool and failed on its next checkout. 2.1.5
+  rather than 2.1.6, which was younger than the cooldown.
+- pillow-heif 1.8.1 (security fixes in the libheif it bundles, see the
+  separate entry), cryptography 50.0.2 (its wheels bundle OpenSSL 4.0.3),
+  Markdown 3.11.2 (attribute names in fenced code blocks are sanitized, and an
+  unterminated end tag no longer drops the rest of the document) and pikepdf
+  10.17.0.
+
+Development tools: ruff 0.17.1, which reformats nothing, and uv 0.13.4
+(`requirements-uv.lock` recompiled with it, see the separate entry); the
+lockfiles come out in the same format.
+
+### Changed — Conversion child processes isolate themselves further; the container caps processes and threads
+
+On Linux the child processes that run the table conversions (XLSX → CSV,
+CSV → XLSX, CSV → JSON, JSON → CSV), PDF compression and PDF → TXT now gain no
+privileges through setuid programs, end when the app process that started them
+ends, and start no processes or threads of their own unless the app runs as
+root. Where the `jbig2dec` program isn't installed, as in the image, PDF → TXT
+answers a PDF whose streams hold JBIG2 data (which pypdf decodes only with
+that program) with the usual `400` for an unreadable PDF instead of a `500`.
+
+`docker-compose.yml` caps the container at 4096 processes and threads and
+turns off core dumps. The systemd unit in `docs/self-hosting.md` gets the same
+two lines (`TasksMax=`, `LimitCORE=0`) plus `NoNewPrivileges=yes`,
+`PrivateTmp=yes` and `ProtectSystem=strict`; a unit copied from the guide
+earlier can take them over. On a host with many cores, raise the process cap
+together with `MAX_GLOBAL_CONCURRENCY`.
 
 ### Changed — the target size is an upper bound
 
