@@ -49,8 +49,10 @@ def extract(input_path: Path, output_path: Path, max_pages: int) -> str:
     # pypdf's resource limits); pypdf reads fonts and content streams lazily,
     # so a broken one only fails during extraction. DependencyError: JBIG2
     # data in a stream, which pypdf decodes only with the jbig2dec program,
-    # and the image doesn't ship it.
-    except (PyPdfError, DependencyError, ValueError) as exc:
+    # and the image doesn't ship it. BlockingIOError: where it is installed,
+    # starting it fails, as this child starts no processes (limit_resources;
+    # root aside).
+    except (PyPdfError, DependencyError, ValueError, BlockingIOError) as exc:
         return f"unreadable {type(exc).__name__}"
     except MemoryError:
         return "too_large"
