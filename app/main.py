@@ -42,6 +42,7 @@ from app.core.engine import ENGINE_DIR, ENGINE_URL_PREFIX, EngineFiles, engine_t
 from app.core.i18n import (
     SUPPORTED_LOCALES,
     base_path,
+    load_catalogs,
     localized_context,
     localized_url,
     resolve_locale,
@@ -169,6 +170,9 @@ async def _periodic_temp_sweep(
 async def lifespan(app: FastAPI):
     configure_logging(debug=settings.app_debug)
     _ensure_loaded()
+    # The translation catalogues compile from locale/*/messages.po; doing it
+    # here logs a broken one at start-up instead of on the first page.
+    load_catalogs()
 
     if engine is not None:
         from app.db.base import Base
@@ -569,7 +573,7 @@ app.include_router(cockpit_route.router, prefix="/api/v1")
 # (``x-default`` for SEO, defaults to the operator's ``LANG_DEFAULT``)
 # AND the explicit ``/de/...`` + ``/en/...`` prefixes. ``LocaleMiddleware``
 # resolves the active locale from the path so the per-request translator
-# in :func:`app.core.i18n.localized_context` picks the right ``.mo``.
+# in :func:`app.core.i18n.localized_context` picks the right catalogue.
 
 app.include_router(pages.router)  # /, /pricing, /enterprise, ...
 app.include_router(pages.router, prefix="/de")  # /de/, /de/pricing, ...

@@ -102,7 +102,7 @@ jobs:
             for path in /app/.env /app/data/api_keys.json /app/.git /app/.github /app/tests; do
               if [ -e "$path" ]; then echo "::error::$path is in the image"; status=1; fi
             done
-            for path in /app/context-canary /app/scripts/first_run.py /app/locale/de/LC_MESSAGES/messages.mo /app/alembic.ini; do
+            for path in /app/context-canary /app/scripts/first_run.py /app/locale/de/LC_MESSAGES/messages.po /app/locale/en/LC_MESSAGES/messages.po /app/alembic.ini; do
               if [ ! -e "$path" ]; then echo "::error::$path is missing from the image"; status=1; fi
             done
             exit $status
@@ -152,7 +152,16 @@ jobs:
             echo "::error::The container runs as root"
             status=1
           fi
-          if [ "$status" != 0 ]; then printf '%s\n' "$logs"; fi
+          # The app compiles locale/*/LC_MESSAGES/messages.po at start-up;
+          # without the catalogue every German page falls back to English.
+          # tests/test_convert_pair_pages.py::test_footer_links_localized pins
+          # the same footer string, so a rewording updates both.
+          if ! curl -fsS --max-time 5 http://localhost:8000/de/ | grep -q 'Beliebte Konvertierungen'; then
+            echo "::error::/de/ shows no German footer: the translation catalogue did not load"
+            status=1
+          fi
+          # Fresh logs: they include whatever the checks above made the app log.
+          if [ "$status" != 0 ]; then docker logs filemorph 2>&1; fi
           exit "$status"
 
       # Start-up does not prove these: the app only logs a warning when ffmpeg

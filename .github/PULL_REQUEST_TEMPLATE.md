@@ -27,7 +27,7 @@
 - [ ] `pytest tests/` passes locally
 - [ ] Templates touched: `python scripts/check_template_classes.py` passes
 - [ ] Classes added or changed in templates/JS: `bash scripts/build-tailwind.sh` run and `app/static/css/` committed
-- [ ] `_()` strings added, changed or removed: `python scripts/i18n.py extract`, `update`, German entries translated, `compile` — `locale/` committed
+- [ ] `_()` strings added, changed or removed: `python scripts/i18n.py extract`, `update`, German entries translated (no `#, fuzzy`) — `.pot` and `.po` committed (no `compile`; `.mo` is git-ignored)
 - [ ] Dependencies changed: `pip-audit -r requirements.lock` clean, also with `-s osv`; also recompile `requirements.lock` (compared by the separate, non-required `lockfile-drift` check)
 - [ ] Python version changed anywhere: `python scripts/check_python_version.py` passes
 

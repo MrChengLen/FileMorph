@@ -57,6 +57,11 @@ docs/*.png
 # Internal strategy / planning docs — not for the public repo
 docs-internal/
 
+# Compiled translation catalogues. The app compiles locale/*/LC_MESSAGES/
+# messages.po in memory at startup (app/core/i18n.py); a committed .mo only
+# produced merge conflicts.
+locale/**/*.mo
+
 # Claude Code project guide — local dev/server-ops context, not for public repo
 /CLAUDE.md
 

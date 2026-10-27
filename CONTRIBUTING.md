@@ -66,9 +66,10 @@ your change touches before you push:
   `python scripts/i18n.py extract`, then `python scripts/i18n.py update`,
   translate the new entries in `locale/de/LC_MESSAGES/messages.po` (the `en`
   catalogue needs a translation only where the source string is not English)
-  and clear any `#, fuzzy` marks, since compiling skips fuzzy entries. Then run
-  `python scripts/i18n.py compile` and commit `locale/`. CI runs
-  `python scripts/i18n.py drift-check`.
+  and clear any `#, fuzzy` marks, since fuzzy entries are skipped. Then commit
+  `locale/` (the `.pot` and the `.po` files). There is no compile step: the app
+  compiles the `.po` files in memory at startup, and `.mo` files are
+  git-ignored. CI runs `python scripts/i18n.py drift-check`.
 - **Dependency audit** — `pip-audit -r requirements.lock`, then again with
   `-s osv` (CI adds the `--ignore-vuln` flags listed in `ci.yml`). CI asks
   both advisory sources, PyPI's feed and OSV, about the two lockfiles it

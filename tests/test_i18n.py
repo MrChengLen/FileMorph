@@ -350,7 +350,7 @@ def test_supported_locale_renders_each_page(client, accounts_on, locale):
 
 # ── M9 — DE-content smoke (catalog-loaded asserter) ─────────────────────────
 #
-# The 200-status smoke above passes even when the .mo catalog is missing,
+# The 200-status smoke above passes even when the .po catalog is missing,
 # corrupt, or out of sync — Babel falls back to the msgid (EN) silently.
 # These tests pin a stable DE-only string per page, so a missing catalog
 # (or a future PR that drops a translation) surfaces as a hard failure
@@ -382,7 +382,7 @@ def test_supported_locale_renders_each_page(client, accounts_on, locale):
     ],
 )
 def test_de_page_renders_german_content(client, accounts_on, path, de_marker):
-    """A DE-marker string must appear in the rendered output. If the .mo
+    """A DE-marker string must appear in the rendered output. If the .po
     catalog is missing or corrupt, gettext falls back to the EN msgid and
     this assertion fails — without it the 200-status test passes silently.
     """
@@ -395,7 +395,7 @@ def test_de_page_renders_german_content(client, accounts_on, path, de_marker):
     # Catalog-loaded assertion — the actual M9 guard.
     assert de_marker in text, (
         f"{path} resolved to lang=de but DE marker '{de_marker}' missing — "
-        f"messages.mo loaded? gettext fallback to EN? Catalog out of sync?"
+        f"messages.po loaded? gettext fallback to EN? Catalog out of sync?"
     )
 
 

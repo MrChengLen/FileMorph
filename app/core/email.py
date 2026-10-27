@@ -43,7 +43,7 @@ logger = logging.getLogger(__name__)
 # Email is rendered outside any HTTP request, so it can't reuse the
 # request-bound translator from ``app.core.i18n.localized_context``. Each
 # supported locale gets its own Jinja ``Environment`` with the matching
-# ``.mo`` installed once at construction — after that the env is immutable
+# catalogue installed once at construction — after that the env is immutable
 # and safe to reuse across concurrent sends. Templates use ``{% trans %}``
 # blocks (which the ``jinja2.ext.i18n`` extension wires to that env's
 # gettext) so a sentence with an interpolated value stays one translatable

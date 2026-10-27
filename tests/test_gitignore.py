@@ -59,6 +59,34 @@ def test_local_env_files_are_ignored(path: str) -> None:
     )
 
 
+@pytest.mark.parametrize(
+    "path", ["locale/de/LC_MESSAGES/messages.mo", "locale/en/LC_MESSAGES/messages.mo"]
+)
+def test_compiled_translation_catalogues_are_ignored(path: str) -> None:
+    # The app compiles the .po files in memory (app/core/i18n.py); a .mo left
+    # over from `scripts/i18n.py compile` must not be staged again.
+    source, pattern = _deciding_rule(path)
+    assert source == ".gitignore" and not pattern.startswith("!"), (
+        f"`git add -A` would stage {path}. Keep `locale/**/*.mo` in the root .gitignore."
+    )
+
+
+def test_no_compiled_catalogue_is_tracked() -> None:
+    # A commit through the GitHub API (createCommitOnBranch) ignores .gitignore,
+    # so pin the goal itself: no .mo in the repository.
+    if not (_REPO_ROOT / ".git").exists():
+        pytest.skip("not a git checkout (e.g. an unpacked release tarball)")
+    tracked = subprocess.run(
+        ["git", "ls-files", "--", "*.mo"],
+        cwd=_REPO_ROOT,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=True,
+    ).stdout.split()
+    assert not tracked, f"compiled catalogues are committed again: {tracked}"
+
+
 def test_env_example_is_not_ignored() -> None:
     _source, pattern = _deciding_rule(".env.example")
     assert not pattern or pattern.startswith("!"), (
