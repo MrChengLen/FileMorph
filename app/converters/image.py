@@ -132,12 +132,13 @@ for _src in _sources:
 # Image → PDF  (each image becomes a single-page PDF)
 # ---------------------------------------------------------------------------
 # Asymmetric (many image formats → one PDF target), so it can't ride the
-# image↔image loop above. Pillow writes PDF natively, but the PDF encoder has
-# no alpha channel — flatten RGBA/LA/P onto white first (same spirit as the
-# JPEG path), then strip metadata like every other image conversion.
+# image↔image loop above. Strip metadata first like every other image
+# conversion — that also turns a photo upright, from the EXIF the flattening
+# below drops. Pillow writes PDF natively, but the PDF encoder has no alpha
+# channel — flatten RGBA/LA/P onto white (same spirit as the JPEG path).
 class _ImageToPdfConverter(BaseConverter):
     def convert(self, input_path: Path, output_path: Path, **kwargs) -> Path:
-        img = _open_image(input_path)
+        img = strip_metadata(_open_image(input_path))
         if img.mode in ("RGBA", "LA", "P"):
             rgba = img.convert("RGBA")
             background = Image.new("RGB", rgba.size, (255, 255, 255))
@@ -145,7 +146,6 @@ class _ImageToPdfConverter(BaseConverter):
             img = background
         elif img.mode != "RGB":
             img = img.convert("RGB")
-        img = strip_metadata(img)
         # resolution=150 DPI controls the physical page size Pillow assigns the
         # single image page — a sensible default for typical phone photos/scans.
         img.save(output_path, format="PDF", resolution=150.0)

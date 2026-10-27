@@ -28,6 +28,11 @@ A complete reference of all supported input and output formats, with notes on qu
 > turning scans/photos into uniform documents). Transparency is flattened onto a
 > white background since PDF has no alpha channel; EXIF/GPS metadata is stripped.
 
+> **Orientation**: phones store a photo as the sensor saw it and note the turn
+> in its EXIF data. Every image conversion and compression applies that turn
+> to the pixels before the metadata is stripped, so a portrait photo comes back
+> (and lands on a PDF page) upright.
+
 > **Note**: HEIC/HEIF input needs only the `pillow-heif` Python package, which
 > `requirements.txt` installs; its binary wheels bundle libheif, so no ffmpeg and
 > no system package is needed. There are wheels for 64-bit x86 and ARM on Linux,
