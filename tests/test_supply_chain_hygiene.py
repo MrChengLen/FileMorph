@@ -139,6 +139,18 @@ _PIP_AUDIT_RE = re.compile(r"pip[-_]audit\b[^\n`]*?\s+(?:-r|--requirement)(?:\s+
 # pip-audit's default, and OSV. Either can lack an advisory the other lists.
 _AUDIT_SERVICES = ("pypi", "osv")
 _AUDIT_SERVICE_RE = re.compile(r"\s(?:-s|--vulnerability-service)(?:\s+|=)(\w+)")
+# The only options a CI audit passes. Any other can let a vulnerable pin through:
+# --fix rewrites the runner's copy of the lockfile and exits 0, --dry-run audits
+# nothing, --osv-url asks another server.
+_AUDIT_OPTIONS = {
+    "-r",
+    "--requirement",
+    "-s",
+    "--vulnerability-service",
+    "--disable-pip",
+    "--strict",
+    "--ignore-vuln",
+}
 # An image tag that starts with `v`, with or without the registry path in
 # front (`filemorph:v1.2.3`, `filemorph:vX.Y.Z`). docker.yml pushes none.
 _V_IMAGE_TAG_RE = re.compile(r"\bfilemorph:v", re.IGNORECASE)
@@ -352,14 +364,14 @@ def _pip_audit_runs(script: str) -> list[tuple[str, str, str]]:
     """``(file, service, command)`` for every command of a ``run:`` script
     that starts with ``pip-audit`` and audits ``-r <file>``. The service is
     pip-audit's default, ``pypi``, unless ``-s``/``--vulnerability-service``
-    names another."""
+    names another; as in pip-audit, the last one counts."""
     runs = []
     for command in _script_commands(script):
         if not re.match(r"pip-audit\b", command):
             continue
         for target in _PIP_AUDIT_RE.findall(command):
-            service = _AUDIT_SERVICE_RE.search(command)
-            runs.append((target, service.group(1) if service else "pypi", command))
+            services = _AUDIT_SERVICE_RE.findall(command)
+            runs.append((target, services[-1] if services else "pypi", command))
     return runs
 
 
@@ -382,14 +394,16 @@ def test_every_lockfile_is_audited_against_pypi_and_osv(workflow: str, job: str)
     PYSEC-2026-4243 for mako 1.4.1, which OSV had.
 
     ``lint-and-test`` is a required check, so nothing may let an audit pass
-    without its verdict: no ``if:`` or ``continue-on-error``, no ``shell:``,
-    ``defaults:`` or ``PIP_AUDIT_*`` setting, nothing in the step besides the
-    pip-audit commands (after a ``set +e`` only the last exit code counts),
-    and no command chained to another. Every command runs with
-    ``--disable-pip``, which audits each pin as written, and ``--strict``,
-    which fails on a package the source cannot look up instead of skipping
-    it. deps-latest.yml repeats the audits weekly, for advisories published
-    in a week without pushes.
+    without its verdict or change what it checks: the audit step holds only
+    its name and script (no ``if:``, ``continue-on-error``, ``shell:``,
+    ``env:`` or ``working-directory:``), the job and the workflow set no
+    ``defaults:`` or ``PIP_AUDIT_*`` variable, the script runs the pip-audit
+    commands and nothing else (after a ``set +e`` only the last exit code
+    counts), no command is chained to another, and each passes only the
+    options in ``_AUDIT_OPTIONS``: ``--disable-pip``, which audits each pin as
+    written, and ``--strict``, which fails on a package the source cannot look
+    up instead of skipping it, every time. deps-latest.yml repeats the audits
+    weekly, for advisories published in a week without pushes.
     """
     parsed = _workflow(_WORKFLOW_DIR / workflow)
     assert job in parsed["jobs"], f"{workflow} has no job `{job}` — update this guard"
@@ -409,9 +423,10 @@ def test_every_lockfile_is_audited_against_pypi_and_osv(workflow: str, job: str)
         if not audits:
             continue
         label = f"{workflow} job `{job}`, step {step.get('name')!r}"
-        assert not {"if", "shell"} & step.keys() and not step.get("continue-on-error"), (
-            f"{label}: an `if:`, `shell:` or `continue-on-error` can let the job pass without "
-            f"the pip-audit verdict"
+        assert set(step) <= {"name", "id", "run"}, (
+            f"{label}: only `name`, `id` and `run` — an `if:`, `continue-on-error`, `shell:`, "
+            f"`env:` or `working-directory:` can let the job pass without the pip-audit verdict "
+            f"or change what it checks"
         )
         for command in _script_commands(step["run"]):
             assert command.startswith("pip-audit "), (
@@ -427,7 +442,11 @@ def test_every_lockfile_is_audited_against_pypi_and_osv(workflow: str, job: str)
                 f"{label} runs `{command}` without --disable-pip and --strict, so it can leave "
                 f"packages out"
             )
-            assert not {"-d", "--dry-run"} & set(flags), f"{label}: `{command}` audits nothing"
+            options = {flag.split("=")[0] for flag in flags[1:] if flag.startswith("-")}
+            assert options <= _AUDIT_OPTIONS, (
+                f"{label}: `{command}` passes {sorted(options - _AUDIT_OPTIONS)}, which can let "
+                f"a vulnerable pin through"
+            )
             runs.add((target, service))
     expected = {(name, service) for name in _lockfile_names() for service in _AUDIT_SERVICES}
     assert runs == expected, (
@@ -584,10 +603,24 @@ def test_deps_latest_mirrors_lint_and_test() -> None:
     ``--ignore-vuln`` added to ci.yml alone would fail the weekly audit.
     """
     ci, latest = _workflow_code("ci.yml"), _workflow_code("deps-latest.yml")
-    for pattern in (r"apt-get install -y .*", r"pytest tests/.*", r"pip-audit .*"):
+    for pattern in (r"apt-get install -y .*", r"pytest tests/.*"):
         assert re.findall(pattern, latest) == re.findall(pattern, ci), (
             f"deps-latest.yml and ci.yml disagree on `{pattern}` — keep them in step"
         )
+    ci_audits, latest_audits = (
+        [
+            command
+            for job in _workflow(_WORKFLOW_DIR / name)["jobs"].values()
+            for step in _steps(job)
+            for command in _script_commands(step.get("run") or "")
+            if command.startswith("pip-audit ")
+        ]
+        for name in ("ci.yml", "deps-latest.yml")
+    )
+    assert latest_audits == ci_audits, (
+        f"deps-latest.yml runs {latest_audits}, ci.yml {ci_audits} — keep the pip-audit "
+        f"commands in step"
+    )
 
 
 @pytest.mark.parametrize("workflow", ["sbom.yml", "release.yml", "docker.yml"])

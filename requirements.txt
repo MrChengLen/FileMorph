@@ -63,9 +63,9 @@ sqlalchemy[asyncio]>=2.1.5
 alembic>=1.20.0
 # alembic pulls in Mako, which renders its migration template. Before 1.4.2 a
 # TemplateLookup URI with a Windows drive letter escapes the template directory
-# (CVE-2026-102991 / PYSEC-2026-4243); FileMorph runs on Linux and renders no
-# template at runtime. A re-lock keeps existing pins, so this floor is what
-# moves it past the advisory.
+# (CVE-2026-102991 / PYSEC-2026-4243). FileMorph looks up no Mako template by
+# URI: only `alembic revision` renders alembic/script.py.mako, from a file. A
+# re-lock keeps existing pins, so this floor is what moves it past the advisory.
 mako>=1.4.2
 asyncpg>=0.32.0
 PyJWT>=2.15.1
