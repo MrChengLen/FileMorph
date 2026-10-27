@@ -217,19 +217,19 @@ def test_formats_page_links_to_pdf_tools_via_tools_hub(client):
 @pytest.mark.parametrize("tool", ["split", "extract", "compress"])
 def test_related_tools_section_links_siblings_and_curated_pairs(client, tool):
     """De-dead-ending guard: each /pdf/* page links its two sibling tools
-    (never itself) and only PAIR_CONTENT-curated convert pairs (an
-    uncurated entry would 404 — see the import-time assert in pages.py)."""
-    from app.api.routes.pages import _PDF_TOOL_RELATED_PAIRS
-    from app.core.convert_pairs import PAIR_CONTENT
+    (never itself) and the convert pages its catalogue entry names (the
+    catalogue rejects a related link outside it at import)."""
+    from app.core import catalog
 
     html = client.get(f"/en/pdf/{tool}").text
     main = html[html.index("<main") : html.index("</main>")]
     for sibling in {"split", "extract", "compress"} - {tool}:
         assert f'href="/en/pdf/{sibling}"' in main
     assert f'href="/en/pdf/{tool}"' not in main, "Related tools must not link itself"
-    for src, tgt in _PDF_TOOL_RELATED_PAIRS[tool]:
-        assert (src, tgt) in PAIR_CONTENT
-        assert f'href="/en/convert/{src}-to-{tgt}"' in main
+    related = catalog.get(f"/pdf/{tool}").related
+    assert related, f"/pdf/{tool} names no related convert page"
+    for path in related:
+        assert f'href="/en{path}"' in main
 
 
 # ── deployment-agnostic + honest-compress wording ────────────────────────────
