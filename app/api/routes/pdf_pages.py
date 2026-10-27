@@ -1,14 +1,19 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""PDF page-extract + split routes — a "Morph > Convert" structural op.
+"""PDF page routes — "Morph > Convert" structural ops.
 
-Two same-origin endpoints under the existing ``/api/v1`` prefix (no new
-cross-origin surface, so the network-quadruple-check is a no-op — see the
-module-level note in the PR report):
+Same-origin endpoints under the existing ``/api/v1`` prefix (no new
+cross-origin surface; the response headers a page reads are listed in
+``expose_headers`` in ``app/main.py``):
 
 * ``POST /api/v1/pdf/extract`` — form fields ``file`` + ``pages``
   (1-based, e.g. ``"1-3,5"``) → a single PDF containing only those pages.
 * ``POST /api/v1/pdf/split`` — form field ``file`` → one single-page PDF
   per page, bundled as a ZIP via :mod:`app.core.batch`.
+* ``POST /api/v1/pdf/compress`` — ``file`` + ``target_kb`` → the PDF with
+  its images recompressed to fit.
+* ``POST /api/v1/pdf/insert`` — ``file`` + ``insert_file`` (a PDF, a
+  ``.docx`` or an image) + optional ``after_page`` → the PDF with the second
+  file's pages inserted (``app/converters/pdf_insert.py``).
 
 Why a dedicated route instead of riding ``/convert``
 ----------------------------------------------------
@@ -45,6 +50,8 @@ from app.api.deps import caller_tier, require_api_key
 from app.api.routes.auth import get_optional_user
 from app.converters._isolated import TooComplexError, run_isolated
 from app.converters.base import EncryptedPdfError, InvalidInputError, OutputTooLargeError
+from app.converters.image import _IMAGE_FORMATS
+from app.converters.pdf_insert import image_to_pdf, word_to_pdf
 from app.converters.pdf_pages import (
     PageSelectionError,
     TooManyPagesError,
@@ -54,6 +61,7 @@ from app.converters.pdf_pages import (
 )
 from app.core.batch import BatchFileResult, build_batch_zip
 from app.core.concurrency import acquire_slot
+from app.core.image_hardening import DECOMPRESSION_BOMB
 from app.core.metrics import increment as metric_increment
 from app.core.observability import record_conversion
 from app.core.processing import BLOCKED_MAGIC, actor_id
@@ -68,7 +76,15 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-def _write_upload_and_check_magic(upload: UploadFile, input_path: Path) -> int:
+def _field_header(field: str | None) -> dict[str, str]:
+    """``X-FileMorph-Error-Field`` for a route with more than one upload
+    (``/pdf/insert``): the form field the error is about, never a filename."""
+    return {"X-FileMorph-Error-Field": field} if field else {}
+
+
+def _write_upload_and_check_magic(
+    upload: UploadFile, input_path: Path, field: str | None = None
+) -> int:
     """Stream the upload to disk, run the magic-byte guard, return its size.
 
     Mirrors the convert route: PE/ELF/shell/PHP prefixes are rejected
@@ -79,18 +95,20 @@ def _write_upload_and_check_magic(upload: UploadFile, input_path: Path) -> int:
     with open(input_path, "rb") as f:
         header = f.read(16)
     if any(header.startswith(sig) for sig in BLOCKED_MAGIC):
-        raise HTTPException(status_code=400, detail="File type not permitted.")
+        raise HTTPException(
+            status_code=400, detail="File type not permitted.", headers=_field_header(field) or None
+        )
     return input_path.stat().st_size
 
 
-def _enforce_input_size(file: UploadFile, quota, tier: str) -> None:
+def _enforce_input_size(file: UploadFile, quota, tier: str, field: str | None = None) -> None:
     """Tier-based input-size cap — identical semantics to /convert."""
     if file.size is not None and file.size > quota.max_file_size_bytes:
         detail = file_too_large_message(tier, quota.max_file_size_bytes)
         raise HTTPException(
             status_code=status.HTTP_413_CONTENT_TOO_LARGE,
             detail=detail,
-            headers={"X-FileMorph-Error-Code": "input_too_large"},
+            headers={"X-FileMorph-Error-Code": "input_too_large", **_field_header(field)},
         )
 
 
@@ -333,21 +351,26 @@ async def _do_split(
     )
 
 
-def _enforce_output_cap(output_size: int, quota, tier: str) -> None:
+_EXTRACT_LESS = "Extract a smaller page range."
+
+
+def _enforce_output_cap(output_size: int, quota, tier: str, next_step: str = _EXTRACT_LESS) -> None:
     """Reject before streaming if the output exceeds the tier bandwidth cap."""
     if output_size > quota.output_cap_bytes:
-        raise _output_cap_error(output_size, quota, tier)
+        raise _output_cap_error(output_size, quota, tier, next_step)
 
 
-def _output_cap_error(output_size: int | None, quota, tier: str) -> HTTPException:
+def _output_cap_error(
+    output_size: int | None, quota, tier: str, next_step: str = _EXTRACT_LESS
+) -> HTTPException:
     """The output-cap 413. ``None``: the split stopped at the cap, so the full
-    size is unknown."""
+    size is unknown. ``next_step`` names the free way under the cap."""
     cap_mb = quota.output_cap_bytes // _MB
     if output_size is None:
         too_large = f"Output too large (over the {cap_mb} MB cap)."
     else:
         too_large = f"Output too large ({output_size // _MB} MB > {cap_mb} MB cap)."
-    hint = f"Extract a smaller page range. {higher_cap_hint(tier)}"
+    hint = f"{next_step} {higher_cap_hint(tier)}"
     return HTTPException(
         status_code=status.HTTP_413_CONTENT_TOO_LARGE,
         detail=f"{too_large} {hint}",
@@ -539,5 +562,249 @@ async def _do_compress(
         media_type="application/pdf",
         filename=download_name,
         headers=response_headers,
+        background=BackgroundTask(shutil.rmtree, tmp_dir, ignore_errors=True),
+    )
+
+
+# ── Insert ───────────────────────────────────────────────────────────────────
+
+_TOO_COMPLEX_TO_INSERT = (
+    "These files are too large or complex to combine in one go. Extract the part "
+    "of the PDF you need with /api/v1/pdf/extract and insert into it, or compress "
+    "the files first."
+)
+# Word formats LibreOffice would read, but the insertion takes only .docx: the
+# message says how to get there.
+_OTHER_DOCUMENT_FORMATS = {"doc", "odt", "rtf", "pages", "wps"}
+_INSERT_TYPES = "Insert a PDF, a Word file (.docx) or an image (JPG, PNG, HEIC, WebP, …)."
+_COMPRESS_FIRST = "Compress the PDF or the file to insert first."
+_INSERT_FIELDS = ("file", "insert_file", "after_page")
+
+
+def _insert_kind(filename: str | None) -> str | None:
+    """``pdf``, ``docx`` or ``image`` for a file the insertion takes, by its
+    extension; ``None`` for any other."""
+    ext = Path(filename or "").suffix.lstrip(".").lower()
+    if ext in ("pdf", "docx"):
+        return ext
+    return "image" if ext in _IMAGE_FORMATS else None
+
+
+def _field_error(code: str, field: str, detail: str, **headers: str) -> HTTPException:
+    """The 400 for an input the insertion can't use; ``field`` names the form
+    field, so the page can show the error there."""
+    return HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail=detail,
+        headers={"X-FileMorph-Error-Code": code, "X-FileMorph-Error-Field": field, **headers},
+    )
+
+
+@router.post("/pdf/insert", tags=["Convert"], dependencies=[Depends(require_api_key)])
+@limiter.limit("10/minute")
+async def pdf_insert(
+    request: Request,
+    file: UploadFile,
+    insert_file: UploadFile,
+    after_page: int | None = Form(
+        None,
+        ge=0,
+        description="Insert after this page (1-based); 0 inserts at the start. "
+        "Leave it out to insert at the end.",
+    ),
+    user: User | None = Depends(get_optional_user),
+) -> Response:
+    tier = caller_tier(request, user)
+    async with acquire_slot(actor_id=actor_id(request, user, tier), tier=tier):
+        return await _do_insert(request, file, insert_file, after_page, user, tier)
+
+
+async def _do_insert(
+    request: Request,
+    file: UploadFile,
+    insert_file: UploadFile,
+    after_page: int | None,
+    user: User | None,
+    tier: str,
+) -> Response:
+    if Path(file.filename or "").suffix.lstrip(".").lower() != "pdf":
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Inserting pages requires a PDF to insert them into.",
+            headers={"X-FileMorph-Error-Field": "file"},
+        )
+    kind = _insert_kind(insert_file.filename)
+    if kind is None:
+        ext = Path(insert_file.filename or "").suffix.lstrip(".").lower()
+        detail = (
+            "Only Word files in the .docx format can be inserted. Save the document as "
+            ".docx or as a PDF first."
+            if ext in _OTHER_DOCUMENT_FORMATS
+            else f"This file type can't be inserted. {_INSERT_TYPES}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail=detail,
+            headers={
+                "X-FileMorph-Error-Code": "unsupported_format",
+                "X-FileMorph-Error-Field": "insert_file",
+            },
+        )
+
+    quota = get_quota(tier)
+    _enforce_input_size(file, quota, tier, field="file")
+    _enforce_input_size(insert_file, quota, tier, field="insert_file")
+    await enforce_monthly_quota(user)
+
+    original_stem = Path(file.filename or "result").stem
+    _t0 = time.monotonic()
+    tmp_dir = tempfile.mkdtemp(prefix="fm_")
+    try:
+        temp_stem = uuid.uuid4().hex
+        base_path = Path(tmp_dir) / f"{temp_stem}.pdf"
+        # The extension is one _insert_kind accepted; the stem stays a UUID.
+        insert_ext = Path(insert_file.filename or "").suffix.lstrip(".").lower()
+        insert_path = Path(tmp_dir) / f"{temp_stem}.insert.{insert_ext}"
+        insert_pdf = insert_path if kind == "pdf" else Path(tmp_dir) / f"{temp_stem}.insert.pdf"
+        output_path = Path(tmp_dir) / f"{temp_stem}.out.pdf"
+        base_size = _write_upload_and_check_magic(file, base_path, field="file")
+        insert_size = _write_upload_and_check_magic(insert_file, insert_path, field="insert_file")
+
+        try:
+            # The file to insert as a PDF, in the app process like /convert —
+            # before the child reads the PDF and checks the position, so a
+            # mistyped page costs a Word file its LibreOffice run: the price
+            # of reading no PDF here.
+            # One image page is metadata-stripped and turned upright like
+            # every image conversion; insert_pages fits it to its neighbour.
+            if kind == "image":
+                await asyncio.to_thread(image_to_pdf, insert_path, insert_pdf)
+            elif kind == "docx":
+                await asyncio.to_thread(word_to_pdf, insert_path, insert_pdf)
+        except DECOMPRESSION_BOMB:
+            logger.warning("pdf insert: decompression bomb rejected")
+            raise _field_error(
+                "decompression_bomb",
+                "insert_file",
+                "Image dimensions exceed safety limits — decoding would use "
+                "excessive memory. Reduce the image size and retry.",
+            ) from None
+        except InvalidInputError as exc:
+            logger.info("pdf insert rejected (insert_file): %s", exc)
+            raise _field_error(
+                getattr(exc, "error_code", "invalid_input"), "insert_file", str(exc)
+            ) from None
+
+        try:
+            # pypdf reads both PDFs, checks the position and merges the pages
+            # in a child process with memory and time limits, waited for off
+            # the event loop: no PDF is read in the app process.
+            result = await asyncio.to_thread(
+                run_isolated,
+                "pdf-insert",
+                too_large=_TOO_COMPLEX_TO_INSERT,
+                tmp_dir=Path(tmp_dir),
+                base_path=base_path,
+                insert_path=insert_pdf,
+                output_path=output_path,
+                after_page=after_page,
+                kind=kind,
+                max_output_bytes=quota.output_cap_bytes,
+            )
+        except OutputTooLargeError:
+            raise _output_cap_error(None, quota, tier, _COMPRESS_FIRST) from None
+        except InvalidInputError as exc:
+            # Damage that only showed while copying, or past the child's
+            # limits. The code says which; the field can't.
+            logger.info("pdf insert rejected: %s", exc)
+            if isinstance(exc, TooComplexError):
+                code = "pdf_too_complex"
+            else:
+                code = getattr(exc, "error_code", "invalid_pdf")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(exc),
+                headers={"X-FileMorph-Error-Code": code},
+            ) from None
+        except Exception:
+            # security.md: no pypdf internals to the client. Like
+            # /pdf/compress, a PDF that breaks the merge is a damaged one: 400.
+            logger.exception("PDF insert error")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Inserting the pages failed. Verify both files are valid.",
+                headers={"X-FileMorph-Error-Code": "invalid_pdf"},
+            ) from None
+        refused = result.get("refused")
+        if refused is not None:
+            # Data from the sandboxed child goes into headers and logs: only
+            # a known field and a plain code.
+            if (
+                refused.get("field") not in _INSERT_FIELDS
+                or not str(refused.get("code", "")).isidentifier()
+            ):
+                logger.warning("pdf insert: unexpected refusal from the child")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Inserting the pages failed. Verify both files are valid.",
+                    headers={"X-FileMorph-Error-Code": "invalid_pdf"},
+                )
+            logger.info("pdf insert rejected (%s): %s", refused["field"], refused["code"])
+            extra = {}
+            if "page_count" in refused:
+                extra["X-FileMorph-Page-Count"] = str(refused["page_count"])
+            raise _field_error(refused["code"], refused["field"], refused["message"], **extra)
+        # Only the result is needed to answer; the inputs go now.
+        for path in (base_path, insert_path, insert_pdf):
+            path.unlink(missing_ok=True)
+
+        output_disk_size = output_path.stat().st_size
+        _enforce_output_cap(output_disk_size, quota, tier, _COMPRESS_FIRST)
+
+        download_name = safe_download_name(original_stem, "_inserted.pdf")
+        duration_ms = round((time.monotonic() - _t0) * 1000)
+        input_size_bytes = base_size + insert_size
+        logger.info(
+            "pdf insert complete",
+            extra={
+                "operation": "pdf_insert",
+                "tier": tier,
+                "src_format": "pdf",
+                "tgt_format": "pdf",
+                "insert_format": insert_ext,
+                "input_size_bytes": input_size_bytes,
+                "output_size_bytes": output_disk_size,
+                "inserted_pages": result["inserted_pages"],
+                "pages": result["page_count"],
+                "duration_ms": duration_ms,
+                "success": True,
+            },
+        )
+        await metric_increment("pdf.insert")
+        record_conversion("pdf_insert", "pdf", "pdf", "success")
+        await record_usage(
+            user_id=user.id if user is not None else None,
+            api_key_id=None,
+            endpoint="pdf/insert",
+            file_size_bytes=input_size_bytes,
+            duration_ms=duration_ms,
+        )
+    except HTTPException:
+        await metric_increment("failures.pdf_insert")
+        record_conversion("pdf_insert", "pdf", "pdf", "failure")
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        raise
+    except BaseException:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        raise
+
+    return FileResponse(
+        output_path,
+        media_type="application/pdf",
+        filename=download_name,
+        headers={
+            "X-FileMorph-Inserted-Pages": str(result["inserted_pages"]),
+            "X-FileMorph-Page-Count": str(result["page_count"]),
+        },
         background=BackgroundTask(shutil.rmtree, tmp_dir, ignore_errors=True),
     )

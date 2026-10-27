@@ -126,6 +126,13 @@ def apply_hardening() -> None:
     EpsImagePlugin.gs_binary = False
 
 
+# What an image over the size limit raises, for the routes to answer with
+# ``decompression_bomb``: the error above Pillow's 2× ceiling, and below it
+# the warning that ``apply_hardening`` turns into an exception. The warning is
+# no subclass of the error, so a handler needs both.
+DECOMPRESSION_BOMB = (Image.DecompressionBombError, Image.DecompressionBombWarning)
+
+
 def open_image(fp: str | os.PathLike[str] | IO[bytes]) -> ImageFile.ImageFile:
     """``Image.open`` for uploaded data, limited to ``IMAGE_INPUT_FORMATS``.
 
