@@ -40,6 +40,20 @@ from __future__ import annotations
 from PIL import Image
 
 
+def _transparency_fits(mode: str, value: object) -> bool:
+    """Whether ``value`` is a transparency the encoders take for ``mode``: a
+    palette index or alpha table, a grey level, or an RGB colour. A stale or
+    malformed one — an index or table past 256 entries, a grey level left on
+    an image converted to RGB — is dropped, as it always was."""
+    if mode == "P":
+        return (isinstance(value, int) and 0 <= value < 256) or (
+            isinstance(value, bytes) and len(value) <= 256
+        )
+    if mode in ("1", "L", "I") or mode.startswith("I;16"):
+        return isinstance(value, int)
+    return mode == "RGB" and isinstance(value, tuple) and len(value) == 3
+
+
 def strip_metadata(img: Image.Image) -> Image.Image:
     """Return a copy of ``img`` with EXIF / XMP / IPTC / MakerNote
     stripped, ICC colour profile preserved.
@@ -50,7 +64,11 @@ def strip_metadata(img: Image.Image) -> Image.Image:
     inside it) to decide whether to write back metadata blocks; an
     empty ``info`` therefore yields a metadata-free output regardless
     of which save format the caller picks. The pixel data, the mode,
-    and the size are preserved bit-for-bit.
+    and the size are preserved bit-for-bit — for a palette image with
+    its palette, since its pixels are only indices into it, and for any
+    image with its transparent index or colour where that fits the mode.
+    Both are pixel data, not metadata; without the palette every pixel
+    comes out one colour.
 
     The ICC profile is the one piece of metadata we re-attach because
     losing it can desaturate or shift colours on wide-gamut images
@@ -58,8 +76,14 @@ def strip_metadata(img: Image.Image) -> Image.Image:
     the photo or where.
     """
     icc = img.info.get("icc_profile")
+    transparency = img.info.get("transparency")
     clean = Image.new(img.mode, img.size)
+    if img.mode in ("P", "PA") and img.palette is not None:
+        palette_mode = img.palette.mode
+        clean.putpalette(img.getpalette(palette_mode), palette_mode)
     clean.paste(img)
     if icc:
         clean.info["icc_profile"] = icc
+    if transparency is not None and _transparency_fits(img.mode, transparency):
+        clean.info["transparency"] = transparency
     return clean

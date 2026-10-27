@@ -16,6 +16,11 @@ Properties verified:
    WEBP / TIFF produces output with no EXIF block.
 3. End-to-end: compression of a JPEG-with-EXIF (any quality, any
    target-size path) produces output with no EXIF block.
+4. The pixels survive in every mode — a palette image (every GIF, 8-bit
+   PNGs) keeps its palette, and the transparent colour is kept — so a
+   converted or compressed palette image looks the same. Without the
+   palette every pixel came out one colour, which size/mode checks alone
+   never caught.
 """
 
 from __future__ import annotations
@@ -23,7 +28,8 @@ from __future__ import annotations
 from io import BytesIO
 from pathlib import Path
 
-from PIL import Image
+import pytest
+from PIL import Image, ImageChops, ImageStat
 from PIL.ExifTags import Base as ExifBase, GPS as ExifGPS, IFD
 
 from app.converters._metadata import strip_metadata
@@ -98,6 +104,166 @@ def test_strip_metadata_preserves_icc_profile():
     clean = strip_metadata(img)
     assert "exif" not in clean.info
     assert clean.info.get("icc_profile") == b"\x00\x01\x02icc-profile-bytes"
+
+
+def _image(mode: str, colour: bool = False) -> Image.Image:
+    """A small image whose pixels differ; for "P" a 256-colour palette
+    image, the shape of every GIF and of 8-bit PNGs. Grey unless ``colour``:
+    lossy WebP shifts colour noise too far for a pixel comparison."""
+    noise = Image.effect_noise((60, 40), 90)
+    if colour:
+        noise = Image.merge("RGB", [Image.effect_noise((60, 40), 90) for _ in range(3)])
+    if mode == "P":
+        return noise.convert("RGB").convert("P", palette=Image.Palette.ADAPTIVE)
+    return noise.convert(mode)
+
+
+@pytest.mark.parametrize("mode", ["RGB", "RGBA", "L", "LA", "P", "1", "CMYK", "I;16"])
+def test_strip_metadata_keeps_the_pixels(mode):
+    """The pixels survive bit for bit — for a palette image with its
+    palette, since its pixels are only indices into it. Colour noise, so a
+    mixed-up channel order in the palette would show."""
+    img = _image(mode, colour=True)
+
+    clean = strip_metadata(img)
+
+    assert (clean.mode, clean.size) == (img.mode, img.size)
+    assert clean.tobytes() == img.tobytes()
+    if mode == "P":
+        assert clean.getpalette() == img.getpalette()
+        assert clean.convert("RGB").tobytes() == img.convert("RGB").tobytes()
+
+
+@pytest.mark.parametrize("mode, transparency", [("P", 7), ("L", 42), ("RGB", (1, 2, 3))])
+def test_strip_metadata_keeps_the_transparent_colour(mode, transparency):
+    """Which index or colour is transparent is pixel data, not metadata:
+    it stays, while EXIF still goes."""
+    img = _image(mode)
+    img.info["transparency"] = transparency
+    img.info["exif"] = b"some-exif"
+
+    clean = strip_metadata(img)
+
+    assert clean.info.get("transparency") == transparency
+    assert "exif" not in clean.info
+
+
+@pytest.mark.parametrize(
+    "mode, transparency",
+    [("P", 300), ("P", bytes(300)), ("RGB", 5), ("L", (1, 2, 3))],
+    ids=["P-index-past-the-palette", "P-table-past-the-palette", "RGB-grey-level", "L-colour"],
+)
+def test_strip_metadata_drops_a_transparency_that_does_not_fit(mode, transparency):
+    """A stale or malformed transparency — a crafted table longer than the
+    palette, a grey level left on an RGB image — would make the encoders
+    fail: it is dropped, as it always was."""
+    img = _image(mode)
+    img.info["transparency"] = transparency
+
+    assert "transparency" not in strip_metadata(img).info
+
+
+def test_palette_png_with_an_alpha_table_converts_to_gif(client, auth_headers):
+    """A quantized PNG (pngquant or TinyPNG output) carries an alpha table;
+    GIF takes one transparent index, so the converter goes through RGBA and
+    the transparent pixels stay transparent."""
+    rgba = Image.effect_noise((120, 80), 90).convert("RGBA")
+    rgba.paste((0, 0, 0, 0), (0, 0, 60, 40))
+    buf = BytesIO()
+    rgba.quantize(64).save(buf, format="PNG")
+    assert isinstance(Image.open(BytesIO(buf.getvalue())).info["transparency"], bytes), (
+        "fixture lost its alpha table — test setup bug"
+    )
+
+    resp = client.post(
+        "/api/v1/convert",
+        files={"file": ("in.png", buf.getvalue(), "image/png")},
+        data={"target_format": "gif"},
+        headers=auth_headers,
+    )
+
+    assert resp.status_code == 200, resp.text
+    transparent_in = Image.open(BytesIO(buf.getvalue())).convert("RGBA").getchannel("A")
+    transparent_out = Image.open(BytesIO(resp.content)).convert("RGBA").getchannel("A")
+    assert transparent_out.histogram()[0] == transparent_in.histogram()[0] > 0
+
+
+def test_bilevel_png_with_a_transparent_level_converts_to_ico(client, auth_headers):
+    """A 1-bit PNG's transparent level goes stale when the converter turns
+    it into RGB: it is dropped instead of breaking the ICO encoder."""
+    buf = BytesIO()
+    Image.effect_noise((32, 32), 120).convert("1").save(buf, format="PNG", transparency=0)
+
+    resp = client.post(
+        "/api/v1/convert",
+        files={"file": ("in.png", buf.getvalue(), "image/png")},
+        data={"target_format": "ico"},
+        headers=auth_headers,
+    )
+
+    assert resp.status_code == 200, resp.text
+
+
+@pytest.mark.parametrize(
+    "source, target",
+    [("gif", "png"), ("gif", "bmp"), ("gif", "tiff"), ("gif", "webp"), ("png", "gif")],
+)
+def test_convert_palette_image_keeps_the_picture(client, auth_headers, source, target):
+    """Every GIF and every 8-bit PNG is a palette image: converting one
+    keeps its colours, not one colour for every pixel."""
+    src = _image("P")
+    buf = BytesIO()
+    src.save(buf, format=source.upper())
+
+    resp = client.post(
+        "/api/v1/convert",
+        files={"file": (f"in.{source}", buf.getvalue(), f"image/{source}")},
+        data={"target_format": target},
+        headers=auth_headers,
+    )
+
+    assert resp.status_code == 200, resp.text
+    out = Image.open(BytesIO(resp.content)).convert("RGB")
+    expected = Image.open(BytesIO(buf.getvalue())).convert("RGB")
+    if target == "webp":  # lossy: close to the picture, not bit for bit
+        assert ImageStat.Stat(ImageChops.difference(out, expected)).mean[0] < 10
+    else:
+        assert out.tobytes() == expected.tobytes()
+
+
+def test_convert_transparent_gif_to_png_keeps_the_transparency(client, auth_headers):
+    src = _image("P")
+    buf = BytesIO()
+    src.save(buf, format="GIF", transparency=0)
+
+    resp = client.post(
+        "/api/v1/convert",
+        files={"file": ("in.gif", buf.getvalue(), "image/gif")},
+        data={"target_format": "png"},
+        headers=auth_headers,
+    )
+
+    assert resp.status_code == 200, resp.text
+    out = Image.open(BytesIO(resp.content)).convert("RGBA")
+    expected = Image.open(BytesIO(buf.getvalue())).convert("RGBA")
+    assert out.tobytes() == expected.tobytes()  # alpha included
+
+
+def test_compress_palette_png_keeps_the_picture(client, auth_headers):
+    src = _image("P")
+    buf = BytesIO()
+    src.save(buf, format="PNG")
+
+    resp = client.post(
+        "/api/v1/compress",
+        files={"file": ("in.png", buf.getvalue(), "image/png")},
+        data={"quality": "85"},
+        headers=auth_headers,
+    )
+
+    assert resp.status_code == 200, resp.text
+    out = Image.open(BytesIO(resp.content)).convert("RGB")
+    assert out.tobytes() == src.convert("RGB").tobytes()
 
 
 def test_convert_jpeg_to_png_strips_exif(client, auth_headers, tmp_path):
