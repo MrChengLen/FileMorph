@@ -574,7 +574,11 @@ The threat model lists the known classes:
   individual requests.
 - **EXIF / GPS leakage** — image conversions and compressions strip
   EXIF / XMP / IPTC metadata by default; ICC colour profile preserved
-  so wide-gamut workflows are not visibly desaturated.
+  so wide-gamut workflows are not visibly desaturated. Video
+  conversions and compressions copy no tags or chapters from the
+  source; audio conversions keep only the music tags (title, artist,
+  album artist, album, track number, genre, year) —
+  `app/converters/_ffmpeg.py`.
 
 ### 6.7 Do error messages disclose internals?
 

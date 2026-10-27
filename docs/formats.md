@@ -250,6 +250,12 @@ All audio conversions invoke **ffmpeg** directly — streaming with constant
 memory, with a per-codec quality mapping (VBR for MP3/Vorbis, bitrate for
 AAC/Opus).
 
+An audio output keeps the source's music tags — title, artist and album
+artist, album, track number, genre, and the year of its date — and nothing
+else: other tags (such as the recording time, the device or comments),
+embedded cover art and chapters are dropped. An AAC (ADTS) output carries
+no tags, a WAV output no album artist.
+
 ### Conversions
 
 | Format | Description | Common use case |
@@ -282,6 +288,12 @@ Any of the above can be converted to any other format.
 All video conversions invoke **ffmpeg** (via ffmpeg-python), with codecs
 picked per target container: H.264 + AAC for MP4, MOV, MKV and FLV; VP9 +
 Opus for WebM; MPEG-4 Part 2 + MP3 for AVI; WMV2 + WMA for WMV.
+
+A video output — converted or compressed — carries no metadata from the
+source: none of its tags (such as where, when and with which device a clip
+was filmed) and none of its chapters, the same default as the metadata
+strip for images. Portrait clips stay upright: their rotation is applied to
+the frames.
 
 ### Conversions
 

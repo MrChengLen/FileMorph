@@ -181,6 +181,23 @@ jobs:
           else:
               raise SystemExit("a GIF over the cap was not refused")
           PY
+          # Audio (app/converters/audio.py): the music tags are read and
+          # written back with the image's ffmpeg — from an MP3's container,
+          # then from an Ogg file's audio stream — and no other tag is kept.
+          docker exec -i filemorph python - <<'PY'
+          import json, pathlib, subprocess, tempfile
+          import app.converters.audio  # registers the audio pairs
+          from app.converters.registry import get_converter
+          d = pathlib.Path(tempfile.mkdtemp())
+          tags = ["-metadata", "title=Song", "-metadata", "date=2026-06-15", "-metadata", "location=+53.5+009.9/"]
+          subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "sine=duration=0.5", *tags, str(d / "in.mp3")], check=True)
+          get_converter("mp3", "ogg").convert(d / "in.mp3", d / "mid.ogg", quality=85)
+          get_converter("ogg", "mp3").convert(d / "mid.ogg", d / "out.mp3", quality=85)
+          probe = ["ffprobe", "-v", "error", "-of", "json", "-show_entries", "format_tags", str(d / "out.mp3")]
+          kept = json.loads(subprocess.run(probe, capture_output=True, check=True).stdout)["format"]["tags"]
+          assert kept.get("title") == "Song" and kept.get("date") == "2026" and "location" not in kept, kept
+          print("ok: music tags kept, the location dropped")
+          PY
           docker exec filemorph gs --version
           docker exec filemorph python -c "import weasyprint; assert weasyprint.HTML(string='<p>probe</p>').write_pdf().startswith(b'%PDF')"
           # PDF -> TXT runs pypdf in a child process (app/converters/_pdf_text.py):

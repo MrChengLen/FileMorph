@@ -748,6 +748,14 @@ mechanically.
   ICC colour profiles are preserved so wide-gamut workflows are
   not visibly desaturated. There is no per-request opt-out: a
   caller who needs metadata kept holds the original.
+- Video conversions and compressions copy no metadata from the
+  source — no container or stream tags (location, device, capture
+  time) and no chapters — see
+  [`app/converters/_ffmpeg.py`](../app/converters/_ffmpeg.py).
+  Rotation is kept: it is applied to the frames, so portrait clips
+  stay upright. Audio conversions keep only the music tags (title,
+  artist, album artist, album, track number, genre, the year of the
+  date) and drop every other tag, cover art and chapters.
 - Successful conversion and compression responses carry an
   `X-Output-SHA256` header — a streaming SHA-256 of the bytes the
   client receives. The same hash lands in the audit-log payload
