@@ -74,14 +74,16 @@ def test_curated_pair_chip_is_a_link(client):
     assert '<a href="/en/convert/png-to-jpg"' in r.text
 
 
-def test_uncurated_pair_chip_stays_a_span(client):
+def test_uncurated_pair_chip_links_the_preset(client):
+    """A pair without a page of its own links the homepage converter, pre-set
+    by a fragment the server never sees — no thin page for it."""
     from app.core.convert_pairs import PAIR_CONTENT
 
     assert ("jpg", "bmp") not in PAIR_CONTENT, "test assumes jpg->bmp is NOT curated"
     r = client.get("/en/formats")
     assert r.status_code == 200
     assert '<a href="/en/convert/jpg-to-bmp"' not in r.text
-    assert "<span" in r.text and ">BMP<" in r.text
+    assert '<a href="/en/#convert=jpg-to-bmp"' in r.text
 
 
 def test_formats_page_links_to_tools_hub(client):

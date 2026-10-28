@@ -14,9 +14,16 @@ let compressMode = 'quality'; // 'quality' | 'target' — only meaningful in com
 let selectedFiles = [];
 // Pages pre-set to one target (/convert/<src>-to-<tgt>, /convert/video-to-gif)
 // put it on #drop-zone's data-preset-target; we pre-select it once the target
-// list is populated, for every file of a batch too. Empty on the homepage.
+// list is populated, for every file of a batch too. Empty on the homepage
+// unless a "#convert=" link pre-sets it (applyHashPreset).
 // See app/templates/partials/convert_tool.html.
 let presetTarget = '';
+// The source format a preset expects: a pair page's data-preset-source, or
+// the one a "#convert=<src>-to-<tgt>" link names (applyHashPreset). Empty
+// when the page has no preset or only a target (/convert/video-to-gif).
+let presetSource = '';
+// True while a "#convert=" link pre-sets the homepage converter.
+let hashPresetActive = false;
 
 // Mirrors TARGET_SIZE_FORMATS in app/compressors/image.py — a parity test pins this.
 const TARGET_SIZE_FORMATS = ['jpg', 'jpeg', 'webp', 'avif'];
@@ -47,7 +54,7 @@ async function init() {
   }
 }
 
-init();
+const formatsLoaded = init();
 
 document.addEventListener('DOMContentLoaded', () => {
   const btnConvert = document.getElementById('btn-mode-convert');
@@ -58,6 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const dz = document.getElementById('drop-zone');
   if (dz) {
     presetTarget = (dz.dataset.presetTarget || '').trim().toLowerCase();
+    presetSource = (dz.dataset.presetSource || '').trim().toLowerCase();
     dz.addEventListener('click', () => document.getElementById('file-input').click());
     dz.addEventListener('keydown', e => {
       if (e.key === 'Enter' || e.key === ' ') document.getElementById('file-input').click();
@@ -73,6 +81,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // Guarded: pair pages omit the mode buttons entirely — an unguarded
     // setMode would TypeError and abort the whole init handler.
     if (presetMode === 'compress' && document.getElementById('btn-mode-compress')) setMode('compress');
+
+    // A "#convert=<src>-to-<tgt>" link from /formats pre-sets the converter
+    // once the format list is in; a page with a preset of its own keeps it.
+    // A later fragment change applies only while no file is chosen, so it
+    // can't switch the target of a file already picked. /compress, which
+    // pre-sets a mode, takes no conversion preset.
+    if (!presetTarget && !presetMode) {
+      formatsLoaded.then(applyHashPreset);
+      window.addEventListener('hashchange', () => { if (!selectedFiles.length) applyHashPreset(); });
+    }
   }
 
   const fileInput = document.getElementById('file-input');
@@ -163,6 +181,9 @@ function setMode(mode) {
 
   updateConvertOptionsVisibility();
   renderFileList();
+  // A preset's notice belongs to convert mode: re-check it for the file.
+  resetPresetUi();
+  if (mode === 'convert' && selectedFiles.length === 1) updateTargetFormats(selectedFiles[0].name);
   updateQualityVisibility();
   updateFormatWarning();
   resetResultState();
@@ -231,6 +252,7 @@ function handleDrop(event) {
 
 function setFiles(files) {
   selectedFiles = files;
+  resetPresetUi();
 
   document.getElementById('drop-idle').classList.add('hidden');
   document.getElementById('drop-selected').classList.remove('hidden');
@@ -293,7 +315,14 @@ function renderFileList() {
           });
           // A page pre-set to a target (pair pages, /convert/video-to-gif)
           // keeps that target for every file of a batch, as for a single file.
-          if (presetTarget && targets.includes(presetTarget)) perRowSelect.value = presetTarget;
+          // A file that can't reach it asks for a target instead of getting
+          // another one silently.
+          if (presetTarget && targets.includes(presetTarget)) {
+            perRowSelect.value = presetTarget;
+          } else if (presetTarget) {
+            perRowSelect.insertBefore(choosePlaceholder(), perRowSelect.firstChild);
+            perRowSelect.value = '';
+          }
         }
         perRowSelect.addEventListener('change', () => updateQualityVisibility());
         // Row lives inside #drop-zone — without stopPropagation, a click on
@@ -353,12 +382,108 @@ function updatePdfToolsHint() {
   hint.classList.toggle('hidden', !isPdf);
 }
 
+// ── Preset links ──────────────────────────────────────────────────────────────
+// /formats links a conversion without a page of its own to
+// "/#convert=<src>-to-<tgt>". The fragment never reaches the server, so these
+// links add no pages for search engines and nothing is echoed into the HTML.
+// A pair applies only when the live format list has it; anything else leaves
+// the homepage as it is.
+// The file picker's accept value per source format. Mirrors _ACCEPT in
+// app/core/convert_pairs.py — a parity test pins this. Other formats get
+// their extension.
+const PRESET_ACCEPT = {
+  jpg: '.jpg,.jpeg,image/jpeg',
+  jpeg: '.jpg,.jpeg,image/jpeg',
+  png: '.png,image/png',
+  webp: '.webp,image/webp',
+  heic: '.heic,.heif,image/heic,image/heif',
+  heif: '.heic,.heif,image/heic,image/heif',
+  gif: '.gif,image/gif',
+  bmp: '.bmp,image/bmp',
+  tiff: '.tiff,.tif,image/tiff',
+  tif: '.tiff,.tif,image/tiff',
+  pdf: '.pdf,application/pdf',
+  docx: '.docx',
+  html: '.html,.htm,text/html',
+  eml: '.eml,message/rfc822',
+};
+
+function applyHashPreset() {
+  const raw = (new URLSearchParams(location.hash.slice(1)).get('convert') || '').toLowerCase();
+  const match = /^([a-z0-9]+)-to-([a-z0-9]+)$/.exec(raw);
+  if (!match) return;
+  const [, src, tgt] = match;
+  // An own array of targets only: prototype keys ("constructor") have none.
+  const targets = supportedConversions[src];
+  if (!Array.isArray(targets) || !targets.includes(tgt)) return;
+  presetSource = src;
+  presetTarget = tgt;
+  hashPresetActive = true;
+  // A conversion preset, like a pair page: convert mode, no mode toggle.
+  if (currentMode !== 'convert' && document.getElementById('btn-mode-convert')) setMode('convert');
+  const toggle = document.getElementById('mode-toggle');
+  if (toggle) toggle.classList.add('hidden');
+  const input = document.getElementById('file-input');
+  if (input) input.setAttribute('accept', PRESET_ACCEPT[src] || '.' + src);
+  setQuickActionsVisible(false);
+  showPresetNotice('presetReady', { src, tgt });
+  // Files chosen before the format list arrived get the preset too.
+  if (selectedFiles.length) setFiles(selectedFiles);
+}
+
+// The notice above the drop field: what a preset expects, or why the chosen
+// file doesn't fit it. The text comes from window.FM_I18N with its {tokens}
+// filled in as plain text (textContent), never as markup.
+function showPresetNotice(key, vars) {
+  const box = document.getElementById('preset-notice');
+  const text = document.getElementById('preset-notice-text');
+  const template = (window.FM_I18N || {})[key];
+  if (!box || !text || !template) return;
+  let message = template;
+  for (const [name, value] of Object.entries(vars)) {
+    message = message.split('{' + name + '}').join(String(value).toUpperCase());
+  }
+  const clear = document.getElementById('preset-clear');
+  if (clear) clear.classList.toggle('hidden', !hashPresetActive);
+  // The hidden attribute, not the class: space-y-* skips [hidden] children,
+  // so the hidden notice adds no gap above the drop field. Text is written
+  // a frame after the box shows, so screen readers announce it.
+  box.hidden = false;
+  requestAnimationFrame(() => { text.textContent = message; });
+}
+
+// Back to what the page says before any file: the preset of a "#convert="
+// link, or no notice at all.
+function resetPresetNotice() {
+  if (hashPresetActive) {
+    showPresetNotice('presetReady', { src: presetSource, tgt: presetTarget });
+    return;
+  }
+  const box = document.getElementById('preset-notice');
+  if (box) box.hidden = true;
+}
+
+// Before the next file: a pair page hides its target list again, and the
+// notice shows a link's preset or nothing.
+function resetPresetUi() {
+  if (presetSource && !hashPresetActive) document.getElementById('target-format').classList.add('hidden');
+  resetPresetNotice();
+}
+
+function choosePlaceholder() {
+  const opt = document.createElement('option');
+  opt.value = '';
+  opt.textContent = (window.FM_I18N || {}).chooseTargetFormat || '— choose a target format —';
+  return opt;
+}
+
 function removeFile(idx) {
   selectedFiles.splice(idx, 1);
   if (selectedFiles.length === 0) {
     clearAllFiles();
     return;
   }
+  resetPresetUi();
   renderFileList();
   updateConvertOptionsVisibility();
   if (selectedFiles.length === 1) {
@@ -374,9 +499,14 @@ function clearAllFiles(event) {
   document.getElementById('file-input').value = '';
   document.getElementById('drop-idle').classList.remove('hidden');
   document.getElementById('drop-selected').classList.add('hidden');
-  setQuickActionsVisible(true);
-  document.getElementById('target-format').innerHTML =
-    '<option value="">— select a file first —</option>';
+  setQuickActionsVisible(!hashPresetActive);
+  const select = document.getElementById('target-format');
+  select.innerHTML = '';
+  const idle = document.createElement('option');
+  idle.value = '';
+  idle.textContent = (window.FM_I18N || {}).selectFileFirst || '— select a file first —';
+  select.appendChild(idle);
+  resetPresetUi();
   // With no files this hides the quality slider, the compress-mode toggle and
   // the target-size section (incl. the AVIF hint) — not just the slider.
   updateQualityVisibility();
@@ -437,6 +567,12 @@ function updateTargetFormats(filename) {
   if (targets.length === 0) {
     const noConvLabel = (window.FM_I18N && window.FM_I18N.noConversionsAvailable) || 'No conversions available for this format';
     select.innerHTML = '<option value="">' + noConvLabel + '</option>';
+    // A pre-set page shows the list saying so, and what it expects, instead
+    // of a hidden, empty list.
+    if (presetTarget) {
+      select.classList.remove('hidden');
+      if (presetSource && currentMode === 'convert') showPresetNotice('presetReady', { src: presetSource, tgt: presetTarget });
+    }
     updateFormatWarning();
     return;
   }
@@ -447,11 +583,21 @@ function updateTargetFormats(filename) {
     opt.textContent = fmt.toUpperCase();
     select.appendChild(opt);
   });
-  // Pre-set page: pre-select the page's target if this file supports it
+  // Pre-set page or link: pre-select its target if this file supports it
   // (/convert/jpg-to-pdf → "pdf", /convert/video-to-gif → "gif"). Not
-  // disabled — the user may change it.
+  // disabled — the user may change it. A file that can't reach the target
+  // never gets another one silently (product-ux.md #1): the list starts at
+  // "choose a target", shown on a pair page too, and the notice says why.
   if (presetTarget && targets.includes(presetTarget)) {
     select.value = presetTarget;
+    resetPresetNotice();
+  } else if (presetTarget) {
+    select.insertBefore(choosePlaceholder(), select.firstChild);
+    select.value = '';
+    select.classList.remove('hidden');
+    if (currentMode === 'convert') {
+      showPresetNotice(presetSource ? 'presetMismatch' : 'presetMismatchTarget', { ext, src: presetSource, tgt: presetTarget });
+    }
   }
   updateFormatWarning();
 }
@@ -835,7 +981,9 @@ async function submitForm() {
       }
       for (const sel of rows) {
         if (!sel.value) {
-          alert(I18N.alertNoTargetAvailable || 'One of the files has no target format available. Remove it to proceed.');
+          alert(sel.disabled
+            ? (I18N.alertNoTargetAvailable || 'One of the files has no target format available. Remove it to proceed.')
+            : (I18N.alertNoTargetFormat || 'Please select a target format.'));
           return;
         }
         formData.append('target_formats', sel.value);

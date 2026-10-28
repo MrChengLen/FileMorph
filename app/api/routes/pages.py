@@ -154,6 +154,19 @@ def _grouped_conversions() -> list[tuple[str, list[tuple[str, list[str]]]]]:
     return [(cat, buckets[cat]) for cat in _CATEGORY_ORDER if buckets[cat]]
 
 
+def _pair_pages() -> dict[tuple[str, str], str]:
+    """``{(src, tgt): path}`` for the conversions with a page of their own:
+    the catalogue's pair pages, and /convert/video-to-gif for every video
+    format the registry turns into a GIF."""
+    pages = {catalog.pair_of(page.path): page.path for page in catalog.pages(kind="convert")}
+    gif_page = catalog.get("/convert/video-to-gif")
+    if gif_page is not None:
+        for src, targets in get_public_conversions().items():
+            if "gif" in targets and _FORMAT_CATEGORY.get(src) == "video":
+                pages[(src, "gif")] = gif_page.path
+    return pages
+
+
 @router.get("/")
 async def index(request: Request):
     # The homepage tier teaser mirrors /pricing's display contract (limits
@@ -202,11 +215,12 @@ async def formats_page(request: Request):
         format_groups=_grouped_conversions(),
         compress_image=sorted(IMAGE_COMPRESS_FMTS),
         compress_video=sorted(VIDEO_COMPRESS_FMTS),
-        # Curated-pair membership test for the matrix chips — only pairs with
-        # a page of their own in the catalogue become links; everything else
-        # stays a <span> (honest signal, anti-thin-content policy). Read per
-        # request, like every other catalogue view (G5).
-        curated_pairs=frozenset(catalog.pair_of(p.path) for p in catalog.pages(kind="convert")),
+        # Every matrix chip is a link: to the pair's own page where the
+        # catalogue has one, else to the homepage converter pre-set by a
+        # "#convert=<src>-to-<tgt>" fragment (app.js) — no page of its own,
+        # so no thin pages for search engines. Read per request, like every
+        # other catalogue view (G5).
+        pair_pages=_pair_pages(),
     )
 
 

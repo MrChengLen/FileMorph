@@ -686,6 +686,10 @@ msgstr ""
 msgid "Convert %(src)s to"
 msgstr ""
 
+#, python-format
+msgid "Convert %(src)s to %(tgt)s"
+msgstr ""
+
 msgid "Convert & Compress Files"
 msgstr ""
 
@@ -695,6 +699,9 @@ msgid ""
 msgstr ""
 "Convert & compress files online free — HEIC, JPG, PNG, WebP, PDF, DOCX, "
 "MP4 & more. Shrink images to a target size. No account, open source."
+
+msgid "Convert something else"
+msgstr ""
 
 msgid ""
 "Converting and compressing your files, creating and running your account,"
@@ -1921,6 +1928,10 @@ msgstr ""
 msgid "Prefer operations over formats?"
 msgstr ""
 
+#, python-brace-format
+msgid "Preset: {src} to {tgt}. Choose your {src} file."
+msgstr ""
+
 msgid "Price / year"
 msgstr ""
 
@@ -2786,6 +2797,16 @@ msgstr ""
 msgid ""
 "This file can't be inserted. Insert a PDF, a Word file (.docx) or an "
 "image (JPG, PNG, HEIC …); save other documents as .docx or PDF first."
+msgstr ""
+
+#, python-brace-format
+msgid "This file is {ext} and can't become {tgt}. Choose a target below."
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"This file is {ext}, but the preset is {src} to {tgt}. Choose a target "
+"below, or your {src} file."
 msgstr ""
 
 msgid "This form needs JavaScript. Please enable it and reload the page."
@@ -3718,6 +3739,9 @@ msgid "© 2026 FileMorph — AGPLv3 Open Source"
 msgstr ""
 
 msgid "— a PGP key is available on request."
+msgstr ""
+
+msgid "— choose a target format —"
 msgstr ""
 
 msgid "— select a file first —"

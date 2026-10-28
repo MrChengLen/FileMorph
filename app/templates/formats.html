@@ -24,7 +24,9 @@
   </div>
 
   <!-- Conversion matrix — rendered from the live @register registry, so this
-       list always reflects exactly what the deployment can actually do. -->
+       list always reflects exactly what the deployment can actually do. Every
+       chip is a link: to the pair's own page, or to the homepage converter
+       pre-set by "#convert=<src>-to-<tgt>" (app.js). -->
   {% for cat_key, sources in format_groups %}
   <section class="space-y-4">
     <h2 class="text-base font-semibold text-white border-b border-gray-800 pb-2">{{ category_labels.get(cat_key, cat_key) }}</h2>
@@ -36,11 +38,10 @@
         </h3>
         <div class="flex flex-wrap gap-1.5">
           {% for tgt in targets %}
-          {% if (src, tgt) in curated_pairs %}
-          <a href="{{ localized_url('/convert/' ~ src ~ '-to-' ~ tgt, current_prefix) }}" class="text-xs px-2 py-0.5 rounded border border-gray-800 bg-gray-900 text-gray-400">{{ tgt.upper() }}</a>
-          {% else %}
-          <span class="text-xs px-2 py-0.5 rounded border border-gray-800 bg-gray-900 text-gray-400">{{ tgt.upper() }}</span>
-          {% endif %}
+          {% set page_path = pair_pages.get((src, tgt)) %}
+          <a href="{% if page_path %}{{ localized_url(page_path, current_prefix) }}{% else %}{{ localized_url('/', current_prefix) }}#convert={{ src }}-to-{{ tgt }}{% endif %}"
+            aria-label="{{ _('Convert %(src)s to %(tgt)s') % {'src': src.upper(), 'tgt': tgt.upper()} }}"
+            class="inline-block text-xs px-2 py-1 rounded border border-gray-700 bg-gray-900 text-gray-300 hover:border-brand hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand transition-colors">{{ tgt.upper() }}</a>
           {% endfor %}
         </div>
       </div>
