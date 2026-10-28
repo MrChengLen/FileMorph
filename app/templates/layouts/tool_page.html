@@ -1,0 +1,99 @@
+{#- The one layout of the tool pages (/convert/<pair>, /pdf/<tool>, /compress):
+    breadcrumb, H1 and subline, the tool, the page's sections, related tools.
+    A section renders only when the page's ``content`` has it, always in this
+    order: honest limits, how it works, when to use it, technical details,
+    FAQ. Headings that differ per page type are blocks, so each type keeps the
+    wording it ranks with (tests/golden/page_texts.json pins them).
+
+    Context: ``content`` (title, meta, h1, hero and the sections), ``crumb``
+    (the tool's catalogue name) and ``related`` ([{label, path}, ...]). This
+    folder has no leading underscore, so babel extracts its ``_()`` strings. -#}
+{% extends "base.html" %}
+{% block title %}{{ content.title }} | FileMorph{% endblock %}
+{% block meta_description %}{{ content.meta }}{% endblock %}
+{% block content %}
+
+<div class="min-h-full flex flex-col">
+  <main class="flex-1 flex items-center justify-center p-4 sm:p-6">
+    <div class="w-full max-w-2xl space-y-6">
+
+      {% include "partials/breadcrumb.html" %}
+
+      <!-- Title -->
+      <div class="text-center space-y-2">
+        <h1 class="text-h-page text-ink">{{ content.h1 }}</h1>
+        <p class="text-ink-muted text-sm">{{ content.hero }}</p>
+      </div>
+
+      <!-- The real, working tool -->
+      {% block tool %}{% endblock %}
+
+      {% if content.limits %}
+      <section class="border border-gray-800 rounded-xl px-5 py-4 space-y-2">
+        <h2 class="text-base font-semibold text-white">{{ _('Honest limits') }}</h2>
+        <p class="text-xs text-gray-400 leading-relaxed">{{ content.limits }}</p>
+      </section>
+      {% endif %}
+
+      {% if content.how_it_works %}
+      <section class="border border-gray-800 rounded-xl px-5 py-4 space-y-2">
+        <h2 class="text-base font-semibold text-white">{{ _('How it works') }}</h2>
+        <ol class="space-y-1 text-xs text-gray-400 leading-relaxed list-decimal list-inside">
+          {% for step, text in content.how_it_works %}
+          <li><strong class="text-gray-200">{{ step }}</strong> — {{ text }}</li>
+          {% endfor %}
+        </ol>
+      </section>
+      {% endif %}
+
+      {% if content.when %}
+      <section class="border border-gray-800 rounded-xl px-5 py-4 space-y-2">
+        <h2 class="text-base font-semibold text-white">{% block when_heading %}{{ _('When to use it') }}{% endblock %}</h2>
+        <p class="text-xs text-gray-400 leading-relaxed">{{ content.when }}</p>
+      </section>
+      {% endif %}
+
+      {% if content.tech %}
+      <section class="border border-gray-800 rounded-xl px-5 py-4 space-y-2">
+        <h2 class="text-base font-semibold text-white">{{ _('Technical details') }}</h2>
+        <p class="text-xs text-gray-400 leading-relaxed">{{ content.tech }}</p>
+      </section>
+      {% endif %}
+
+      <!-- FAQ — visible question-headings for humans + AI answer engines (GEO) -->
+      {% if content.faq %}
+      <section class="border border-gray-800 rounded-xl px-5 py-4 space-y-4">
+        <h2 class="text-base font-semibold text-white">{{ _('Frequently asked questions') }}</h2>
+        <div class="space-y-3 text-xs leading-relaxed">
+          {% for q, a in content.faq %}
+          <div>
+            <h3 class="font-semibold text-gray-200">{{ q }}</h3>
+            <p class="text-gray-400">{{ a }}</p>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
+      {% block extra %}{% endblock %}
+
+      <!-- Related tools: the page's curated neighbours, then the way up to
+           the whole catalogue and, since every tool here runs on the server,
+           the same task through the API. -->
+      <section class="border border-gray-800 rounded-xl px-5 py-4 space-y-2">
+        <h2 class="text-base font-semibold text-white">{% block related_heading %}{{ _('Related tools') }}{% endblock %}</h2>
+        <div class="flex flex-wrap gap-3 text-xs">
+          {% for link in related %}
+          <a href="{{ localized_url(link.path, current_prefix) }}" class="text-brand hover:underline">{{ link.label }}</a>
+          {% endfor %}
+          <a href="{{ localized_url('/tools', current_prefix) }}" class="text-brand hover:underline">{{ _('All tools →') }}</a>
+          <a href="/docs" target="_blank" rel="noopener" class="text-brand hover:underline">{{ _('Use it via the API ↗') }}</a>
+        </div>
+        {% block related_note %}{% endblock %}
+      </section>
+
+    </div>
+  </main>
+</div>
+
+{% endblock %}

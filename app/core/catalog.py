@@ -5,7 +5,7 @@ stay outside on purpose; tests/test_catalog.py names them).
 
 The sitemap, ``/llms.txt``, the page routes' whitelist, the homepage's quick
 actions, the ``/tools`` catalogue, the footer and the "Related tools" links of
-the PDF tool pages are filtered views of ``PAGES``. A page added here shows up
+the tool pages are filtered views of ``PAGES``. A page added here shows up
 on all of them; a public route missing here, or an entry whose page does not
 render, fails ``tests/test_catalog.py``. Before this list each of those
 surfaces kept its own hand-written copy, so a new page went missing from some
@@ -42,7 +42,8 @@ class Page:
     # The page's ``/llms.txt`` bullet as (link text, description). Convert
     # pages get theirs from the format labels.
     llms: tuple[str, str] | None = None
-    # Curated related convert pages (catalogue paths).
+    # Curated "Related tools" links (catalogue paths): siblings first, then
+    # a next step. Convert pages take theirs from convert_pairs.related_pairs().
     related: tuple[str, ...] = ()
     # Also served under /de and /en.
     localized: bool = True
@@ -136,7 +137,7 @@ PAGES: tuple[Page, ...] = (
             "shrink a PDF to at most a target size by recompressing its embedded "
             "images, scaling them down if needed",
         ),
-        related=("/convert/docx-to-pdf", "/convert/jpg-to-pdf"),
+        related=("/pdf/split", "/pdf/extract", "/convert/docx-to-pdf", "/convert/jpg-to-pdf"),
         family="pdf",
         label={"de": "PDF verkleinern", "en": "Compress PDF"},
         blurb={
@@ -167,7 +168,7 @@ PAGES: tuple[Page, ...] = (
             "Split a PDF",
             "split a multi-page PDF into one file per page, bundled as a ZIP",
         ),
-        related=("/convert/docx-to-pdf",),
+        related=("/pdf/extract", "/pdf/compress", "/convert/docx-to-pdf"),
         family="pdf",
         label={"de": "PDF aufteilen", "en": "Split PDF"},
         blurb={
@@ -186,7 +187,7 @@ PAGES: tuple[Page, ...] = (
             "Extract PDF pages",
             "keep only a chosen page range from a PDF, e.g. pages 1-3,5",
         ),
-        related=("/convert/docx-to-pdf", "/convert/eml-to-pdf"),
+        related=("/pdf/split", "/pdf/compress", "/convert/docx-to-pdf", "/convert/eml-to-pdf"),
         family="pdf",
         label={"de": "PDF-Seiten extrahieren", "en": "Extract PDF pages"},
         blurb={
@@ -211,6 +212,7 @@ PAGES: tuple[Page, ...] = (
             "Compress an image or video",
             "shrink a JPEG, WebP or AVIF to at most a target size in MB, or a video by quality",
         ),
+        related=("/convert/jpg-to-webp", "/convert/png-to-webp", "/pdf/compress"),
         family="image",
         label={"de": "Bild verkleinern (KB/MB)", "en": "Compress image (KB/MB)"},
         blurb={
@@ -287,11 +289,11 @@ PAGES: tuple[Page, ...] = (
 
 _BY_PATH: dict[str, Page] = {page.path: page for page in PAGES}
 assert len(_BY_PATH) == len(PAGES), "a path appears twice in the page catalogue"
-# A related link must be a catalogued convert page: anything else would 404
-# (G5) or get a broken "X → Y" label.
-assert all(
-    path in _BY_PATH and _BY_PATH[path].kind == "convert" for page in PAGES for path in page.related
-), "a related link must point at a catalogued convert page"
+# A related link must be a catalogued tool page: anything else would 404 (G5)
+# or have no name to show.
+assert all(path in _BY_PATH and _BY_PATH[path].label for page in PAGES for path in page.related), (
+    "a related link must point at a catalogued tool page"
+)
 # Every tool is listed on /tools: it needs a known family, a name in both
 # languages and, unless a convert page's hero stands in, a card text in both.
 assert all(

@@ -217,8 +217,8 @@ def test_formats_page_links_to_pdf_tools_via_tools_hub(client):
 @pytest.mark.parametrize("tool", ["split", "extract", "compress"])
 def test_related_tools_section_links_siblings_and_curated_pairs(client, tool):
     """De-dead-ending guard: each /pdf/* page links its two sibling tools
-    (never itself) and the convert pages its catalogue entry names (the
-    catalogue rejects a related link outside it at import)."""
+    (never itself) and every page its catalogue entry names (the catalogue
+    rejects a related link outside it at import)."""
     from app.core import catalog
 
     html = client.get(f"/en/pdf/{tool}").text
@@ -227,7 +227,7 @@ def test_related_tools_section_links_siblings_and_curated_pairs(client, tool):
         assert f'href="/en/pdf/{sibling}"' in main
     assert f'href="/en/pdf/{tool}"' not in main, "Related tools must not link itself"
     related = catalog.get(f"/pdf/{tool}").related
-    assert related, f"/pdf/{tool} names no related convert page"
+    assert related, f"/pdf/{tool} names no related page"
     for path in related:
         assert f'href="/en{path}"' in main
 

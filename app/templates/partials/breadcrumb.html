@@ -1,0 +1,14 @@
+{# Where a tool page sits: "Tools › <the tool's catalogue name>". It replaces
+   the per-page-type "← Back" links, which pointed at the homepage or at
+   /formats although most visitors arrive from a search and were never there.
+   Only real pages are links; server-rendered like every navigation link (G6).
+   Lives in partials/ (not _components/) so babel extracts its strings. #}
+<nav aria-label="{{ _('Breadcrumb') }}" class="text-sm">
+  <ol class="flex flex-wrap items-center gap-2 text-ink-muted">
+    <li class="flex items-center gap-2">
+      <a href="{{ localized_url('/tools', current_prefix) }}" class="hover:text-ink transition-colors">{{ _('Tools') }}</a>
+      <span aria-hidden="true">›</span>
+    </li>
+    <li aria-current="page" class="text-ink">{{ crumb }}</li>
+  </ol>
+</nav>

@@ -30,7 +30,6 @@ from app.core.compress_content import get_compress_content
 from app.core.config import settings
 from app.core.convert_pairs import (
     accept_attr,
-    format_label,
     get_pair_content,
     related_pairs,
 )
@@ -102,6 +101,17 @@ _CATEGORY_ORDER: tuple[str, ...] = (
     "video",
     "other",
 )
+
+
+def _related(paths, locale: str) -> list[dict]:
+    """``[{label, path}]`` for the catalogue pages at ``paths`` this deployment
+    serves, under their catalogue names (a switched-off page drops out, G5)."""
+    links = []
+    for path in paths:
+        page = catalog.get(path)
+        if page is not None:
+            links.append({"label": page.label[locale], "path": path})
+    return links
 
 
 def _tool_sections(locale: str) -> list[tuple[str, list[dict]]]:
@@ -225,11 +235,14 @@ async def compress_page(request: Request):
     # OSS feature, same posture as /pdf/{tool} below. Embeds the same tool
     # partial as the homepage, pre-set to Compress mode via preset_mode (a
     # data-attribute read by app.js — see partials/convert_tool.html).
-    locale = getattr(request.state, "locale", settings.lang_default)
+    locale = normalize_locale(getattr(request.state, "locale", settings.lang_default))
+    page = catalog.get("/compress")
     return _render(
         request,
         "compress.html",
         content=get_compress_content(locale),
+        crumb=page.label[locale],
+        related=_related(page.related, locale),
         preset_mode="compress",
     )
 
@@ -243,22 +256,19 @@ async def convert_pair_page(request: Request, pair_slug: str):
     # (penalty-safe). The embedded tool is pre-set to this pair via
     # preset_source/preset_target (read by app.js).
     src, sep, tgt = pair_slug.lower().partition("-to-")
-    locale = getattr(request.state, "locale", settings.lang_default)
-    listed = catalog.get(f"/convert/{pair_slug.lower()}") is not None
-    pair = get_pair_content(src, tgt, locale) if sep and listed else None
+    locale = normalize_locale(getattr(request.state, "locale", settings.lang_default))
+    page = catalog.get(f"/convert/{pair_slug.lower()}")
+    pair = get_pair_content(src, tgt, locale) if sep and page else None
     if pair is None or tgt not in get_supported_conversions().get(src, []):
         return templates.TemplateResponse(
             request, "404.html", context=localized_context(request), status_code=404
         )
-    related = [
-        {"label": f"{format_label(s)} → {format_label(t)}", "url_path": f"/convert/{s}-to-{t}"}
-        for (s, t) in related_pairs(src, tgt)
-    ]
     return _render(
         request,
         "convert_pair.html",
-        pair=pair,
-        related=related,
+        content=pair,
+        crumb=page.label[locale],
+        related=_related([f"/convert/{s}-to-{t}" for s, t in related_pairs(src, tgt)], locale),
         preset_source=src,
         preset_target=tgt,
         preset_accept=accept_attr(src),
@@ -408,15 +418,18 @@ async def enterprise_page(request: Request):
 async def redact_page(request: Request):
     # Commercial EE add-on: a build without ai_operations_enabled serves no
     # redaction surface at all (the API 503s too) — same gating shape as /pricing.
-    if not settings.ai_operations_enabled:
+    # The catalogue entry carries that gate, so it is the one switch here.
+    page = catalog.get("/redact")
+    if page is None:
         return templates.TemplateResponse(
             request, "404.html", context=localized_context(request), status_code=404
         )
-    locale = getattr(request.state, "locale", settings.lang_default)
+    locale = normalize_locale(getattr(request.state, "locale", settings.lang_default))
     return _render(
         request,
         "redact.html",
         content=get_redact_content(locale),
+        crumb=page.label[locale],
         ai_credit_cost=settings.ai_credit_cost_redact,
         ai_eligible_tiers=settings.ai_eligible_tiers_list,
     )
@@ -428,28 +441,21 @@ async def pdf_tool_page(request: Request, tool: str):
     # extract / compress ride the same free, no-account Convert/Compress
     # posture. The page catalogue is the route whitelist: an unknown tool
     # (e.g. /pdf/rotate) 404s instead of rendering a hollow page.
-    locale = getattr(request.state, "locale", settings.lang_default)
+    locale = normalize_locale(getattr(request.state, "locale", settings.lang_default))
     page = catalog.get(f"/pdf/{tool}")
     content = get_pdf_tool_content(tool, locale) if page else None
     if content is None:
         return templates.TemplateResponse(
             request, "404.html", context=localized_context(request), status_code=404
         )
-    # The curated convert pages related to this operation; the two sibling
-    # PDF tools are linked by the template itself.
-    related_convert_pairs = []
-    for path in page.related:
-        s, t = catalog.pair_of(path)
-        related_convert_pairs.append(
-            {"label": f"{format_label(s)} → {format_label(t)}", "url_path": path}
-        )
     return _render(
         request,
         "pdf_tool.html",
         content=content,
+        crumb=page.label[locale],
+        related=_related(page.related, locale),
         tool=tool,
         pdf_accept=accept_attr("pdf"),
-        related_convert_pairs=related_convert_pairs,
     )
 
 
