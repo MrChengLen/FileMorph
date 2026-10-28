@@ -581,13 +581,17 @@ _COMPRESS_FIRST = "Compress the PDF or the file to insert first."
 _INSERT_FIELDS = ("file", "insert_file", "after_page")
 
 
+# What /pdf/insert takes, by extension; the page offers the same list.
+INSERT_FORMATS = ("pdf", "docx", *_IMAGE_FORMATS)
+
+
 def _insert_kind(filename: str | None) -> str | None:
     """``pdf``, ``docx`` or ``image`` for a file the insertion takes, by its
     extension; ``None`` for any other."""
     ext = Path(filename or "").suffix.lstrip(".").lower()
-    if ext in ("pdf", "docx"):
-        return ext
-    return "image" if ext in _IMAGE_FORMATS else None
+    if ext not in INSERT_FORMATS:
+        return None
+    return ext if ext in ("pdf", "docx") else "image"
 
 
 def _field_error(code: str, field: str, detail: str, **headers: str) -> HTTPException:

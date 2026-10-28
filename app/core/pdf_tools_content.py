@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Landing-page content for the three PDF structural-operation tools:
-``/pdf/split``, ``/pdf/extract``, ``/pdf/compress``.
+"""Landing-page content for the four PDF structural-operation tools:
+``/pdf/split``, ``/pdf/extract``, ``/pdf/compress``, ``/pdf/insert``.
 
 Like ``convert_pairs.PAIR_CONTENT`` and ``redact_content.REDACT_CONTENT``, the
 prose lives as plain bilingual data (``de`` / ``en``), not gettext, so the
@@ -414,6 +414,142 @@ PDF_TOOL_CONTENT: dict[str, dict[str, dict]] = {
                     "Brauche ich ein Konto?",
                     "Nein — anonyme Nutzung funktioniert für kleinere Dateien; "
                     "ein registrierter Tarif hebt die Größengrenzen an.",
+                ),
+            ],
+        },
+    },
+    "insert": {
+        "en": {
+            "title": "Insert pages into a PDF online — free",
+            "meta": (
+                "Insert pages into a PDF for free, no account: a Word file, an image "
+                "(as its own page) or another PDF — at the start, the end or after page N."
+            ),
+            "h1": "Insert pages into a PDF",
+            "hero": (
+                "Add a PDF, a Word file or an image to your PDF exactly where it belongs — "
+                "after page 21, say."
+            ),
+            "cta": "Insert pages",
+            "limits": (
+                "The whole file goes in: a PDF with all its pages, a Word document "
+                "(.docx) converted to PDF pages, an image as a page of its own in the "
+                "size of the page next to it. Pages count from the PDF file's first "
+                "page, not by the printed page numbers — printed numbers and a table "
+                "of contents in the text don't change. In a Word file, fonts the server "
+                "doesn't have are replaced with similar ones; for an exact result, save "
+                "it as a PDF in Word first. At most 10,000 pages together; each file and "
+                "the result must fit your plan's size limits."
+            ),
+            "how_it_works": [
+                (
+                    "Upload your PDF and the file to insert",
+                    "Choose your PDF and what goes into it — a PDF, a Word file "
+                    "(.docx) or an image.",
+                ),
+                (
+                    "Choose where it goes",
+                    "At the start, after a given page, or at the end. Pages count "
+                    "from the file's first page.",
+                ),
+                (
+                    "Download the result",
+                    "Download the combined PDF — “Insert something else” adds the "
+                    "next file straight away.",
+                ),
+            ],
+            "when": (
+                "Use it when a finished PDF needs pages added later — a signed "
+                "declaration into a term paper, a photo of an attachment into a "
+                "report, a forgotten chapter from Word in the right place — without "
+                "exporting the whole document again."
+            ),
+            "faq": [
+                (
+                    "Can I put an image onto an existing page, like a signature?",
+                    "No — an image is inserted as a page of its own, in the size of "
+                    "the page next to it and shown in full. To place something on an "
+                    "existing page you need a PDF editor.",
+                ),
+                (
+                    "Do page numbers and the table of contents update?",
+                    "No. Printed page numbers and a table of contents in the text stay "
+                    "as they are. The PDF's bookmarks and links still lead to the "
+                    "right pages; the inserted file's own bookmarks aren't taken over, "
+                    "and page labels (i, ii, …) only stay when the pages go at the end.",
+                ),
+                (
+                    "What happens to a digital signature?",
+                    "It becomes invalid: this tool writes the PDF anew, so the "
+                    "signature no longer validates. Insert the pages before signing.",
+                ),
+            ],
+        },
+        "de": {
+            "title": "PDF-Seiten einfügen oder anhängen — kostenlos",
+            "meta": (
+                "PDF-Seiten kostenlos einfügen, ohne Konto: Word, Bild (als eigene "
+                "Seite) oder PDF an Anfang, Ende oder nach Seite N. Dateien sofort gelöscht."
+            ),
+            "h1": "Seiten in ein PDF einfügen",
+            "hero": (
+                "Füge ein PDF, eine Word-Datei oder ein Bild genau an der richtigen "
+                "Stelle in dein PDF ein — zum Beispiel nach Seite 21."
+            ),
+            "cta": "Seiten einfügen",
+            "limits": (
+                "Eingefügt wird immer die ganze Datei: ein PDF mit allen Seiten, ein "
+                "Word-Dokument (.docx) umgewandelt in PDF-Seiten, ein Bild als eigene "
+                "Seite im Format der Nachbarseite. Gezählt wird ab der ersten Seite "
+                "der PDF-Datei, nicht nach der gedruckten Seitenzahl — gedruckte "
+                "Seitenzahlen und ein Inhaltsverzeichnis im Text ändern sich nicht. "
+                "Bei Word-Dateien können Schriften, die dem Server fehlen, ersetzt "
+                "werden; für ein exaktes Ergebnis speichere die Datei in Word als PDF. "
+                "Zusammen höchstens 10.000 Seiten; jede Datei und das Ergebnis müssen "
+                "in die Größengrenzen deines Tarifs passen."
+            ),
+            "how_it_works": [
+                (
+                    "PDF und Einfüge-Datei hochladen",
+                    "Wähle dein PDF und die Datei, die hinein soll — ein PDF, eine "
+                    "Word-Datei (.docx) oder ein Bild.",
+                ),
+                (
+                    "Stelle wählen",
+                    "Am Anfang, nach einer bestimmten Seite oder am Ende. Gezählt "
+                    "wird ab der ersten Seite der Datei.",
+                ),
+                (
+                    "Ergebnis herunterladen",
+                    "Lade das fertige PDF herunter — mit „Noch etwas einfügen“ "
+                    "ergänzt du direkt die nächste Datei.",
+                ),
+            ],
+            "when": (
+                "Nutze es, wenn ein fertiges PDF nachträglich Seiten braucht — die "
+                "unterschriebene Erklärung in die Hausarbeit, ein Foto vom Anhang in "
+                "den Bericht, ein vergessenes Kapitel aus Word an die richtige Stelle "
+                "— ohne das ganze Dokument neu zu exportieren."
+            ),
+            "faq": [
+                (
+                    "Kann ich ein Bild auf eine bestehende Seite legen, z. B. eine Unterschrift?",
+                    "Nein — ein Bild wird als eigene Seite eingefügt, im Format der "
+                    "Nachbarseite und vollständig zu sehen. Um etwas auf eine "
+                    "vorhandene Seite zu setzen, brauchst du ein PDF-Bearbeitungsprogramm.",
+                ),
+                (
+                    "Passen sich Seitenzahlen und Inhaltsverzeichnis an?",
+                    "Nein. Gedruckte Seitenzahlen und ein Inhaltsverzeichnis im Text "
+                    "bleiben, wie sie sind. Lesezeichen und Links des PDFs führen aber "
+                    "weiter zur richtigen Seite; Lesezeichen der eingefügten Datei werden "
+                    "nicht übernommen, und Seitenbeschriftungen (i, ii …) bleiben nur, "
+                    "wenn die Seiten ans Ende kommen.",
+                ),
+                (
+                    "Was passiert mit einer digitalen Signatur?",
+                    "Sie wird ungültig: Das Werkzeug schreibt das PDF neu, die Signatur "
+                    "passt danach nicht mehr. Füge die Seiten deshalb vor dem Signieren ein.",
                 ),
             ],
         },

@@ -32,9 +32,9 @@ TOOLS_CONTENT: dict[str, dict] = {
     "en": {
         "title": "File tools — convert, compress & PDF",
         "meta": (
-            "Browse every FileMorph tool — convert & compress files, split or "
-            "extract PDF pages, or shrink a PDF to a target size. Free, no "
-            "account needed."
+            "Browse every FileMorph tool — convert & compress files, split, "
+            "extract or insert PDF pages, or shrink a PDF to a target size. "
+            "Free, no account needed."
         ),
         "h1": "All FileMorph tools",
         "hero": (
@@ -52,8 +52,8 @@ TOOLS_CONTENT: dict[str, dict] = {
         "title": "Tools — konvertieren, komprimieren, PDF",
         "meta": (
             "Alle FileMorph-Tools: Dateien konvertieren und komprimieren, "
-            "PDF-Seiten aufteilen, extrahieren oder verkleinern. Kostenlos "
-            "und ohne Konto."
+            "PDF-Seiten aufteilen, extrahieren oder einfügen und PDFs "
+            "verkleinern. Kostenlos und ohne Konto."
         ),
         "h1": "Alle FileMorph-Tools",
         "hero": (

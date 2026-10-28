@@ -75,6 +75,7 @@ PAGES = (
     "/pdf/split",
     "/pdf/extract",
     "/pdf/compress",
+    "/pdf/insert",
     *(f"/convert/{src}-to-{tgt}" for src, tgt in PAIR_CONTENT),
 )
 

@@ -115,7 +115,8 @@ PAGES: tuple[Page, ...] = (
         priority="0.8",
         llms=(
             "All tools",
-            "every FileMorph operation in one place — convert, compress, split or extract PDF pages",
+            "every FileMorph operation in one place — convert, compress, and split, "
+            "extract or insert PDF pages",
         ),
     ),
     Page(
@@ -137,7 +138,13 @@ PAGES: tuple[Page, ...] = (
             "shrink a PDF to at most a target size by recompressing its embedded "
             "images, scaling them down if needed",
         ),
-        related=("/pdf/split", "/pdf/extract", "/convert/docx-to-pdf", "/convert/jpg-to-pdf"),
+        related=(
+            "/pdf/split",
+            "/pdf/extract",
+            "/pdf/insert",
+            "/convert/docx-to-pdf",
+            "/convert/jpg-to-pdf",
+        ),
         family="pdf",
         label={"de": "PDF verkleinern", "en": "Compress PDF"},
         blurb={
@@ -168,7 +175,7 @@ PAGES: tuple[Page, ...] = (
             "Split a PDF",
             "split a multi-page PDF into one file per page, bundled as a ZIP",
         ),
-        related=("/pdf/extract", "/pdf/compress", "/convert/docx-to-pdf"),
+        related=("/pdf/extract", "/pdf/compress", "/pdf/insert", "/convert/docx-to-pdf"),
         family="pdf",
         label={"de": "PDF aufteilen", "en": "Split PDF"},
         blurb={
@@ -187,7 +194,13 @@ PAGES: tuple[Page, ...] = (
             "Extract PDF pages",
             "keep only a chosen page range from a PDF, e.g. pages 1-3,5",
         ),
-        related=("/pdf/split", "/pdf/compress", "/convert/docx-to-pdf", "/convert/eml-to-pdf"),
+        related=(
+            "/pdf/split",
+            "/pdf/compress",
+            "/pdf/insert",
+            "/convert/docx-to-pdf",
+            "/convert/eml-to-pdf",
+        ),
         family="pdf",
         label={"de": "PDF-Seiten extrahieren", "en": "Extract PDF pages"},
         blurb={
@@ -201,6 +214,36 @@ PAGES: tuple[Page, ...] = (
         },
         chip=5,
         icon="pages",
+        footer=True,
+    ),
+    Page(
+        "/pdf/insert",
+        "tool",
+        priority="0.6",
+        llms=(
+            "Insert pages into a PDF",
+            "put a PDF, a Word file or an image into a PDF at the start, after a "
+            "given page or at the end",
+        ),
+        related=(
+            "/pdf/split",
+            "/pdf/extract",
+            "/pdf/compress",
+            "/convert/docx-to-pdf",
+            "/convert/jpg-to-pdf",
+        ),
+        family="pdf",
+        label={"de": "PDF-Seiten einfügen", "en": "Insert PDF pages"},
+        blurb={
+            "de": (
+                "Ein PDF, eine Word-Datei oder ein Bild in dein PDF einfügen — am "
+                "Anfang, nach einer bestimmten Seite oder am Ende."
+            ),
+            "en": (
+                "Put a PDF, a Word file or an image into your PDF — at the start, "
+                "after a given page or at the end."
+            ),
+        },
         footer=True,
     ),
     # Images.
