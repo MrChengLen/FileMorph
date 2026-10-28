@@ -117,35 +117,21 @@ def _related(paths, locale: str) -> list[dict]:
 
 
 def _tool_sections(locale: str) -> list[tuple[str, list[dict]]]:
-    """The /tools catalogue: ``[(family, [card, ...]), ...]`` from the page catalogue.
+    """The /tools catalogue: ``[(family, [card, ...]), ...]`` in the sections of
+    ``catalog.sections()``.
 
-    Sections follow ``catalog.FAMILIES``; a family with fewer than two tools
-    joins "more" at the end (IA rule: a section needs at least two tools). A
-    card's text is the tool's ``blurb``; a convert page reuses the hero line of
-    its own page, so /tools makes no claim the page itself doesn't.
+    A card's text is the tool's ``blurb``; a convert page reuses the hero line
+    of its own page, so /tools makes no claim the page itself doesn't.
     """
-    by_family: dict[str, list[dict]] = {}
-    for page in catalog.pages():
-        if page.kind not in ("tool", "convert"):
-            continue
+
+    def card(page: catalog.Page) -> dict:
         if page.blurb:
             desc = page.blurb[locale]
         else:
             desc = get_pair_content(*catalog.pair_of(page.path), locale)["hero"]
-        by_family.setdefault(page.family, []).append(
-            {"path": page.path, "title": page.label[locale], "desc": desc}
-        )
-    sections: list[tuple[str, list[dict]]] = []
-    more: list[dict] = []
-    for family in catalog.FAMILIES:
-        cards = by_family.get(family, [])
-        if len(cards) >= 2:
-            sections.append((family, cards))
-        else:
-            more.extend(cards)
-    if more:
-        sections.append(("more", more))
-    return sections
+        return {"path": page.path, "title": page.label[locale], "desc": desc}
+
+    return [(family, [card(page) for page in tools]) for family, tools in catalog.sections()]
 
 
 def _grouped_conversions() -> list[tuple[str, list[tuple[str, list[str]]]]]:
@@ -185,13 +171,20 @@ async def index(request: Request):
         plans={p.tier: p for p in pricing_mod.saas_plans(locale)},
         saas_prices_configured=pricing_mod.saas_prices_configured(),
         price_currency=pricing_mod.price_currency(),
-        # Homepage-only chip row inside the shared convert_tool.html partial
-        # (docs-internal/operations-visibility-konzept.md) — no other route
-        # sets this. The chips come from the page catalogue, under the same
-        # names the tools carry on /tools and in the footer.
-        quick_actions=[
-            {"path": page.path, "label": page.label[locale], "icon": page.icon}
-            for page in catalog.quick_actions()
+        # Homepage-only quick actions inside the shared convert_tool.html
+        # partial (docs-internal/operations-visibility-konzept.md) — no other
+        # route sets this. They come from the page catalogue, grouped by their
+        # /tools section and under the same names the tools carry on /tools
+        # and in the footer.
+        quick_action_groups=[
+            (
+                family,
+                [
+                    {"path": page.path, "label": page.label[locale], "icon": page.icon}
+                    for page in chips
+                ],
+            )
+            for family, chips in catalog.quick_action_sections()
         ],
     )
 

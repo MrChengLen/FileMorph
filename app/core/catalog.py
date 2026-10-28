@@ -54,7 +54,8 @@ class Page:
     label: dict[str, str] | None = None
     # The /tools card text, {"de": …, "en": …}; a convert page uses its hero.
     blurb: dict[str, str] | None = None
-    # Position among the homepage's quick actions (at most eight).
+    # Position among the homepage's quick actions (at most twelve), which sit
+    # under their /tools section: number them in that order.
     chip: int | None = None
     # The quick action's icon, one of ICONS.
     icon: str | None = None
@@ -62,10 +63,12 @@ class Page:
     footer: bool = False
 
 
-# The /tools sections in display order (named in templates/tools.html).
+# The /tools sections in display order (named in templates/partials/tool_sections.html).
 FAMILIES: tuple[str, ...] = ("pdf", "image", "video", "privacy")
 # The icons templates/_components/icon.html draws.
-ICONS: frozenset[str] = frozenset({"compress", "image", "document", "split", "pages"})
+ICONS: frozenset[str] = frozenset(
+    {"compress", "image", "document", "split", "pages", "insert", "video"}
+)
 
 
 # How a format reads in a tool's name where its extension is not what people
@@ -244,6 +247,8 @@ PAGES: tuple[Page, ...] = (
                 "after a given page or at the end."
             ),
         },
+        chip=6,
+        icon="insert",
         footer=True,
     ),
     # Images.
@@ -275,11 +280,11 @@ PAGES: tuple[Page, ...] = (
                 "formats hit a target."
             ),
         },
-        chip=7,
+        chip=8,
         icon="compress",
         footer=True,
     ),
-    _pair("heic", "jpg", "image", chip=6, icon="image"),
+    _pair("heic", "jpg", "image", chip=7, icon="image"),
     _pair("png", "jpg", "image"),
     _pair("jpg", "png", "image"),
     _pair("webp", "jpg", "image"),
@@ -309,6 +314,8 @@ PAGES: tuple[Page, ...] = (
                 "an animated GIF without sound."
             ),
         },
+        chip=9,
+        icon="video",
         footer=True,
     ),
     # Privacy: the redaction add-on of the Cloud Edition, never a quick action
@@ -378,12 +385,13 @@ assert all(
     for page in PAGES
     if page.kind in ("tool", "convert")
 ), "a tool in the catalogue lacks its family, its German and English name or its card text"
-# The homepage's quick actions: at most eight, one per position, free tools
+# The homepage's quick actions: at most twelve, one per position, free tools
 # only (a paid or gated tool is no idle-state teaser, product-ux.md #3), each
-# with an icon the macro draws.
+# with an icon the macro draws. Grouped by /tools section, at most six to a
+# group (tests/test_homepage_quick_actions.py): two rows on a wide screen.
 _CHIPS = [page for page in PAGES if page.chip is not None]
-assert len(_CHIPS) <= 8 and len({page.chip for page in _CHIPS}) == len(_CHIPS), (
-    "at most eight quick actions, one per position"
+assert len(_CHIPS) <= 12 and len({page.chip for page in _CHIPS}) == len(_CHIPS), (
+    "at most twelve quick actions, one per position"
 )
 assert all(page.gate is None and page.icon in ICONS for page in _CHIPS), (
     "a quick action must be ungated and have a known icon"
@@ -412,9 +420,40 @@ def pair_of(path: str) -> tuple[str, str]:
     return src, tgt
 
 
-def quick_actions() -> list[Page]:
-    """The homepage's quick actions, in chip order."""
-    return sorted((page for page in pages() if page.chip is not None), key=lambda page: page.chip)
+def sections() -> list[tuple[str, list[Page]]]:
+    """The tools this deployment serves by /tools section, in display order:
+    ``[(family, [page, ...]), ...]``.
+
+    Sections follow ``FAMILIES``; a family with fewer than two tools joins
+    "more" at the end (IA rule: a section needs at least two tools). The
+    homepage's quick actions use the same sections, so a tool sits under the
+    same name on both.
+    """
+    by_family: dict[str, list[Page]] = {}
+    for page in pages():
+        if page.kind in ("tool", "convert"):
+            by_family.setdefault(page.family, []).append(page)
+    found: list[tuple[str, list[Page]]] = []
+    more: list[Page] = []
+    for family in FAMILIES:
+        tools = by_family.get(family, [])
+        if len(tools) >= 2:
+            found.append((family, tools))
+        else:
+            more.extend(tools)
+    if more:
+        found.append(("more", more))
+    return found
+
+
+def quick_action_sections() -> list[tuple[str, list[Page]]]:
+    """The homepage's quick actions under their /tools section, each section in
+    chip order; a section without one is left out."""
+    grouped = [
+        (family, sorted((page for page in tools if page.chip is not None), key=lambda p: p.chip))
+        for family, tools in sections()
+    ]
+    return [(family, chips) for family, chips in grouped if chips]
 
 
 def footer_tools() -> list[Page]:

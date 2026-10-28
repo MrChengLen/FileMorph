@@ -45,9 +45,13 @@ FileMorph is an open-source file conversion service with two interfaces:
 │     └─────────────────────────────────────────┘         │
 │                                                         │
 │     Or choose directly ────────────────────────         │
+│     PDF tools                                           │
 │     [Compress PDF] [JPG to PDF] [Word to PDF]           │
-│     [Split PDF] [Extract PDF pages] [HEIC to JPG]       │
-│     [Compress image (KB/MB)]                            │
+│     [Split PDF] [Extract PDF pages] [Insert PDF pages]  │
+│     Images                                              │
+│     [HEIC to JPG] [Compress image (KB/MB)]              │
+│     More tools                                          │
+│     [Video to GIF]                                      │
 │     All tools →                                         │
 │                                                         │
 │     Target Format:  [ JPG                  ▼ ]          │

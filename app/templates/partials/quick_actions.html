@@ -1,14 +1,16 @@
 {# Homepage quick actions (docs-internal/operations-visibility-konzept.md,
    section "Startseite"): secondary chip links shown before any file is
    picked. The chips come from the page catalogue (app/core/catalog.py,
-   ``chip``), under the same names the tools carry on /tools and in the
-   footer, and every chip targets an existing page — IA rule "every
-   promoted operation has a URL first". Server-rendered, no JS involved, so
-   link visibility can never differ from the initial HTML (IA invariant G6).
+   ``chip``), grouped by their /tools section and under the same names the
+   tools carry on /tools and in the footer, and every chip targets an
+   existing page — IA rule "every promoted operation has a URL first".
+   Server-rendered, no JS involved, so link visibility can never differ
+   from the initial HTML (IA invariant G6).
    Redact is a paid/gated operation and never a chip (product-ux.md #3 —
    free path before any upsell); it stays in the footer and on /tools when
    ai_operations_enabled is set. #}
 {% import "_components/icon.html" as icons %}
+{% import "partials/tool_sections.html" as ts with context %}
 <nav id="quick-actions" aria-labelledby="quick-actions-label" class="space-y-3">
   <div class="flex items-center gap-3">
     <span id="quick-actions-label" class="text-xs font-semibold uppercase tracking-wider text-gray-400">
@@ -16,17 +18,23 @@
     </span>
     <span class="flex-1 h-px bg-gray-800" aria-hidden="true"></span>
   </div>
-  <ul class="flex flex-wrap gap-2">
-    {% for action in quick_actions %}
-    <li>
-      <a href="{{ localized_url(action.path, current_prefix) }}"
-        class="inline-flex items-center gap-2 min-h-11 px-3 py-2 rounded-lg border border-gray-700 bg-gray-900 text-sm font-medium text-gray-200 hover:border-brand hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
-        {{ icons.icon(action.icon) }}
-        {{ action.label }}
-      </a>
-    </li>
-    {% endfor %}
-  </ul>
+  {# One group per /tools section; the group's name labels its list. #}
+  {% for family, actions in quick_action_groups %}
+  <div class="space-y-2">
+    <p id="quick-actions-{{ family }}" class="text-xs font-medium text-gray-400">{{ ts.section_name(family) }}</p>
+    <ul aria-labelledby="quick-actions-{{ family }}" class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+      {% for action in actions %}
+      <li>
+        <a href="{{ localized_url(action.path, current_prefix) }}"
+          class="flex h-full items-center gap-2 min-h-11 px-3 py-2 rounded-lg border border-gray-700 bg-gray-900 text-sm font-medium text-gray-200 hover:border-brand hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+          {{ icons.icon(action.icon) }}
+          {{ action.label }}
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endfor %}
   <p>
     <a href="{{ localized_url('/tools', current_prefix) }}" class="rounded text-sm font-semibold text-brand-light hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">{{ _('All tools →') }}</a>
   </p>
