@@ -177,18 +177,20 @@ rest of the container; the subprocess inherits the container's
 
 ### PDF structural operations
 
-Three *morph* operations that reshape an existing PDF rather than convert
-between formats — all pure-Python (pypdf / pikepdf), no external binary.
+Four *morph* operations that reshape an existing PDF rather than convert
+between formats — pure Python (pypdf / pikepdf); only inserting a Word file
+needs LibreOffice.
 
 | Operation | Endpoint | Input → Output | Notes |
 |---|---|---|---|
 | **Page extract** | `POST /api/v1/pdf/extract` | PDF → PDF | Keep a 1-based page selection, e.g. `pages=1-3,5`. Text, fonts and vector content are copied byte-for-byte. |
 | **Split** | `POST /api/v1/pdf/split` | PDF → ZIP | One single-page PDF per page (`page_1.pdf`, …, zero-padded to the page count's width), bundled as a ZIP. |
 | **Compress to target** | `POST /api/v1/pdf/compress` | PDF → PDF | Shrink to at most a `target_kb` budget by recompressing embedded raster images, scaling them down if needed. Page count, layout and every glyph are preserved. |
+| **Insert pages** | `POST /api/v1/pdf/insert` | PDF + PDF / DOCX / image → PDF | Put a whole second file into the PDF — at the start, after page N (`after_page`) or at the end. An image becomes one page in its neighbour's size; a `.docx` is converted with LibreOffice. The PDF keeps its bookmarks, links and form fields. |
 
-**Web UI:** each operation also has a dedicated, bilingual (DE/EN) page —
-`/pdf/split`, `/pdf/extract`, `/pdf/compress` — ungated, same as the main
-Convert/Compress tool.
+**Web UI:** split, extract and compress also have a dedicated, bilingual
+(DE/EN) page — `/pdf/split`, `/pdf/extract`, `/pdf/compress` — ungated, same
+as the main Convert/Compress tool.
 
 Note: the registry's internal `pdf → pdf` identity pair (the page-extract
 engine) is deliberately omitted from the `/api/v1/formats` listing and the
@@ -226,6 +228,18 @@ formats page — it is plumbing, not a conversion a user picks.
   remove the password first. A PDF encrypted with a certificate (or with a
   method the PDF libraries don't implement) is rejected the same way with
   `pdf_encryption_unsupported`.
+- **Insert takes the whole file and counts from the first page.** `after_page`
+  counts the PDF file's pages from 1, not its printed page numbers; printed
+  numbers and a table of contents in the text stay as they are, and page
+  labels (i, ii, 1, …) survive only when the pages are appended. Both files
+  together may have at most 10 000 pages. A Word file is converted with
+  LibreOffice only — the pure-Python engine drops images and layout — so a
+  server without it answers a `.docx` with `word_not_converted`: save the
+  document as a PDF in Word and insert that. A signature on the PDF becomes
+  invalid, as with any change, and a PDF/A mark stays although the inserted
+  pages need not meet it: convert the result to PDF/A again to be sure. The
+  files are combined in their own process with memory, time and file size
+  limits (`pdf_too_complex` past them).
 
 ---
 
