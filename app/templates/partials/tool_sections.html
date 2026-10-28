@@ -1,0 +1,13 @@
+{#- The names of the /tools sections (app/core/catalog.py, FAMILIES; "more"
+    collects the families with fewer than two tools): ``section_name(key)``.
+    /tools and the homepage's quick actions both show them, so a tool sits
+    under the same name on both. Import it ``with context``: the names are
+    translated with the request's locale. -#}
+{% macro section_name(key) -%}
+{%- if key == 'pdf' %}{{ _('PDF tools') }}
+{%- elif key == 'image' %}{{ _('Images') }}
+{%- elif key == 'video' %}{{ _('Video') }}
+{%- elif key == 'privacy' %}{{ _('Privacy tools') }}
+{%- elif key == 'more' %}{{ _('More tools') }}
+{%- endif %}
+{%- endmacro %}

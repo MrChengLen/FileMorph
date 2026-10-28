@@ -1,17 +1,9 @@
 {% extends "base.html" %}
 {% import "_components/card.html" as uc %}
+{% import "partials/tool_sections.html" as ts with context %}
 {% block title %}{{ content.title }} | FileMorph{% endblock %}
 {% block meta_description %}{{ content.meta }}{% endblock %}
 {% block content %}
-{# Section names for catalog.FAMILIES (app/core/catalog.py); "more" collects
-   the families with fewer than two tools. #}
-{% set section_names = {
-  'pdf': _('PDF tools'),
-  'image': _('Images'),
-  'video': _('Video'),
-  'privacy': _('Privacy tools'),
-  'more': _('More tools'),
-} %}
 <main class="max-w-4xl mx-auto px-6 py-12 space-y-10 text-gray-300 text-sm leading-relaxed">
 
   <div>
@@ -30,7 +22,7 @@
   {% if sections|length > 1 %}
   <nav aria-label="{{ _('Tool sections') }}" class="flex flex-wrap gap-x-6 gap-y-1.5 text-sm">
     {% for family, cards in sections %}
-    <a href="#{{ family }}" class="text-brand hover:underline">{{ section_names[family] }}</a>
+    <a href="#{{ family }}" class="text-brand hover:underline">{{ ts.section_name(family) }}</a>
     {% endfor %}
   </nav>
   {% endif %}
@@ -40,7 +32,7 @@
      server today, and the card says so as text (G7). #}
   {% for family, cards in sections %}
   <section id="{{ family }}" class="space-y-4{% if not loop.first %} border-t border-gray-800 pt-8{% endif %}">
-    <h2 class="text-base font-semibold text-white">{{ section_names[family] }}</h2>
+    <h2 class="text-base font-semibold text-white">{{ ts.section_name(family) }}</h2>
     <div class="grid md:grid-cols-2 gap-6">
       {% for card in cards %}
       {% call uc.card() %}
