@@ -127,7 +127,9 @@ def rerender_to_pdfa(
     temporary directory, then invokes gs with ``-dPDFA=2``. The
     PostScript prefix wires the ICC stream into ``/OutputIntents``,
     so the resulting PDF passes the §6.2.2 OutputIntent requirement
-    in a single pass. gs gets the app's environment without its secrets.
+    in a single pass. gs gets the app's environment without its secrets,
+    and keeps its own temporary files in that directory too, so none are
+    left in the system temp dir when it is stopped halfway.
 
     Raises :class:`GhostscriptError` on any failure mode (binary not
     on PATH, non-zero exit, timeout). The orchestrator in pdfa.py
@@ -175,13 +177,15 @@ def rerender_to_pdfa(
             str(input_path),
         ]
 
+        env = {k: v for k, v in os.environ.items() if not _is_secret_env_name(k)}
+        env.update(TMPDIR=tmpdir, TEMP=tmpdir, TMP=tmpdir)
         try:
             result = subprocess.run(
                 cmd,
                 capture_output=True,
                 timeout=timeout,
                 check=False,
-                env={k: v for k, v in os.environ.items() if not _is_secret_env_name(k)},
+                env=env,
             )
         except subprocess.TimeoutExpired as exc:
             raise GhostscriptError(f"ghostscript timed out after {timeout}s") from exc

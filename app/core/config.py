@@ -106,15 +106,18 @@ class Settings(BaseSettings):
     retention_hours: int = 0
 
     # Background sweep cadence for orphaned ``fm_*`` temp dirs. The
-    # request path already cleans up its own temp dir in a ``finally``
-    # block; this sweep only catches crash-recovery cases where a worker
-    # was killed mid-conversion. A startup sweep covers process-restart
-    # crashes; the periodic sweep covers long-running processes that
-    # stay up across many incidents. Set to 0 to disable the periodic
-    # sweep entirely (the startup sweep still runs).
-    temp_sweep_interval_minutes: int = 60
+    # request path removes its own temp dir (in a ``finally`` block, or as
+    # the response ends); this sweep only catches crash-recovery cases where
+    # a worker was killed mid-conversion. A startup sweep covers
+    # process-restart crashes; the periodic sweep covers long-running
+    # processes that stay up across many incidents. Every 10 minutes, with
+    # the 10-minute max age below, a dir left behind goes within 20 minutes —
+    # the "swept within minutes" the homepage promises
+    # (tests/test_public_claims.py). Set to 0 to disable the periodic sweep
+    # entirely (the startup sweep still runs).
+    temp_sweep_interval_minutes: int = 10
 
-    # How old a temp dir must be before the sweep removes it. Smaller
+    # How old a temp dir must be before the sweep removes it. Larger
     # than the longest plausible single conversion (xlsx-on-low-CPU can
     # take ~30 s; video conversions can run minutes). 10 minutes leaves
     # a wide safety margin while still cleaning up promptly after a

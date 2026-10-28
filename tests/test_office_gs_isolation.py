@@ -77,8 +77,11 @@ def test_child_env_prepends_shims_and_drops_secrets(monkeypatch, tmp_path):
     monkeypatch.setenv("HOME", "/home/appuser")
 
     document._write_ghostscript_denial_shims(shim_dir)
-    env = document._soffice_child_env(shim_dir)
+    scratch_dir = tmp_path / "tmp"
+    env = document._soffice_child_env(shim_dir, scratch_dir)
 
+    # LibreOffice's own temporary files go into the given dir, not /tmp.
+    assert {env[name] for name in ("TMPDIR", "TEMP", "TMP")} == {str(scratch_dir)}
     # Shim dir is first on PATH; the real /usr/bin is still present after it.
     entries = env["PATH"].split(os.pathsep)
     assert entries[0] == str(shim_dir)
@@ -115,6 +118,11 @@ def test_convert_via_libreoffice_runs_soffice_with_hardened_env(monkeypatch, tmp
         # the real gs dir, so a child looking up gs by name hits the stub.
         shim_first = kwargs["env"]["PATH"].split(os.pathsep)[0]
         assert (Path(shim_first) / "gs").is_file(), "gs stub missing at call time"
+        # Its temporary files go into a dir that exists, inside the staging
+        # dir, so they leave with it.
+        scratch = Path(kwargs["env"]["TMPDIR"])
+        assert scratch.is_dir(), "scratch dir missing at call time"
+        assert scratch.parent == out.parent / f".soffice_{out.stem}"
         outdir = Path(argv[argv.index("--outdir") + 1])
         (outdir / f"{Path(argv[-1]).stem}.pdf").write_bytes(b"%PDF-1.7\n")
         return subprocess.CompletedProcess(argv, 0, stdout=b"", stderr=b"")
@@ -170,6 +178,29 @@ def test_the_pdfa_rerender_runs_ghostscript_without_secrets(monkeypatch, tmp_pat
     assert os.environ["JWT_SECRET"] == "not-for-the-child"  # the app keeps it
 
 
+def test_the_pdfa_rerender_keeps_ghostscript_scratch_files_in_its_temp_dir(monkeypatch, tmp_path):
+    """Ghostscript's own temporary files go into the dir that holds its
+    PDF/A prefix — removed after the run, swept with the ``fm_*`` dirs if the
+    process dies — not into the system temp dir."""
+    monkeypatch.setattr(_ghostscript, "_GS_BINARY", "/usr/bin/gs")
+    seen = {}
+
+    def fake_run(argv, **kwargs):
+        seen["argv"] = argv
+        seen["env"] = kwargs["env"]
+        seen["scratch_existed"] = Path(kwargs["env"]["TMPDIR"]).is_dir()
+        return subprocess.CompletedProcess(argv, 0, stdout=b"", stderr=b"")
+
+    monkeypatch.setattr(_ghostscript.subprocess, "run", fake_run)
+    _ghostscript.rerender_to_pdfa(tmp_path / "in.pdf", tmp_path / "out.pdf", icc_bytes=b"icc")
+
+    prefix_dir = next(Path(arg).parent for arg in seen["argv"] if arg.endswith("PDFA_def.ps"))
+    assert prefix_dir.name.startswith("fm_")
+    assert {seen["env"][name] for name in ("TMPDIR", "TEMP", "TMP")} == {str(prefix_dir)}
+    assert seen["scratch_existed"]
+    assert not prefix_dir.exists()
+
+
 def test_building_child_env_does_not_mutate_the_process_and_stub_is_discoverable(tmp_path):
     """Building the child env leaves ``os.environ`` untouched (so FileMorph's
     own in-process gs lookup is unaffected), and on POSIX the stub resolves as
@@ -177,7 +208,7 @@ def test_building_child_env_does_not_mutate_the_process_and_stub_is_discoverable
     before = dict(os.environ)
     shim_dir = tmp_path / ".nogs"
     document._write_ghostscript_denial_shims(shim_dir)
-    document._soffice_child_env(shim_dir)
+    document._soffice_child_env(shim_dir, tmp_path / "tmp")
     assert dict(os.environ) == before
     if os.name == "posix":
         assert shutil.which("gs", path=str(shim_dir)) == str(shim_dir / "gs")

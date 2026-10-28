@@ -43,8 +43,7 @@ import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile, status
-from fastapi.responses import FileResponse, Response
-from starlette.background import BackgroundTask
+from fastapi.responses import Response
 
 from app.api.deps import caller_tier, require_api_key
 from app.api.routes.auth import get_optional_user
@@ -67,6 +66,7 @@ from app.core.observability import record_conversion
 from app.core.processing import BLOCKED_MAGIC, actor_id
 from app.core.quotas import _MB, file_too_large_message, get_quota, higher_cap_hint
 from app.core.rate_limit import limiter
+from app.core.responses import TempDirFileResponse
 from app.core.usage import enforce_monthly_quota, record_usage
 from app.core.utils import safe_download_name
 from app.db.models import User
@@ -221,11 +221,11 @@ async def _do_extract(
         shutil.rmtree(tmp_dir, ignore_errors=True)
         raise
 
-    return FileResponse(
+    return TempDirFileResponse(
         output_path,
+        tmp_dir=tmp_dir,
         media_type="application/pdf",
         filename=download_name,
-        background=BackgroundTask(shutil.rmtree, tmp_dir, ignore_errors=True),
     )
 
 
@@ -557,12 +557,12 @@ async def _do_compress(
         # former resolution.
         percent = max(1, round(result["image_scale"] * 100))
         response_headers["X-FileMorph-Warnings"] = f"scaled={percent}"
-    return FileResponse(
+    return TempDirFileResponse(
         output_path,
+        tmp_dir=tmp_dir,
         media_type="application/pdf",
         filename=download_name,
         headers=response_headers,
-        background=BackgroundTask(shutil.rmtree, tmp_dir, ignore_errors=True),
     )
 
 
@@ -802,13 +802,13 @@ async def _do_insert(
         shutil.rmtree(tmp_dir, ignore_errors=True)
         raise
 
-    return FileResponse(
+    return TempDirFileResponse(
         output_path,
+        tmp_dir=tmp_dir,
         media_type="application/pdf",
         filename=download_name,
         headers={
             "X-FileMorph-Inserted-Pages": str(result["inserted_pages"]),
             "X-FileMorph-Page-Count": str(result["page_count"]),
         },
-        background=BackgroundTask(shutil.rmtree, tmp_dir, ignore_errors=True),
     )

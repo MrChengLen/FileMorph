@@ -426,13 +426,16 @@ class PdfToPdfaConverter(BaseConverter):
         # slim container), or if it fails on a degenerate input, we
         # skip it and run the pikepdf markup pass on the original.
         # The gs intermediate goes into a tempfile so the source PDF
-        # is never overwritten before the markup pass reads it.
+        # is never overwritten before the markup pass reads it — next to the
+        # output, in the request's temp dir, so it leaves with that dir.
         gs_intermediate: Path | None = None
         source_for_markup = input_path
         rerender_mode = "markup"
 
         if gs.is_available():
-            tmp = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False, prefix="fm_pdfa_gs_")
+            tmp = tempfile.NamedTemporaryFile(
+                suffix=".pdf", delete=False, prefix="fm_pdfa_gs_", dir=output_path.parent
+            )
             tmp.close()
             gs_intermediate = Path(tmp.name)
             try:

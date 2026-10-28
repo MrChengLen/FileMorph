@@ -38,6 +38,8 @@ surface while another keeps the old sentence fails here.
 13. The location hint under every processing button (it replaced the homepage
     privacy note) reaches WCAG AA contrast through a design token, and no
     visible template text uses the ~1.95 : 1 grey any more.
+14. "Temporary files … are swept within minutes" (homepage FAQ) holds with the
+    default sweep settings: a temp dir left behind goes within 20 minutes.
 
 /pricing (and the homepage teaser) has two variants: "free" (no Stripe, as on
 filemorph.io) and "plans" (Stripe configured). ``every_page`` renders both;
@@ -747,3 +749,19 @@ def test_no_visible_template_text_uses_the_low_contrast_grey():
                 if 'aria-hidden="true"' not in tag:
                     hits.append(f"{path.relative_to(ROOT)}: {tag[:80]}")
     assert not hits, hits
+
+
+# ── 14. The temp-file sweep runs within minutes ──────────────────────────────
+
+
+def test_the_homepage_sweep_promise_holds_with_the_default_settings(client):
+    """A temp dir left behind (a worker killed mid-request) goes at the first
+    sweep that finds it older than the max age: with the defaults at the
+    latest after one interval plus the max age. Twenty minutes is still
+    "within minutes"; the former hourly sweep (up to ~70) was not."""
+    assert "are swept within minutes" in _page(client, "en", "/")
+    fields = Settings.model_fields
+    worst = (
+        fields["temp_sweep_interval_minutes"].default + fields["temp_sweep_max_age_minutes"].default
+    )
+    assert worst <= 20

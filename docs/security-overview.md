@@ -557,10 +557,12 @@ mechanically.
   to disk under the original filename.
 - Where a temp path is needed for a multi-step pipeline, the path
   uses a `fm_`-prefixed directory and a UUID stem.
-- Cleanup runs in the request's `finally` block via
-  `shutil.rmtree`.
+- Cleanup removes the request's temp dir when the response ends — sent
+  in full or cut off — and in the request's `finally` block when the
+  conversion fails. LibreOffice and Ghostscript keep their own temporary
+  files in that dir, or in an `fm_`-prefixed one of their own.
 - A startup sweep, plus a periodic background sweep
-  (`TEMP_SWEEP_INTERVAL_MINUTES`, default 60 min), removes any
+  (`TEMP_SWEEP_INTERVAL_MINUTES`, default 10 min), removes any
   `fm_`-prefixed directory older than `TEMP_SWEEP_MAX_AGE_MINUTES`
   (default 10 min) — defence in depth for the case where a worker
   was killed before its `finally` could execute.

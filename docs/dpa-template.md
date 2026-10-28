@@ -82,9 +82,9 @@ or data sale.
 - File contents during processing — deleted from memory and disk
   immediately after the converted output is returned (typical
   retention: seconds). A temp directory left behind, e.g. by a crashed
-  worker, is removed by the startup sweep or the hourly background
-  sweep once it is older than 10 minutes — with the default settings
-  within about 70 minutes (see `app/main.py`)
+  worker, is removed by the startup sweep or the background sweep
+  (every 10 minutes) once it is older than 10 minutes — with the default
+  settings within about 20 minutes (see `app/main.py`)
 - Audit-event records (see §5 below) — retained per the controller's
   configured retention policy
 

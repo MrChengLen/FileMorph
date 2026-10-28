@@ -218,19 +218,23 @@ def _write_ghostscript_denial_shims(shim_dir: Path) -> None:
             logger.warning("could not mark Ghostscript stub %s executable: %s", shim, exc)
 
 
-def _soffice_child_env(shim_dir: Path) -> dict[str, str]:
+def _soffice_child_env(shim_dir: Path, scratch_dir: Path) -> dict[str, str]:
     """Environment for the ``soffice`` child process.
 
     A fresh dict built from the app environment with application secrets
     dropped (see :func:`_is_secret_env_name`) and ``shim_dir`` — the
     Ghostscript stubs — prepended to ``PATH`` so the child cannot start the
-    real Ghostscript. The app process environment is never mutated, so
-    FileMorph's own PDF/A path (``_ghostscript._GS_BINARY``, resolved in this
-    process) still finds the real ``gs``; the pure-Python (mammoth) path runs
-    in-process and is unaffected either way.
+    real Ghostscript. LibreOffice's own temporary files go into
+    ``scratch_dir``, inside the call's staging dir, so they leave with it
+    instead of piling up in the system temp dir after a timeout. The app
+    process environment is never mutated, so FileMorph's own PDF/A path
+    (``_ghostscript._GS_BINARY``, resolved in this process) still finds the
+    real ``gs``; the pure-Python (mammoth) path runs in-process and is
+    unaffected either way.
     """
     env = {k: v for k, v in os.environ.items() if not _is_secret_env_name(k)}
     env["PATH"] = os.pathsep.join(filter(None, [str(shim_dir), os.environ.get("PATH", "")]))
+    env.update(TMPDIR=str(scratch_dir), TEMP=str(scratch_dir), TMP=str(scratch_dir))
     return env
 
 
@@ -254,6 +258,8 @@ def _convert_via_libreoffice(input_path: Path, output_path: Path, timeout_s: int
         # LibreOffice cannot start the real gs while rendering the document.
         shim_dir = work_dir / ".nogs"
         _write_ghostscript_denial_shims(shim_dir)
+        scratch_dir = work_dir / "tmp"
+        scratch_dir.mkdir()
         # ``--norestore`` disables document recovery, ``--nofirststartwizard``
         # skips the per-profile setup prompt, ``--nolockcheck`` allows
         # parallel instances. The user-profile directory is per-call so two
@@ -278,7 +284,7 @@ def _convert_via_libreoffice(input_path: Path, output_path: Path, timeout_s: int
             check=False,
             # Reduced child env: app secrets dropped, gs stubs ahead of the
             # real Ghostscript on PATH. See _soffice_child_env.
-            env=_soffice_child_env(shim_dir),
+            env=_soffice_child_env(shim_dir, scratch_dir),
         )
         # soffice's stderr can quote the document; it goes into the error
         # (and so into a log line) only on a debugging instance (APP_DEBUG).

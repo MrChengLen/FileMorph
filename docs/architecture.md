@@ -109,9 +109,13 @@ Every conversion or compression request follows the same path:
    written (PDF compression: 1 GiB), with their temporary files in the
    request's own temp folder.
 7. **Output stream + temp cleanup.** Converted bytes are returned via a
-   streaming response. Any UUID-named scratch path created during the
-   conversion is removed in the request's `finally` block; on app start a
-   sweep deletes any `fm_*` temp dir older than ten minutes.
+   streaming response. The request's UUID-named temp dir — the upload, the
+   result and LibreOffice's scratch files — is removed when the response
+   ends, sent in full or cut off (`app/core/responses.py`), or in the
+   request's `finally` block when the conversion fails. Ghostscript's PDF/A
+   run keeps its scratch files in an `fm_gs_*` dir of its own, removed after
+   the run. A sweep on app start and every ten minutes deletes any `fm_*`
+   temp dir older than ten minutes (a worker killed mid-request).
 
 ## What lives where
 
