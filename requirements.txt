@@ -4,7 +4,16 @@
 # so we are not actually vulnerable, but pip-audit correctly flags the version
 # and blocks every CI run. Re-allow once the maintainers ship a clean release
 # (drop the "!= 0.136.3" once 0.136.4+ is on PyPI without the bad dep).
-fastapi!=0.136.3,>=0.154.0
+fastapi!=0.136.3,==0.162.0
+# FastAPI pulls in Starlette, which FileMorph imports directly as well: the
+# engine mount (app/core/engine.py), the request limits, the middlewares and
+# the routes' cleanup tasks. Listed here so that Dependabot proposes its
+# updates, since a lockfile recompile keeps a transitive pin where it is. Some
+# of the engine's delivery headers come from it (from 1.7 on, its CORS
+# middleware adds `Vary: Origin` to every response); when they change,
+# tests/test_engine_delivery.py names the new value for
+# app/static/engine/delivery.js.
+starlette==1.10.0
 uvicorn[standard]>=0.54.0
 python-multipart>=0.0.32
 jinja2>=3.1.6
@@ -26,7 +35,7 @@ mammoth>=1.13.0
 # 2026-10-21/22: infinite loops and unbounded memory on crafted PDFs (among them
 # GHSA-39mj-jf6j-2qj3, GHSA-cgf9-327m-v77c) and unvalidated JPEG image data
 # (GHSA-5hx5-vpf9-5wcv).
-pypdf>=6.21.1
+pypdf>=6.21.2
 # pypdf opens AES-encrypted PDFs only with cryptography installed
 # (DependencyError without it, which tests/test_pdf_error_messages.py catches),
 # e.g. an owner-password PDF, which FileMorph processes. It came in through
@@ -38,7 +47,7 @@ cryptography>=50.0.2
 # package required.
 # Lifting the cap also removes its ignore entry in .github/dependabot.yml.
 pikepdf>=10.17.0,<11
-reportlab>=5.0.1
+reportlab==5.1.0
 # Capped below 71: the SSRF guard ``_deny_url_fetcher`` in
 # app/converters/document.py subclasses WeasyPrint's ``URLFetcher`` and
 # overrides ``fetch``. 70 accepts only such an object (the guard used to be a
@@ -61,14 +70,14 @@ slowapi>=0.1.10
 Babel>=2.18.0
 
 # ── Auth / Database ───────────────────────────────────────────────
-sqlalchemy[asyncio]>=2.1.5
-alembic>=1.20.0
+sqlalchemy[asyncio]==2.1.6
+alembic==1.20.1
 # alembic pulls in Mako, which renders its migration template. Before 1.4.2 a
 # TemplateLookup URI with a Windows drive letter escapes the template directory
 # (CVE-2026-102991 / PYSEC-2026-4243). FileMorph looks up no Mako template by
 # URI: only `alembic revision` renders alembic/script.py.mako, from a file. A
 # re-lock keeps existing pins, so this floor is what moves it past the advisory.
-mako>=1.4.2
+mako>=1.4.3
 asyncpg>=0.32.0
 PyJWT>=2.15.1
 bcrypt>=5.0.0
@@ -95,7 +104,7 @@ stripe>=15.6.1,<16
 # the bundle trusts the emSign ECC Root CA - G3, whose intermediates had
 # compromised keys (GHSA-6q48-6c7w-9gw2, critical). A re-lock keeps existing
 # pins, so this floor is what moves certifi past the advisory and keeps it there.
-certifi>=2026.10.19
+certifi==2026.10.23
 
 # ── Observability ────────────────────────────────────────────────
 # Prometheus exposition at /api/v1/metrics (gated by METRICS_ENABLED).
