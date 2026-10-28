@@ -29,7 +29,7 @@
      toggle with Compress already active, so the page is correct before/without
      JS — app.js's setMode('compress') call on init (data-preset-mode below)
      becomes pure progressive enhancement instead of a required repaint. #}
-  <div class="flex rounded-lg overflow-hidden border border-gray-700 text-sm font-medium">
+  <div id="mode-toggle" class="flex rounded-lg overflow-hidden border border-gray-700 text-sm font-medium">
     <button id="btn-mode-convert"
       class="flex-1 py-2 transition-colors{% if preset_mode == 'compress' %} text-gray-400 hover:text-white{% else %} bg-brand text-white{% endif %}"
       aria-pressed="{% if preset_mode == 'compress' %}false{% else %}true{% endif %}" aria-label="{{ _('File conversion mode') }}">{{ _('Convert') }}</button>
@@ -38,6 +38,18 @@
       aria-pressed="{% if preset_mode == 'compress' %}true{% else %}false{% endif %}" aria-label="{{ _('File compression mode') }}">{{ _('Compress') }}</button>
   </div>
   {% endif %}
+
+  {# What a pre-set page or a "#convert=" link expects, or why the chosen
+     file doesn't fit it (app.js, showPresetNotice). Hidden until then with
+     the hidden attribute, which space-y-5 skips (the class would leave a
+     gap above the drop field); the way back to the plain converter shows
+     only for a "#convert=" link. #}
+  <p id="preset-notice" role="status" hidden
+    class="text-xs text-sky-300 bg-sky-950/40 border border-sky-900/50 rounded-lg px-3 py-2 leading-relaxed">
+    <span id="preset-notice-text"></span>
+    <a id="preset-clear" href="{{ localized_url('/', current_prefix) }}"
+      class="hidden underline hover:text-sky-200 font-semibold ml-1">{{ _('Convert something else') }}</a>
+  </p>
 
   <!-- Drop Zone -->
   <div id="drop-zone"
@@ -107,14 +119,15 @@
   <div id="convert-options" class="space-y-4">
     <div class="space-y-1">
       {# On a pair page the target is fixed by the URL, so the dropdown is
-         hidden — but the <select> stays in the DOM because app.js reads
+         hidden until a file can't reach that target (app.js shows it then,
+         starting at "choose a target") — the <select> stays in the DOM because app.js reads
          #target-format (submit, the download-name fallback, and the
          bandwidth-amplification warning). The homepage shows the labelled
          dropdown as before. #}
       {% if not preset_source %}
       <label class="text-sm text-gray-400 font-medium">{{ _('Target Format') }}</label>
       {% endif %}
-      <select id="target-format"
+      <select id="target-format" aria-label="{{ _('Target Format') }}"
         class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-brand transition-colors{% if preset_source %} hidden{% endif %}">
         <option value="">{{ _('— select a file first —') }}</option>
       </select>

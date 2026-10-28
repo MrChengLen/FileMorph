@@ -24,7 +24,8 @@ Guards:
   - Deployment-agnostic (no hardcoded filemorph.io) and <main> never links
     the gated /redact route, flag on or off (the footer may).
   - The chips belong to the idle state: app.js hides the row once files are
-    chosen and shows it again when the selection is cleared.
+    chosen and shows it again when the selection is cleared — unless a
+    "#convert=" link pre-sets the converter, which keeps them hidden.
 """
 
 from __future__ import annotations
@@ -209,7 +210,7 @@ def test_app_js_hides_quick_actions_once_files_are_chosen():
     source = _APP_JS.read_text(encoding="utf-8")
     assert "getElementById('quick-actions')" in source
     assert "setQuickActionsVisible(false)" in _js_function(source, "setFiles")
-    assert "setQuickActionsVisible(true)" in _js_function(source, "clearAllFiles")
+    assert "setQuickActionsVisible(!hashPresetActive)" in _js_function(source, "clearAllFiles")
 
 
 # ── the macros the chips use ───────────────────────────────────────────────

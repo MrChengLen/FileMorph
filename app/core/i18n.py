@@ -311,11 +311,23 @@ def _js_i18n_strings(_: gettext.GNUTranslations.gettext) -> dict[str, str]:
         ),
         "alertNoTargetFormat": _("Please select a target format."),
         "alertNoTargetSize": _("Please enter a target size in MB."),
+        "chooseTargetFormat": _("— choose a target format —"),
         "compress": _("Compress"),
         "compression": _("Compression"),
         "convert": _("Convert"),
         "noConversionsAvailable": _("No conversions available for this format"),
+        # Pre-set pages and "#convert=<src>-to-<tgt>" links (from /formats);
+        # app.js fills in {src}, {tgt} and {ext}, upper case, as plain text.
+        "presetMismatch": _(
+            "This file is {ext}, but the preset is {src} to {tgt}. Choose a target "
+            "below, or your {src} file."
+        ),
+        "presetMismatchTarget": _(
+            "This file is {ext} and can't become {tgt}. Choose a target below."
+        ),
+        "presetReady": _("Preset: {src} to {tgt}. Choose your {src} file."),
         "quality": _("Quality"),
+        "selectFileFirst": _("— select a file first —"),
         # docx→pdf engine routing — pre-upload notice + post-convert warnings.
         # Surface fidelity-affecting decisions in the UI instead of stuffing
         # them into the PDF artefact (which the user forwards to recipients).

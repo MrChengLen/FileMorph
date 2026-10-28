@@ -784,6 +784,10 @@ msgstr "Konvertieren"
 msgid "Convert %(src)s to"
 msgstr "%(src)s konvertieren in"
 
+#, python-format
+msgid "Convert %(src)s to %(tgt)s"
+msgstr "%(src)s in %(tgt)s umwandeln"
+
 msgid "Convert & Compress Files"
 msgstr "Dateien konvertieren & komprimieren"
 
@@ -794,6 +798,9 @@ msgstr ""
 "Dateien kostenlos online konvertieren & komprimieren — HEIC, JPG, PNG, "
 "WebP, PDF, DOCX, MP4 & mehr. Auf Zielgröße verkleinern. Kein Konto, Open "
 "Source."
+
+msgid "Convert something else"
+msgstr "Etwas anderes umwandeln"
 
 msgid ""
 "Converting and compressing your files, creating and running your account,"
@@ -2291,6 +2298,10 @@ msgstr "Position"
 msgid "Prefer operations over formats?"
 msgstr "Suchst du lieber nach einem Vorgang statt nach einem Format?"
 
+#, python-brace-format
+msgid "Preset: {src} to {tgt}. Choose your {src} file."
+msgstr "Voreingestellt: {src} in {tgt}. Wähle deine {src}-Datei."
+
 msgid "Price / year"
 msgstr "Preis / Jahr"
 
@@ -3329,6 +3340,20 @@ msgstr ""
 "Diese Datei kann nicht eingefügt werden. Möglich sind ein PDF, eine Word-"
 "Datei (.docx) oder ein Bild (JPG, PNG, HEIC …); andere Dokumente "
 "speichere vorher als .docx oder PDF."
+
+#, python-brace-format
+msgid "This file is {ext} and can't become {tgt}. Choose a target below."
+msgstr ""
+"Diese Datei ist {ext} und lässt sich nicht in {tgt} umwandeln. Wähle "
+"unten ein Ziel."
+
+#, python-brace-format
+msgid ""
+"This file is {ext}, but the preset is {src} to {tgt}. Choose a target "
+"below, or your {src} file."
+msgstr ""
+"Diese Datei ist {ext}, voreingestellt ist aber {src} in {tgt}. Wähle "
+"unten ein Ziel oder deine {src}-Datei."
 
 msgid "This form needs JavaScript. Please enable it and reload the page."
 msgstr ""
@@ -4517,6 +4542,9 @@ msgstr "© 2026 FileMorph — AGPLv3 Open Source"
 
 msgid "— a PGP key is available on request."
 msgstr "— ein PGP-Schlüssel ist auf Anfrage erhältlich."
+
+msgid "— choose a target format —"
+msgstr "— Zielformat wählen —"
 
 msgid "— select a file first —"
 msgstr "— erst eine Datei wählen —"
