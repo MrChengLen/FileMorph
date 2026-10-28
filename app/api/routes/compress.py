@@ -8,8 +8,7 @@ import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
-from fastapi.responses import FileResponse, JSONResponse, Response
-from starlette.background import BackgroundTask
+from fastapi.responses import JSONResponse, Response
 
 from app.api.deps import caller_tier, require_api_key
 from app.api.routes.auth import get_optional_user
@@ -45,6 +44,7 @@ from app.core.quotas import (
     larger_batches_hint,
 )
 from app.core.rate_limit import limiter
+from app.core.responses import TempDirFileResponse
 from app.core.usage import enforce_monthly_quota, record_usage
 from app.core.utils import safe_download_name
 from app.db.models import User
@@ -263,9 +263,9 @@ async def _do_compress(
             )
 
         # S3: stream the output from disk instead of buffering into RAM. The
-        # BackgroundTask runs after the response body is fully sent, so temp
-        # cleanup is deferred but still guaranteed. On any error path below
-        # (or above, before this block), the except handler cleans up sync.
+        # response removes the temp dir once it ends, sent in full or cut off
+        # (TempDirFileResponse). On any error path below (or above, before this
+        # block), the except handler cleans up sync.
         download_name = safe_download_name(original_stem, f"_compressed.{ext}")
         output_size_bytes = output_disk_size
         amplification_ratio = (
@@ -330,6 +330,9 @@ async def _do_compress(
             duration_ms=round((time.monotonic() - _t0) * 1000),
         )
     except HTTPException as exc:
+        # Clean up first: with AUDIT_FAIL_CLOSED the audit write below can
+        # raise, and nothing after it would run.
+        shutil.rmtree(tmp_dir, ignore_errors=True)
         # Track compression failures separately from infra so the cockpit
         # has a meaningful failure-rate. The HTTPException still propagates.
         await metric_increment("failures.compress")
@@ -345,11 +348,11 @@ async def _do_compress(
                 ),
             },
         )
-        shutil.rmtree(tmp_dir, ignore_errors=True)
         raise
     except BaseException:
-        # BackgroundTask only fires on the success path; clean up synchronously
-        # on cancellation / unexpected errors. HTTPException is caught above.
+        # The response takes over the temp dir only once it is returned; clean
+        # up synchronously on cancellation / unexpected errors before that.
+        # HTTPException is caught above.
         shutil.rmtree(tmp_dir, ignore_errors=True)
         raise
 
@@ -364,12 +367,12 @@ async def _do_compress(
         if notes:
             response_headers["X-FileMorph-Warnings"] = ",".join(notes)
 
-    return FileResponse(
+    return TempDirFileResponse(
         output_path,
+        tmp_dir=tmp_dir,
         media_type="application/octet-stream",
         filename=download_name,
         headers=response_headers,
-        background=BackgroundTask(shutil.rmtree, tmp_dir, ignore_errors=True),
     )
 
 

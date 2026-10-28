@@ -419,7 +419,7 @@ jobs:
           assert shutil.which("gs"), "the office image should ship Ghostscript"
           shim = Path(tempfile.mkdtemp()) / ".nogs"
           _write_ghostscript_denial_shims(shim)
-          resolved = shutil.which("gs", path=_soffice_child_env(shim)["PATH"])
+          resolved = shutil.which("gs", path=_soffice_child_env(shim, shim.parent / "tmp")["PATH"])
           assert resolved and Path(resolved).parent == shim, resolved
           # A one-pixel PNG exercises LibreOffice's graphics path with the
           # hardened env; bytes are a fixed, dependency-free image.

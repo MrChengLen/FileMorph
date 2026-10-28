@@ -8,8 +8,7 @@ import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
-from fastapi.responses import FileResponse, JSONResponse, Response
-from starlette.background import BackgroundTask
+from fastapi.responses import JSONResponse, Response
 
 from app.api.deps import caller_tier, require_api_key
 from app.api.routes.auth import get_optional_user
@@ -42,6 +41,7 @@ from app.core.quotas import (
     larger_batches_hint,
 )
 from app.core.rate_limit import limiter
+from app.core.responses import TempDirFileResponse
 from app.core.usage import enforce_monthly_quota, record_usage
 from app.core.utils import safe_download_name
 from app.db.models import User
@@ -263,9 +263,9 @@ async def _do_convert(
             )
 
         # S3: stream the output from disk instead of buffering into RAM. The
-        # BackgroundTask runs after the response body is fully sent, so temp
-        # cleanup is deferred but still guaranteed. On any error path below
-        # (or above, before this block), the except handler cleans up sync.
+        # response removes the temp dir once it ends, sent in full or cut off
+        # (TempDirFileResponse). On any error path below (or above, before this
+        # block), the except handler cleans up sync.
         download_name = _download_name(original_stem, tgt_ext)
         output_size_bytes = output_disk_size
 
@@ -334,6 +334,9 @@ async def _do_convert(
             duration_ms=round((time.monotonic() - _t0) * 1000),
         )
     except HTTPException as exc:
+        # Clean up first: with AUDIT_FAIL_CLOSED the audit write below can
+        # raise, and nothing after it would run.
+        shutil.rmtree(tmp_dir, ignore_errors=True)
         # Track conversion failures separately from infrastructure errors
         # so the cockpit can show a meaningful failure-rate. We swallow the
         # metric write itself — the user-visible exception still propagates.
@@ -351,12 +354,11 @@ async def _do_convert(
                 ),
             },
         )
-        shutil.rmtree(tmp_dir, ignore_errors=True)
         raise
     except BaseException:
-        # BackgroundTask only fires on the success path; clean up synchronously
-        # on any failure (cancellation, unexpected error). HTTPException is
-        # handled above so we can also count the failure.
+        # The response takes over the temp dir only once it is returned; clean
+        # up synchronously on any failure before that (cancellation, unexpected
+        # error). HTTPException is handled above so we can also count the failure.
         shutil.rmtree(tmp_dir, ignore_errors=True)
         raise
 
@@ -372,12 +374,12 @@ async def _do_convert(
         # Tokens are comma-joined; each is ``key=value`` (see the
         # _COMPLEXITY_FEATURE_TO_LABEL map in app/converters/document.py).
         response_headers["X-FileMorph-Warnings"] = ",".join(converter_warnings)
-    return FileResponse(
+    return TempDirFileResponse(
         output_path,
+        tmp_dir=tmp_dir,
         media_type="application/octet-stream",
         filename=download_name,
         headers=response_headers,
-        background=BackgroundTask(shutil.rmtree, tmp_dir, ignore_errors=True),
     )
 
 

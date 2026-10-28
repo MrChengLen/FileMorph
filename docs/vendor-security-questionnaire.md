@@ -266,7 +266,7 @@ refers to and attaches to the counter-signed contract.
 - **File content:** ephemeral — deleted from memory and any temp path
   immediately after the response is returned. `RETENTION_HOURS`
   defaults to `0`. A startup sweep and a background sweep every
-  `TEMP_SWEEP_INTERVAL_MINUTES` (default 60 min) remove any
+  `TEMP_SWEEP_INTERVAL_MINUTES` (default 10 min) remove any
   `fm_`-prefixed temp directory older than `TEMP_SWEEP_MAX_AGE_MINUTES`
   (default 10 min).
 - **Account data:** until the user deletes the account.

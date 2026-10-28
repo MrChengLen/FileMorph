@@ -141,11 +141,11 @@ def _sweep_stale_temp_dirs(*, max_age_seconds: int) -> int:
     dirs are logged at WARNING and do not stop the sweep; a permission
     glitch on one stale dir should not leave the rest behind.
 
-    The request path always cleans its own temp dir in a ``finally``
-    block (or via ``BackgroundTask`` on the success path), so this
-    sweep only catches crash-recovery cases. The startup pass covers
-    process restarts; the periodic pass covers long-running processes
-    that stay up across many incidents.
+    The request path always removes its own temp dir — in a ``finally``
+    block when it fails, and as the response ends once one is returned
+    (``TempDirFileResponse``) — so this sweep only catches crash-recovery
+    cases. The startup pass covers process restarts; the periodic pass
+    covers long-running processes that stay up across many incidents.
     """
     tmp_root = Path(tempfile.gettempdir())
     cutoff = time.time() - max_age_seconds
@@ -180,7 +180,8 @@ async def _periodic_temp_sweep(
         if stop_event.is_set():
             return
         try:
-            _sweep_stale_temp_dirs(max_age_seconds=max_age_seconds)
+            # Off the event loop: removing a leftover dir can take a while.
+            await asyncio.to_thread(_sweep_stale_temp_dirs, max_age_seconds=max_age_seconds)
         except Exception:
             logger.exception("Periodic temp-dir sweep raised; continuing")
 
