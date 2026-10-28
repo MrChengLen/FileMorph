@@ -55,7 +55,14 @@ msgstr ""
 msgid "/mo"
 msgstr ""
 
+#, python-brace-format
+msgid "1 page inserted — now {total} pages, {size}."
+msgstr ""
+
 msgid "1 server, ≤ 50 employees"
+msgstr ""
+
+msgid "1 · Your PDF"
 msgstr ""
 
 msgid "1-based, comma-separated — e.g. 1-3,5 keeps pages 1, 2, 3 and 5."
@@ -71,6 +78,9 @@ msgid "10. Contact"
 msgstr ""
 
 msgid "10. Required data and automated decisions"
+msgstr ""
+
+msgid "2 · What goes in?"
 msgstr ""
 
 msgid "2. Description of Service"
@@ -107,6 +117,9 @@ msgid "2i. PII redaction (paid add-on):"
 msgstr ""
 
 msgid "3 servers, ≤ 2,000 employees"
+msgstr ""
+
+msgid "3 · Where?"
 msgstr ""
 
 msgid "3. Acceptable Use"
@@ -258,6 +271,9 @@ msgstr ""
 msgid "Affected version (commit hash or release tag if known)."
 msgstr ""
 
+msgid "After page"
+msgstr ""
+
 msgid "Aggregated counters — no personal data, no cookies."
 msgstr ""
 
@@ -355,6 +371,12 @@ msgid "At the earliest possible date"
 msgstr ""
 
 msgid "At the earliest possible date (end of the current billing period)"
+msgstr ""
+
+msgid "At the end"
+msgstr ""
+
+msgid "At the start"
 msgstr ""
 
 msgid "Attempt to circumvent rate limits or security controls"
@@ -466,6 +488,9 @@ msgid "Choose a password you haven't used before"
 msgstr ""
 
 msgid "Choose audience"
+msgstr ""
+
+msgid "Choose the file to insert."
 msgstr ""
 
 msgid "Clear"
@@ -708,6 +733,11 @@ msgstr ""
 msgid "Couldn't fully reach your target size — best achieved: {size} MB."
 msgstr ""
 
+msgid ""
+"Counted from the first page of the PDF file, not by the printed page "
+"numbers."
+msgstr ""
+
 msgid "Create Account"
 msgstr ""
 
@@ -810,6 +840,9 @@ msgstr ""
 msgid "Drag & drop a file here"
 msgstr ""
 
+msgid "Drag & drop or click to browse"
+msgstr ""
+
 msgid "Drag & drop your files here"
 msgstr ""
 
@@ -817,6 +850,9 @@ msgid "Drop a file here or click to browse"
 msgstr ""
 
 msgid "Drop files here or click to browse"
+msgstr ""
+
+msgid "Drop the file to insert here or click to browse"
 msgstr ""
 
 msgid "E-mail support"
@@ -867,6 +903,9 @@ msgid "Engine details ↗"
 msgstr ""
 
 msgid "Engineering proof before contract"
+msgstr ""
+
+msgid "Enter the page after which the new pages go."
 msgstr ""
 
 msgid "Enter your email to receive a reset link"
@@ -926,6 +965,9 @@ msgid "File conversion and compression — open source, self-hostable."
 msgstr ""
 
 msgid "File conversion mode"
+msgstr ""
+
+msgid "File to insert"
 msgstr ""
 
 msgid ""
@@ -1366,6 +1408,12 @@ msgstr ""
 msgid "Initial triage:"
 msgstr ""
 
+msgid "Insert PDF pages"
+msgstr ""
+
+msgid "Insert something else"
+msgstr ""
+
 msgid ""
 "Integrate file conversion into your app via REST API. One endpoint, all "
 "formats."
@@ -1449,8 +1497,8 @@ msgid "Looking for an operation instead of a format? Browse all tools →"
 msgstr ""
 
 msgid ""
-"Looking to split, extract pages from, or compress a PDF? Try the "
-"dedicated PDF tools:"
+"Looking to split, extract pages from, insert pages into, or compress a "
+"PDF? Try the dedicated PDF tools:"
 msgstr ""
 
 msgid "Looking up a specific format instead? Browse the"
@@ -1673,6 +1721,9 @@ msgstr ""
 msgid "PDF tools"
 msgstr ""
 
+msgid "PDF, Word (.docx) or image (JPG, PNG, HEIC …)"
+msgstr ""
+
 msgid "PDF/A-2b (veraPDF CI gate)"
 msgstr ""
 
@@ -1717,6 +1768,9 @@ msgid "Page headers were simplified"
 msgstr ""
 
 msgid "Page not found"
+msgstr ""
+
+msgid "Page number"
 msgstr ""
 
 msgid "Pages to keep"
@@ -1800,6 +1854,9 @@ msgid "Please select at least one file."
 msgstr ""
 
 msgid "Popular conversions"
+msgstr ""
+
+msgid "Position"
 msgstr ""
 
 msgid "Prefer operations over formats?"
@@ -2144,6 +2201,9 @@ msgstr ""
 msgid "Select one or more files to convert or compress"
 msgstr ""
 
+msgid "Select the file to insert"
+msgstr ""
+
 msgid "Self-host"
 msgstr ""
 
@@ -2475,6 +2535,12 @@ msgid ""
 " Word features."
 msgstr ""
 
+msgid "The image couldn't be read. Save it as PNG or JPG and try again."
+msgstr ""
+
+msgid "The image is too large to process safely. Make it smaller and try again."
+msgstr ""
+
 #, python-brace-format
 msgid ""
 "The images in the PDF were scaled down to {percent} percent of their "
@@ -2497,6 +2563,16 @@ msgstr ""
 msgid ""
 "The last payment for your FileMorph <strong>%(tier_label)s</strong> plan "
 "(<strong>%(email)s</strong>) could not be charged."
+msgstr ""
+
+msgid "The new pages go after the last page."
+msgstr ""
+
+msgid "The new pages start at page 1."
+msgstr ""
+
+#, python-brace-format
+msgid "The new pages start at page {page}."
 msgstr ""
 
 msgid "The official Docker images and release artifacts."
@@ -2557,6 +2633,12 @@ msgid ""
 msgstr ""
 
 msgid ""
+"These files are too large or complex to combine in one go. Insert into a "
+"smaller part of the PDF (“Extract PDF pages”), or shrink the files first "
+"with “Compress PDF”."
+msgstr ""
+
+msgid ""
 "Third-party services we depend on (Stripe, Zoho, Cloudflare, Hetzner) — "
 "please report to those vendors directly."
 msgstr ""
@@ -2586,6 +2668,16 @@ msgstr ""
 msgid ""
 "This PDF is too large or complex to compress in one go. Extract fewer "
 "pages at a time with “Extract PDF pages”, then compress each part."
+msgstr ""
+
+msgid ""
+"This Word file couldn't be converted here. In Word, save it as a PDF "
+"(File → Save as → PDF) and insert the PDF."
+msgstr ""
+
+msgid ""
+"This file can't be inserted. Insert a PDF, a Word file (.docx) or an "
+"image (JPG, PNG, HEIC …); save other documents as .docx or PDF first."
 msgstr ""
 
 msgid "This form needs JavaScript. Please enable it and reload the page."
@@ -2642,6 +2734,11 @@ msgid ""
 "To the extent permitted by applicable law, the operator of FileMorph "
 "shall not be liable for any direct, indirect, incidental, or "
 "consequential damages arising from your use of the Service."
+msgstr ""
+
+msgid ""
+"Together the files would have more than 10,000 pages — too many for one "
+"insertion."
 msgstr ""
 
 msgid "Toggle menu"
@@ -3171,6 +3268,16 @@ msgstr ""
 msgid "Your FileMorph account has been deleted"
 msgstr ""
 
+msgid "Your PDF"
+msgstr ""
+
+msgid "Your PDF has only 1 page — choose “At the start” or “At the end”."
+msgstr ""
+
+#, python-brace-format
+msgid "Your PDF has {count} pages — choose a page from 1 to {count}."
+msgstr ""
+
 msgid "Your account does not have the admin role."
 msgstr ""
 
@@ -3468,6 +3575,14 @@ msgstr ""
 
 #, python-brace-format
 msgid "{count} item(s) found"
+msgstr ""
+
+#, python-brace-format
+msgid "{inserted} pages inserted — now {total} pages, {size}."
+msgstr ""
+
+#, python-brace-format
+msgid "{name} (with the inserted pages)"
 msgstr ""
 
 #, python-brace-format

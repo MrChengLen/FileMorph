@@ -23,7 +23,7 @@ import pytest
 
 from app.core.pdf_tools_content import PDF_TOOL_CONTENT, get_pdf_tool_content
 
-_TOOLS = sorted(PDF_TOOL_CONTENT)  # ["compress", "extract", "split"]
+_TOOLS = sorted(PDF_TOOL_CONTENT)  # ["compress", "extract", "insert", "split"]
 
 
 @pytest.mark.parametrize("tool", _TOOLS)
@@ -214,22 +214,25 @@ def test_formats_page_links_to_pdf_tools_via_tools_hub(client):
         assert f"/pdf/{tool}" in hub_main
 
 
-@pytest.mark.parametrize("tool", ["split", "extract", "compress"])
+@pytest.mark.parametrize("tool", _TOOLS)
 def test_related_tools_section_links_siblings_and_curated_pairs(client, tool):
-    """De-dead-ending guard: each /pdf/* page links its two sibling tools
+    """De-dead-ending guard: each /pdf/* page links its sibling tools
     (never itself) and every page its catalogue entry names (the catalogue
     rejects a related link outside it at import)."""
     from app.core import catalog
 
     html = client.get(f"/en/pdf/{tool}").text
     main = html[html.index("<main") : html.index("</main>")]
-    for sibling in {"split", "extract", "compress"} - {tool}:
-        assert f'href="/en/pdf/{sibling}"' in main
+    # The related block is the last section: the widget's hidden error links
+    # (e.g. to /pdf/extract) must not stand in for it.
+    block = main[main.rindex("<h2") :]
+    for sibling in set(_TOOLS) - {tool}:
+        assert f'href="/en/pdf/{sibling}"' in block
     assert f'href="/en/pdf/{tool}"' not in main, "Related tools must not link itself"
     related = catalog.get(f"/pdf/{tool}").related
     assert related, f"/pdf/{tool} names no related page"
     for path in related:
-        assert f'href="/en{path}"' in main
+        assert f'href="/en{path}"' in block
 
 
 # ── deployment-agnostic + honest-compress wording ────────────────────────────
@@ -256,12 +259,22 @@ def test_compress_page_states_honest_limits(client):
 # ── DOM-id contract between pdf-tools.js and the partial ─────────────────────
 
 # Ids that exist only on specific tools' pages; every other id the script
-# queries must be present on all three.
+# queries must be present on all of them.
 _TOOL_SCOPED_IDS = {
     "pdf-pages": {"extract"},
     "pdf-pages-warn": {"extract"},
     "pdf-target-size": {"compress"},
-    "pdf-error-extract": {"split", "compress"},
+    "pdf-error-extract": {"split", "compress", "insert"},
+    # /pdf/insert: the second file, where it goes, and "Insert something else".
+    "pdf-insert-drop": {"insert"},
+    "pdf-insert-file": {"insert"},
+    "pdf-insert-idle": {"insert"},
+    "pdf-insert-selected": {"insert"},
+    "pdf-insert-filename": {"insert"},
+    "pdf-insert-clear": {"insert"},
+    "pdf-after-page": {"insert"},
+    "pdf-position-note": {"insert"},
+    "pdf-insert-more": {"insert"},
 }
 
 
@@ -281,8 +294,13 @@ def test_partial_provides_every_dom_id_the_js_queries(client, monkeypatch):
 
     monkeypatch.setitem(templates.env.globals, "pricing_enabled", True)
     js_path = Path(__file__).resolve().parents[1] / "app" / "static" / "js" / "pdf-tools.js"
-    ids = set(re.findall(r"\$\('([a-z-]+)'\)", js_path.read_text(encoding="utf-8")))
+    js = js_path.read_text(encoding="utf-8")
+    ids = set(re.findall(r"\$\('([a-z-]+)'\)", js))
     assert ids, "id-extraction regex matched nothing — did the $ helper change?"
+    # The dropzones' ids are passed to wireDropzone() rather than to $().
+    for call in re.findall(r"wireDropzone\(('[^)]*)\)", js):
+        ids |= set(re.findall(r"'([a-z-]+)'", call))
+    assert {"pdf-drop", "pdf-clear", "pdf-insert-drop", "pdf-insert-clear"} <= ids
     pages = {tool: client.get(f"/pdf/{tool}").text for tool in _TOOLS}
     for dom_id in sorted(ids):
         for tool in _TOOL_SCOPED_IDS.get(dom_id, set(_TOOLS)):

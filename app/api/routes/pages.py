@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Request
 
+from app.api.routes.pdf_pages import INSERT_FORMATS
 from app.compressors.image import _SUPPORTED_FORMATS as IMAGE_COMPRESS_FMTS
 from app.compressors.video import _SUPPORTED_FORMATS as VIDEO_COMPRESS_FMTS
 from app.converters.registry import get_public_conversions, get_supported_conversions
@@ -475,6 +476,8 @@ async def pdf_tool_page(request: Request, tool: str):
         related=_related(page.related, locale),
         tool=tool,
         pdf_accept=accept_attr("pdf"),
+        # /pdf/insert's second file: what the route takes.
+        insert_accept=",".join(f".{ext}" for ext in INSERT_FORMATS),
     )
 
 

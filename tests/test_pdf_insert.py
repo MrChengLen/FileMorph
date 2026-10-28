@@ -765,3 +765,29 @@ def test_docs_quote_the_insert_limits():
         f"space and {file_bytes // _isolated._GIB} GiB per file written"
     )
     assert expected in " ".join(text.split())
+
+
+# ── Page ─────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    "prefix, h1, position_hint",
+    [
+        ("/en", "Insert pages into a PDF", "not by the printed page numbers"),
+        ("/de", "Seiten in ein PDF einfügen", "nicht nach der gedruckten Seitenzahl"),
+    ],
+)
+def test_the_page_offers_both_files_and_the_position(client, prefix, h1, position_hint):
+    """The page has the two upload fields, the three positions (the end
+    preselected), the counting hint and "Insert something else" — in the
+    page's language."""
+    html = client.get(f"{prefix}/pdf/insert").text
+
+    assert h1 in html
+    assert 'data-endpoint="/api/v1/pdf/insert"' in html
+    for dom_id in ("pdf-drop", "pdf-insert-drop", "pdf-after-page", "pdf-insert-more"):
+        assert f'id="{dom_id}"' in html
+    assert re.search(r'value="end"[^>]*checked', html)
+    assert position_hint in html
+    accept = re.search(r'id="pdf-insert-file"[^>]*accept="([^"]+)"', html, re.S).group(1)
+    assert {".pdf", ".docx", ".jpg", ".png"} <= set(accept.split(","))

@@ -18,6 +18,13 @@ def _field(name: str, value: str) -> str:
     return f'--b\r\nContent-Disposition: form-data; name="{name}"\r\n\r\n{value}\r\n'
 
 
+def _file(name: str) -> str:
+    return (
+        f'--b\r\nContent-Disposition: form-data; name="{name}"; filename="a.pdf"\r\n'
+        "Content-Type: application/pdf\r\n\r\n%PDF-\r\n"
+    )
+
+
 @pytest.mark.parametrize(
     ("path", "field", "extra"),
     [
@@ -28,6 +35,8 @@ def _field(name: str, value: str) -> str:
         ("/api/v1/pdf/extract", "file", _field("pages", "1")),
         ("/api/v1/pdf/split", "file", ""),
         ("/api/v1/pdf/compress", "file", _field("target_kb", "100")),
+        ("/api/v1/pdf/insert", "file", _file("insert_file")),
+        ("/api/v1/pdf/insert", "insert_file", _file("file")),
         ("/api/v1/ai/redact/detect", "file", ""),
         ("/api/v1/ai/redact/apply", "file", ""),
     ],
@@ -39,6 +48,8 @@ def _field(name: str, value: str) -> str:
         "pdf-extract",
         "pdf-split",
         "pdf-compress",
+        "pdf-insert",
+        "pdf-insert-second-file",
         "ai-redact-detect",
         "ai-redact-apply",
     ],

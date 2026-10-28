@@ -188,8 +188,8 @@ needs LibreOffice.
 | **Compress to target** | `POST /api/v1/pdf/compress` | PDF → PDF | Shrink to at most a `target_kb` budget by recompressing embedded raster images, scaling them down if needed. Page count, layout and every glyph are preserved. |
 | **Insert pages** | `POST /api/v1/pdf/insert` | PDF + PDF / DOCX / image → PDF | Put a whole second file into the PDF — at the start, after page N (`after_page`) or at the end. An image becomes one page in its neighbour's size; a `.docx` is converted with LibreOffice. The PDF keeps its bookmarks, links and form fields. |
 
-**Web UI:** split, extract and compress also have a dedicated, bilingual
-(DE/EN) page — `/pdf/split`, `/pdf/extract`, `/pdf/compress` — ungated, same
+**Web UI:** each operation also has a dedicated, bilingual (DE/EN) page —
+`/pdf/split`, `/pdf/extract`, `/pdf/compress`, `/pdf/insert` — ungated, same
 as the main Convert/Compress tool.
 
 Note: the registry's internal `pdf → pdf` identity pair (the page-extract

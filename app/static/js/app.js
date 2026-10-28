@@ -332,7 +332,7 @@ function renderFileList() {
 
 // PDF is a valid *source* here (→ TXT / PDF/A) but no longer a convert
 // *target* (see get_public_conversions() in app/converters/registry.py) —
-// point at the dedicated split/extract/compress tools instead. #pdf-tools-hint
+// point at the dedicated split/extract/insert/compress tools instead. #pdf-tools-hint
 // is absent on pair pages (partials/convert_tool.html gates it on
 // `preset_source`), hence the null-guard.
 // Homepage quick-action chips (partials/quick_actions.html) are an idle-state

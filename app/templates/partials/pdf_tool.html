@@ -1,9 +1,10 @@
-{# Shared PDF-tool widget for /pdf/split, /pdf/extract, /pdf/compress. CSP-safe:
-   no inline JS — only IDs + data-attributes read by app/static/js/pdf-tools.js.
-   Single-file upload → one POST to /api/v1/pdf/{{ tool }} → download. Per-tool
+{# Shared PDF-tool widget for /pdf/split, /pdf/extract, /pdf/compress and
+   /pdf/insert. CSP-safe: no inline JS — only IDs + data-attributes read by
+   app/static/js/pdf-tools.js. Upload (insert: the PDF and the file to insert)
+   → one POST to /api/v1/pdf/{{ tool }} → download. Per-tool
    controls are {% if tool == ... %} branches (no class concatenation). Lives
    in app/templates/partials/ (NOT a _-prefixed dir) so babel picks up the
-   _() chrome strings. Context: content, tool, pdf_accept. #}
+   _() chrome strings. Context: content, tool, pdf_accept, insert_accept. #}
 {% import "_components/card.html" as uc %}
 {% import "_components/button.html" as ub %}
 {% call uc.card() %}
@@ -11,9 +12,12 @@
 
   <!-- Upload + per-tool controls -->
   <div id="pdf-step-upload" class="space-y-4">
+    {% if tool == 'insert' %}
+    <p id="pdf-step-file" class="text-sm text-gray-400 font-medium">{{ _('1 · Your PDF') }}</p>
+    {% endif %}
     <div id="pdf-drop"
       class="border-2 border-dashed border-gray-700 rounded-xl p-6 sm:p-10 text-center cursor-pointer hover:border-brand transition-colors group"
-      role="button" tabindex="0" aria-label="{{ _('Drop a file here or click to browse') }}">
+      role="button" tabindex="0" aria-label="{{ _('Drop a file here or click to browse') }}"{% if tool == 'insert' %} aria-describedby="pdf-step-file"{% endif %}>
       <input id="pdf-file" type="file" class="hidden"
         accept="{{ pdf_accept }}"
         aria-label="{{ _('Select a PDF file') }}" />
@@ -37,6 +41,52 @@
         </button>
       </div>
     </div>
+
+    {% if tool == 'insert' %}
+    {# Second file + position. The first dropzone (#pdf-drop) above holds the
+       PDF to insert into; its label comes from #pdf-step-file. #}
+    <div class="space-y-1">
+      <p id="pdf-step-insert" class="text-sm text-gray-400 font-medium">{{ _('2 · What goes in?') }}</p>
+      <div id="pdf-insert-drop"
+        class="border-2 border-dashed border-gray-700 rounded-xl p-5 text-center cursor-pointer hover:border-brand transition-colors group"
+        role="button" tabindex="0" aria-label="{{ _('Drop the file to insert here or click to browse') }}" aria-describedby="pdf-step-insert">
+        <input id="pdf-insert-file" type="file" class="hidden"
+          accept="{{ insert_accept }}"
+          aria-label="{{ _('Select the file to insert') }}" />
+        <div id="pdf-insert-idle" class="space-y-1">
+          <p class="text-gray-400 text-sm">{{ _('PDF, Word (.docx) or image (JPG, PNG, HEIC …)') }}</p>
+          <p class="text-xs text-gray-600">{{ _('Drag & drop or click to browse') }}</p>
+        </div>
+        <div id="pdf-insert-selected" class="hidden space-y-1">
+          <p id="pdf-insert-filename" class="font-medium text-white text-sm"></p>
+          <button id="pdf-insert-clear" class="text-xs text-gray-600 hover:text-red-400 transition-colors">
+            {{ _('Clear') }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <fieldset class="space-y-2">
+      <legend class="text-sm text-gray-400 font-medium">{{ _('3 · Where?') }}</legend>
+      <label class="flex items-center gap-2 text-sm text-gray-300">
+        <input type="radio" name="pdf-position" value="start" class="accent-brand" />
+        {{ _('At the start') }}
+      </label>
+      <label class="flex items-center gap-2 text-sm text-gray-300">
+        <input type="radio" name="pdf-position" value="after" class="accent-brand" />
+        {{ _('After page') }}
+        <input id="pdf-after-page" type="number" min="1" step="1" inputmode="numeric"
+          aria-label="{{ _('Page number') }}"
+          class="w-20 bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 text-sm text-gray-200 focus:outline-none focus:border-brand" />
+      </label>
+      <label class="flex items-center gap-2 text-sm text-gray-300">
+        <input type="radio" name="pdf-position" value="end" class="accent-brand" checked />
+        {{ _('At the end') }}
+      </label>
+      <p id="pdf-position-note" class="text-xs text-gray-400" aria-live="polite"></p>
+      <p class="text-xs text-gray-600">{{ _("Counted from the first page of the PDF file, not by the printed page numbers.") }}</p>
+    </fieldset>
+    {% endif %}
 
     {% if tool == 'extract' %}
     <div class="space-y-1">
@@ -98,6 +148,10 @@
       <span id="pdf-download-label">{{ _('Download PDF') }}</span>
       {% endif %}
     </a>
+    {% if tool == 'insert' %}
+    {# The result becomes the PDF for the next file (pdf-tools.js). #}
+    {{ ub.button(_('Insert something else'), id='pdf-insert-more', variant='secondary', size='sm', full_width=True) }}
+    {% endif %}
     <button id="pdf-restart" class="block mx-auto text-xs text-gray-600 hover:text-white transition-colors">
       {{ _('Process another file') }}
     </button>
@@ -105,11 +159,11 @@
 
   <div id="pdf-error" class="hidden text-center space-y-2">
     <p id="pdf-error-text" class="text-red-400 text-sm text-center bg-red-950 rounded-lg py-3 px-4"></p>
-    {# Next step (rule: never a dead end) for a PDF over the page cap on the
-       split page, or too large or complex on the compress page: the error
-       text names the Extract tool, this makes it one click. Un-hidden by
-       pdf-tools.js for pdf_too_many_pages / pdf_too_complex only. #}
-    {% if tool in ('split', 'compress') %}
+    {# Next step (rule: never a dead end) for a PDF over the page cap or
+       too large or complex on the split, compress and insert pages: the
+       error text names the Extract tool, this makes it one click. Un-hidden
+       by pdf-tools.js for pdf_too_many_pages / pdf_too_complex only. #}
+    {% if tool in ('split', 'compress', 'insert') %}
     <a id="pdf-error-extract" href="{{ localized_url('/pdf/extract', current_prefix) }}"
       class="hidden inline-block text-xs px-3 py-1.5 rounded-lg border border-gray-700 text-gray-200 hover:border-brand hover:text-white transition-colors">{{ _('Extract PDF pages') }} →</a>
     {% endif %}

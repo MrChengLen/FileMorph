@@ -516,7 +516,7 @@ def _js_i18n_strings(_: gettext.GNUTranslations.gettext) -> dict[str, str]:
         "redactSeePricing": _("See plans"),
         "redactDownload": _("Download redacted file"),
         "redactAnother": _("Redact another file"),
-        # pdf-tools.js — /pdf/split, /pdf/extract, /pdf/compress (shared script).
+        # pdf-tools.js — /pdf/split, /pdf/extract, /pdf/compress, /pdf/insert.
         # The compress-honesty keys carry the achieved size via a "{size}"
         # token, substituted the same way as redact's "{count}"/"{n}" tokens.
         "pdfToolError": _("Something went wrong. Please try again."),
@@ -577,6 +577,44 @@ def _js_i18n_strings(_: gettext.GNUTranslations.gettext) -> dict[str, str]:
         # the download button so it never implies a compression that didn't
         # happen — see showCompressHonesty() in pdf-tools.js.
         "pdfDownloadUnchanged": _("Download unchanged file"),
+        # /pdf/insert (pdf-tools.js): which input an error is about
+        # (X-FileMorph-Error-Field), where the pages go, and the result.
+        "pdfFieldFile": _("Your PDF"),
+        "pdfFieldInsert": _("File to insert"),
+        "pdfFieldPosition": _("Position"),
+        "pdfSelectInsertFile": _("Choose the file to insert."),
+        "pdfEnterPage": _("Enter the page after which the new pages go."),
+        "pdfPositionStart": _("The new pages start at page 1."),
+        "pdfPositionAfter": _("The new pages start at page {page}."),
+        "pdfPositionEnd": _("The new pages go after the last page."),
+        "pdfInsertedOne": _("1 page inserted — now {total} pages, {size}."),
+        "pdfInsertedMany": _("{inserted} pages inserted — now {total} pages, {size}."),
+        "pdfWithInserted": _("{name} (with the inserted pages)"),
+        "pdfInvalidPosition": _("Your PDF has {count} pages — choose a page from 1 to {count}."),
+        "pdfInvalidPositionOne": _(
+            "Your PDF has only 1 page — choose “At the start” or “At the end”."
+        ),
+        "pdfInsertUnsupported": _(
+            "This file can't be inserted. Insert a PDF, a Word file (.docx) or an image "
+            "(JPG, PNG, HEIC …); save other documents as .docx or PDF first."
+        ),
+        "pdfWordNotConverted": _(
+            "This Word file couldn't be converted here. In Word, save it as a PDF "
+            "(File → Save as → PDF) and insert the PDF."
+        ),
+        "pdfImageTooLarge": _(
+            "The image is too large to process safely. Make it smaller and try again."
+        ),
+        "pdfInsertUnreadable": _(
+            "The image couldn't be read. Save it as PNG or JPG and try again."
+        ),
+        "pdfTooManyPagesInsert": _(
+            "Together the files would have more than 10,000 pages — too many for one insertion."
+        ),
+        "pdfTooComplexInsert": _(
+            "These files are too large or complex to combine in one go. Insert into a smaller "
+            "part of the PDF (“Extract PDF pages”), or shrink the files first with “Compress PDF”."
+        ),
     }
 
 
