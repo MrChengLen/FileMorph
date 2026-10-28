@@ -29,13 +29,12 @@ from app.core import pricing as pricing_mod
 from app.core.compress_content import get_compress_content
 from app.core.config import settings
 from app.core.convert_pairs import (
-    PAIR_CONTENT,
     accept_attr,
     format_label,
     get_pair_content,
     related_pairs,
 )
-from app.core.i18n import localized_context
+from app.core.i18n import localized_context, normalize_locale
 from app.core.pdf_tools_content import get_pdf_tool_content
 from app.core.redact_content import get_redact_content
 from app.core.templates import templates
@@ -104,8 +103,37 @@ _CATEGORY_ORDER: tuple[str, ...] = (
     "other",
 )
 
-# Curated-pair membership for the /formats chip split — computed once.
-_CURATED_PAIRS = frozenset(PAIR_CONTENT)
+
+def _tool_sections(locale: str) -> list[tuple[str, list[dict]]]:
+    """The /tools catalogue: ``[(family, [card, ...]), ...]`` from the page catalogue.
+
+    Sections follow ``catalog.FAMILIES``; a family with fewer than two tools
+    joins "more" at the end (IA rule: a section needs at least two tools). A
+    card's text is the tool's ``blurb``; a convert page reuses the hero line of
+    its own page, so /tools makes no claim the page itself doesn't.
+    """
+    by_family: dict[str, list[dict]] = {}
+    for page in catalog.pages():
+        if page.kind not in ("tool", "convert"):
+            continue
+        if page.blurb:
+            desc = page.blurb[locale]
+        else:
+            desc = get_pair_content(*catalog.pair_of(page.path), locale)["hero"]
+        by_family.setdefault(page.family, []).append(
+            {"path": page.path, "title": page.label[locale], "desc": desc}
+        )
+    sections: list[tuple[str, list[dict]]] = []
+    more: list[dict] = []
+    for family in catalog.FAMILIES:
+        cards = by_family.get(family, [])
+        if len(cards) >= 2:
+            sections.append((family, cards))
+        else:
+            more.extend(cards)
+    if more:
+        sections.append(("more", more))
+    return sections
 
 
 def _grouped_conversions() -> list[tuple[str, list[tuple[str, list[str]]]]]:
@@ -137,7 +165,7 @@ async def index(request: Request):
     # ``{% if pricing_enabled %}`` and these values stay unused; passing
     # them unconditionally keeps the template free of route-coupled
     # conditionals.
-    locale = getattr(request.state, "locale", settings.lang_default)
+    locale = normalize_locale(getattr(request.state, "locale", settings.lang_default))
     return _render(
         request,
         "index.html",
@@ -147,8 +175,12 @@ async def index(request: Request):
         price_currency=pricing_mod.price_currency(),
         # Homepage-only chip row inside the shared convert_tool.html partial
         # (docs-internal/operations-visibility-konzept.md) — no other route
-        # sets this.
-        show_quick_actions=True,
+        # sets this. The chips come from the page catalogue, under the same
+        # names the tools carry on /tools and in the footer.
+        quick_actions=[
+            {"path": page.path, "label": page.label[locale], "icon": page.icon}
+            for page in catalog.quick_actions()
+        ],
     )
 
 
@@ -166,20 +198,25 @@ async def formats_page(request: Request):
         compress_image=sorted(IMAGE_COMPRESS_FMTS),
         compress_video=sorted(VIDEO_COMPRESS_FMTS),
         # Curated-pair membership test for the matrix chips — only pairs with
-        # real hand-written content (PAIR_CONTENT) become links; everything
-        # else stays a <span> (honest signal, anti-thin-content policy).
-        curated_pairs=_CURATED_PAIRS,
+        # a page of their own in the catalogue become links; everything else
+        # stays a <span> (honest signal, anti-thin-content policy). Read per
+        # request, like every other catalogue view (G5).
+        curated_pairs=frozenset(catalog.pair_of(p.path) for p in catalog.pages(kind="convert")),
     )
 
 
 @router.get("/tools")
 async def tools_page(request: Request):
     # Operations-first hub (IA rework PR 2, docs-internal/ia-navigation-konzept.md)
-    # — ungated and always-on, unlike /redact below. The Redact card inside the
-    # template is itself gated on ai_operations_enabled so a self-host build
-    # never advertises it.
-    locale = getattr(request.state, "locale", settings.lang_default)
-    return _render(request, "tools.html", content=get_tools_content(locale))
+    # — ungated and always-on. Every tool page of the catalogue gets a card,
+    # grouped by file type; a gated tool (/redact) drops out with its switch.
+    locale = normalize_locale(getattr(request.state, "locale", settings.lang_default))
+    return _render(
+        request,
+        "tools.html",
+        content=get_tools_content(locale),
+        sections=_tool_sections(locale),
+    )
 
 
 @router.get("/compress")

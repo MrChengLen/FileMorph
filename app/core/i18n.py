@@ -600,13 +600,26 @@ def localized_context(request: Request, **extra) -> dict:
     """
     import json
 
-    # Lazy import: convert_pairs imports this module (normalize_locale), so a
-    # top-level import here would be circular. By request time both are loaded.
-    from app.core.convert_pairs import FOOTER_LINKS
+    # Lazy imports: both modules import this one (normalize_locale), so a
+    # top-level import here would be circular. By request time all are loaded.
+    from app.core import catalog
+    from app.core.convert_pairs import format_label
 
     locale = getattr(request.state, "locale", None) or resolve_locale(request)
     translator = _load_translations().get(locale) or gettext.NullTranslations()
     current_prefix = path_prefix_locale(request.url.path)
+    # The footer's two catalogue views, read per request so a switch decides
+    # the footer the same way it decides the page (G5).
+    footer_convert_links = []
+    for page in catalog.pages(kind="convert"):
+        src, tgt = catalog.pair_of(page.path)
+        footer_convert_links.append(
+            {"label": f"{format_label(src)} → {format_label(tgt)}", "path": page.path}
+        )
+    footer_tool_links = [
+        {"label": page.label[normalize_locale(locale)], "path": page.path}
+        for page in catalog.footer_tools()
+    ]
     ctx = {
         "_": translator.gettext,
         "gettext": translator.gettext,
@@ -615,7 +628,8 @@ def localized_context(request: Request, **extra) -> dict:
         "current_prefix": current_prefix,
         "base_path": base_path(request.url.path),
         "localized_url": localized_url,
-        "footer_convert_links": FOOTER_LINKS,
+        "footer_convert_links": footer_convert_links,
+        "footer_tool_links": footer_tool_links,
         "js_i18n_json": json.dumps(_js_i18n_strings(translator.gettext), ensure_ascii=False),
     }
     ctx.update(extra)

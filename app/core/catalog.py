@@ -3,16 +3,19 @@
 on, in display order (the account pages and legal entry points such as /cancel
 stay outside on purpose; tests/test_catalog.py names them).
 
-The sitemap, ``/llms.txt``, the page routes' whitelist and the "Related tools"
-links of the PDF tool pages are filtered views of ``PAGES``. A page added here
-shows up on all of them; a public route missing here, or an entry whose page
-does not render, fails ``tests/test_catalog.py``. Before this list each of
-those surfaces kept its own hand-written copy, and a new page went missing
-from some of them.
+The sitemap, ``/llms.txt``, the page routes' whitelist, the homepage's quick
+actions, the ``/tools`` catalogue, the footer and the "Related tools" links of
+the PDF tool pages are filtered views of ``PAGES``. A page added here shows up
+on all of them; a public route missing here, or an entry whose page does not
+render, fails ``tests/test_catalog.py``. Before this list each of those
+surfaces kept its own hand-written copy, so a new page went missing from some
+of them and one tool carried four different names.
 
-The page prose (title, meta description, H1, FAQ) stays in the content modules
-(``convert_pairs``, ``pdf_tools_content``, ``compress_content``, …). An entry
-here only says that a page exists, where it is listed and which switch gates it.
+A tool's ``label`` is its one name: the quick-action chip, the ``/tools`` card
+and the footer link all show it. The page prose (title, meta description, H1,
+FAQ) stays in the content modules (``convert_pairs``, ``pdf_tools_content``,
+``compress_content``, …); a convert page's ``/tools`` card reuses its ``hero``
+line from there.
 """
 
 from __future__ import annotations
@@ -20,9 +23,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from app.core.config import settings
+from app.core.convert_pairs import format_label
 
 
-@dataclass(frozen=True)
+# eq=False: the label dicts make a Page unhashable, and nothing compares pages.
+@dataclass(frozen=True, eq=False)
 class Page:
     # Canonical path without a locale prefix: the x-default URL.
     path: str
@@ -41,10 +46,56 @@ class Page:
     related: tuple[str, ...] = ()
     # Also served under /de and /en.
     localized: bool = True
+    # Tools only. The /tools section, one of FAMILIES. A family with fewer
+    # than two tools goes under "More tools".
+    family: str | None = None
+    # The tool's one name, {"de": …, "en": …}: chip, /tools card, footer link.
+    label: dict[str, str] | None = None
+    # The /tools card text, {"de": …, "en": …}; a convert page uses its hero.
+    blurb: dict[str, str] | None = None
+    # Position among the homepage's quick actions (at most eight).
+    chip: int | None = None
+    # The quick action's icon, one of ICONS.
+    icon: str | None = None
+    # Listed in the footer's "Tools" group.
+    footer: bool = False
 
 
-def _pair(src: str, tgt: str) -> Page:
-    return Page(f"/convert/{src}-to-{tgt}", "convert", priority="0.6")
+# The /tools sections in display order (named in templates/tools.html).
+FAMILIES: tuple[str, ...] = ("pdf", "image", "video", "privacy")
+# The icons templates/_components/icon.html draws.
+ICONS: frozenset[str] = frozenset({"compress", "image", "document", "split", "pages"})
+
+
+# How a format reads in a tool's name where its extension is not what people
+# search for: "Word in PDF", not "DOCX in PDF".
+_FORMAT_NAMES: dict[str, dict[str, str]] = {
+    "docx": {"de": "Word", "en": "Word"},
+    "html": {"de": "HTML-Datei", "en": "HTML file"},
+    "eml": {"de": "E-Mail (.eml)", "en": "Email (.eml)"},
+}
+
+
+def _name(fmt: str, locale: str) -> str:
+    return _FORMAT_NAMES.get(fmt, {}).get(locale) or format_label(fmt)
+
+
+def _pair(
+    src: str, tgt: str, family: str, chip: int | None = None, icon: str | None = None
+) -> Page:
+    label = {
+        "de": f"{_name(src, 'de')} in {_name(tgt, 'de')}",
+        "en": f"{_name(src, 'en')} to {_name(tgt, 'en')}",
+    }
+    return Page(
+        f"/convert/{src}-to-{tgt}",
+        "convert",
+        priority="0.6",
+        family=family,
+        label=label,
+        chip=chip,
+        icon=icon,
+    )
 
 
 PAGES: tuple[Page, ...] = (
@@ -75,7 +126,7 @@ PAGES: tuple[Page, ...] = (
             "the full list of supported conversions, grouped by category",
         ),
     ),
-    # PDF: what produces or changes a PDF.
+    # PDF: what produces or changes a PDF. Within a family: shrink, convert, edit.
     Page(
         "/pdf/compress",
         "tool",
@@ -86,13 +137,28 @@ PAGES: tuple[Page, ...] = (
             "images, scaling them down if needed",
         ),
         related=("/convert/docx-to-pdf", "/convert/jpg-to-pdf"),
+        family="pdf",
+        label={"de": "PDF verkleinern", "en": "Compress PDF"},
+        blurb={
+            "de": (
+                "Ein PDF durch Rekomprimieren eingebetteter Bilder auf eine Zielgröße "
+                "verkleinern — mit ehrlichem Hinweis, wenn nichts zu verkleinern ist."
+            ),
+            "en": (
+                "Shrink a PDF to at most a target size by recompressing its embedded "
+                "images — and get an honest note if there's nothing to shrink."
+            ),
+        },
+        chip=1,
+        icon="compress",
+        footer=True,
     ),
-    _pair("jpg", "pdf"),
-    _pair("png", "pdf"),
-    _pair("heic", "pdf"),
-    _pair("docx", "pdf"),
-    _pair("html", "pdf"),
-    _pair("eml", "pdf"),
+    _pair("jpg", "pdf", "pdf", chip=2, icon="image"),
+    _pair("png", "pdf", "pdf"),
+    _pair("heic", "pdf", "pdf"),
+    _pair("docx", "pdf", "pdf", chip=3, icon="document"),
+    _pair("html", "pdf", "pdf"),
+    _pair("eml", "pdf", "pdf"),
     Page(
         "/pdf/split",
         "tool",
@@ -102,6 +168,15 @@ PAGES: tuple[Page, ...] = (
             "split a multi-page PDF into one file per page, bundled as a ZIP",
         ),
         related=("/convert/docx-to-pdf",),
+        family="pdf",
+        label={"de": "PDF aufteilen", "en": "Split PDF"},
+        blurb={
+            "de": "Ein mehrseitiges PDF in Einzelseiten aufteilen, gebündelt als ZIP.",
+            "en": "Turn a multi-page PDF into one file per page, bundled as a ZIP.",
+        },
+        chip=4,
+        icon="split",
+        footer=True,
     ),
     Page(
         "/pdf/extract",
@@ -112,6 +187,20 @@ PAGES: tuple[Page, ...] = (
             "keep only a chosen page range from a PDF, e.g. pages 1-3,5",
         ),
         related=("/convert/docx-to-pdf", "/convert/eml-to-pdf"),
+        family="pdf",
+        label={"de": "PDF-Seiten extrahieren", "en": "Extract PDF pages"},
+        blurb={
+            "de": (
+                "Nur die gewünschten Seiten behalten, z. B. 1-3,5, und ein einzelnes "
+                "kleineres PDF herunterladen."
+            ),
+            "en": (
+                "Keep only the pages you choose, e.g. 1-3,5, and download a single smaller PDF."
+            ),
+        },
+        chip=5,
+        icon="pages",
+        footer=True,
     ),
     # Images.
     Page(
@@ -122,14 +211,32 @@ PAGES: tuple[Page, ...] = (
             "Compress an image or video",
             "shrink a JPEG, WebP or AVIF to at most a target size in MB, or a video by quality",
         ),
+        family="image",
+        label={"de": "Bild verkleinern (KB/MB)", "en": "Compress image (KB/MB)"},
+        blurb={
+            "de": (
+                "Für ein JPEG, WebP oder AVIF eine Zielgröße in MB einstellen, oder ein "
+                "Video per Qualität verkleinern — das eigene Tool, mit ehrlichem Hinweis, "
+                "welche Formate eine Zielgröße erreichen."
+            ),
+            "en": (
+                "Dial in a target size in MB for a JPEG, WebP or AVIF image, or shrink a "
+                "video by quality — the dedicated tool, with honest limits on which "
+                "formats hit a target."
+            ),
+        },
+        chip=7,
+        icon="compress",
+        footer=True,
     ),
-    _pair("heic", "jpg"),
-    _pair("png", "jpg"),
-    _pair("jpg", "png"),
-    _pair("webp", "jpg"),
-    _pair("jpg", "webp"),
-    _pair("png", "webp"),
-    # Privacy: the redaction add-on of the Cloud Edition.
+    _pair("heic", "jpg", "image", chip=6, icon="image"),
+    _pair("png", "jpg", "image"),
+    _pair("jpg", "png", "image"),
+    _pair("webp", "jpg", "image"),
+    _pair("jpg", "webp", "image"),
+    _pair("png", "webp", "image"),
+    # Privacy: the redaction add-on of the Cloud Edition, never a quick action
+    # (a paid tool is not an idle-state teaser; product-ux.md #3).
     Page(
         "/redact",
         "tool",
@@ -140,10 +247,26 @@ PAGES: tuple[Page, ...] = (
             "detect and remove IBANs, emails, phone numbers, IPv4 addresses and card "
             "numbers from TXT, DOCX and XLSX — free findings preview, no third-party AI",
         ),
+        family="privacy",
+        # No "(Pro)" in the name: which plans may download is configurable
+        # (AI_ELIGIBLE_TIERS); the card text says the download is paid.
+        label={"de": "PII schwärzen", "en": "Redact PII"},
+        blurb={
+            "de": (
+                "IBANs, E-Mail-Adressen, Telefonnummern, IP-Adressen und Kartennummern in "
+                "TXT, DOCX und XLSX finden und entfernen. Kostenlose Fundstellen-Vorschau, "
+                "Download kostenpflichtig."
+            ),
+            "en": (
+                "Find and remove IBANs, emails, phone numbers, IP addresses and "
+                "credit-card numbers from TXT, DOCX and XLSX. Free findings preview, "
+                "paid file download."
+            ),
+        },
+        footer=True,
     ),
     # Developers, the commercial offer, trust and legal pages. /pricing and
-    # /enterprise share the commercial-offer switch; procurement traffic is
-    # the higher-revenue funnel, hence 0.8.
+    # /enterprise share the commercial-offer switch and sitemap priority 0.8.
     Page(
         "/docs",
         "api",
@@ -169,6 +292,26 @@ assert len(_BY_PATH) == len(PAGES), "a path appears twice in the page catalogue"
 assert all(
     path in _BY_PATH and _BY_PATH[path].kind == "convert" for page in PAGES for path in page.related
 ), "a related link must point at a catalogued convert page"
+# Every tool is listed on /tools: it needs a known family, a name in both
+# languages and, unless a convert page's hero stands in, a card text in both.
+assert all(
+    page.family in FAMILIES
+    and page.label
+    and set(page.label) == {"de", "en"}
+    and (page.kind == "convert" or (page.blurb and set(page.blurb) == {"de", "en"}))
+    for page in PAGES
+    if page.kind in ("tool", "convert")
+), "a tool in the catalogue lacks its family, its German and English name or its card text"
+# The homepage's quick actions: at most eight, one per position, free tools
+# only (a paid or gated tool is no idle-state teaser, product-ux.md #3), each
+# with an icon the macro draws.
+_CHIPS = [page for page in PAGES if page.chip is not None]
+assert len(_CHIPS) <= 8 and len({page.chip for page in _CHIPS}) == len(_CHIPS), (
+    "at most eight quick actions, one per position"
+)
+assert all(page.gate is None and page.icon in ICONS for page in _CHIPS), (
+    "a quick action must be ungated and have a known icon"
+)
 
 
 def enabled(page: Page) -> bool:
@@ -191,3 +334,13 @@ def pair_of(path: str) -> tuple[str, str]:
     """Source and target format of a convert page path: ``("jpg", "pdf")``."""
     src, _, tgt = path.removeprefix("/convert/").partition("-to-")
     return src, tgt
+
+
+def quick_actions() -> list[Page]:
+    """The homepage's quick actions, in chip order."""
+    return sorted((page for page in pages() if page.chip is not None), key=lambda page: page.chip)
+
+
+def footer_tools() -> list[Page]:
+    """The tools linked in the footer's "Tools" group."""
+    return [page for page in pages() if page.footer]

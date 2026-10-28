@@ -18,7 +18,8 @@ from pathlib import Path
 
 import pytest
 
-from app.core.tools_content import TOOLS_CONTENT
+from app.core import catalog
+
 
 ROOT = Path(__file__).resolve().parents[1]
 APP_JS = (ROOT / "app/static/js/app.js").read_text(encoding="utf-8")
@@ -169,6 +170,6 @@ def test_openapi_target_size_kb_description_names_avif_both_endpoints(client):
 
 
 def test_tools_content_compress_target_card_names_avif():
+    # The /tools card text of /compress lives in the page catalogue.
     for locale in ("en", "de"):
-        desc = TOOLS_CONTENT[locale]["cards"]["compress_target"]["desc"]
-        assert "AVIF" in desc
+        assert "AVIF" in catalog.get("/compress").blurb[locale]

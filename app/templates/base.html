@@ -149,10 +149,11 @@
     <div class="max-w-4xl mx-auto space-y-4 text-xs text-gray-600">
       {% if not minimal_chrome %}
       <!-- Popular conversions — surfaces the per-pair pages on every page for
-           the internal link graph + discovery (footer_convert_links is added to
-           every render context in app/core/i18n.py::localized_context). Explicit
-           "JPG → PDF" labels in a responsive multi-column grid: each conversion
-           is directly readable and the columns fill the width evenly. -->
+           the internal link graph + discovery (footer_convert_links is built
+           from the page catalogue for every render context in
+           app/core/i18n.py::localized_context). Explicit "JPG → PDF" labels in
+           a responsive multi-column grid: each conversion is directly readable
+           and the columns fill the width evenly. -->
       <div class="space-y-2">
         <p class="font-semibold uppercase tracking-wider text-gray-600">{{ _('Popular conversions') }}</p>
         <nav class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-1.5" aria-label="{{ _('Popular conversions') }}">
@@ -176,11 +177,11 @@
             <p class="font-semibold uppercase tracking-wider text-gray-600">{{ _('Tools') }}</p>
             <nav class="flex flex-col space-y-1" aria-label="{{ _('Tools') }}">
               <a href="{{ localized_url('/tools', current_prefix) }}" class="text-gray-500 hover:text-gray-300 transition-colors">{{ _('All tools →') }}</a>
-              <a href="{{ localized_url('/pdf/split', current_prefix) }}" class="text-gray-500 hover:text-gray-300 transition-colors">{{ _('Split PDF') }}</a>
-              <a href="{{ localized_url('/pdf/extract', current_prefix) }}" class="text-gray-500 hover:text-gray-300 transition-colors">{{ _('Extract PDF pages') }}</a>
-              <a href="{{ localized_url('/pdf/compress', current_prefix) }}" class="text-gray-500 hover:text-gray-300 transition-colors">{{ _('Compress PDF') }}</a>
-              <a href="{{ localized_url('/compress', current_prefix) }}" class="text-gray-500 hover:text-gray-300 transition-colors">{{ _('Compress to size') }}</a>
-              {% if ai_operations_enabled %}<a href="{{ localized_url('/redact', current_prefix) }}" class="text-gray-500 hover:text-gray-300 transition-colors">{{ _('Redact PII') }}</a>{% endif %}
+              {# The catalogue's footer tools (app/core/catalog.py), under the
+                 names they carry on /tools; a gated tool drops out with its switch. #}
+              {% for link in footer_tool_links %}
+              <a href="{{ localized_url(link.path, current_prefix) }}" class="text-gray-500 hover:text-gray-300 transition-colors">{{ link.label }}</a>
+              {% endfor %}
               <a href="{{ localized_url('/formats', current_prefix) }}" class="text-gray-500 hover:text-gray-300 transition-colors">{{ _('Formats') }}</a>
             </nav>
           </div>

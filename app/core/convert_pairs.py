@@ -632,15 +632,6 @@ assert not any("-to-" in s or "-to-" in t for s, t in PAIR_CONTENT), (
 )
 
 
-# Flat list of convert-pair links for the footer "Popular conversions" grid.
-# Explicit "JPG → PDF" labels (language-neutral → no translation) laid out in a
-# multi-column grid so each conversion is directly readable and clickable.
-FOOTER_LINKS: list[dict[str, str]] = [
-    {"label": f"{format_label(s)} → {format_label(t)}", "path": f"/convert/{s}-to-{t}"}
-    for (s, t) in PAIR_CONTENT
-]
-
-
 # Per-format file-picker accept attribute string.
 # Used by convert_pair_page to scope the <input accept> to the pair's source.
 _ACCEPT: dict[str, str] = {

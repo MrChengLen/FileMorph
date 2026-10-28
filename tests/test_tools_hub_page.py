@@ -4,11 +4,11 @@ docs-internal/ia-navigation-konzept.md).
 
 Guards: renders in all three locale mounts with a real H1; title/meta stay in
 SERP range; content is plain bilingual data (not gettext, see
-app/core/tools_content.py), so DE vs EN must genuinely differ; every card
-links to its real, working tool page (the Convert & Compress card is the
-sole discoverability surface for the target-size-compress and batch modes,
-so its description names both); the Redact card is gated on
-ai_operations_enabled only (mirrors tests/test_footer_nav_structure.py's
+app/core/tools_content.py), so DE vs EN must genuinely differ; every tool and
+convert page of the page catalogue (app/core/catalog.py) has a card under its
+catalogue name, grouped by file type and stating where it runs; the intro
+names batch conversion, which has no page of its own; the Redact card is gated
+on ai_operations_enabled only (mirrors tests/test_footer_nav_structure.py's
 redact_enabled fixture); the page cross-links /formats both ways; stays
 deployment-agnostic; and the sitemap / llms.txt discover it.
 """
@@ -20,6 +20,7 @@ import xml.etree.ElementTree as ET
 
 import pytest
 
+from app.core import catalog
 from app.core.config import settings
 from app.core.convert_pairs import PAIR_CONTENT
 from app.core.templates import templates
@@ -30,7 +31,8 @@ from app.core.tools_content import TOOLS_CONTENT
 def redact_enabled():
     """Mirrors tests/test_footer_nav_structure.py's fixture of the same
     name — the route's 404-gate (on /redact) reads ``settings`` at request
-    time, the template ``{% if %}`` reads the Jinja global set once at
+    time, the footer and /tools read it through the page catalogue, other
+    templates' ``{% if %}`` read the Jinja global set once at
     import; both must flip together."""
     s = settings.__dict__
     saved_s = {k: s.get(k) for k in ("ai_operations_enabled", "ai_eligible_tiers")}
@@ -82,17 +84,16 @@ def test_tools_page_localised(client):
     assert en["h1"] != de["h1"]
 
 
-def test_convert_card_mentions_batch_both_locales():
-    """The Convert & Compress card is the sole discoverability surface for
-    multi-file batch conversion, a mode with no URL of its own — its
-    description must name it, in each locale. Compress-to-a-target-size used
-    to live here too under the same rule, until IA rework PR 4 gave it a
-    dedicated page (/compress) and its own adjacent card — see
-    test_compress_page.py::test_compress_target_card_links_compress_page."""
-    en = TOOLS_CONTENT["en"]["cards"]["convert"]["desc"]
-    de = TOOLS_CONTENT["de"]["cards"]["convert"]["desc"]
-    assert "batch" in en
-    assert "Stapelverarbeitung" in de
+def test_converter_intro_mentions_batch_both_locales(client):
+    """The intro line pointing at the converter on the homepage is the sole
+    discoverability surface for multi-file batch conversion, a mode with no
+    URL of its own — it must name it, in each locale, and link the converter."""
+    for prefix, word in (("/en", "batch"), ("/de", "Stapelverarbeitung")):
+        intro = TOOLS_CONTENT[prefix.strip("/")]["intro"]
+        assert word in intro
+        main = _main(client.get(f"{prefix}/tools").text)
+        assert intro in main
+        assert f'href="{prefix}/"' in main
 
 
 def _main(html: str) -> str:
@@ -104,17 +105,33 @@ def _main(html: str) -> str:
 # ── card links ────────────────────────────────────────────────────────────
 
 
-def test_tools_page_links_convert_and_pdf_tools(client):
-    r = client.get("/en/tools")
-    assert r.status_code == 200
-    main = _main(r.text)
-    assert 'href="/en/"' in main
-    for path in ("/en/pdf/split", "/en/pdf/extract", "/en/pdf/compress"):
-        assert f'href="{path}"' in main
-    # Card bodies render, not just their CTAs.
-    from app.core.tools_content import TOOLS_CONTENT
+@pytest.mark.parametrize("prefix", ["/en", "/de"])
+def test_tools_page_has_a_card_for_every_tool_page(client, prefix):
+    """/tools is the one complete list: every tool and convert page of the
+    page catalogue gets a card under its catalogue name. The convert pages'
+    only other inlinks are the footer grid, so this is their hub link."""
+    main = _main(client.get(f"{prefix}/tools").text)
+    locale = prefix.strip("/")
+    for page in catalog.pages():
+        if page.kind in ("tool", "convert"):
+            assert f'href="{prefix}{page.path}"' in main, f"no /tools card for {page.path}"
+            assert page.label[locale] in main, f"{page.path} card lacks its name"
 
-    assert TOOLS_CONTENT["en"]["cards"]["convert"]["desc"][:40] in main
+
+def test_tools_page_cards_say_where_they_run(client):
+    """G7: every card states, as text, that the tool runs on our server."""
+    main = _main(client.get("/de/tools").text)
+    cards = sum(1 for page in catalog.pages() if page.kind in ("tool", "convert"))
+    assert main.count("Läuft über unseren Server") == cards
+    assert main.count('data-location="server"') == cards
+
+
+def test_tools_page_groups_by_file_type_with_jump_links(client):
+    main = _main(client.get("/en/tools").text)
+    for anchor, heading in (("pdf", "PDF tools"), ("image", "Images")):
+        assert f'id="{anchor}"' in main
+        assert f'href="#{anchor}"' in main
+        assert heading in main
 
 
 def test_tools_page_localises_card_links_on_de(client):
@@ -132,15 +149,19 @@ def test_redact_card_absent_when_flag_off(client):
     r = client.get("/en/tools")
     assert r.status_code == 200
     assert 'href="/en/redact"' not in r.text
-    assert "Privacy tools" not in r.text
+    assert "Redact PII" not in _main(r.text)
 
 
 def test_redact_card_present_when_flag_on(client, redact_enabled):
+    """The only privacy tool so far: below the two-tool threshold for a
+    section of its own, it sits under "More tools"."""
     r = client.get("/en/tools")
     assert r.status_code == 200
-    assert 'href="/en/redact"' in r.text
-    assert "Privacy tools" in r.text
-    assert TOOLS_CONTENT["en"]["cards"]["redact"]["title"] in r.text
+    main = _main(r.text)
+    assert 'href="/en/redact"' in main
+    assert "More tools" in main
+    assert "Redact PII" in main
+    assert "paid file download" in main, "the card must say the download is paid"
 
 
 # ── cross-link to /formats ───────────────────────────────────────────────
