@@ -5,4 +5,4 @@
 // fingerprint gives every engine file a new URL and its new headers reach
 // every browser. tests/test_engine_delivery.py says when it is due, and the
 // value.
-export const DELIVERY = "cd089aa49d92";
+export const DELIVERY = "3e8812542112";
