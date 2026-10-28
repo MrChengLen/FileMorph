@@ -261,6 +261,13 @@ threads of its own unless the app runs as root. A file over these limits gets
 a `400` (`invalid_input`; PDF compression: `pdf_too_complex`) whose message
 names the next step. The child's temporary files go to the request's own temp
 folder, which the route removes.
+Inserting pages into a PDF (`/pdf/insert`) reads, checks and combines the
+two files in such a child too: stopped after 30 seconds, capped at 1 GiB of
+address space and 1 GiB per file written, and a `400` with `pdf_too_complex`
+past them (a Word file's LibreOffice run, at most 60 seconds, comes first).
+No PDF is read in the app process. The child writes the result only up to
+the caller's output cap, and an input it refuses comes back as data naming
+the form field, so each error still says which input it is about.
 `tests/test_isolated_conversions.py` pins the limits, the environment and how
 the child's errors come back.
 

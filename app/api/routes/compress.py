@@ -9,7 +9,6 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.responses import FileResponse, JSONResponse, Response
-from PIL import Image as _PILImage
 from starlette.background import BackgroundTask
 
 from app.api.deps import caller_tier, require_api_key
@@ -34,6 +33,7 @@ from app.core.batch import (
 )
 from app.core.concurrency import acquire_slot
 from app.core.data_classification import DEFAULT_CLASSIFICATION as DATA_CLASSIFICATION_DEFAULT
+from app.core.image_hardening import DECOMPRESSION_BOMB
 from app.core.metrics import increment as metric_increment
 from app.core.observability import record_conversion
 from app.core.processing import BLOCKED_MAGIC, actor_id, sha256_file
@@ -198,7 +198,7 @@ async def _do_compress(
             raise
         except OutputTooLargeError:
             output_disk_size = None  # ffmpeg stopped writing at the cap: answered below
-        except _PILImage.DecompressionBombError as exc:
+        except DECOMPRESSION_BOMB as exc:
             # P3-4: Same hard-reject path as /convert. See app/core/image_hardening.py
             # for the warning-to-error promotion at startup.
             logger.warning("decompression bomb rejected: compress %s (%s)", ext, exc)

@@ -10,8 +10,10 @@ test_pdf_unreadable.py.
 
 from __future__ import annotations
 
+import errno
 import io
 import logging
+import os
 import shutil
 import signal
 import subprocess
@@ -66,6 +68,11 @@ def _pdf_with_content(content: bytes, filters: bytes = b"") -> bytes:
     return bytes(out)
 
 
+def _jbig2_pdf() -> bytes:
+    """One page whose content stream holds JBIG2 data."""
+    return _pdf_with_content(b"\x00" * 16, filters=b" /Filter /JBIG2Decode")
+
+
 def _to_txt(client, auth_headers, pdf: bytes):
     return client.post(
         "/api/v1/convert",
@@ -102,6 +109,28 @@ def test_text_is_extracted(client, auth_headers):
     res = _to_txt(client, auth_headers, _pdf_with_content(b"BT /F1 12 Tf 20 100 Td (Hallo) Tj ET"))
     assert res.status_code == 200
     assert "Hallo" in res.text
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="the limits apply on Linux")
+@pytest.mark.skipif(
+    sys.platform == "linux" and os.getuid() == 0, reason="root starts processes past the limit"
+)
+def test_jbig2_data_gets_400_where_jbig2dec_is_installed(
+    client, auth_headers, tmp_path, monkeypatch, caplog
+):
+    # The child starts no processes, so pypdf can't start jbig2dec in it: a
+    # stand-in, which pypdf finds on PATH as it would the program.
+    program = tmp_path / "jbig2dec"
+    program.write_bytes(b"#!/bin/sh\nexit 1\n")
+    program.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{tmp_path}{os.pathsep}{os.environ['PATH']}")
+    assert shutil.which("jbig2dec") == str(program)  # e.g. not on a noexec tmp
+    with caplog.at_level(logging.INFO, logger="app.converters.document"):
+        res = _to_txt(client, auth_headers, _jbig2_pdf())
+    assert res.status_code == 400
+    assert res.json()["detail"] == "Could not read the PDF. Verify the file is valid."
+    # Had the stand-in run, its exit status would make this a PdfStreamError.
+    assert "unreadable PDF: BlockingIOError" in caplog.messages
 
 
 # ── The parent's side, with a stand-in child ─────────────────────────────────
@@ -200,9 +229,22 @@ def test_jbig2_data_without_jbig2dec_is_unreadable(tmp_path):
     # pypdf decodes JBIG2 data only with the jbig2dec program, which the
     # image doesn't ship.
     src = tmp_path / "in.pdf"
-    src.write_bytes(_pdf_with_content(b"\x00" * 16, filters=b" /Filter /JBIG2Decode"))
+    src.write_bytes(_jbig2_pdf())
     outcome = _pdf_text.extract(src, tmp_path / "out.txt", max_pages=1)
     assert outcome == "unreadable DependencyError"
+
+
+def test_jbig2_data_is_unreadable_where_jbig2dec_cant_start(tmp_path, monkeypatch):
+    # Where jbig2dec is installed, the child can't start it on Linux: it
+    # starts no processes, so the start fails with EAGAIN, a BlockingIOError.
+    def refused(*args, **kwargs):
+        raise OSError(errno.EAGAIN, os.strerror(errno.EAGAIN))
+
+    monkeypatch.setattr("pypdf.filters.JBIG2Decode.decode", refused)
+    src = tmp_path / "in.pdf"
+    src.write_bytes(_jbig2_pdf())
+    outcome = _pdf_text.extract(src, tmp_path / "out.txt", max_pages=1)
+    assert outcome == "unreadable BlockingIOError"
 
 
 def test_the_child_writes_no_diagnostics(tmp_path):

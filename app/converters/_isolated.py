@@ -54,6 +54,12 @@ _STEPS: dict[str, tuple[str, str, int, float, int]] = {
     # about 2.2 GB, the decoded images and the document. 1 GiB per file: it
     # writes only the output, at most about the size of the upload.
     "pdf-compress": ("app.compressors.pdf", "compress_pdf_to_target", 3 * _GIB, 90, _GIB),
+    # pypdf reads both PDFs, clones one and merges the other in: seconds for
+    # a real document; the limits bound any other.
+    # 30 s: a Word file's LibreOffice run (up to 60 s) comes first, and both
+    # together stay under the 100 s. 1 GiB per file: it writes only the
+    # result, about both uploads together.
+    "pdf-insert": ("app.converters.pdf_insert", "insert_pages", _GIB, 30, _GIB),
 }
 
 
