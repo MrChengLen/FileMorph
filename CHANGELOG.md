@@ -14,6 +14,421 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.4.0] — 2026-10-28
+
+**Upgrading from 1.3.0.** No format or env var was removed, and no database
+migration runs. Every deployment should update:
+- From 1.1.0 to 1.3.0, GIFs and palette PNGs came back in one colour, and
+  portrait photos on their side.
+- A request's upload and result are now removed however the request ends.
+- The image moves past dnspython CVE-2026-114605 (high) and Mako
+  CVE-2026-102991, which scanners report for 1.3.0. Neither is reachable in
+  FileMorph.
+
+See the Fixed and Security entries.
+
+Five DOMPurify advisories in the Swagger UI bundle on `/docs` stay accepted,
+as in 1.3.0, because Swagger UI does not use the options they need. They are
+reviewed again on 2026-11-02 (see `docs/security-overview.md`).
+
+Check before pulling:
+
+- **Pinned to `1.3` or `1.3.0` (or their `-office` variants):**
+  - There is no 1.3.1, so these image tags stay on 1.3.0 without these
+    fixes.
+  - Move to `1.4` (or `1.4.0`).
+  - If you can't move to 1.4, `SECURITY.md` describes how to request a
+    backport onto 1.3.
+- **New:**
+  - Inserting pages into a PDF: `POST /api/v1/pdf/insert` and the page
+    `/pdf/insert`.
+  - A Word file goes in through LibreOffice, which only the `-office` image
+    ships. Without it, or with `FILEMORPH_OFFICE_ENGINE=mammoth`, the API
+    answers `word_not_converted`.
+  - A page for Video → GIF: `/convert/video-to-gif`.
+  - `/tools` lists every tool page.
+- **Audio and video:**
+  - One time limit, `MEDIA_SUBPROCESS_TIMEOUT_SECONDS`, now covers the whole
+    request, with a batch's files sharing it. It is 85 seconds by default; it
+    used to be 600 seconds for each ffmpeg run.
+  - An `.env` copied from the `.env.example` of 1.2.0 to 1.3.0 sets `600`,
+    which now covers the whole request. Delete the line to get the 85 seconds.
+    Keep a higher value only where no CDN or proxy in front of FileMorph stops
+    waiting sooner. The nginx and Caddy examples in `docs/self-hosting.md`
+    wait 300 seconds.
+  - A file that runs out of time gets `400` (`invalid_input`) instead of
+    `500`.
+  - Two new refusals, neither with a setting, both `400` (`invalid_input`;
+    video → GIF: `video_too_complex`, as before):
+    - a video larger than 4K;
+    - a stream in a codec outside `INPUT_DECODERS`
+      (`app/converters/_ffmpeg.py`).
+  - On Linux, ffmpeg now stops writing at the output cap. The answer stays
+    `413` (`output_cap_exceeded`); its message no longer gives the output's
+    size.
+  - Video outputs no longer copy the source's tags and chapters. Audio keeps
+    only the music tags.
+- **Temporary files:** the sweep for folders that a crashed worker left behind
+  now runs every 10 minutes instead of every hour
+  (`TEMP_SWEEP_INTERVAL_MINUTES`).
+  - An `.env` copied from an older `.env.example` sets `60`: change it to
+    `10` or delete the line.
+  - The sweep removes any temp folder older than
+    `TEMP_SWEEP_MAX_AGE_MINUTES`, even one a request is still using. If
+    `MEDIA_SUBPROCESS_TIMEOUT_SECONDS` is above 600 (ten minutes), set the
+    max age above it.
+- **Now `400` instead of `500`:**
+  - Images between one and two times the size limit get
+    `decompression_bomb`.
+  - PDF → TXT of a PDF whose page content is JBIG2 data, on a host with
+    `jbig2dec`.
+- **Docker image and debugging:**
+  - In the image, the app's code belongs to root and is read-only for
+    `appuser`; only `/app/data` stays writable. A custom Dockerfile that runs
+    `chown -R appuser:appuser /app` can limit that to `/app/data`.
+  - On Linux the app process is non-dumpable. Attaching a debugger or profiler
+    (gdb, py-spy) needs root; in a container, root with `SYS_PTRACE`.
+- **Translations:** the app reads the `.po` files directly. A `.mo` placed in
+  `locale/` is ignored; edit the `.po` instead.
+- **Installing from `requirements.txt`:**
+  - Floors that move up: FastAPI 0.162.0, SQLAlchemy 2.1.6, alembic 1.20.1,
+    pypdf 6.21.2, ReportLab 5.1.0 and certifi 2026.10.23.
+  - Newly listed, with these floors: Starlette 1.10.0, Mako 1.4.3 and
+    dnspython 2.9.0.
+  - FastAPI 0.155–0.162 changed three things:
+    - it refuses unknown keyword arguments to `Form()` and `Query()`;
+    - it applies a parameter model's `extra` setting to the fields declared
+      next to it;
+    - it no longer reads an omitted `bool` form field as `False`.
+
+    FileMorph's routes rely on none of these, but a fork's own routes might.
+
+### Fixed — a request's temporary files go however it ends, and the sweep runs every 10 minutes
+
+A request's temporary folder (the upload and the result) is now removed as its
+response ends, whether the download completed, was cut off or was stopped. Until
+now it was removed by a task that runs only after a complete send.
+
+A refused request now removes the folder before it writes its audit record. A
+failing audit write (with `AUDIT_FAIL_CLOSED`) therefore no longer leaves the
+folder behind.
+
+LibreOffice and Ghostscript now keep their own temporary files in that folder,
+or in an `fm_` folder of their own, instead of the system temp folder. The PDF/A
+conversion writes its intermediate file next to the result. So nothing stays
+behind in the system temp folder when a conversion stops halfway.
+
+The background sweep removes folders that a crashed worker left behind. It now
+runs every 10 minutes instead of every hour (`TEMP_SWEEP_INTERVAL_MINUTES`,
+default `10`), so such a folder is gone within about 20 minutes, as the
+homepage promises ("within minutes"). If you set the variable yourself, your
+value still applies. That includes an `.env` copied from an older
+`.env.example`, which sets it to `60`: change it to `10` or delete the line.
+If you raise `MEDIA_SUBPROCESS_TIMEOUT_SECONDS` past ten minutes, raise
+`TEMP_SWEEP_MAX_AGE_MINUTES` above it too.
+
+### Added — a page for Video → GIF: `/convert/video-to-gif`
+
+Turning a short video into an animated GIF (added in 1.3.0) now has its own
+page, one for every video format: MP4, MOV, AVI, MKV, WebM, FLV and WMV. It
+states the limits before anything is uploaded (up to 30 seconds, 10 frames per
+second, at most 480 × 480 pixels, no sound, and the 30 MB upload limit without
+an account) and embeds the converter, pre-set to GIF. Until now the conversion
+showed up only in the target list after a video was chosen and as plain text
+on `/formats`. The page is listed on `/tools`, linked from `/compress` and in
+the footer, the sitemap and `/llms.txt`.
+
+On every page that is pre-set to a target (the conversion pages and this one),
+each file of a batch now starts at that target too; until now only a single
+file did.
+
+### Changed — `/tools` lists every tool page, grouped by file type; one name per tool
+
+- `/tools` now has a card for each of the 16 tool pages, including the 12
+  conversion pages it did not list before. The cards are grouped into "PDF
+  tools" and "Images" with jump links, and each one says that the tool runs on
+  the server. The "Convert & compress files" card became a line pointing to the
+  converter on the homepage, which still takes any file and converts several
+  at once.
+- Each tool carries one name on the homepage's quick actions, on `/tools` and
+  in the footer's "Tools" group. The target-size compressor is "Compress image (KB/MB)"
+  everywhere (it was also "Compress to a target size" and "Compress to size"),
+  and the redaction add-on is "Redact PII" (its card says the download is
+  paid; which plans may download is configurable).
+- The quick actions, the `/tools` cards and the footer's "Tools" group and
+  "Popular conversions" grid now come from the page catalogue
+  (`app/core/catalog.py`), so a new tool page needs only its catalogue entry
+  to show up there. The
+  footer lists follow the catalogue's order: PDF tools first, then images;
+  the "Popular conversions" grid keeps its "JPG → PDF" link names for now.
+
+### Changed — the tool pages share one layout, with a breadcrumb instead of "← Back"
+
+- Every tool page (the conversion pages, the PDF tools, `/compress` and
+  `/redact`) now shows where it sits, "Tools › <the tool's name>", instead of a
+  "← Back" link. That link led to the homepage on some pages and to `/formats`
+  on others, although most visitors arrive from a search.
+- The related block at the end of the conversion pages, the PDF tools and
+  `/compress` now lists the tool's neighbours under their `/tools` names, then
+  "All tools →" and "Use it via the API ↗", which opens the API documentation.
+  The PDF tools still link each other.
+- The three page types render from one template
+  (`app/templates/layouts/tool_page.html`). Their titles, descriptions,
+  headings and FAQ questions are unchanged, which
+  `tests/golden/page_texts.json` confirms.
+
+### Fixed — portrait photos stay upright
+
+A photo taken upright on a phone came back lying on its side when converted
+(to PNG, JPG, WebP and the other image formats), compressed or turned into a
+PDF. Phones store the picture as the sensor saw it and note the turn in the
+photo's EXIF data; the metadata stripping removed that note without applying
+it. The turn now goes into the pixels before the EXIF is removed, for all
+eight EXIF orientations (and for a turn noted only in XMP). HEIC photos and
+TIFF files were not affected: their decoders already turn the picture. AVIF
+files with a rotation were affected too and are fixed as well. A photo whose
+EXIF block can't be read stays as stored, as before.
+
+### Fixed — PDF → TXT: a PDF with JBIG2 page content gets a `400`, not a `500`, where `jbig2dec` is installed
+
+On a Linux host that has the `jbig2dec` program installed and runs FileMorph
+without root privileges, PDF → TXT answered with a `500` when a PDF's page
+content, rather than an image in it, was stored as JBIG2 data. Such a PDF
+now gets the usual `400` for an unreadable PDF, as on hosts without the
+program. PDFs with JBIG2 images, such as many scans, were not affected, and
+neither was the Docker image, which doesn't ship `jbig2dec`.
+
+### Added — “Insert PDF pages” page
+
+`/pdf/insert` (German: “PDF-Seiten einfügen”) puts a PDF, a Word file or an
+image into a PDF from the web UI: choose the PDF, choose what goes in, and pick
+the place — at the start, after a given page, or at the end. A sentence under
+the choice says where the new pages will start, and a note says the pages are
+counted from the first page of the file, not by the printed page numbers.
+The result shows how many pages went in and the new page count and size;
+“Insert something else” takes the result as the PDF for the next file. An
+error names the field it is about. The page is listed in the footer, on
+`/tools`, in the sitemap and in `/llms.txt`, and the other PDF tools link
+to it.
+
+### Added — insert pages into a PDF (API)
+
+`POST /api/v1/pdf/insert` puts a whole second file into a PDF: another PDF, a
+Word document (`.docx`, converted with LibreOffice) or an image, which becomes
+one page in the size of the page next to it, turned to the image's
+orientation. The pages go at the start, after a given page (`after_page`,
+counted from the first page of the file, not by printed page numbers) or at
+the end. The PDF keeps its bookmarks, which still lead to the right pages, its
+links, form fields and document info; its page labels survive when the pages
+are appended. A successful answer carries `X-FileMorph-Inserted-Pages` and
+`X-FileMorph-Page-Count`; an error about one of the inputs names the form
+field in `X-FileMorph-Error-Field`. A server without LibreOffice answers a
+Word file with `word_not_converted` and the advice to insert it as a PDF. Both
+files together may have at most 10 000 pages, and the request counts as one
+call.
+
+### Fixed — palette images (GIF, 8-bit PNG) keep their colours
+
+Since metadata stripping became the default in 1.1.0, converting a palette
+image — every GIF, palette (8-bit) PNGs, indexed BMP and TIFF files — to PNG,
+WebP, AVIF, GIF, BMP, TIFF or ICO, or compressing one, returned a broken image:
+one colour for every pixel, and for BMP a file that wouldn't open. The
+stripping copied the pixels, which in a palette image are indices into its
+colour table, but not the table, and it dropped which colour is transparent.
+Both are kept now; EXIF, XMP and IPTC are still removed. A palette PNG with an
+alpha table, as pngquant and TinyPNG write them, keeps its transparent areas
+when converted to GIF, and a PNG with one transparent colour keeps it when
+compressed. JPEG and PDF output were not affected.
+
+### Changed — one catalogue of public pages feeds the sitemap and `/llms.txt`
+
+`app/core/catalog.py` lists every public page a visitor lands on once, in
+display order: its path, its sitemap priority, the switch that gates it and
+its `/llms.txt` line. The sitemap, `/llms.txt`, the page routes' whitelist and
+the "Related tools" links of the PDF tool pages are now built from it; each
+used to keep its own hand-written list. Both files list the same pages as
+before, now in the catalogue's order: the PDF tools and the "… to PDF"
+conversions first, then the image tools.
+
+New tests in `tests/test_catalog.py` check that every catalogued page renders,
+that every public page route is catalogued, that the sitemap and `/llms.txt`
+match the catalogue, that no internal link leads to an error page, and that
+titles and meta descriptions fit a search snippet. The titles, meta
+descriptions and headings of the homepage, `/tools` and the tool pages are
+pinned in `tests/golden/page_texts.json`; after a deliberate change, rerun the
+test with `FILEMORPH_UPDATE_GOLDEN=1` and commit the file.
+
+### Fixed — images just over the size limit get the size-limit message
+
+Converting or compressing an image between one and two times the image size
+limit (89 megapixels by default, `FILEMORPH_IMAGE_MAX_MEGAPIXELS`) — a
+108-megapixel phone photo, say — returned a `500` with the generic
+“Conversion failed” or “Compression failed” instead. Pillow raises a
+warning there, which FileMorph turns into an error, but the routes caught only
+the error Pillow raises above twice the limit. Both now get the `400` with
+`X-FileMorph-Error-Code: decompression_bomb` and the advice to make the image
+smaller, on `/convert`, `/compress` and `/pdf/insert`.
+
+### Changed — translations load straight from the `.po` files; no `.mo` in the repository
+
+The app now compiles `locale/<code>/LC_MESSAGES/messages.po` in memory once,
+at startup, with the same messages `pybabel compile` produced: fuzzy entries
+stay out. The compiled `.mo` files are no longer committed. Each catalogue
+change used to add a binary file that conflicted between pull requests, and
+`scripts/i18n.py extract` and `update` now also drop the `POT-Creation-Date`
+header, which Babel rewrote on every run. A missing or broken catalogue is
+logged at startup, and the app serves the English source strings instead of
+failing.
+
+- Self-hosters: a source checkout, the release tarball and the Docker image
+  work without a compile step, as before. If you customised translations by
+  placing your own `.mo` in `locale/`, it is now ignored: edit the `.po`
+  instead.
+- Contributors: after `extract` and `update`, commit `locale/` as before,
+  without running `compile`. A test now runs the placeholder checks that
+  `compile` used to run.
+
+### Security — dnspython 2.9.0: excessive CPU on crafted DNS messages fixed
+
+dnspython, which email-validator pulls in, moves from 2.8.0 to 2.9.0. That
+fixes CVE-2026-114605 (GHSA-45c3-73f7-pv4m, high): a crafted DNS message
+could make its name decompression use excessive CPU. Not reachable here:
+FileMorph checks email addresses with Pydantic's `EmailStr`, which skips
+email-validator's DNS lookups, and no other dependency uses dnspython. The
+new version is a floor in `requirements.txt`, so a later re-lock cannot fall
+back below it; nothing else in the lockfile moved.
+
+### Changed — dependency batch: FastAPI 0.162, Starlette 1.10, SQLAlchemy 2.1.6 and five smaller updates
+
+Dependabot's weekly `python-all` group (#273) lands in one pull request, with
+`requirements.lock` recompiled once. Every version has passed the three-day
+cooldown in `.github/dependabot.yml`. What the image ships now:
+
+- **FastAPI 0.162.0** (from 0.154.0). Three releases in between are marked as
+  breaking: unknown keyword arguments to `Form()`, `Query()` and the like now
+  raise an error (0.155), a parameter model's `extra` setting also covers the
+  fields declared next to it (0.160), and an omitted `bool` form field takes
+  its declared default or counts as missing instead of reading as `False`
+  (0.162). FileMorph's routes use none of these: no extra keyword arguments, no
+  parameter models, no boolean form fields.
+- **Starlette 1.10.0** (from 1.6.0). FileMorph imports it directly, so
+  `requirements.txt` now lists it: a lockfile recompile keeps a package that
+  only FastAPI requires at its old pin, and Dependabot proposes updates only
+  for what the file lists. From 1.7 on, its CORS middleware adds `Vary: Origin`
+  to every response, so that a shared cache keeps the answers for different
+  origins apart. That header is part of how the local engine's files are
+  delivered, so `app/static/engine/delivery.js` gets a new fingerprint, and
+  every engine URL a new tree hash: a browser that cached an engine file with
+  the old headers loads it again. The engine stays off unless
+  `LOCAL_TOOLS_ENABLED` is set. The weekly `deps-latest` run, which installs
+  the newest releases, had failed on exactly this since 2026-10-24.
+- **SQLAlchemy 2.1.6** (from 2.1.5), with ORM fixes, two of them for
+  regressions, and alembic 1.20.1 (from 1.20.0), whose fixes are mostly in
+  autogenerate.
+- **certifi 2026.10.23** (from 2026.10.19). The CA bundle that Stripe calls
+  verify against drops two more eMudhra roots, emSign Root CA - C1 and emSign
+  ECC Root CA - C3. 2026.10.19 had removed the emSign ECC Root CA - G3
+  (GHSA-6q48-6c7w-9gw2).
+- **ReportLab 5.1.0** (from 5.0.1) hardens `rl_safe_eval`, the restricted
+  evaluator that ReportLab runs document-template expressions through (and
+  colour strings, if configured to), against sandbox escapes that allowed code
+  execution. None was reachable in FileMorph: TXT → PDF draws the file's lines
+  as plain text on a canvas and evaluates nothing.
+- The floors for pypdf (6.21.2) and Mako (1.4.3) move up to the versions the
+  lockfile already pins.
+
+Development tools: ruff 0.17.2, which reformats nothing, and uv 0.13.5
+(`requirements-uv.lock` regenerated), which, after 0.13.4 removed the emSign
+root, also rejects certificate chains that contain the compromised eMudhra
+intermediate keys. The lockfiles come out in the same format.
+
+### Changed — The app process keeps its environment and memory to itself; Ghostscript runs without the app's secrets; the image's code is read-only
+
+On Linux the app process marks itself non-dumpable as it loads: no other
+process of its user, the conversion child processes included, can read its
+environment or memory through `/proc` or attach to it, and it writes no core
+dump. A debugger or profiler that attaches to the running app (gdb, py-spy)
+now needs root; in a container, root with the `SYS_PTRACE` capability.
+
+Ghostscript, which re-renders PDF/A output, now gets the app's environment
+without its secrets, as the conversion child processes and LibreOffice
+already did.
+
+In the Docker image the app's code belongs to root and is read-only for
+`appuser`, whom the container runs as. Only `/app/data`, where the first start
+writes the API key file, stays writable for it. A custom Dockerfile that still
+runs `chown -R appuser:appuser /app` can limit it to `/app/data`.
+
+### Changed — video and audio outputs no longer copy the source's metadata
+
+Video conversions and compressions no longer copy the source file's
+metadata — its tags and chapters — into the output, matching the default-on
+metadata strip for images. Portrait clips stay upright, since their
+rotation is applied to the frames.
+
+Audio conversions keep only the music tags — title, artist and album
+artist, album, track number, genre, and the year of the date — and no other
+tags or chapters; embedded cover art was dropped before. The music tags now
+carry over from Ogg and Opus files too, which keep them on the audio stream.
+An output still carries the technical tags its muxer writes (encoder,
+handler, language).
+
+### Changed — Audio and video conversions run with resource limits
+
+The audio and video work of a request (conversion, video compression,
+video → GIF) has one time limit, `MEDIA_SUBPROCESS_TIMEOUT_SECONDS`, now 85
+seconds by default (it was 600 seconds for each ffmpeg run). The files of a
+batch share it. A file that runs out of time gets a `400` (`invalid_input`)
+whose message names the next step, where it used to get a `500`; in a batch,
+a file whose turn comes after the time is up is not converted and says so.
+
+- Videos larger than 4K (4096 × 2160 pixels per frame) get a `400` that asks
+  for an export at 4K or lower.
+- ffmpeg decodes uploads only with the decoders for the common audio, video
+  and subtitle codecs of the accepted formats; a conversion that needs a
+  stream in another codec gets the `400` for an unsupported format. The
+  probe before video → GIF uses the same list.
+- On Linux ffmpeg and ffprobe start with their address space capped at
+  3 GiB, the size of each file they write capped at the request's output
+  cap, a CPU-time cap, no core dump and no new privileges, and they end with
+  the app process. A video compression that reaches the output cap now
+  stops there and gets the `413` (`output_cap_exceeded`). ffmpeg's decoders,
+  encoders and filters use 2 threads each, and both programs get the
+  environment without application secrets.
+- Raise `MEDIA_SUBPROCESS_TIMEOUT_SECONDS` if you convert long or HD footage
+  and no CDN or proxy in front of FileMorph stops waiting sooner.
+
+### Security — the dependency audit asks OSV too and also checks the uv and SBOM-generator lockfiles
+
+CI's blocking `pip-audit` gate checked one file, `requirements.lock`, against
+one source, PyPI's advisory feed. Both limits let an advisory through:
+
+- **The two lockfiles CI installs its own tools from were not audited.**
+  `requirements-uv.lock` pins the uv that compiles the lockfiles, and
+  `requirements-sbom.lock` the SBOM generator of every release. uv 0.12.23
+  stayed on `main` although its bundled CA store trusted a root whose
+  intermediate keys were compromised (GHSA-hq85-5cpj-mr62). Both files are now
+  audited like `requirements.lock`.
+- **PyPI's feed can lack an advisory that OSV lists.** It had no entry for
+  PYSEC-2026-4243 (CVE-2026-102991) against Mako 1.4.1, which alembic pulls
+  in: a path traversal through a drive-letter URI on Windows. Every lockfile is
+  now audited against both sources, and Mako moves to 1.4.3
+  (`mako>=1.4.2` in `requirements.txt`). The flaw was not reachable in
+  FileMorph: it needs Windows and a template looked up by a URI an attacker
+  chooses, while FileMorph uses Mako only through alembic, which renders its
+  own migration template from a file.
+
+Every audit now reads the pinned versions as written (`--disable-pip`): having
+pip resolve the lockfile first left out packages that pip-audit's own scratch
+environment already held. `--strict` fails an audit on a package a source
+cannot look up instead of skipping it. The weekly `deps-latest` workflow
+repeats the audits, so an advisory published in a week without pushes is
+noticed too. `tests/test_supply_chain_hygiene.py` fails if a lockfile is no
+longer audited against either source, or if the audit step may be skipped, may
+fail without failing the job, or runs anything besides the audits.
+
+---
+
 ## [1.3.0] — 2026-10-27
 
 **Upgrading from 1.2.1.** No format or env var was removed, and no database
