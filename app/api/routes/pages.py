@@ -38,6 +38,7 @@ from app.core.pdf_tools_content import get_pdf_tool_content
 from app.core.redact_content import get_redact_content
 from app.core.templates import templates
 from app.core.tools_content import get_tools_content
+from app.core.video_gif_content import get_video_gif_content
 from app.db.base import accounts_enabled
 
 router = APIRouter(include_in_schema=False)
@@ -244,6 +245,24 @@ async def compress_page(request: Request):
         crumb=page.label[locale],
         related=_related(page.related, locale),
         preset_mode="compress",
+    )
+
+
+@router.get("/convert/video-to-gif")
+async def video_to_gif_page(request: Request):
+    # Video → GIF (#266) gets one page for every video format, not seven pair
+    # pages. Declared before /convert/{pair_slug}, whose slug parser expects a
+    # single source format. The converter is pre-set to GIF (preset_target,
+    # read by app.js once a video is chosen); it still takes any file.
+    locale = normalize_locale(getattr(request.state, "locale", settings.lang_default))
+    page = catalog.get("/convert/video-to-gif")
+    return _render(
+        request,
+        "video_to_gif.html",
+        content=get_video_gif_content(locale),
+        crumb=page.label[locale],
+        related=_related(page.related, locale),
+        preset_target="gif",
     )
 
 
