@@ -35,7 +35,8 @@
     </ul>
   </div>
   {% endfor %}
-  <p>
+  <p class="flex flex-wrap gap-x-6 gap-y-2">
     <a href="{{ localized_url('/tools', current_prefix) }}" class="rounded text-sm font-semibold text-brand-light hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">{{ _('All tools →') }}</a>
+    <a href="{{ localized_url('/formats', current_prefix) }}" class="rounded text-sm font-semibold text-brand-light hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">{{ _('All formats →') }}</a>
   </p>
 </nav>

@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Request
 
+from app.api.routes.ai import _TEXT_EXTS as REDACT_TEXT_FORMATS
 from app.api.routes.pdf_pages import INSERT_FORMATS
 from app.compressors.image import _SUPPORTED_FORMATS as IMAGE_COMPRESS_FMTS
 from app.compressors.video import _SUPPORTED_FORMATS as VIDEO_COMPRESS_FMTS
@@ -30,7 +31,10 @@ from app.core import pricing as pricing_mod
 from app.core.compress_content import get_compress_content
 from app.core.config import settings
 from app.core.convert_pairs import (
+    SEARCH_WORDS,
+    SPELLINGS,
     accept_attr,
+    format_label,
     get_pair_content,
     related_pairs,
 )
@@ -134,19 +138,40 @@ def _tool_sections(locale: str) -> list[tuple[str, list[dict]]]:
     return [(family, [card(page) for page in tools]) for family, tools in catalog.sections()]
 
 
+def _fold(formats) -> list[str]:
+    """``formats`` with other spellings under their first name (SPELLINGS),
+    each once, sorted."""
+    return sorted({SPELLINGS.get(fmt, fmt) for fmt in formats})
+
+
+def _listed_conversions() -> dict[str, list[str]]:
+    """The conversions as /formats lists them: ``get_public_conversions()``
+    (identity pairs like ``pdf -> pdf`` dropped) with other spellings of a
+    format folded into its first name, so each conversion counts once and
+    "JPG to JPEG" isn't one. The registry keeps both spellings; every pair
+    listed here exists in it under these names."""
+    listed: dict[str, set[str]] = {}
+    for src, targets in get_public_conversions().items():
+        for tgt in targets:
+            src_name, tgt_name = SPELLINGS.get(src, src), SPELLINGS.get(tgt, tgt)
+            if src_name != tgt_name:
+                listed.setdefault(src_name, set()).add(tgt_name)
+    return {src: sorted(targets) for src, targets in listed.items()}
+
+
 def _grouped_conversions() -> list[tuple[str, list[tuple[str, list[str]]]]]:
-    """Group the live registry by source-format category for the template.
+    """Group the listed conversions by source-format category for the template.
 
     Shape: ``[(category_key, [(src, [tgts]), ...]), ...]`` in
     ``_CATEGORY_ORDER`` with empty categories dropped. Sorted so the page is
     deterministic (review-friendly, stable for the render-snapshot test).
 
-    Uses ``get_public_conversions()`` (identity pairs like ``pdf -> pdf``
-    dropped) — this is a user-facing listing, and a same-format "conversion"
-    would be a silent no-op re-save. ``convert_pair_page`` below still
-    validates against the raw ``get_supported_conversions()`` registry.
+    Uses ``_listed_conversions()`` — this is a user-facing listing, and a
+    same-format "conversion" would be a silent no-op re-save.
+    ``convert_pair_page`` below still validates against the raw
+    ``get_supported_conversions()`` registry.
     """
-    conversions = get_public_conversions()
+    conversions = _listed_conversions()
     buckets: dict[str, list[tuple[str, list[str]]]] = {c: [] for c in _CATEGORY_ORDER}
     for src in sorted(conversions):
         cat = _FORMAT_CATEGORY.get(src, "other")
@@ -165,6 +190,60 @@ def _pair_pages() -> dict[tuple[str, str], str]:
             if "gif" in targets and _FORMAT_CATEGORY.get(src) == "video":
                 pages[(src, "gif")] = gif_page.path
     return pages
+
+
+def _tool_formats() -> dict[str, list[str]]:
+    """``{path: formats}`` for the tool pages of the catalogue: the formats
+    each takes, and the one it makes where that is another (Video to GIF),
+    for the format search on /formats. Each list comes from the code that
+    decides what the tool accepts. tests/test_format_search.py checks that
+    the keys are exactly the catalogue's tool pages."""
+    video_to_gif = [
+        src for (src, _), path in _pair_pages().items() if path == "/convert/video-to-gif"
+    ]
+    return {
+        "/pdf/compress": ["pdf"],
+        "/pdf/split": ["pdf"],
+        "/pdf/extract": ["pdf"],
+        "/pdf/insert": _fold(INSERT_FORMATS),
+        "/compress": _fold([*IMAGE_COMPRESS_FMTS, *VIDEO_COMPRESS_FMTS]),
+        "/convert/video-to-gif": _fold([*video_to_gif, "gif"]),
+        "/redact": _fold([*REDACT_TEXT_FORMATS, "docx", "xlsx"]),
+    }
+
+
+def _format_search(locale: str) -> dict:
+    """What /formats needs for its format search: a label per format, the
+    search words (SPELLINGS + SEARCH_WORDS, a category word standing for all
+    its formats) and the tool chips, each with its formats. Only formats the
+    page lists count, so a word never points at a format the page lacks."""
+    conversions = _listed_conversions()
+    tool_formats = _tool_formats()
+    listed = set(conversions) | {tgt for targets in conversions.values() for tgt in targets}
+    listed |= set(_fold([*IMAGE_COMPRESS_FMTS, *VIDEO_COMPRESS_FMTS]))
+    tools = [
+        {
+            "path": page.path,
+            "label": page.label[locale],
+            "formats": [f for f in tool_formats.get(page.path, []) if f in listed],
+        }
+        for page in catalog.pages(kind="tool")
+    ]
+    words = {}
+    for word, targets in {**{k: (v,) for k, v in SPELLINGS.items()}, **SEARCH_WORDS}.items():
+        formats = {
+            fmt
+            for target in targets
+            for fmt in listed
+            if fmt == target or _FORMAT_CATEGORY.get(fmt) == target
+        }
+        if formats:
+            words[word] = sorted(formats)
+    return {
+        "format_labels": {fmt: format_label(fmt) for fmt in sorted(listed)},
+        "search_words": words,
+        "tool_chips": tools,
+    }
 
 
 @router.get("/")
@@ -209,18 +288,22 @@ async def formats_page(request: Request):
     # a real unique-content page (not thin), and the anchor for the future
     # per-pair pages (Phase 2). Category labels are translated in the
     # template; the data is presentation-only.
+    locale = normalize_locale(getattr(request.state, "locale", settings.lang_default))
     return _render(
         request,
         "formats.html",
         format_groups=_grouped_conversions(),
-        compress_image=sorted(IMAGE_COMPRESS_FMTS),
-        compress_video=sorted(VIDEO_COMPRESS_FMTS),
+        compress_image=_fold(IMAGE_COMPRESS_FMTS),
+        compress_video=_fold(VIDEO_COMPRESS_FMTS),
         # Every matrix chip is a link: to the pair's own page where the
         # catalogue has one, else to the homepage converter pre-set by a
         # "#convert=<src>-to-<tgt>" fragment (app.js) — no page of its own,
         # so no thin pages for search engines. Read per request, like every
         # other catalogue view (G5).
         pair_pages=_pair_pages(),
+        # The format search above the list (format-filter.js): labels,
+        # search words and the tool chips with their formats.
+        **_format_search(locale),
     )
 
 

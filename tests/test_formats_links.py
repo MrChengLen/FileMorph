@@ -33,7 +33,16 @@ def _matrix(html: str) -> str:
 
 
 def _pairs() -> set[tuple[str, str]]:
-    return {(src, tgt) for src, targets in get_public_conversions().items() for tgt in targets}
+    """The conversions the matrix lists: other spellings (JPEG, TIF, HTM)
+    under the first name, each conversion once (tests/test_format_search.py)."""
+    same = {"jpeg": "jpg", "tif": "tiff", "htm": "html"}
+    pairs = set()
+    for src, targets in get_public_conversions().items():
+        for tgt in targets:
+            pair = (same.get(src, src), same.get(tgt, tgt))
+            if pair[0] != pair[1]:
+                pairs.add(pair)
+    return pairs
 
 
 def _js_function(source: str, name: str) -> str:
@@ -51,7 +60,7 @@ def test_every_conversion_is_a_link(client, prefix):
     matrix = _matrix(client.get(f"{prefix}/formats").text)
     pairs = _pairs()
     hrefs = re.findall(r'<a href="([^"]+)"', matrix)
-    assert len(hrefs) == len(pairs)
+    assert len(hrefs) == len(pairs) == len(set(re.findall(r'data-pair="([^"]+)"', matrix)))
     assert "<span" not in matrix
     for href in hrefs:
         if "#convert=" in href:

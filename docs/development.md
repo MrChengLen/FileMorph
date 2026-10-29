@@ -314,6 +314,13 @@ compressor format — each is pinned by a test, so a missed one fails the build:
 - `_FORMAT_CATEGORY` in `app/api/routes/pages.py` — `tests/test_formats_categories.py`
   fails for a source format without a category (it would land in the "Other"
   bucket on `/formats`).
+- If the registry gets a second spelling of a format (as `jpeg` is of `jpg`):
+  `SPELLINGS` in `app/core/convert_pairs.py` **and** `_SAME` in
+  `tests/test_format_search.py`. Otherwise `/formats` lists the spelling as a
+  format of its own, with a "conversion" into its twin. A new tool page
+  (`kind="tool"` in `app/core/catalog.py`) needs its formats in `_tool_formats()`
+  (`app/api/routes/pages.py`), or the format search can't find it; that test
+  fails until it has them.
 - If the format supports target-size compression, `TARGET_SIZE_FORMATS` in
   `app/compressors/image.py` **and** the matching `TARGET_SIZE_FORMATS` array
   in `app/static/js/app.js` — `tests/test_target_size_formats_parity.py`

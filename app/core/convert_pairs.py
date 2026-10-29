@@ -33,11 +33,56 @@ _DISPLAY: dict[str, str] = {
     "docx": "DOCX",
     "html": "HTML",
     "eml": "EML",
+    "pdfa": "PDF/A",
+    "webm": "WebM",
 }
 
 
 def format_label(fmt: str) -> str:
     return _DISPLAY.get(fmt.lower(), fmt.upper())
+
+
+# Other spellings of a format. The registry knows both, so that a file named
+# .jpeg converts like a .jpg; where formats are listed (/formats) they count
+# once, under the first name: "JPEG to PNG" is "JPG to PNG", and "JPG to
+# JPEG" is no conversion at all.
+SPELLINGS: dict[str, str] = {"jpeg": "jpg", "tif": "tiff", "htm": "html"}
+
+# What people type into the format search on /formats besides a format's name
+# or another spelling: other names of a format, and words for a kind of file,
+# which stand for all formats of that /formats category (image, document,
+# spreadsheet, audio, video). German and English, lower case.
+SEARCH_WORDS: dict[str, tuple[str, ...]] = {
+    "markdown": ("md",),
+    "text": ("txt",),
+    "pdf/a": ("pdfa",),
+    "word": ("docx",),
+    "excel": ("xlsx",),
+    "e-mail": ("eml",),
+    "email": ("eml",),
+    "iphone": ("heic", "heif", "mov"),
+    "bild": ("image",),
+    "bilder": ("image",),
+    "foto": ("image",),
+    "fotos": ("image",),
+    "image": ("image",),
+    "images": ("image",),
+    "photo": ("image",),
+    "photos": ("image",),
+    "dokument": ("document",),
+    "dokumente": ("document",),
+    "document": ("document",),
+    "documents": ("document",),
+    "tabelle": ("spreadsheet",),
+    "tabellen": ("spreadsheet",),
+    "spreadsheet": ("spreadsheet",),
+    "spreadsheets": ("spreadsheet",),
+    "audio": ("audio",),
+    "musik": ("audio",),
+    "music": ("audio",),
+    "video": ("video",),
+    "videos": ("video",),
+}
 
 
 # Each entry: {(src, tgt): {"de": {...}, "en": {...}}}. Per-locale fields:

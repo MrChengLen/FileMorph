@@ -311,6 +311,9 @@ msgstr ""
 msgid "All formats + smart-tech"
 msgstr ""
 
+msgid "All formats →"
+msgstr ""
+
 msgid ""
 "All of them are strictly necessary for the function you asked for, so "
 "they fall under the exemption in Art. 5(3) ePrivacy Directive / § 25 Abs."
@@ -1189,6 +1192,9 @@ msgid ""
 "email right away."
 msgstr ""
 
+msgid "Find a format"
+msgstr ""
+
 msgid ""
 "Find and remove structured personal data (email, IBAN, phone, IPv4, card)"
 " from TXT, DOCX and XLSX. Deterministic checks (no external AI), a fail-"
@@ -1300,6 +1306,9 @@ msgstr ""
 
 msgid "Got it"
 msgstr "Got it"
+
+msgid "Have the file? Drop it into the converter, it shows every target →"
+msgstr ""
 
 #, python-brace-format
 msgid "Heads up: {target} output is typically {factor} larger than the source."
@@ -1727,6 +1736,10 @@ msgid "No conversions yet."
 msgstr ""
 
 msgid "No credit card required"
+msgstr ""
+
+#, python-brace-format
+msgid "No format matches “{q}”."
 msgstr ""
 
 msgid ""
@@ -2424,6 +2437,9 @@ msgid ""
 msgstr ""
 
 msgid "Set a new password"
+msgstr ""
+
+msgid "Show all formats"
 msgstr ""
 
 msgid "Show last 30 days"
@@ -3608,6 +3624,9 @@ msgstr ""
 msgid "e-mail"
 msgstr ""
 
+msgid "e.g. HEIC, Word, MP4 or “heic to jpg”"
+msgstr ""
+
 msgid "escalation, post-mortem template ↗"
 msgstr ""
 
@@ -3831,6 +3850,18 @@ msgstr ""
 
 #, python-brace-format
 msgid "{n} credits remaining"
+msgstr ""
+
+#, python-brace-format
+msgid "{n} of {total} conversions"
+msgstr ""
+
+#, python-brace-format
+msgid "{n} of {total} tools"
+msgstr ""
+
+#, python-brace-format
+msgid "{src} → {tgt} isn't available (yet). Everything with {src}:"
 msgstr ""
 
 #, python-brace-format
