@@ -1167,9 +1167,6 @@ msgstr "Funktion"
 msgid "File compression mode"
 msgstr "Datei-Kompressions-Modus"
 
-msgid "File conversion and compression — open source, self-hostable."
-msgstr "Datei-Konvertierung und -Kompression — Open Source, selbst hostbar."
-
 msgid "File conversion mode"
 msgstr "Datei-Konvertierungs-Modus"
 

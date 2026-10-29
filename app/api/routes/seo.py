@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """SEO + well-known foundation endpoints: ``/robots.txt``, ``/sitemap.xml``,
-and ``/.well-known/security.txt``.
+``/.well-known/security.txt`` and the root icons (``/favicon.ico``,
+``/apple-touch-icon.png``).
 
 Mounted at the root (no ``/api/v1`` prefix) so the conventional discovery
 paths are honored. The route list is built per request from the page
@@ -18,6 +19,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter
 from fastapi.responses import PlainTextResponse, Response
 
+from app.compat import base_dir
 from app.core import catalog
 from app.core.config import settings
 from app.core.convert_pairs import format_label
@@ -223,3 +225,33 @@ async def security_txt() -> str:
         "",
     ]
     return "\n".join(lines)
+
+
+# ── Root icons ───────────────────────────────────────────────────────────────
+#
+# iOS looks for /apple-touch-icon.png at the root when someone adds a page to
+# the home screen, and browsers, feed readers and crawlers ask for /favicon.ico
+# whatever a page links. Without these routes every such request rendered the
+# HTML 404 page. (The older -precomposed name is left to 404: only very old
+# iOS versions ask for it.) The files live in app/static/; the bytes are read
+# once and sent from memory (no FileResponse, see tests/test_temp_cleanup.py).
+
+_STATIC_DIR = base_dir() / "app" / "static"
+# One day, unlike /static's five minutes with revalidation: a root URL can't
+# carry the ?v= content version the /static links get, and the logo is stable.
+_ICON_CACHE = "public, max-age=86400"
+_APPLE_TOUCH_ICON = (_STATIC_DIR / "apple-touch-icon.png").read_bytes()
+_FAVICON_ICO = (_STATIC_DIR / "favicon.ico").read_bytes()
+
+
+# GET and HEAD, as /static answers: icon checkers often send HEAD first.
+@router.api_route("/apple-touch-icon.png", methods=["GET", "HEAD"], include_in_schema=False)
+async def apple_touch_icon() -> Response:
+    return Response(
+        _APPLE_TOUCH_ICON, media_type="image/png", headers={"Cache-Control": _ICON_CACHE}
+    )
+
+
+@router.api_route("/favicon.ico", methods=["GET", "HEAD"], include_in_schema=False)
+async def favicon_ico() -> Response:
+    return Response(_FAVICON_ICO, media_type="image/x-icon", headers={"Cache-Control": _ICON_CACHE})

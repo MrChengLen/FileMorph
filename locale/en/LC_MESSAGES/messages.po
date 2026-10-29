@@ -1029,9 +1029,6 @@ msgstr ""
 msgid "File compression mode"
 msgstr ""
 
-msgid "File conversion and compression — open source, self-hostable."
-msgstr ""
-
 msgid "File conversion mode"
 msgstr ""
 

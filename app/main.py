@@ -439,6 +439,7 @@ _PAGE_VIEW_IGNORED_PREFIXES: tuple[str, ...] = (
     "/robots.txt",
     "/sitemap.xml",
     "/favicon",
+    "/apple-touch-icon",
 )
 
 
