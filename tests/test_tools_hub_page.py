@@ -19,6 +19,7 @@ import re
 import xml.etree.ElementTree as ET
 
 import pytest
+from bs4 import BeautifulSoup
 
 from app.core import catalog
 from app.core.config import settings
@@ -116,6 +117,33 @@ def test_tools_page_has_a_card_for_every_tool_page(client, prefix):
         if page.kind in ("tool", "convert"):
             assert f'href="{prefix}{page.path}"' in main, f"no /tools card for {page.path}"
             assert page.label[locale] in main, f"{page.path} card lacks its name"
+
+
+@pytest.mark.parametrize("prefix", ["/en", "/de"])
+def test_tools_page_card_is_one_link_named_after_the_tool(client, prefix):
+    """The whole card is the link (decided 2026-10-29): its only link sits in
+    the h3, so the link text is the tool's name, and the link's after: overlay
+    stretches over the card. "Open →" stays as a cue screen readers skip."""
+    main = BeautifulSoup(_main(client.get(f"{prefix}/tools").text), "html.parser")
+    locale = prefix.strip("/")
+    names = {
+        f"{prefix}{page.path}": page.label[locale]
+        for page in catalog.pages()
+        if page.kind in ("tool", "convert")
+    }
+    cards = main.find_all("div", attrs={"data-component": "card"})
+    assert len(cards) == len(names)
+    for card in cards:
+        (link,) = card.find_all("a")
+        assert link.parent.name == "h3"
+        assert link.get_text(strip=True) == names[link["href"]]
+        assert "after:inset-0" in link["class"]
+        # outline-none drops the browser's own outline: the ring is all there is.
+        assert "focus-visible:after:ring-2" in link["class"]
+        assert "relative" in card["class"]
+        cue = card.find("span", attrs={"aria-hidden": "true"})
+        assert cue is not None, f"{link['href']}: no Open cue"
+        assert cue.get_text(strip=True) == ("Öffnen →" if locale == "de" else "Open →")
 
 
 def test_tools_page_cards_say_where_they_run(client):
