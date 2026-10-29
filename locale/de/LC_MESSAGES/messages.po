@@ -350,6 +350,9 @@ msgstr "Keine Datei konnte verarbeitet werden."
 msgid "All formats + smart-tech"
 msgstr "Alle Formate + Smart-Tech"
 
+msgid "All formats →"
+msgstr "Alle Formate →"
+
 msgid ""
 "All of them are strictly necessary for the function you asked for, so "
 "they fall under the exemption in Art. 5(3) ePrivacy Directive / § 25 Abs."
@@ -1381,6 +1384,9 @@ msgstr ""
 "Fülle das Formular aus und klicke auf „jetzt kündigen“. Wir bestätigen "
 "dir die Kündigung sofort per E-Mail."
 
+msgid "Find a format"
+msgstr "Format suchen"
+
 msgid ""
 "Find and remove structured personal data (email, IBAN, phone, IPv4, card)"
 " from TXT, DOCX and XLSX. Deterministic checks (no external AI), a fail-"
@@ -1516,6 +1522,9 @@ msgstr ""
 
 msgid "Got it"
 msgstr "Verstanden"
+
+msgid "Have the file? Drop it into the converter, it shows every target →"
+msgstr "Datei schon da? Im Konverter ablegen, er zeigt alle Ziele →"
 
 #, python-brace-format
 msgid "Heads up: {target} output is typically {factor} larger than the source."
@@ -2059,6 +2068,10 @@ msgstr "Noch keine Konvertierungen."
 
 msgid "No credit card required"
 msgstr "Keine Kreditkarte erforderlich"
+
+#, python-brace-format
+msgid "No format matches “{q}”."
+msgstr "Kein Format passt zu „{q}“."
 
 msgid ""
 "Not at the moment. If that changes, it will be announced here in advance "
@@ -2871,6 +2884,9 @@ msgstr ""
 
 msgid "Set a new password"
 msgstr "Neues Passwort festlegen"
+
+msgid "Show all formats"
+msgstr "Alle Formate zeigen"
 
 msgid "Show last 30 days"
 msgstr "Letzte 30 Tage anzeigen"
@@ -4389,6 +4405,9 @@ msgstr ""
 msgid "e-mail"
 msgstr "E-Mail"
 
+msgid "e.g. HEIC, Word, MP4 or “heic to jpg”"
+msgstr "z. B. HEIC, Word, MP4 oder „heic in jpg“"
+
 msgid "escalation, post-mortem template ↗"
 msgstr "Eskalation, Post-Mortem-Vorlage ↗"
 
@@ -4651,6 +4670,18 @@ msgstr "{name} (mit den eingefügten Seiten)"
 #, python-brace-format
 msgid "{n} credits remaining"
 msgstr "{n} Credits übrig"
+
+#, python-brace-format
+msgid "{n} of {total} conversions"
+msgstr "{n} von {total} Umwandlungen"
+
+#, python-brace-format
+msgid "{n} of {total} tools"
+msgstr "{n} von {total} Tools"
+
+#, python-brace-format
+msgid "{src} → {tgt} isn't available (yet). Everything with {src}:"
+msgstr "{src} → {tgt} gibt es (noch) nicht. Alles mit {src}:"
 
 #, python-brace-format
 msgid "{succeeded} of {total} files succeeded ({failed} failed)"

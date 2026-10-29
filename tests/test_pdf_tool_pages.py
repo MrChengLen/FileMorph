@@ -200,9 +200,10 @@ def test_homepage_teaser_links_to_pdf_tools(client):
 
 
 def test_formats_page_links_to_pdf_tools_via_tools_hub(client):
-    """IA rework PR 2: /formats no longer links the three PDF tool pages
-    directly (that 3-sub-block section was replaced by a single cross-link
-    to /tools, which is where they're now discoverable)."""
+    """IA rework PR 2: /formats has no PDF tools section of its own, only a
+    cross-link to /tools, where the tools are described. Since the format
+    search (2026-10-29) the tools are also chips in its "Tools" row, so a
+    search for "PDF" finds them."""
     r = client.get("/en/formats")
     assert r.status_code == 200
     formats_main = r.text[r.text.index("<main") : r.text.index("</main>")]

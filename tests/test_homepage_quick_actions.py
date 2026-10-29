@@ -87,7 +87,7 @@ def _js_function(source: str, name: str) -> str:
 @pytest.mark.parametrize("prefix", ["/en", "/de"])
 def test_quick_actions_links_exact(client, prefix):
     block = _quick_actions_block(_main(client.get(f"{prefix}/").text))
-    expected = [f"{prefix}{path}" for path, *_ in _CHIPS] + [f"{prefix}/tools"]
+    expected = [f"{prefix}{path}" for path, *_ in _CHIPS] + [f"{prefix}/tools", f"{prefix}/formats"]
     assert re.findall(r'href="([^"]+)"', block) == expected
 
 
@@ -193,7 +193,7 @@ def test_quick_actions_deployment_agnostic(client):
 # ── every chip target resolves ─────────────────────────────────────────────
 
 
-@pytest.mark.parametrize("path", [chip[0] for chip in _CHIPS] + ["/tools"])
+@pytest.mark.parametrize("path", [chip[0] for chip in _CHIPS] + ["/tools", "/formats"])
 def test_quick_actions_targets_return_200(client, path):
     assert client.get(f"/en{path}").status_code == 200
 

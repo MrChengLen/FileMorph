@@ -1,0 +1,33 @@
+{# Format search on /formats (docs-internal/navigation-suche-konzept-2026-10.md).
+   format-filter.js filters the list below in place: by a format, another
+   name or a kind of file (search_words) or a pair ("heic to jpg").
+   Invisible until the script runs, so without it nothing is hidden and the
+   full list shows (G6); invisible, not hidden, so the field's space is kept
+   and the list doesn't jump when it appears. The texts ride along as data-*
+   attributes; the script fills their {n}-style placeholders and writes them
+   as plain text. #}
+<div id="format-filter" role="search" class="space-y-2 invisible"
+     data-words='{{ search_words|tojson }}'
+     data-labels='{{ format_labels|tojson }}'
+     data-text-count="{{ _('{n} of {total} conversions') }}"
+     data-text-tools="{{ _('{n} of {total} tools') }}"
+     data-text-missing="{{ _("{src} → {tgt} isn't available (yet). Everything with {src}:") }}"
+     data-text-empty="{{ _('No format matches “{q}”.') }}">
+  <label for="format-q" class="block text-sm font-medium text-ink-muted">{{ _('Find a format') }}</label>
+  {# The recipe of _components/text_input.html, at 16px: below that, iOS
+     zooms into the page when the field gets focus. #}
+  <input id="format-q" type="search" maxlength="64" autocomplete="off" spellcheck="false" enterkeyhint="search"
+    placeholder="{{ _('e.g. HEIC, Word, MP4 or “heic to jpg”') }}"
+    class="block w-full max-w-md bg-surface-sunken border border-hairline rounded-control px-3 py-2.5 text-base text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition-colors">
+  {# What the list shows, at once; screen readers hear it from the live
+     region below once the typing has settled. #}
+  <p id="format-status" class="min-h-5 text-sm text-ink-muted"></p>
+  <p id="format-live" role="status" class="sr-only"></p>
+  {# No match: the status says so, these say where to go next. #}
+  <div id="format-empty" hidden>
+    <p class="flex flex-wrap gap-x-6 gap-y-2">
+      <button type="button" id="format-show-all" class="rounded text-brand hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">{{ _('Show all formats') }}</button>
+      <a href="{{ localized_url('/', current_prefix) }}" class="rounded text-brand hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">{{ _('Have the file? Drop it into the converter, it shows every target →') }}</a>
+    </p>
+  </div>
+</div>

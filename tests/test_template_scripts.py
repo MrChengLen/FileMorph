@@ -31,7 +31,7 @@ _CORE = ["/static/js/auth.js", "/static/js/app.js"]
 # Template → (a path that renders it, or None to render it directly; its own scripts).
 _PAGES: dict[str, tuple[str | None, list[str]]] = {
     "index.html": ("/", []),
-    "formats.html": ("/formats", []),
+    "formats.html": ("/formats", ["/static/js/format-filter.js"]),
     "tools.html": ("/tools", []),
     "compress.html": ("/compress", []),
     "convert_pair.html": ("/convert/jpg-to-pdf", []),
