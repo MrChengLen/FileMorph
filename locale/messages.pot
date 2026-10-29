@@ -1599,6 +1599,9 @@ msgstr ""
 msgid "Member since"
 msgstr ""
 
+msgid "Menu"
+msgstr ""
+
 msgid "Mermaid diagram and request lifecycle ↗"
 msgstr ""
 
@@ -2863,9 +2866,6 @@ msgstr ""
 msgid ""
 "Together the files would have more than 10,000 pages — too many for one "
 "insertion."
-msgstr ""
-
-msgid "Toggle menu"
 msgstr ""
 
 #, python-brace-format

@@ -1985,6 +1985,9 @@ msgstr "Maximale Dateigröße"
 msgid "Member since"
 msgstr "Mitglied seit"
 
+msgid "Menu"
+msgstr "Menü"
+
 msgid "Mermaid diagram and request lifecycle ↗"
 msgstr "Mermaid-Diagramm und Request-Lifecycle ↗"
 
@@ -3557,9 +3560,6 @@ msgid ""
 msgstr ""
 "Zusammen hätten die Dateien mehr als 10.000 Seiten – zu viele für einen "
 "Durchgang."
-
-msgid "Toggle menu"
-msgstr "Menü umschalten"
 
 #, python-brace-format
 msgid ""
