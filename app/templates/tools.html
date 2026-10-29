@@ -29,18 +29,20 @@
 
   {# One card per tool page of the page catalogue, under the name the tool
      carries on the homepage chips and in the footer. Every tool runs on the
-     server today, and the card says so as text (G7). #}
+     server today, and the card says so as text (G7). The whole card is the
+     link: it sits in the h3, so its text is just the tool's name, and its
+     after: overlay stretches over the card ("Open →" is only a cue). #}
   {% for family, cards in sections %}
   <section id="{{ family }}" class="space-y-4{% if not loop.first %} border-t border-gray-800 pt-8{% endif %}">
     <h2 class="text-base font-semibold text-white">{{ ts.section_name(family) }}</h2>
     <div class="grid md:grid-cols-2 gap-6">
       {% for card in cards %}
-      {% call uc.card() %}
+      {% call uc.card(interactive=True) %}
       <div class="space-y-2">
-        <h3 class="text-base font-semibold text-ink">{{ card.title }}</h3>
+        <h3 class="text-base font-semibold text-ink"><a href="{{ localized_url(card.path, current_prefix) }}" class="after:absolute after:inset-0 after:rounded-card focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-brand">{{ card.title }}</a></h3>
         <span class="inline-block text-xs px-2 py-0.5 rounded border border-hairline bg-surface-sunken text-ink-muted" data-location="server">{{ _('Runs via our server') }}</span>
         <p class="text-sm text-ink-muted leading-relaxed">{{ card.desc }}</p>
-        <a href="{{ localized_url(card.path, current_prefix) }}" aria-label="{{ _('Open →') }} {{ card.title }}" class="inline-block text-sm text-brand hover:underline">{{ _('Open →') }}</a>
+        <span class="inline-block text-sm text-brand" aria-hidden="true">{{ _('Open →') }}</span>
       </div>
       {% endcall %}
       {% endfor %}

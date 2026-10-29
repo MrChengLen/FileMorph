@@ -1,4 +1,4 @@
-{# card(border='default', padded='md', shadow=True, id=None, hidden=False)
+{# card(border='default', padded='md', shadow=True, id=None, hidden=False, interactive=False)
 
    Surface card with hairline border + radius-card + canonical
    padding. The body is yielded via {{ caller() }}, so this is a
@@ -16,12 +16,19 @@
    hidden  — Render with the `hidden` Tailwind class set initially.
              JS removes it via classList. Useful for cards that
              start invisible.
+   interactive — True for a card that is one link as a whole: the
+             link sits in the card's heading and its
+             `after:absolute after:inset-0` overlay stretches over
+             the card (/tools). Positions the card for that overlay
+             and highlights the border on hover. Nothing else in such
+             a card may be a link or button: the overlay covers it.
 #}
-{% macro card(border='default', padded='md', shadow=True, id=None, hidden=False) %}
+{% macro card(border='default', padded='md', shadow=True, id=None, hidden=False, interactive=False) %}
 <div class="bg-surface-raised rounded-card
             {% if border == 'brand' %}border-2 border-brand{% else %}border border-hairline{% endif %}
             {% if padded == 'lg' %}p-card-pad-lg{% else %}p-card-pad-md{% endif %}
             {% if shadow %}shadow-card{% endif %}
+            {% if interactive %}relative hover:border-brand transition-colors{% endif %}
             {% if hidden %}hidden{% endif %}"
      {% if id %}id="{{ id }}"{% endif %}
      data-component="card">

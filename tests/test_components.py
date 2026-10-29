@@ -195,6 +195,27 @@ def test_card_hidden_initial_state_renders_hidden_class(env: Environment) -> Non
     assert "hidden" in div["class"]
 
 
+def test_card_interactive_positions_for_a_stretched_link(env: Environment) -> None:
+    soup = _render(
+        env,
+        '{% import "_components/card.html" as card %}'
+        "{% call card.card(interactive=True) %}body{% endcall %}",
+    )
+    classes = soup.find("div", attrs={"data-component": "card"})["class"]
+    assert "relative" in classes
+    assert "hover:border-brand" in classes
+
+
+def test_card_default_is_not_interactive(env: Environment) -> None:
+    soup = _render(
+        env,
+        '{% import "_components/card.html" as card %}{% call card.card() %}body{% endcall %}',
+    )
+    classes = soup.find("div", attrs={"data-component": "card"})["class"]
+    assert "relative" not in classes
+    assert "hover:border-brand" not in classes
+
+
 # ── button ─────────────────────────────────────────────────────────────────────
 
 
