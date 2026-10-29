@@ -311,11 +311,25 @@ def _js_i18n_strings(_: gettext.GNUTranslations.gettext) -> dict[str, str]:
         ),
         "alertNoTargetFormat": _("Please select a target format."),
         "alertNoTargetSize": _("Please enter a target size in MB."),
+        # The hint for a target that grows the file; {factor} is "5–10×" or "~11×".
+        "amplifySuggest": _("Use {format} instead →"),
+        "amplifyWarning": _(
+            "Heads up: {target} output is typically {factor} larger than the source."
+        ),
+        # Screen-reader labels of a file row; {name} is the file name.
+        "ariaRemoveFile": _("Remove {name}"),
+        "ariaTargetFormatFor": _("Target format for {name}"),
         "chooseTargetFormat": _("— choose a target format —"),
         "compress": _("Compress"),
         "compression": _("Compression"),
         "convert": _("Convert"),
+        "downloadResult": _("Download Result"),
+        "downloadResultSize": _("Download Result ({size} MB)"),
+        "downloadZip": _("Download ZIP ({count} files)"),
+        "fileCountMany": _("{count} files · {size} total"),
+        "fileCountOne": _("1 file · {size}"),
         "noConversionsAvailable": _("No conversions available for this format"),
+        "noTargetsOption": _("— no targets —"),
         # Pre-set pages and "#convert=<src>-to-<tgt>" links (from /formats);
         # app.js fills in {src}, {tgt} and {ext}, upper case, as plain text.
         "presetMismatch": _(
@@ -326,6 +340,8 @@ def _js_i18n_strings(_: gettext.GNUTranslations.gettext) -> dict[str, str]:
             "This file is {ext} and can't become {tgt}. Choose a target below."
         ),
         "presetReady": _("Preset: {src} to {tgt}. Choose your {src} file."),
+        "progressBatch": _("Processing {count} files…"),
+        "progressSingle": _("Processing your file…"),
         "quality": _("Quality"),
         "selectFileFirst": _("— select a file first —"),
         # docx→pdf engine routing — pre-upload notice + post-convert warnings.
@@ -365,6 +381,8 @@ def _js_i18n_strings(_: gettext.GNUTranslations.gettext) -> dict[str, str]:
         "warningSimplifiedSections": _("Multi-section page layout was simplified"),
         "warningSimplifiedEquations": _("Equations were simplified"),
         "warningSimplifiedMultilevel": _("Multi-level numbered lists were flattened"),
+        # A feature the list above doesn't know yet, by its server name.
+        "warningSimplifiedOther": _("Simplified: {feature}"),
         "warningFidelityReduced": _("Some document elements were simplified during conversion"),
         # 413 disambiguation — distinguishes "your upload was too big"
         # (before any work) from "the rendered output exceeded the cap"
@@ -453,12 +471,27 @@ def _js_i18n_strings(_: gettext.GNUTranslations.gettext) -> dict[str, str]:
             "This video is too large to turn into a GIF in time. Use a shorter clip or "
             "a lower resolution (for example 1080p), then try again."
         ),
+        # Other failed requests; {status} is the HTTP status, {detail} the
+        # browser's own error text.
+        "errorConversionFailed": _("Conversion failed (status {status})."),
+        "errorFileTooLarge": _("File too large."),
+        "errorInvalidApiKey": _("Invalid API key. Check your key and try again."),
+        "errorNetwork": _("Network error: {detail}"),
+        "errorTooManyRequests": _("Too many requests. Please wait a moment and try again."),
         # pdf-tools.js — the 2 GB form ceiling no account or self-host lifts
         "errorTargetSizeTooHigh": _("The target size is above the allowed maximum of 2 GB."),
         # P2-1 — batch result summary on /batch responses. The template
         # placeholders are kept stable across translations so the JS can
         # do a token substitution without per-locale parsing.
         "batchSummaryCounts": _("{succeeded} of {total} files succeeded ({failed} failed)"),
+        # A batch where every file failed: {error} is the first file's message.
+        "batchAllFailed": _("All files failed."),
+        "batchFailed": _("Batch failed: {failed}/{total} files. First error: {error}"),
+        # Stand-ins in the per-file lists when the server's list is cut short
+        # or a file name can't be read.
+        "batchMoreInManifest": _("(more — see manifest.json inside the ZIP)"),
+        "batchUnknownName": _("(unknown)"),
+        "batchUnparseable": _("(unparseable)"),
         # dashboard.js — API-key management
         "copied": _("Copied!"),
         "copy": _("Copy"),
