@@ -135,6 +135,7 @@ async def _read_validated_bytes(file: UploadFile, quota) -> bytes:
     """Read the upload and apply the shared upload-safety plumbing (size cap,
     magic-byte deny-list) — same guards as the converters."""
     data = await file.read()
+    await file.close()  # the framework's own copy (on disk above 1 MB) goes now
     if len(data) > quota.max_file_size_bytes:
         limit_mb = quota.max_file_size_bytes // _MB
         raise HTTPException(

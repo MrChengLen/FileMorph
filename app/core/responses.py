@@ -14,12 +14,14 @@ from starlette.types import Receive, Scope, Send
 
 
 class TempDirFileResponse(FileResponse):
-    """Send ``path``, then remove ``tmp_dir`` — the request's temp dir that
-    holds the result and the upload — however the response ends.
+    """Send ``path``, then remove ``tmp_dir`` — the request's temp dir, which
+    by now holds only the result (the routes delete the upload once the
+    result exists) — however the response ends.
 
     A ``background`` task runs only after a complete send: a send that fails
     (a server reporting the client gone) or is cancelled (a middleware or a
-    shutdown stopping the response) would leave both on disk until the sweep.
+    shutdown stopping the response) would leave the result on disk until the
+    sweep.
     The removal sits in a ``finally`` instead, shielded so that a cancelled
     response still finishes it.
     """

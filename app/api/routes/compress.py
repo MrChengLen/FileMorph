@@ -163,6 +163,9 @@ async def _do_compress(
 
         with input_path.open("wb") as f:
             shutil.copyfileobj(file.file, f)
+        # The framework's own copy (on disk above 1 MB) goes now, not after the
+        # response.
+        await file.close()
         input_size_bytes = input_path.stat().st_size
 
         # A-1: Magic-byte validation
@@ -234,6 +237,9 @@ async def _do_compress(
             )
         else:
             output_disk_size = output_path.stat().st_size
+
+        # Only the result is needed to answer; the upload goes now.
+        input_path.unlink(missing_ok=True)
 
         # S1-B: Output-cap check — defensive guard; compression should shrink
         # files, but a pathological input (already-optimized PNG, very-low-bitrate
@@ -476,6 +482,7 @@ async def _do_compress_batch(
 
                 with input_path.open("wb") as f:
                     shutil.copyfileobj(upload.file, f)
+                await upload.close()  # the framework's own copy goes now
 
                 with open(input_path, "rb") as f:
                     header = f.read(16)

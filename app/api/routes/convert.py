@@ -158,6 +158,9 @@ async def _do_convert(
 
         with input_path.open("wb") as f:
             shutil.copyfileobj(file.file, f)
+        # The framework's own copy (on disk above 1 MB) goes now, not after the
+        # response.
+        await file.close()
         input_size_bytes = input_path.stat().st_size
 
         # A-1: Magic-byte validation
@@ -230,6 +233,11 @@ async def _do_convert(
             )
         else:
             output_disk_size = output_path.stat().st_size
+
+        # Only the result is needed to answer; the upload goes now. PDF → PDF
+        # writes its result over the upload, so there the one file stays.
+        if input_path != output_path:
+            input_path.unlink(missing_ok=True)
 
         # S1-B: Output-cap check — reject before loading into memory. Guards
         # against bandwidth amplification (JPG→PNG ~5-10×, MP3→WAV ~11×).
@@ -489,6 +497,7 @@ async def _do_convert_batch(
 
                 with input_path.open("wb") as f:
                     shutil.copyfileobj(upload.file, f)
+                await upload.close()  # the framework's own copy goes now
 
                 with open(input_path, "rb") as f:
                     header = f.read(16)
