@@ -26,6 +26,15 @@ msgstr ""
 msgid "(Open the dashboard → \"Manage billing\" → update card.)"
 msgstr ""
 
+msgid "(more — see manifest.json inside the ZIP)"
+msgstr ""
+
+msgid "(unknown)"
+msgstr ""
+
+msgid "(unparseable)"
+msgstr ""
+
 msgid "(vs."
 msgstr ""
 
@@ -54,6 +63,10 @@ msgid "+ New Key"
 msgstr ""
 
 msgid "/mo"
+msgstr ""
+
+#, python-brace-format
+msgid "1 file · {size}"
 msgstr ""
 
 #, python-brace-format
@@ -292,6 +305,9 @@ msgid ""
 "Cloudflare does not store uploaded or converted files."
 msgstr ""
 
+msgid "All files failed."
+msgstr ""
+
 msgid "All formats + smart-tech"
 msgstr ""
 
@@ -419,6 +435,10 @@ msgid "Back to Sign In"
 msgstr ""
 
 msgid "Batch / request"
+msgstr ""
+
+#, python-brace-format
+msgid "Batch failed: {failed}/{total} files. First error: {error}"
 msgstr ""
 
 msgid "Batch upload:"
@@ -674,6 +694,10 @@ msgstr ""
 msgid "Conversion completed with notes"
 msgstr ""
 
+#, python-brace-format
+msgid "Conversion failed (status {status})."
+msgstr ""
+
 msgid ""
 "Conversion-job history — your account ID was stripped; the records are "
 "retained as anonymous aggregate data under DSGVO Art. 4(1)."
@@ -849,7 +873,15 @@ msgstr ""
 msgid "Download Result"
 msgstr ""
 
+#, python-brace-format
+msgid "Download Result ({size} MB)"
+msgstr ""
+
 msgid "Download ZIP"
+msgstr ""
+
+#, python-brace-format
+msgid "Download ZIP ({count} files)"
 msgstr ""
 
 msgid "Download redacted file"
@@ -995,6 +1027,9 @@ msgid "File conversion mode"
 msgstr ""
 
 msgid "File to insert"
+msgstr ""
+
+msgid "File too large."
 msgstr ""
 
 msgid ""
@@ -1244,6 +1279,10 @@ msgstr ""
 msgid "Got it"
 msgstr "Got it"
 
+#, python-brace-format
+msgid "Heads up: {target} output is typically {factor} larger than the source."
+msgstr ""
+
 msgid "Hetzner's privacy policy"
 msgstr ""
 
@@ -1486,6 +1525,9 @@ msgstr ""
 msgid "Internal use is already free under AGPL-3.0."
 msgstr ""
 
+msgid "Invalid API key. Check your key and try again."
+msgstr ""
+
 msgid "Invalid page selection. Use 1-based page numbers and ranges, e.g. '1-3,5'."
 msgstr ""
 
@@ -1623,6 +1665,10 @@ msgid "Need a commercial license & SLA? Compliance Edition →"
 msgstr "Need a commercial license & SLA? Compliance Edition →"
 
 msgid "Need a format that isn't listed?"
+msgstr ""
+
+#, python-brace-format
+msgid "Network error: {detail}"
 msgstr ""
 
 msgid "Never used"
@@ -1967,6 +2013,13 @@ msgstr ""
 msgid "Process another file"
 msgstr ""
 
+msgid "Processing your file…"
+msgstr ""
+
+#, python-brace-format
+msgid "Processing {count} files…"
+msgstr ""
+
 msgid "Processing…"
 msgstr ""
 
@@ -2097,6 +2150,10 @@ msgid "Related tools"
 msgstr ""
 
 msgid "Remove"
+msgstr ""
+
+#, python-brace-format
+msgid "Remove {name}"
 msgstr ""
 
 msgid "Replace [LABEL]"
@@ -2383,6 +2440,10 @@ msgstr ""
 msgid "Signups over time"
 msgstr ""
 
+#, python-brace-format
+msgid "Simplified: {feature}"
+msgstr ""
+
 msgid ""
 "Single-file format conversions and image/video compressions, plus "
 "account, contact, billing and redaction events, go into a continuous hash"
@@ -2557,6 +2618,10 @@ msgid "Target Format"
 msgstr ""
 
 msgid "Target file size"
+msgstr ""
+
+#, python-brace-format
+msgid "Target format for {name}"
 msgstr ""
 
 msgid "Target format selection is inconsistent — please reselect your files."
@@ -2974,6 +3039,10 @@ msgid ""
 msgstr ""
 
 msgid "Use these to authenticate programmatic API requests."
+msgstr ""
+
+#, python-brace-format
+msgid "Use {format} instead →"
 msgstr ""
 
 msgid "Users"
@@ -3716,6 +3785,10 @@ msgid "your JWT session tokens; strictly necessary to keep you signed in."
 msgstr ""
 
 #, python-brace-format
+msgid "{count} files · {size} total"
+msgstr ""
+
+#, python-brace-format
 msgid "{count} item(s) found"
 msgstr ""
 
@@ -3742,6 +3815,9 @@ msgid "— a PGP key is available on request."
 msgstr ""
 
 msgid "— choose a target format —"
+msgstr ""
+
+msgid "— no targets —"
 msgstr ""
 
 msgid "— select a file first —"

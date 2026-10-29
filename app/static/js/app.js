@@ -213,7 +213,7 @@ function updateTargetSizeLabel() {
   const label = document.getElementById('target-size-label');
   if (!input || !label) return;
   const mb = parseFloat(input.value || '0');
-  label.textContent = isFinite(mb) && mb > 0 ? `${mb.toFixed(2)} MB` : '—';
+  label.textContent = isFinite(mb) && mb > 0 ? `${formatDecimal(mb, 2)} MB` : '—';
 }
 
 // The standalone target-format dropdown drives the single-file flow. In
@@ -296,13 +296,13 @@ function renderFileList() {
         perRowSelect = document.createElement('select');
         perRowSelect.className =
           'per-row-target bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs shrink-0 focus:outline-none focus:border-brand transition-colors';
-        perRowSelect.setAttribute('aria-label', `Target format for ${file.name}`);
+        perRowSelect.setAttribute('aria-label', i18nText('ariaTargetFormatFor', 'Target format for {name}', { name: file.name }));
         const ext = getExtension(file.name);
         const targets = supportedConversions[ext] || [];
         if (targets.length === 0) {
           const opt = document.createElement('option');
           opt.value = '';
-          opt.textContent = '— no targets —';
+          opt.textContent = i18nText('noTargetsOption', '— no targets —');
           perRowSelect.appendChild(opt);
           perRowSelect.disabled = true;
           row.classList.add('opacity-60');
@@ -336,7 +336,7 @@ function renderFileList() {
       const rm = document.createElement('button');
       rm.type = 'button';
       rm.className = 'text-xs text-gray-600 hover:text-red-400 transition-colors shrink-0';
-      rm.setAttribute('aria-label', `Remove ${file.name}`);
+      rm.setAttribute('aria-label', i18nText('ariaRemoveFile', 'Remove {name}', { name: file.name }));
       rm.textContent = '✕';
       rm.addEventListener('click', e => {
         e.stopPropagation();
@@ -352,9 +352,10 @@ function renderFileList() {
   }
   if (count) {
     const totalBytes = selectedFiles.reduce((s, f) => s + f.size, 0);
+    const size = formatBytes(totalBytes);
     count.textContent = selectedFiles.length === 1
-      ? `1 file · ${formatBytes(totalBytes)}`
-      : `${selectedFiles.length} files · ${formatBytes(totalBytes)} total`;
+      ? i18nText('fileCountOne', '1 file · {size}', { size })
+      : i18nText('fileCountMany', '{count} files · {size} total', { count: selectedFiles.length, size });
   }
   updatePdfToolsHint();
 }
@@ -544,14 +545,14 @@ function pairUsesQuality(ext, target) {
 // Driven by measured amplification: JPG→PNG ≈ 5-10×, MP3→WAV ≈ 11×. The
 // suggestion is only offered if the API actually supports it for this source.
 const AMPLIFIERS = {
-  jpg:  { png: { factor: '5–10× larger', suggest: 'webp' }, bmp: { factor: '5–10× larger', suggest: 'webp' }, tiff: { factor: '5–10× larger', suggest: 'webp' } },
-  jpeg: { png: { factor: '5–10× larger', suggest: 'webp' }, bmp: { factor: '5–10× larger', suggest: 'webp' }, tiff: { factor: '5–10× larger', suggest: 'webp' } },
-  heic: { png: { factor: '5–10× larger', suggest: 'webp' }, bmp: { factor: '5–10× larger', suggest: 'webp' } },
-  webp: { png: { factor: '5–10× larger', suggest: 'jpg' }, bmp: { factor: '5–10× larger', suggest: 'jpg' } },
-  mp3:  { wav: { factor: '~11× larger',  suggest: 'flac' } },
-  ogg:  { wav: { factor: '~11× larger',  suggest: 'flac' } },
-  m4a:  { wav: { factor: '~11× larger',  suggest: 'flac' } },
-  aac:  { wav: { factor: '~11× larger',  suggest: 'flac' } },
+  jpg:  { png: { factor: '5–10×', suggest: 'webp' }, bmp: { factor: '5–10×', suggest: 'webp' }, tiff: { factor: '5–10×', suggest: 'webp' } },
+  jpeg: { png: { factor: '5–10×', suggest: 'webp' }, bmp: { factor: '5–10×', suggest: 'webp' }, tiff: { factor: '5–10×', suggest: 'webp' } },
+  heic: { png: { factor: '5–10×', suggest: 'webp' }, bmp: { factor: '5–10×', suggest: 'webp' } },
+  webp: { png: { factor: '5–10×', suggest: 'jpg' }, bmp: { factor: '5–10×', suggest: 'jpg' } },
+  mp3:  { wav: { factor: '~11×', suggest: 'flac' } },
+  ogg:  { wav: { factor: '~11×', suggest: 'flac' } },
+  m4a:  { wav: { factor: '~11×', suggest: 'flac' } },
+  aac:  { wav: { factor: '~11×', suggest: 'flac' } },
 };
 
 function getExtension(filename) {
@@ -641,8 +642,12 @@ function updateFormatWarning() {
     return;
   }
 
-  textEl.textContent = `Heads up: ${target.toUpperCase()} output is typically ${match.factor} than the source.`;
-  suggestBtn.textContent = `Use ${match.suggest.toUpperCase()} instead →`;
+  textEl.textContent = i18nText(
+    'amplifyWarning',
+    'Heads up: {target} output is typically {factor} larger than the source.',
+    { target: target.toUpperCase(), factor: match.factor },
+  );
+  suggestBtn.textContent = i18nText('amplifySuggest', 'Use {format} instead →', { format: match.suggest.toUpperCase() });
   suggestBtn.dataset.target = match.suggest;
   warnEl.classList.remove('hidden');
 }
@@ -713,7 +718,7 @@ function parseWarningsHeader(raw) {
       engineFallback = true;
     } else if (key === 'simplified') {
       const i18nKey = WARNING_FEATURE_LABELS[value];
-      items.push({ label: (i18nKey && i18n[i18nKey]) || `Simplified: ${value}` });
+      items.push({ label: (i18nKey && i18n[i18nKey]) || i18nText('warningSimplifiedOther', 'Simplified: {feature}', { feature: value }) });
     } else if (key === 'fidelity' && value === 'reduced') {
       fidelityReduced = true;
     } else {
@@ -795,12 +800,12 @@ function parseBatchFailures(rawHeader) {
   for (const entry of rawHeader.split(';')) {
     const e = entry.trim();
     if (!e || e === '...') {
-      if (e === '...') items.push({ name: '…', reason: '(more — see manifest.json inside the ZIP)' });
+      if (e === '...') items.push({ name: '…', reason: i18nText('batchMoreInManifest', '(more — see manifest.json inside the ZIP)') });
       continue;
     }
     const pipe = e.indexOf('|');
     if (pipe === -1) {
-      items.push({ name: '(unknown)', reason: decodeURIComponent(e) });
+      items.push({ name: i18nText('batchUnknownName', '(unknown)'), reason: decodeURIComponent(e) });
       continue;
     }
     try {
@@ -808,7 +813,7 @@ function parseBatchFailures(rawHeader) {
       const reason = decodeURIComponent(e.slice(pipe + 1));
       items.push({ name, reason });
     } catch (_) {
-      items.push({ name: '(unparseable)', reason: e });
+      items.push({ name: i18nText('batchUnparseable', '(unparseable)'), reason: e });
     }
   }
   return items;
@@ -996,8 +1001,8 @@ async function submitForm() {
   }
 
   showProgress(isBatch
-    ? `Processing ${selectedFiles.length} files…`
-    : 'Processing your file…');
+    ? i18nText('progressBatch', 'Processing {count} files…', { count: selectedFiles.length })
+    : i18nText('progressSingle', 'Processing your file…'));
 
   const headers = {};
   const savedKey = localStorage.getItem('filemorph_api_key');
@@ -1019,8 +1024,12 @@ async function submitForm() {
       // Batch all-failed: server returns 422 with {summary, files[]}
       if (res.status === 422 && data && data.summary) {
         const first = data.files?.find(f => f.status === 'error')?.error_message
-          || 'All files failed.';
-        showError(`Batch failed: ${data.summary.failed}/${data.summary.total} files. First error: ${first}`);
+          || i18nText('batchAllFailed', 'All files failed.');
+        showError(i18nText(
+          'batchFailed',
+          'Batch failed: {failed}/{total} files. First error: {error}',
+          { failed: data.summary.failed, total: data.summary.total, error: first },
+        ));
       } else if (res.status === 400 && data.detail) {
         // A batch over the tier's files per request lands here, so does a
         // password-protected PDF, or one with a certificate / an unsupported
@@ -1041,7 +1050,7 @@ async function submitForm() {
         }
         showError(msg, errCode);
       } else if (res.status === 401) {
-        showError('Invalid API key. Check your key and try again.');
+        showError(i18nText('errorInvalidApiKey', 'Invalid API key. Check your key and try again.'));
       } else if (res.status === 413) {
         // PR-uxfix-413: branch on the structured error code so the
         // remediation hint matches the actual failure. Falls back to
@@ -1059,13 +1068,13 @@ async function submitForm() {
         } else if (errCode === 'input_too_large') {
           msg = i18n.errorInputTooLarge || data.detail;
         } else {
-          msg = data.detail || 'File too large.';
+          msg = data.detail || i18nText('errorFileTooLarge', 'File too large.');
         }
         showError(msg, errCode);
       } else if (res.status === 429) {
-        showError('Too many requests. Please wait a moment and try again.');
+        showError(i18nText('errorTooManyRequests', 'Too many requests. Please wait a moment and try again.'));
       } else {
-        showError(data.detail || `Conversion failed (status ${res.status}).`);
+        showError(data.detail || i18nText('errorConversionFailed', 'Conversion failed (status {status}).', { status: res.status }));
       }
       return;
     }
@@ -1117,18 +1126,18 @@ async function submitForm() {
       const achieved = res.headers.get('X-FileMorph-Achieved-Bytes');
       if (!isBatch && useTargetSize && achieved) {
         // Decimal MB, as the target was entered.
-        const mb = (parseInt(achieved, 10) / 1e6).toFixed(2);
-        label.textContent = `Download Result (${mb} MB)`;
+        const mb = formatDecimal(parseInt(achieved, 10) / 1e6, 2);
+        label.textContent = i18nText('downloadResultSize', 'Download Result ({size} MB)', { size: mb });
       } else {
         label.textContent = isBatch
-          ? `Download ZIP (${selectedFiles.length} files)`
-          : 'Download Result';
+          ? i18nText('downloadZip', 'Download ZIP ({count} files)', { count: selectedFiles.length })
+          : i18nText('downloadResult', 'Download Result');
       }
     }
 
     showResult();
   } catch (e) {
-    showError('Network error: ' + e.message);
+    showError(i18nText('errorNetwork', 'Network error: {detail}', { detail: e.message }));
   }
 }
 
@@ -1174,8 +1183,26 @@ function resetResultState() {
 
 // ── Utils ─────────────────────────────────────────────────────────────────────
 
+// A text from window.FM_I18N (English fallback) with its {tokens} filled in
+// once, as plain text: for textContent and aria-labels, never for markup.
+function i18nText(key, fallback, vars = {}) {
+  const template = (window.FM_I18N || {})[key] || fallback;
+  return template.replace(/\{(\w+)\}/g, (token, name) =>
+    (Object.prototype.hasOwnProperty.call(vars, name) ? String(vars[name]) : token));
+}
+
+// A number with a fixed count of decimals in the page's language: "1.5" on
+// English pages, "1,5" on German ones.
+function formatDecimal(value, digits) {
+  return value.toLocaleString(document.documentElement.lang || undefined, {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+    useGrouping: false,
+  });
+}
+
 function formatBytes(bytes) {
   if (bytes < 1024) return bytes + ' B';
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-  return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+  if (bytes < 1024 * 1024) return formatDecimal(bytes / 1024, 1) + ' KB';
+  return formatDecimal(bytes / (1024 * 1024), 2) + ' MB';
 }
