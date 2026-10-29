@@ -207,7 +207,7 @@
 </main>
 {% endblock %}
 {% block scripts %}
-<script src="/static/vendor/chart.umd.min.js"></script>
-<script src="/static/js/cockpit.js"></script>
-<script src="/static/js/cockpit-metrics.js"></script>
+<script src="{{ static_url('vendor/chart.umd.min.js') }}"></script>
+<script src="{{ static_url('js/cockpit.js') }}"></script>
+<script src="{{ static_url('js/cockpit-metrics.js') }}"></script>
 {% endblock %}

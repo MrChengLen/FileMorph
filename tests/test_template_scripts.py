@@ -6,7 +6,8 @@ then auth.js and app.js in its ``core_scripts`` block. Both of those call the
 API (app.js fetches /api/v1/formats on every page), so a strict page — CSP
 profile ``local``, where the browser refuses fetch and XHR — empties that
 block. ``_PAGES`` pins each template's own scripts, so a new script or a new
-template is added on purpose.
+template is added on purpose. Every script is linked with its content
+version (``static_url``), so a browser loads the new file after an update.
 """
 
 from __future__ import annotations
@@ -17,6 +18,7 @@ from pathlib import Path
 import pytest
 from starlette.requests import Request
 
+from app.core.assets import static_url
 from app.core.i18n import localized_context
 from app.core.templates import templates
 
@@ -67,6 +69,11 @@ _PAGES: dict[str, tuple[str | None, list[str]]] = {
 _STANDALONE = {"api_docs.html"}
 
 
+def _versioned(paths: list[str]) -> list[str]:
+    """The script URLs a page renders: each path with its content version."""
+    return [static_url(path.removeprefix("/static/")) for path in paths]
+
+
 def _render(source: str = "", name: str = "") -> str:
     request = Request(
         {
@@ -100,15 +107,15 @@ def test_each_page_loads_its_scripts(client, every_page_on, name):
         assert r.status_code == (404 if name == "404.html" else 200)
         html = r.text
     expected = own if name in _STANDALONE else _SHARED + _CORE + own
-    assert sorted(_SRC.findall(html)) == sorted(expected)
+    assert sorted(_SRC.findall(html)) == sorted(_versioned(expected))
 
 
 def test_base_loads_the_core_scripts_by_default():
-    assert _SRC.findall(_render('{% extends "base.html" %}')) == _SHARED + _CORE
+    assert _SRC.findall(_render('{% extends "base.html" %}')) == _versioned(_SHARED + _CORE)
 
 
 def test_a_strict_page_can_leave_out_the_core_scripts():
     html = _render('{% extends "base.html" %}{% block core_scripts %}{% endblock %}')
-    assert _SRC.findall(html) == _SHARED
+    assert _SRC.findall(html) == _versioned(_SHARED)
     # i18n-bootstrap.js still finds its catalogue.
     assert '<script id="fm-i18n-strings" type="application/json">' in html

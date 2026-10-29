@@ -31,6 +31,7 @@ from urllib.parse import urlsplit
 import pytest
 from bs4 import BeautifulSoup
 
+from app.core.assets import static_url
 from app.core.config import settings
 from app.core.templates import templates
 
@@ -513,7 +514,7 @@ def test_cancel_page_ships_no_inline_executable_script(client, stripe_on):
     """The page's logic lives in /static/js/cancel.js; base.html's inline scripts are
     data blocks only (application/json, ld+json), which the CSP does not govern."""
     html = client.get("/en/cancel").text
-    assert '<script src="/static/js/cancel.js"></script>' in html
+    assert f'<script src="{static_url("js/cancel.js")}"></script>' in html
     for attrs, body in re.findall(r"<script\b([^>]*)>(.*?)</script>", html, re.S | re.I):
         if re.search(r"\bsrc\s*=", attrs):
             continue

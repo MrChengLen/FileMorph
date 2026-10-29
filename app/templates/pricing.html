@@ -403,7 +403,7 @@
 
 </main>
 {% if stripe_enabled %}
-<script src="/static/js/pricing.js"></script>
-<script src="/static/js/pricing-segment.js"></script>
+<script src="{{ static_url('js/pricing.js') }}"></script>
+<script src="{{ static_url('js/pricing-segment.js') }}"></script>
 {% endif %}
 {% endblock %}

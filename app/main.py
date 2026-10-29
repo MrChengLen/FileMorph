@@ -19,6 +19,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+from starlette.datastructures import QueryParams
 from starlette.middleware.gzip import GZipMiddleware
 
 # Import-time hardening: flip Pillow's DecompressionBombWarning to a hard
@@ -32,7 +33,7 @@ from app.api.routes import billing as billing_route
 from app.api.routes import cockpit as cockpit_route
 from app.api.routes import keys as keys_route
 from app.compat import base_dir, setup_ffmpeg_path
-from app.core.assets import tailwind_css_filename
+from app.core.assets import file_version, static_url, tailwind_css_filename
 from app.core.config import jwt_secret_error, settings
 from app.core.csp import CSP_PROFILES
 from app.core.data_classification import (
@@ -103,6 +104,8 @@ _SITE_JSONLD, _SITE_JSONLD_CSP_SOURCE = build_site_jsonld(settings.app_base_url)
 templates.env.globals["api_base_url"] = settings.api_base_url
 templates.env.globals["app_base_url"] = settings.app_base_url
 templates.env.globals["tailwind_css"] = tailwind_css_filename()
+# Every other script and stylesheet: /static/<path>?v=<content version>.
+templates.env.globals["static_url"] = static_url
 templates.env.globals["site_jsonld"] = _SITE_JSONLD
 # Surfaced into templates so the /security page can render the same contact
 # alias that /.well-known/security.txt advertises — one source of truth, set
@@ -525,8 +528,12 @@ async def validation_error_handler(request: Request, exc: RequestValidationError
 # rest. Regex matches `.abc12345.` or `-abc12345.` — 8+ hex chars sandwiched
 # between a separator and the extension dot, the convention emitted by
 # esbuild/vite/rollup hash-suffix builds. Today that is the Tailwind bundle
-# (`tailwind.<sha>.css`, scripts/build-tailwind.sh), which takes the immutable
-# branch; every other static file is plain and takes the 5-min branch.
+# (`tailwind.<sha>.css`, scripts/build-tailwind.sh). Scripts and the other
+# stylesheets keep their plain names; templates link them with their content
+# version (`?v=`, static_url() in app/core/assets.py), and a request whose
+# version matches the file takes the immutable branch as well; one naming
+# another version is not cached at all. Everything else — no version, favicon
+# and images — takes the 5-min branch.
 _HASHED_ASSET = re.compile(r"[-.][a-f0-9]{8,}\.")
 
 
@@ -547,8 +554,16 @@ class CachingStaticFiles(StaticFiles):
     async def get_response(self, path: str, scope):
         response = await super().get_response(path, scope)
         if response.status_code == 200:
-            if _HASHED_ASSET.search(path):
+            version = QueryParams(scope["query_string"]).get("v")
+            # The version of the file lookup_path resolved and stat'ed, never of
+            # the request's own spelling of its path (`..` detours, any length).
+            matches = bool(version) and version == file_version(response.path, response.stat_result)
+            if _HASHED_ASSET.search(path) or matches:
                 response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+            elif version:
+                # Not this file's version: asked for before a deploy finished, or
+                # answered by an old replica. The body doesn't belong to the URL.
+                response.headers["Cache-Control"] = "no-store"
             else:
                 response.headers["Cache-Control"] = "public, max-age=300, must-revalidate"
         return response

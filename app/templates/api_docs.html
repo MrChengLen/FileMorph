@@ -11,7 +11,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>FileMorph API</title>
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="/static/vendor/swagger-ui.css" />
+  <link rel="stylesheet" href="{{ static_url('vendor/swagger-ui.css') }}" />
 </head>
 <body>
   <div id="swagger-ui" data-openapi-url="{{ openapi_url }}">
@@ -19,7 +19,7 @@
       available as <a href="{{ openapi_url }}">OpenAPI JSON</a>.
       <a href="/">Back to FileMorph</a></p>
   </div>
-  <script src="/static/vendor/swagger-ui-bundle.js"></script>
-  <script src="/static/js/api-docs.js"></script>
+  <script src="{{ static_url('vendor/swagger-ui-bundle.js') }}"></script>
+  <script src="{{ static_url('js/api-docs.js') }}"></script>
 </body>
 </html>
