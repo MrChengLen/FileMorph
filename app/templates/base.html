@@ -5,11 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{% block title %}FileMorph{% endblock %}</title>
 
-  <!-- B-2: Favicon and Web Manifest -->
+  <!-- B-2: Favicon and Web Manifest. favicon.ico (16/32/48) is for clients
+       without SVG support — sizes="32x32" keeps the others on the SVG. The
+       apple-touch-icon (180×180, opaque) is the home-screen icon on iOS. Both
+       are also served at the root, where clients look on their own
+       (app/api/routes/seo.py). -->
+  <link rel="icon" href="/favicon.ico" sizes="32x32" />
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <link rel="manifest" href="/static/site.webmanifest" />
   <meta name="theme-color" content="#6366f1" />
-  <!-- TODO: add favicon.ico (32x32) and apple-touch-icon.png (180x180) to app/static/ -->
 
   <!-- B-3: Meta tags and Open Graph. The description is a Jinja block so each
        page can supply its own keyword-targeted text; the default below serves
@@ -22,8 +27,17 @@
   <link rel="alternate" hreflang="de" href="{{ app_base_url }}{{ localized_url(base_path, 'de') }}" />
   <link rel="alternate" hreflang="en" href="{{ app_base_url }}{{ localized_url(base_path, 'en') }}" />
   <link rel="alternate" hreflang="x-default" href="{{ app_base_url }}{{ localized_url(base_path, none) }}" />
-  <meta property="og:title" content="FileMorph" />
-  <meta property="og:description" content="{{ _('File conversion and compression — open source, self-hostable.') }}" />
+  {#- Link previews (WhatsApp, Signal, Slack, LinkedIn, iMessage) show the page's
+      own title and description. The brand stands in og:site_name, so the title
+      drops its trailing " | FileMorph" / " — FileMorph" — only at the end:
+      "Pricing — FileMorph is free | FileMorph" keeps its middle. striptags turns
+      the rendered blocks back into plain text, which is escaped again for the
+      attribute — a quote in a future title can't end it. #}
+  {%- set preview_title = (self.title()|striptags).removesuffix(' | FileMorph').removesuffix(' — FileMorph') %}
+  {%- set preview_description = self.meta_description()|striptags %}
+  <meta property="og:site_name" content="FileMorph" />
+  <meta property="og:title" content="{{ preview_title }}" />
+  <meta property="og:description" content="{{ preview_description }}" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="{{ app_base_url }}{{ request.url.path }}" />
   <meta property="og:image" content="{{ app_base_url }}/static/og-image.png" />
@@ -32,8 +46,8 @@
   <meta property="og:locale" content="{{ 'de_DE' if locale == 'de' else 'en_US' }}" />
   <meta property="og:locale:alternate" content="{{ 'en_US' if locale == 'de' else 'de_DE' }}" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="FileMorph" />
-  <meta name="twitter:description" content="{{ _('File conversion and compression — open source, self-hostable.') }}" />
+  <meta name="twitter:title" content="{{ preview_title }}" />
+  <meta name="twitter:description" content="{{ preview_description }}" />
   <meta name="twitter:image" content="{{ app_base_url }}/static/og-image.png" />
   <meta name="robots" content="index, follow" />
 
