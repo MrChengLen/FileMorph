@@ -457,6 +457,19 @@ Browsers cache the policy whichever route you took, so an over-broad
 HSTS header cannot be withdrawn by changing the server — it expires
 only after `max-age` elapses on each visitor's machine.
 
+### A cache or CDN in front
+
+Scripts and stylesheets are linked as `/static/…?v=<content hash>`. A
+request whose version matches the file is cached for a year
+(`immutable`); after an update, pages name the new versions, so browsers
+fetch the new files at once. A cache in front of FileMorph must keep the
+query string in its cache key — the default for Cloudflare, Fastly and
+nginx `proxy_cache`. If yours forwards the query string to the app but
+leaves it out of the key (for example an AWS CloudFront cache policy
+without query strings, combined with an origin request policy that
+forwards them), an update keeps serving the old files until you purge
+the cache.
+
 ---
 
 ## Restrict to internal network only

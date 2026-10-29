@@ -16,6 +16,8 @@ from pathlib import Path
 
 import pytest
 
+from app.core.assets import static_url
+
 _ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -23,9 +25,9 @@ def test_docs_page_loads_only_same_origin_assets(client):
     resp = client.get("/docs")
     assert resp.status_code == 200
     html = resp.text
-    assert '<script src="/static/vendor/swagger-ui-bundle.js"></script>' in html
-    assert '<script src="/static/js/api-docs.js"></script>' in html
-    assert 'href="/static/vendor/swagger-ui.css"' in html
+    assert f'<script src="{static_url("vendor/swagger-ui-bundle.js")}"></script>' in html
+    assert f'<script src="{static_url("js/api-docs.js")}"></script>' in html
+    assert f'href="{static_url("vendor/swagger-ui.css")}"' in html
     refs = re.findall(r'\b(?:src|href)="([^"]*)"', html)
     assert refs
     assert all(ref.startswith("/") and not ref.startswith("//") for ref in refs), refs
