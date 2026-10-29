@@ -443,6 +443,7 @@ def test_tool_errors_quote_stderr_only_with_app_debug(monkeypatch, tmp_path, deb
 
     monkeypatch.setattr(settings, "app_debug", debug)
     monkeypatch.setattr(subprocess, "run", _failed_run)
+    monkeypatch.setattr(document, "_run_soffice", _failed_run)
     monkeypatch.setattr(shutil, "which", lambda name: f"/usr/bin/{name}")
     monkeypatch.setattr(_ghostscript, "_GS_BINARY", "gs")
     errors = []
@@ -459,8 +460,8 @@ def test_tool_errors_quote_stderr_only_with_app_debug(monkeypatch, tmp_path, deb
     assert all("exit" in error or "status" in error for error in errors), errors
     # soffice exits 0 but writes no PDF: the same rule for its stderr.
     monkeypatch.setattr(
-        subprocess,
-        "run",
+        document,
+        "_run_soffice",
         lambda *a, **k: subprocess.CompletedProcess(a, 0, b"", b"SECRET-METADATA"),
     )
     with pytest.raises(RuntimeError) as excinfo:

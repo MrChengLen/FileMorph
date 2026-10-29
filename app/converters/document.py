@@ -6,6 +6,7 @@ import logging
 import os
 import re
 import shutil
+import signal
 import subprocess
 import zipfile
 from pathlib import Path
@@ -238,6 +239,37 @@ def _soffice_child_env(shim_dir: Path, scratch_dir: Path) -> dict[str, str]:
     return env
 
 
+def _run_soffice(
+    args: list[str], *, timeout: float, env: dict[str, str]
+) -> subprocess.CompletedProcess:
+    """``subprocess.run(args, capture_output=True, timeout=timeout, env=env)``
+    for ``soffice``, except that past ``timeout`` all of LibreOffice stops.
+
+    ``soffice`` is a launcher: the conversion runs in LibreOffice's worker
+    (``soffice.bin``), a child of the launcher. Past its timeout,
+    ``subprocess.run`` stops only the program it started, which would leave
+    the worker running. Started in a session of its own, the call is one
+    process group, and past the timeout — or on any other error while
+    waiting — the whole group is killed.
+    """
+    with subprocess.Popen(  # noqa: S603 — binary resolved via shutil.which, no shell
+        args,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        env=env,
+        start_new_session=True,
+    ) as proc:
+        try:
+            stdout, stderr = proc.communicate(timeout=timeout)
+        except BaseException:
+            if os.name == "posix":
+                os.killpg(proc.pid, signal.SIGKILL)
+            else:  # pragma: no cover - os.killpg is POSIX-only
+                proc.kill()
+            raise
+    return subprocess.CompletedProcess(args, proc.returncode, stdout, stderr)
+
+
 def _convert_via_libreoffice(input_path: Path, output_path: Path, timeout_s: int) -> None:
     """Render DOCX → PDF using LibreOffice headless.
 
@@ -265,7 +297,7 @@ def _convert_via_libreoffice(input_path: Path, output_path: Path, timeout_s: int
         # parallel instances. The user-profile directory is per-call so two
         # concurrent conversions don't clobber each other's lockfiles.
         profile_uri = (work_dir / "userprofile").resolve().as_uri()
-        result = subprocess.run(  # noqa: S603 — binary resolved via shutil.which, no shell
+        result = _run_soffice(
             [
                 binary,
                 "--headless",
@@ -279,9 +311,7 @@ def _convert_via_libreoffice(input_path: Path, output_path: Path, timeout_s: int
                 str(work_dir),
                 str(input_path),
             ],
-            capture_output=True,
             timeout=timeout_s,
-            check=False,
             # Reduced child env: app secrets dropped, gs stubs ahead of the
             # real Ghostscript on PATH. See _soffice_child_env.
             env=_soffice_child_env(shim_dir, scratch_dir),

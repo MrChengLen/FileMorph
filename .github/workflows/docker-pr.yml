@@ -436,3 +436,51 @@ jobs:
           assert out.read_bytes()[:4] == b"%PDF", "no PDF produced"
           print("ok: gs stub shadows the real gs for soffice; engine=%s" % conv.engine_used)
           PY
+
+      # soffice only launches LibreOffice: the conversion runs in a child of
+      # the launcher (soffice.bin). Past the time limit the DOCX converter
+      # kills the whole process group (app/converters/document.py::_run_soffice).
+      # Verify in the real image, with a document too long to finish in time,
+      # that the worker ran mid-conversion and is gone after the limit.
+      - name: Check a LibreOffice timeout stops all of LibreOffice
+        if: matrix.target == 'office'
+        run: |
+          docker exec -i filemorph python - <<'PY'
+          import subprocess, tempfile, threading, time
+          from pathlib import Path
+          from docx import Document
+          from app.converters.document import _convert_via_libreoffice
+
+          def workers():
+              """Running soffice.bin processes: (pid, parent pid, process group)."""
+              found = []
+              for stat in Path("/proc").glob("[0-9]*/stat"):
+                  try:
+                      text = stat.read_text()
+                  except OSError:
+                      continue
+                  state, ppid, pgid = text[text.rindex(")") + 2 :].split()[:3]
+                  if text[text.index("(") + 1 : text.rindex(")")] == "soffice.bin" and state != "Z":
+                      found.append((int(stat.parent.name), int(ppid), int(pgid)))
+              return found
+
+          work = Path(tempfile.mkdtemp())
+          doc = Document()
+          for _ in range(10000):
+              doc.add_paragraph("FileMorph time limit probe. " * 16)
+          doc.save(work / "long.docx")
+          mid = []
+          threading.Timer(2, lambda: mid.extend(workers())).start()
+          try:
+              _convert_via_libreoffice(work / "long.docx", work / "out.pdf", timeout_s=5)
+          except subprocess.TimeoutExpired:
+              pass
+          else:
+              raise SystemExit("LibreOffice finished within 5 s; the check needs a longer document")
+          assert mid, "no LibreOffice worker ran mid-conversion; the check proves nothing"
+          deadline = time.monotonic() + 5
+          while workers() and time.monotonic() < deadline:
+              time.sleep(0.1)
+          assert not workers(), f"LibreOffice still running after its time limit: {workers()}"
+          print(f"ok: worker {mid} (pid, parent pid, group) stopped at the time limit")
+          PY

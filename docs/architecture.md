@@ -96,7 +96,9 @@ Every conversion or compression request follows the same path:
    `MEDIA_SUBPROCESS_TIMEOUT_SECONDS` (default 85 s for all of a request's
    audio and video work; video → GIF at most 85 s for all its steps
    together), LibreOffice `OFFICE_SUBPROCESS_TIMEOUT_SECONDS` (default
-   60 s), Ghostscript 60 s. On Linux ffmpeg and ffprobe start through
+   60 s), Ghostscript 60 s. On Linux LibreOffice runs in a process group
+   of its own, so its limit stops the worker (`soffice.bin`) along with
+   the `soffice` launcher. On Linux ffmpeg and ffprobe start through
    `app/converters/_limited_exec.py`, capped at 3 GiB of address space and
    at the request's output cap per file written.
    PDF → TXT runs pypdf in a child Python process
