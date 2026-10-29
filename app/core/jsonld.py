@@ -16,7 +16,8 @@ from __future__ import annotations
 
 import base64
 import hashlib
-import json
+
+from jinja2.utils import htmlsafe_json_dumps
 
 from app.core.config import settings
 
@@ -24,12 +25,14 @@ from app.core.config import settings
 def _compile(data: list[dict] | dict) -> tuple[str, str]:
     """Return ``(canonical_json, csp_source)``.
 
-    ``canonical_json`` is what gets rendered inline in the template;
-    ``csp_source`` (e.g. ``'sha256-abc=='``) is what lands in the CSP
-    header's ``script-src`` directive. The hash is computed over the
-    same bytes that get rendered.
+    ``canonical_json`` is what gets rendered inline in the template, with
+    ``<``, ``>``, ``&`` and ``'`` escaped (``htmlsafe_json_dumps``, the
+    escaping behind Jinja's ``|tojson``) so no value — e.g. a configured base
+    URL — can end the block; ``csp_source`` (e.g. ``'sha256-abc=='``) is what
+    lands in the CSP header's ``script-src`` directive. The hash is computed
+    over the same bytes that get rendered.
     """
-    canonical = json.dumps(data, separators=(",", ":"), ensure_ascii=False)
+    canonical = str(htmlsafe_json_dumps(data, ensure_ascii=False, separators=(",", ":")))
     digest = hashlib.sha256(canonical.encode("utf-8")).digest()
     return canonical, "'sha256-" + base64.b64encode(digest).decode("ascii") + "'"
 

@@ -91,13 +91,23 @@ function _t(key, fallback) {
   return (window.FM_I18N && window.FM_I18N[key]) || fallback;
 }
 
+// A value for markup: a key's name is whatever its owner typed.
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 async function loadKeys() {
   const res = await window.FM.authFetch('/api/v1/keys');
   if (!res.ok) return;
   const keys = await res.json();
   const list = document.getElementById('keys-list');
   if (keys.length === 0) {
-    list.innerHTML = '<p class="text-sm text-gray-500">' + _t('noApiKeys', 'No API keys yet. Create one above.') + '</p>';
+    const empty = document.createElement('p');
+    empty.className = 'text-sm text-gray-500';
+    empty.textContent = _t('noApiKeys', 'No API keys yet. Create one above.');
+    list.replaceChildren(empty);
     return;
   }
   const labelCreated = _t('created', 'Created');
@@ -108,11 +118,11 @@ async function loadKeys() {
   list.innerHTML = keys.map(function (k) {
     return '<div class="flex items-center justify-between gap-3 bg-gray-800 rounded-xl px-4 py-3">' +
       '<div class="min-w-0">' +
-      '<p class="text-sm font-medium truncate">' + k.label + '</p>' +
-      '<p class="text-xs text-gray-500">' + labelCreated + ' ' + new Date(k.created_at).toLocaleDateString(dateLocale) +
-      (k.last_used_at ? ' \u00b7 ' + labelLastUsed + ' ' + new Date(k.last_used_at).toLocaleDateString(dateLocale) : ' \u00b7 ' + labelNeverUsed) + '</p>' +
+      '<p class="text-sm font-medium truncate">' + escapeHtml(k.label) + '</p>' +
+      '<p class="text-xs text-gray-500">' + escapeHtml(labelCreated) + ' ' + new Date(k.created_at).toLocaleDateString(dateLocale) +
+      (k.last_used_at ? ' \u00b7 ' + escapeHtml(labelLastUsed) + ' ' + new Date(k.last_used_at).toLocaleDateString(dateLocale) : ' \u00b7 ' + escapeHtml(labelNeverUsed)) + '</p>' +
       '</div>' +
-      '<button data-revoke-id="' + k.id + '" class="shrink-0 text-xs text-red-400 hover:text-red-300 px-3 py-1.5 rounded-lg border border-red-900 hover:border-red-700 transition-colors">' + labelRevoke + '</button>' +
+      '<button data-revoke-id="' + escapeHtml(k.id) + '" class="shrink-0 text-xs text-red-400 hover:text-red-300 px-3 py-1.5 rounded-lg border border-red-900 hover:border-red-700 transition-colors">' + escapeHtml(labelRevoke) + '</button>' +
       '</div>';
   }).join('');
   list.querySelectorAll('[data-revoke-id]').forEach(function (btn) {

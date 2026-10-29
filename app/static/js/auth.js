@@ -5,6 +5,13 @@
   const ACCESS_KEY = 'fm_access_token';
   const REFRESH_KEY = 'fm_refresh_token';
 
+  // A value for the nav markup: the e-mail address and the texts are not markup.
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
   async function _refresh() {
     const rt = localStorage.getItem(REFRESH_KEY);
     if (!rt) return false;
@@ -81,31 +88,31 @@
       const initial = user.email[0].toUpperCase();
       desktop.innerHTML = `
         <div class="relative group">
-          <button class="w-8 h-8 rounded-full bg-brand flex items-center justify-center font-bold text-white text-xs">${initial}</button>
+          <button class="w-8 h-8 rounded-full bg-brand flex items-center justify-center font-bold text-white text-xs">${escapeHtml(initial)}</button>
           <div class="absolute right-0 top-10 w-52 bg-gray-900 border border-gray-700 rounded-xl shadow-xl py-2 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all z-50">
             <div class="px-4 py-2 border-b border-gray-700">
-              <p class="text-xs text-gray-400 truncate">${user.email}</p>
-              <p class="text-xs text-brand capitalize">${user.tier}</p>
+              <p class="text-xs text-gray-400 truncate">${escapeHtml(user.email)}</p>
+              <p class="text-xs text-brand capitalize">${escapeHtml(user.tier)}</p>
             </div>
-            <a href="${localePrefix}/dashboard" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white">${lDashboard}</a>
-            <button data-action="signout" class="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-gray-800">${lSignOut}</button>
+            <a href="${localePrefix}/dashboard" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white">${escapeHtml(lDashboard)}</a>
+            <button data-action="signout" class="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-gray-800">${escapeHtml(lSignOut)}</button>
           </div>
         </div>`;
       desktop.querySelector('[data-action="signout"]').addEventListener('click', () => window.FM.logout());
       if (mobile) {
         mobile.innerHTML = `
-          <a href="${localePrefix}/dashboard" class="block text-gray-400 hover:text-white transition-colors py-1">${lDashboard}</a>
-          <button data-action="signout-mobile" class="block text-red-400 hover:text-white py-1 text-left">${lSignOut}</button>`;
+          <a href="${localePrefix}/dashboard" class="block text-gray-400 hover:text-white transition-colors py-1">${escapeHtml(lDashboard)}</a>
+          <button data-action="signout-mobile" class="block text-red-400 hover:text-white py-1 text-left">${escapeHtml(lSignOut)}</button>`;
         mobile.querySelector('[data-action="signout-mobile"]').addEventListener('click', () => window.FM.logout());
       }
     } else {
       // Same markup as the server-rendered links in base.html (Sign In only;
       // registering is not in the main navigation).
       desktop.innerHTML = `
-        <a href="${localePrefix}/login" class="text-sm text-gray-300 hover:text-white transition-colors">${lSignIn}</a>`;
+        <a href="${localePrefix}/login" class="text-sm text-gray-300 hover:text-white transition-colors">${escapeHtml(lSignIn)}</a>`;
       if (mobile) {
         mobile.innerHTML = `
-          <a href="${localePrefix}/login" class="block text-gray-400 hover:text-white transition-colors py-2.5">${lSignIn}</a>`;
+          <a href="${localePrefix}/login" class="block text-gray-400 hover:text-white transition-colors py-2.5">${escapeHtml(lSignIn)}</a>`;
       }
     }
   }
