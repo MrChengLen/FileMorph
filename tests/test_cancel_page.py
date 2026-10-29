@@ -294,7 +294,7 @@ def test_cancel_page_chrome_is_logo_language_switcher_and_legal_group_only(
     assert [a["href"] for a in header.find_all("a")] == [f"/{locale}/", "/de/cancel", "/en/cancel"]
     # No hamburger and no mobile menu, so the switcher must be visible at every width.
     menu_classes = header.find(id="nav-menu")["class"]
-    assert "flex" in menu_classes and not {"hidden", "md:flex"} & set(menu_classes)
+    assert "flex" in menu_classes and not {"hidden", "lg:flex"} & set(menu_classes)
     for gone in ("nav-toggle", "nav-mobile-menu", "nav-auth-desktop", "nav-auth-mobile"):
         assert soup.find(id=gone) is None, f"#{gone} must not render on /cancel"
     # Footer: the © line and the Legal group (Privacy, Terms, Impressum, Contact, Cancel).
@@ -329,7 +329,7 @@ def test_homepage_chrome_is_unchanged_with_pricing_on(client, stripe_on, pricing
     assert "/en/register" not in header_links
     for present in ("nav-toggle", "nav-mobile-menu", "nav-auth-desktop", "nav-auth-mobile"):
         assert soup.find(id=present) is not None, f"#{present} missing on the homepage"
-    assert "md:flex" in header.find(id="nav-menu")["class"]
+    assert "lg:flex" in header.find(id="nav-menu")["class"]
     footer = soup.find("footer")
     footer_links = {a["href"] for a in footer.find_all("a")}
     assert {

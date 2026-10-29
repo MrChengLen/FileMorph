@@ -68,15 +68,21 @@
       <span class="text-xl font-bold tracking-tight">FileMorph</span>
     </a>
     {% if not minimal_chrome %}
-    <button id="nav-toggle" class="md:hidden text-gray-400 hover:text-white p-1" aria-label="{{ _('Toggle menu') }}">
-      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    {# Below 1024 px the menu sits behind this button: it says "Menu" in words
+       (an icon alone is easy to miss) and is 44 px high for a thumb. nav.js
+       keeps aria-expanded in step and closes the menu on Escape. #}
+    <button type="button" id="nav-toggle" aria-expanded="false" aria-controls="nav-mobile-menu"
+      class="lg:hidden inline-flex items-center gap-2 min-h-11 px-3 rounded-control border border-gray-700 text-sm text-gray-300 hover:text-white hover:border-brand transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
       </svg>
+      {{ _('Menu') }}
     </button>
     {% endif %}
     {# Minimal chrome: no menu links and no hamburger, so the language switcher is the only
-       item and stays visible at every width. #}
-    <div id="nav-menu" class="{% if minimal_chrome %}flex{% else %}hidden md:flex{% endif %} items-center gap-6 text-sm">
+       item and stays visible at every width. Otherwise the full bar starts at 1024 px: at
+       768 px its items wrapped onto two lines. #}
+    <div id="nav-menu" class="{% if minimal_chrome %}flex{% else %}hidden lg:flex{% endif %} items-center gap-6 text-sm">
       {% if not minimal_chrome %}
       <a href="{{ localized_url('/tools', current_prefix) }}" class="text-gray-400 hover:text-white transition-colors">{{ _('Tools') }}</a>
       {# Ungated: points to the always-rendered #self-hosted section on the
@@ -114,7 +120,7 @@
     </div>
   </nav>
   {% if not minimal_chrome %}
-  <div id="nav-mobile-menu" class="hidden md:hidden border-t border-gray-800 bg-gray-950 px-6 py-4 space-y-3 text-sm print:hidden">
+  <div id="nav-mobile-menu" class="hidden lg:hidden border-t border-gray-800 bg-gray-950 px-6 py-4 space-y-3 text-sm print:hidden">
     <a href="{{ localized_url('/tools', current_prefix) }}" class="block text-gray-400 hover:text-white transition-colors py-2.5">{{ _('Tools') }}</a>
     <a href="{{ localized_url('/', current_prefix) }}#self-hosted" class="block text-gray-400 hover:text-white transition-colors py-2.5">{{ _('Self-host') }}</a>
     {% if pricing_enabled %}<a href="{{ localized_url('/pricing', current_prefix) }}" class="block text-gray-400 hover:text-white transition-colors py-2.5">{{ _('Pricing') }}</a>{% endif %}
