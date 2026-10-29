@@ -29,6 +29,7 @@ env:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       # Build slim + office in parallel; fail-fast off because the two
       # variants are independent — a Pango regression in slim shouldn't
@@ -159,6 +160,7 @@ jobs:
   # pushes images and cannot be tried that way.
   sbom:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
     steps:
@@ -224,6 +226,7 @@ jobs:
   attest-sbom:
     needs: [build-and-push, sbom]
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:

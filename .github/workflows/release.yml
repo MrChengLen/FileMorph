@@ -50,6 +50,7 @@ jobs:
   # verbatim — tests/test_supply_chain_hygiene.py fails if they differ.
   sbom:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
     steps:
@@ -98,6 +99,7 @@ jobs:
   verify-and-publish:
     needs: sbom
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: write
     steps:
