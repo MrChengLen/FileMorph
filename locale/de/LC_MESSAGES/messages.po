@@ -716,6 +716,11 @@ msgstr "Komprimiert – mit Hinweis"
 msgid "Compression"
 msgstr "Komprimierung"
 
+msgid "Compression failed. Verify your file is valid and the format is supported."
+msgstr ""
+"Die Komprimierung ist fehlgeschlagen. Prüfe, ob deine Datei gültig ist "
+"und das Format unterstützt wird."
+
 msgid "Compression mode"
 msgstr "Kompressions-Modus"
 
@@ -793,6 +798,11 @@ msgstr "Konvertierung mit Hinweisen abgeschlossen"
 #, python-brace-format
 msgid "Conversion failed (status {status})."
 msgstr "Konvertierung fehlgeschlagen (Status {status})."
+
+msgid "Conversion failed. Verify your file is valid and the format is supported."
+msgstr ""
+"Die Konvertierung ist fehlgeschlagen. Prüfe, ob deine Datei gültig ist "
+"und das Format unterstützt wird."
 
 msgid ""
 "Conversion-job history — your account ID was stripped; the records are "
@@ -1181,6 +1191,23 @@ msgstr ""
 "dort legst du die Grenzen selbst fest. Noch kein Konto? Registriere dich "
 "kostenlos für größere Dateien."
 
+#, python-brace-format
+msgid ""
+"File too large: this server takes at most {max} MB per upload. Use a "
+"smaller file or self-host FileMorph — there you set the limits."
+msgstr ""
+"Datei zu groß: Dieser Server nimmt höchstens {max} MB pro Upload an. Nimm"
+" eine kleinere Datei oder hoste FileMorph selbst – dort legst du die "
+"Grenzen selbst fest."
+
+msgid ""
+"File type not permitted. This file starts like a program or script, "
+"whatever its name says. Choose a file in one of the supported formats."
+msgstr ""
+"Dieser Dateityp ist nicht erlaubt. Die Datei beginnt wie ein Programm "
+"oder Skript, egal wie sie heißt. Wähle eine Datei in einem der "
+"unterstützten Formate."
+
 msgid "FileMorph Compliance Edition"
 msgstr "FileMorph Compliance Edition"
 
@@ -1241,6 +1268,13 @@ msgstr ""
 " Edition erfolgt ohne Garantie und auf eigene Verantwortung. Für den "
 "Betrieb eigener Instanzen gelten die jeweiligen lokalen Gesetze des "
 "Betreibers."
+
+msgid ""
+"FileMorph is at capacity. The request was not processed; retry in a few "
+"seconds."
+msgstr ""
+"FileMorph ist gerade ausgelastet. Die Anfrage wurde nicht bearbeitet – "
+"versuche es in ein paar Sekunden erneut."
 
 msgid ""
 "FileMorph is free: our server converts your files with fair limits, or "
@@ -3510,6 +3544,16 @@ msgstr ""
 
 msgid "Toggle menu"
 msgstr "Menü umschalten"
+
+#, python-brace-format
+msgid ""
+"Too large together: this server takes at most {max} MB per upload, all "
+"files together. Select fewer or smaller files, or self-host FileMorph — "
+"there you set the limits."
+msgstr ""
+"Zusammen zu groß: Dieser Server nimmt höchstens {max} MB pro Upload an, "
+"alle Dateien zusammen. Wähle weniger oder kleinere Dateien oder hoste "
+"FileMorph selbst – dort legst du die Grenzen selbst fest."
 
 msgid "Too many attempts from your network right now. Please try again later."
 msgstr ""

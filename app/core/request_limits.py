@@ -75,6 +75,16 @@ async def _answer(scope: Scope, receive: Receive, send: Send, status: int, detai
     await JSONResponse({"detail": detail}, status_code=status)(scope, receive, send)
 
 
+async def _too_large(scope: Scope, receive: Receive, send: Send, limit: int, detail: str) -> None:
+    """The 413, with a code and the limit in MB, so a client can word it itself."""
+    response = JSONResponse(
+        {"detail": detail, "max_size_mb": limit // _MB},
+        status_code=413,
+        headers={"X-FileMorph-Error-Code": "request_too_large"},
+    )
+    await response(scope, receive, send)
+
+
 class _BodyTooLarge(Exception):
     """Raised from ``receive`` once the body has passed the route's limit."""
 
@@ -101,7 +111,7 @@ class RequestLimitsMiddleware:
         limit, too_large = _limit_for(path)
         declared = headers.get("content-length", "")
         if declared.isdecimal() and int(declared) > limit:
-            await _answer(scope, receive, send, 413, too_large)
+            await _too_large(scope, receive, send, limit, too_large)
             return
 
         received = 0
@@ -136,4 +146,4 @@ class RequestLimitsMiddleware:
             if not exceeded or response_started:
                 raise
         if exceeded and not response_started:
-            await _answer(scope, receive, send, 413, too_large)
+            await _too_large(scope, receive, send, limit, too_large)

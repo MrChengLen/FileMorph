@@ -164,7 +164,11 @@ async def _do_convert(
         with open(input_path, "rb") as f:
             header = f.read(16)
         if any(header.startswith(sig) for sig in BLOCKED_MAGIC):
-            raise HTTPException(status_code=400, detail="File type not permitted.")
+            raise HTTPException(
+                status_code=400,
+                detail="File type not permitted.",
+                headers={"X-FileMorph-Error-Code": "file_type_not_permitted"},
+            )
 
         try:
             # Offload sync C-binding call (Pillow/FFmpeg/WeasyPrint/pypdf) to a
@@ -222,6 +226,7 @@ async def _do_convert(
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Conversion failed. Verify your file is valid and the format is supported.",
+                headers={"X-FileMorph-Error-Code": "convert_failed"},
             )
         else:
             output_disk_size = output_path.stat().st_size

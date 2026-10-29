@@ -144,7 +144,9 @@ async def _read_validated_bytes(file: UploadFile, quota) -> bytes:
         )
     if any(data[:16].startswith(sig) for sig in BLOCKED_MAGIC):
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="File type not permitted."
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File type not permitted.",
+            headers={"X-FileMorph-Error-Code": "file_type_not_permitted"},
         )
     return data
 
