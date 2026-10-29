@@ -24,6 +24,7 @@ permissions:
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     # A real PostgreSQL for tests/test_audit_postgres.py. The rest of the suite
     # builds its schema from the models on in-memory SQLite and never runs the
@@ -298,6 +299,7 @@ jobs:
   # without this a generator bump would merge green and change nothing.
   lockfile-drift:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -369,6 +371,7 @@ jobs:
 
   secret-scan:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
