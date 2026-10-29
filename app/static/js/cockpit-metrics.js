@@ -71,7 +71,10 @@
   function renderPairs(pairs) {
     if (!pairs || pairs.length === 0) {
       const label = (window.FM_I18N && window.FM_I18N.noConversionsYet) || 'No conversions yet.';
-      $('metrics-pairs').innerHTML = '<li class="text-xs text-gray-500">' + label + '</li>';
+      const empty = document.createElement('li');
+      empty.className = 'text-xs text-gray-500';
+      empty.textContent = label;
+      $('metrics-pairs').replaceChildren(empty);
       return;
     }
     $('metrics-pairs').innerHTML = pairs

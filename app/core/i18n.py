@@ -55,6 +55,7 @@ from babel.messages.mofile import write_mo
 from babel.messages.pofile import read_po
 from babel.support import Translations
 from fastapi import Request
+from jinja2.utils import htmlsafe_json_dumps
 
 from app.core.config import settings
 from app.db.base import accounts_enabled
@@ -708,10 +709,10 @@ def localized_context(request: Request, **extra) -> dict:
 
     ``js_i18n_json`` is the JS-side string catalogue, JSON-encoded so
     ``base.html`` can drop it into a ``<script type="application/json">``
-    block without quote-escape hazards. See ``_js_i18n_strings``.
+    block without quote-escape hazards; ``htmlsafe_json_dumps`` (the escaping
+    behind Jinja's ``|tojson``) writes ``<``, ``>``, ``&`` and ``'`` as JSON
+    escapes, so no translation can end the block. See ``_js_i18n_strings``.
     """
-    import json
-
     # Lazy imports: both modules import this one (normalize_locale), so a
     # top-level import here would be circular. By request time all are loaded.
     from app.core import catalog
@@ -742,7 +743,9 @@ def localized_context(request: Request, **extra) -> dict:
         "localized_url": localized_url,
         "footer_convert_links": footer_convert_links,
         "footer_tool_links": footer_tool_links,
-        "js_i18n_json": json.dumps(_js_i18n_strings(translator.gettext), ensure_ascii=False),
+        "js_i18n_json": str(
+            htmlsafe_json_dumps(_js_i18n_strings(translator.gettext), ensure_ascii=False)
+        ),
     }
     ctx.update(extra)
     return ctx

@@ -480,7 +480,11 @@ the app cannot know the origin the browser sees. Regression guards:
   what the template renders. Regression guard:
   `tests/test_csp_no_unpinned_inline_scripts.py` fails the build if
   any page ships an inline executable `<script>` whose hash is not
-  in its own CSP.
+  in its own CSP. The JSON-LD block and the text catalogue the scripts
+  read (`type="application/json"`) are written with `<`, `>`, `&` and
+  `'` escaped (Jinja's `htmlsafe_json_dumps`, the escaping behind
+  `|tojson`), so no value can end their element; guard:
+  `tests/test_script_json.py`.
 - `connect-src 'self'` — extended to include `API_BASE_URL` when
   that environment variable is set, so cross-origin uploads to a
   separate API subdomain pass through the policy.

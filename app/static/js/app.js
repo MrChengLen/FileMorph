@@ -567,7 +567,10 @@ function updateTargetFormats(filename) {
   const targets = supportedConversions[ext] || [];
   if (targets.length === 0) {
     const noConvLabel = (window.FM_I18N && window.FM_I18N.noConversionsAvailable) || 'No conversions available for this format';
-    select.innerHTML = '<option value="">' + noConvLabel + '</option>';
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = noConvLabel;
+    select.appendChild(opt);
     // A pre-set page shows the list saying so, and what it expects, instead
     // of a hidden, empty list.
     if (presetTarget) {
