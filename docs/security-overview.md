@@ -561,10 +561,12 @@ mechanically.
   to disk under the original filename.
 - Where a temp path is needed for a multi-step pipeline, the path
   uses a `fm_`-prefixed directory and a UUID stem.
-- Cleanup removes the request's temp dir when the response ends — sent
-  in full or cut off — and in the request's `finally` block when the
-  conversion fails. LibreOffice and Ghostscript keep their own temporary
-  files in that dir, or in an `fm_`-prefixed one of their own.
+- The upload is deleted as soon as the result exists, together with the
+  web framework's own copy of it. Cleanup removes the request's temp
+  dir, with the result, when the response ends — sent in full or cut
+  off — and in the request's `finally` block when the conversion fails.
+  LibreOffice and Ghostscript keep their own temporary files in that
+  dir, or in an `fm_`-prefixed one of their own.
 - A startup sweep, plus a periodic background sweep
   (`TEMP_SWEEP_INTERVAL_MINUTES`, default 10 min), removes any
   `fm_`-prefixed directory older than `TEMP_SWEEP_MAX_AGE_MINUTES`

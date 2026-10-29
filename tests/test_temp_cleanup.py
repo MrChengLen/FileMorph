@@ -15,9 +15,11 @@ import httpx
 import pytest
 from PIL import Image
 from pypdf import PdfWriter
+from starlette import formparsers
 
 from app.api.routes import compress as compress_route
 from app.api.routes import convert as convert_route
+from app.api.routes import pdf_pages as pdf_route
 from app.core import quotas as quotas_module
 from app.core.audit import AuditWriteError
 from app.core.quotas import QUOTAS
@@ -150,7 +152,103 @@ _FILE_ROUTES = [
         marks=_NEEDS_PIKEPDF,
     ),
     pytest.param("/api/v1/pdf/insert", {"file": "pdf", "insert_file": "pdf"}, {}, id="pdf-insert"),
+    # The one conversion whose result has the upload's name: written over it.
+    pytest.param(
+        "/api/v1/convert", {"file": "pdf"}, {"target_format": "pdf"}, id="convert-pdf-to-pdf"
+    ),
 ]
+
+
+@pytest.fixture
+def spools(monkeypatch):
+    """Every copy of an upload part the framework makes (a SpooledTemporaryFile,
+    on disk above 1 MB)."""
+    made: list = []
+
+    class RecordingSpool(formparsers.SpooledTemporaryFile):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            made.append(self)
+
+    monkeypatch.setattr(formparsers, "SpooledTemporaryFile", RecordingSpool)
+    return made
+
+
+@pytest.fixture
+def answer_state(monkeypatch, spools):
+    """What is on disk when a file route answers: the result's name, the
+    names in the request dir, and (rolled to disk, closed) for each of the
+    framework's copies of the uploads."""
+    seen: list = []
+
+    class Recording(TempDirFileResponse):
+        def __init__(self, path, *args, tmp_dir, **kwargs):
+            names = sorted(p.name for p in Path(tmp_dir).iterdir())
+            copies = [(spool._rolled, spool.closed) for spool in spools]
+            seen.append((Path(path).name, names, copies))
+            super().__init__(path, *args, tmp_dir=tmp_dir, **kwargs)
+
+    for route in (convert_route, compress_route, pdf_route):
+        monkeypatch.setattr(route, "TempDirFileResponse", Recording)
+    return seen
+
+
+@pytest.mark.parametrize(("endpoint", "uploads", "data"), _FILE_ROUTES)
+def test_only_the_result_is_left_when_the_response_starts(
+    client, auth_headers, answer_state, endpoint, uploads, data
+):
+    """The upload goes as soon as the result exists, not when the download
+    ends: the route's copy in the request dir, and the framework's own."""
+    r = client.post(
+        endpoint,
+        headers=auth_headers,
+        files={field: _UPLOADS[kind]() for field, kind in uploads.items()},
+        data=data,
+    )
+    assert r.status_code == 200, r.text
+    [(result, names, copies)] = answer_state
+    assert names == [result]
+    assert copies and all(closed for _rolled, closed in copies), copies
+
+
+def test_a_large_upload_on_disk_is_closed_before_the_response(client, auth_headers, answer_state):
+    """Above 1 MB the framework keeps its copy on disk, not in memory."""
+    big = _jpg_bytes() + bytes(1_200_000)  # past the JPEG's end: ignored by the decoder
+    r = client.post(
+        "/api/v1/convert",
+        headers=auth_headers,
+        files={"file": ("big.jpg", big, "image/jpeg")},
+        data={"target_format": "png"},
+    )
+    assert r.status_code == 200, r.text
+    [(_result, _names, copies)] = answer_state
+    assert copies == [(True, True)]
+
+
+@pytest.mark.parametrize(
+    ("route", "endpoint", "data"),
+    [
+        (convert_route, "/api/v1/convert/batch", {"target_formats": ["png"]}),
+        (compress_route, "/api/v1/compress/batch", {"quality": "85"}),
+    ],
+    ids=["convert", "compress"],
+)
+def test_a_batch_closes_each_upload_before_its_zip(
+    client, auth_headers, monkeypatch, spools, route, endpoint, data
+):
+    closed_at_zip: list[bool] = []
+    real = route.build_batch_zip
+
+    def spy(*args, **kwargs):
+        closed_at_zip.extend(spool.closed for spool in spools)
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(route, "build_batch_zip", spy)
+    # One file: the test client's tier takes one per batch.
+    files = [("files", ("a.jpg", _jpg_bytes(), "image/jpeg"))]
+    r = client.post(endpoint, headers=auth_headers, files=files, data=data)
+    assert r.status_code == 200, r.text
+    assert closed_at_zip == [True]
 
 
 @pytest.mark.parametrize(("endpoint", "uploads", "data"), _FILE_ROUTES)

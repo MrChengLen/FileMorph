@@ -92,6 +92,8 @@ def _write_upload_and_check_magic(
     """
     with input_path.open("wb") as f:
         shutil.copyfileobj(upload.file, f)
+    # The framework's own copy (on disk above 1 MB) goes now, not after the response.
+    upload.file.close()
     with open(input_path, "rb") as f:
         header = f.read(16)
     if any(header.startswith(sig) for sig in BLOCKED_MAGIC):
@@ -187,6 +189,9 @@ async def _do_extract(
                 detail="Page extraction failed. Verify your file is a valid PDF.",
             )
 
+        # Only the result is needed to answer; the upload goes now.
+        input_path.unlink(missing_ok=True)
+
         output_disk_size = output_path.stat().st_size
         _enforce_output_cap(output_disk_size, quota, tier)
 
@@ -215,9 +220,9 @@ async def _do_extract(
             duration_ms=duration_ms,
         )
     except HTTPException:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
         await metric_increment("failures.pdf_extract")
         record_conversion("pdf_extract", "pdf", "pdf", "failure")
-        shutil.rmtree(tmp_dir, ignore_errors=True)
         raise
     except BaseException:
         shutil.rmtree(tmp_dir, ignore_errors=True)
@@ -335,9 +340,9 @@ async def _do_split(
             duration_ms=duration_ms,
         )
     except HTTPException:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
         await metric_increment("failures.pdf_split")
         record_conversion("pdf_split", "pdf", "zip", "failure")
-        shutil.rmtree(tmp_dir, ignore_errors=True)
         raise
     except BaseException:
         shutil.rmtree(tmp_dir, ignore_errors=True)
@@ -496,6 +501,9 @@ async def _do_compress(
                 headers={"X-FileMorph-Error-Code": "invalid_pdf"},
             )
 
+        # Only the result is needed to answer; the upload goes now.
+        input_path.unlink(missing_ok=True)
+
         output_disk_size = output_path.stat().st_size
         # The engine targets ``target_bytes`` (already ≤ cap), but a
         # text-heavy PDF can legitimately come out larger than the target
@@ -536,9 +544,9 @@ async def _do_compress(
             duration_ms=duration_ms,
         )
     except HTTPException:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
         await metric_increment("failures.pdf_compress")
         record_conversion("pdf_compress", "pdf", "pdf", "failure")
-        shutil.rmtree(tmp_dir, ignore_errors=True)
         raise
     except BaseException:
         shutil.rmtree(tmp_dir, ignore_errors=True)
@@ -796,9 +804,9 @@ async def _do_insert(
             duration_ms=duration_ms,
         )
     except HTTPException:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
         await metric_increment("failures.pdf_insert")
         record_conversion("pdf_insert", "pdf", "pdf", "failure")
-        shutil.rmtree(tmp_dir, ignore_errors=True)
         raise
     except BaseException:
         shutil.rmtree(tmp_dir, ignore_errors=True)
