@@ -105,7 +105,7 @@ async function loadKeys() {
   const list = document.getElementById('keys-list');
   if (keys.length === 0) {
     const empty = document.createElement('p');
-    empty.className = 'text-sm text-gray-500';
+    empty.className = 'text-sm text-ink-faint';
     empty.textContent = _t('noApiKeys', 'No API keys yet. Create one above.');
     list.replaceChildren(empty);
     return;
@@ -119,7 +119,7 @@ async function loadKeys() {
     return '<div class="flex items-center justify-between gap-3 bg-gray-800 rounded-xl px-4 py-3">' +
       '<div class="min-w-0">' +
       '<p class="text-sm font-medium truncate">' + escapeHtml(k.label) + '</p>' +
-      '<p class="text-xs text-gray-500">' + escapeHtml(labelCreated) + ' ' + new Date(k.created_at).toLocaleDateString(dateLocale) +
+      '<p class="text-xs text-ink-faint">' + escapeHtml(labelCreated) + ' ' + new Date(k.created_at).toLocaleDateString(dateLocale) +
       (k.last_used_at ? ' \u00b7 ' + escapeHtml(labelLastUsed) + ' ' + new Date(k.last_used_at).toLocaleDateString(dateLocale) : ' \u00b7 ' + escapeHtml(labelNeverUsed)) + '</p>' +
       '</div>' +
       '<button data-revoke-id="' + escapeHtml(k.id) + '" class="shrink-0 text-xs text-red-400 hover:text-red-300 px-3 py-1.5 rounded-lg border border-red-900 hover:border-red-700 transition-colors">' + escapeHtml(labelRevoke) + '</button>' +

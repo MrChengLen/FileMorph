@@ -145,15 +145,15 @@ function setMode(mode) {
   btnCompress.setAttribute('aria-pressed', mode === 'compress' ? 'true' : 'false');
 
   if (mode === 'convert') {
-    btnConvert.classList.add('bg-brand', 'text-white');
+    btnConvert.classList.add('bg-brand-dark', 'text-white');
     btnConvert.classList.remove('text-gray-400');
-    btnCompress.classList.remove('bg-brand', 'text-white');
+    btnCompress.classList.remove('bg-brand-dark', 'text-white');
     btnCompress.classList.add('text-gray-400');
     convertBtn.textContent = (window.FM_I18N && window.FM_I18N.convert) || 'Convert';
   } else {
-    btnCompress.classList.add('bg-brand', 'text-white');
+    btnCompress.classList.add('bg-brand-dark', 'text-white');
     btnCompress.classList.remove('text-gray-400');
-    btnConvert.classList.remove('bg-brand', 'text-white');
+    btnConvert.classList.remove('bg-brand-dark', 'text-white');
     btnConvert.classList.add('text-gray-400');
     convertBtn.textContent = (window.FM_I18N && window.FM_I18N.compress) || 'Compress';
   }
@@ -200,12 +200,14 @@ function syncCompressModeButtons() {
   const tBtn = document.getElementById('cmode-target');
   if (!qBtn || !tBtn) return;
   const isQuality = compressMode === 'quality';
-  qBtn.classList.toggle('bg-brand', isQuality);
-  qBtn.classList.toggle('text-white', isQuality);
-  qBtn.classList.toggle('text-gray-200', !isQuality);
-  tBtn.classList.toggle('bg-brand', !isQuality);
-  tBtn.classList.toggle('text-white', !isQuality);
-  tBtn.classList.toggle('text-gray-200', isQuality);
+  for (const [btn, on] of [[qBtn, isQuality], [tBtn, !isQuality]]) {
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    btn.classList.toggle('bg-brand-dark', on);
+    btn.classList.toggle('text-white', on);
+    btn.classList.toggle('bg-gray-800', !on);
+    btn.classList.toggle('hover:bg-gray-700', !on);
+    btn.classList.toggle('text-gray-200', !on);
+  }
 }
 
 function updateTargetSizeLabel() {
@@ -286,7 +288,7 @@ function renderFileList() {
       name.textContent = file.name;
 
       const size = document.createElement('span');
-      size.className = 'text-xs text-gray-500 shrink-0';
+      size.className = 'text-xs text-ink-faint shrink-0';
       size.textContent = formatBytes(file.size);
 
       // Batch convert: each file picks its own target — mixed-format
@@ -295,7 +297,7 @@ function renderFileList() {
       if (isBatch && currentMode === 'convert') {
         perRowSelect = document.createElement('select');
         perRowSelect.className =
-          'per-row-target bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs shrink-0 focus:outline-none focus:border-brand transition-colors';
+          'per-row-target bg-gray-800 border border-gray-700 rounded px-2 py-1 text-base sm:text-xs shrink-0 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition-colors';
         perRowSelect.setAttribute('aria-label', i18nText('ariaTargetFormatFor', 'Target format for {name}', { name: file.name }));
         const ext = getExtension(file.name);
         const targets = supportedConversions[ext] || [];
@@ -335,7 +337,7 @@ function renderFileList() {
 
       const rm = document.createElement('button');
       rm.type = 'button';
-      rm.className = 'text-xs text-gray-600 hover:text-red-400 transition-colors shrink-0';
+      rm.className = 'text-xs text-ink-faint hover:text-red-400 transition-colors shrink-0';
       rm.setAttribute('aria-label', i18nText('ariaRemoveFile', 'Remove {name}', { name: file.name }));
       rm.textContent = '✕';
       rm.addEventListener('click', e => {
@@ -1164,7 +1166,7 @@ async function submitForm() {
         label.textContent = i18nText('downloadResultSize', 'Download Result ({size} MB)', { size: mb });
       } else {
         label.textContent = isBatch
-          ? i18nText('downloadZip', 'Download ZIP ({count} files)', { count: selectedFiles.length })
+          ? i18nText('downloadZip', 'Download ZIP ({count} files)', { count: zipCount(res) })
           : i18nText('downloadResult', 'Download Result');
       }
     }
@@ -1177,6 +1179,12 @@ async function submitForm() {
 
 // ── State helpers ─────────────────────────────────────────────────────────────
 
+// Files in the batch ZIP: the succeeded ones, not all that were selected.
+function zipCount(res) {
+  const ok = parseInt(res.headers.get('X-FileMorph-Batch-Succeeded'), 10);
+  return Number.isNaN(ok) ? selectedFiles.length : ok;
+}
+
 function showProgress(text) {
   document.getElementById('progress-text').textContent = text;
   document.getElementById('progress-section').classList.remove('hidden');
@@ -1188,6 +1196,7 @@ function showProgress(text) {
   hideBatchSummary();
   setConvertErrorUpsell(false);
   document.getElementById('convert-btn').disabled = true;
+  window.FM_announce && window.FM_announce(text);
 }
 
 function showResult() {
@@ -1196,9 +1205,12 @@ function showResult() {
   document.getElementById('error-section').classList.add('hidden');
   document.getElementById('convert-btn').disabled = false;
   setConvertErrorUpsell(false);
+  // Read out what the result card shows: download label, hints, batch summary.
+  window.FM_announce && window.FM_announce(document.getElementById('result-section').innerText);
 }
 
 function showError(msg, code) {
+  window.FM_announce && window.FM_announce('');
   document.getElementById('error-text').textContent = msg;
   document.getElementById('progress-section').classList.add('hidden');
   document.getElementById('result-section').classList.add('hidden');
@@ -1208,6 +1220,7 @@ function showError(msg, code) {
 }
 
 function resetResultState() {
+  window.FM_announce && window.FM_announce('');
   document.getElementById('progress-section').classList.add('hidden');
   document.getElementById('result-section').classList.add('hidden');
   document.getElementById('error-section').classList.add('hidden');

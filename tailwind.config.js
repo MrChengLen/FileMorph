@@ -14,12 +14,17 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Primary brand — indigo. Existing.
-        brand: { DEFAULT: '#6366f1', dark: '#4f46e5', light: '#818cf8' },
+        // Primary brand — indigo. DEFAULT is the logo/icon/focus-ring colour;
+        // text in brand colour uses `light`, white text sits on `dark`
+        // (hover `deep`) — each at least 4.5:1 (WCAG AA), pinned by
+        // tests/test_public_claims.py.
+        brand: { DEFAULT: '#6366f1', dark: '#4f46e5', deep: '#4338ca', light: '#818cf8' },
         // Surface tones — replace ad-hoc bg-gray-900 / bg-gray-900/50 / bg-gray-950.
         surface: { DEFAULT: '#0f1115', raised: '#171922', sunken: '#0a0c10' },
         // Ink (text) tones — replace text-gray-100 / -300 / -400 / -500 / -600 sprinkles.
-        ink: { DEFAULT: '#e5e7eb', muted: '#9ca3af', faint: '#6b7280', dim: '#4b5563' },
+        // faint is the palest readable text: ≥ 4.5:1 on every dark surface up to
+        // gray-800. dim is for disabled controls and decorative icons only.
+        ink: { DEFAULT: '#e5e7eb', muted: '#9ca3af', faint: '#8b929e', dim: '#4b5563' },
         // Hairline border, single source of truth.
         hairline: '#1f2937',
       },

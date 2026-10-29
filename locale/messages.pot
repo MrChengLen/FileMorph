@@ -2420,6 +2420,9 @@ msgid ""
 " them under the GDPR leaves the chain intact."
 msgstr ""
 
+msgid "Skip to main content"
+msgstr ""
+
 msgid ""
 "Small-business status under § 19 UStG — no VAT is charged and no USt-"
 "IdNr. is held."

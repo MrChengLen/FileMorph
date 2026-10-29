@@ -88,21 +88,40 @@
       const initial = user.email[0].toUpperCase();
       desktop.innerHTML = `
         <div class="relative group">
-          <button class="w-8 h-8 rounded-full bg-brand flex items-center justify-center font-bold text-white text-xs">${escapeHtml(initial)}</button>
-          <div class="absolute right-0 top-10 w-52 bg-gray-900 border border-gray-700 rounded-xl shadow-xl py-2 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all z-50">
+          <button type="button" aria-expanded="false" aria-label="${escapeHtml(user.email)}" class="w-8 h-8 rounded-full bg-brand-dark flex items-center justify-center font-bold text-white text-xs">${escapeHtml(initial)}</button>
+          <div class="absolute right-0 top-10 w-52 bg-gray-900 border border-gray-700 rounded-xl shadow-xl py-2 invisible group-hover:visible group-focus-within:visible opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-all z-50">
             <div class="px-4 py-2 border-b border-gray-700">
               <p class="text-xs text-gray-400 truncate">${escapeHtml(user.email)}</p>
-              <p class="text-xs text-brand capitalize">${escapeHtml(user.tier)}</p>
+              <p class="text-xs text-brand-light capitalize">${escapeHtml(user.tier)}</p>
             </div>
             <a href="${localePrefix}/dashboard" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white">${escapeHtml(lDashboard)}</a>
             <button data-action="signout" class="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-gray-800">${escapeHtml(lSignOut)}</button>
           </div>
         </div>`;
       desktop.querySelector('[data-action="signout"]').addEventListener('click', () => window.FM.logout());
+      // The panel opens on hover and on keyboard focus (CSS). Escape hides it with
+      // focus back on the button (WCAG 1.4.13); leaving the menu resets it.
+      const group = desktop.querySelector('.group');
+      const avatar = group.querySelector('button');
+      const panel = avatar.nextElementSibling;
+      const setOpen = (open) => {
+        panel.classList.toggle('!invisible', !open);
+        panel.classList.toggle('!opacity-0', !open);
+        avatar.setAttribute('aria-expanded', open ? 'true' : 'false');
+      };
+      group.addEventListener('focusin', () => avatar.setAttribute('aria-expanded', panel.classList.contains('!invisible') ? 'false' : 'true'));
+      avatar.addEventListener('click', () => setOpen(true));  // reopens after Escape
+      group.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') { setOpen(false); avatar.focus(); }
+      });
+      group.addEventListener('focusout', (e) => {
+        if (!group.contains(e.relatedTarget)) { panel.classList.remove('!invisible', '!opacity-0'); avatar.setAttribute('aria-expanded', 'false'); }
+      });
+      group.addEventListener('mouseleave', () => panel.classList.remove('!invisible', '!opacity-0'));
       if (mobile) {
         mobile.innerHTML = `
-          <a href="${localePrefix}/dashboard" class="block text-gray-400 hover:text-white transition-colors py-1">${escapeHtml(lDashboard)}</a>
-          <button data-action="signout-mobile" class="block text-red-400 hover:text-white py-1 text-left">${escapeHtml(lSignOut)}</button>`;
+          <a href="${localePrefix}/dashboard" class="block text-gray-400 hover:text-white transition-colors py-2.5">${escapeHtml(lDashboard)}</a>
+          <button data-action="signout-mobile" class="block text-red-400 hover:text-white py-2.5 text-left">${escapeHtml(lSignOut)}</button>`;
         mobile.querySelector('[data-action="signout-mobile"]').addEventListener('click', () => window.FM.logout());
       }
     } else {

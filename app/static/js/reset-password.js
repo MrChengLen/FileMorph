@@ -70,7 +70,8 @@
     }
     document.getElementById('reset-btn').addEventListener('click', function () { doReset(token); });
     document.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter') { doReset(token); }
+      // Only from a field — Enter on a link or button (skip link) is not a submit.
+      if (e.key === 'Enter' && e.target.matches('input')) { doReset(token); }
     });
   });
 })();

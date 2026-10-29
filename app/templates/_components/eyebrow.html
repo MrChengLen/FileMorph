@@ -5,6 +5,6 @@
 #}
 {% macro eyebrow(text, color='gray') %}
 <p class="text-eyebrow uppercase
-          {% if color == 'brand' %}text-brand{% else %}text-ink-faint{% endif %}"
+          {% if color == 'brand' %}text-brand-light{% else %}text-ink-faint{% endif %}"
    data-component="eyebrow">{{ text }}</p>
 {% endmacro %}

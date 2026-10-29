@@ -50,6 +50,7 @@
   }
 
   function showError(msg) {
+    window.FM_announce && window.FM_announce('');
     hide($('redact-progress'));
     $('redact-error-text').textContent = msg;
     show($('redact-error'));
@@ -109,7 +110,7 @@
         group.querySelectorAll('button[data-mode]').forEach((b) => {
           const on = b === btn;
           b.setAttribute('aria-pressed', on ? 'true' : 'false');
-          b.classList.toggle('bg-brand', on);
+          b.classList.toggle('bg-brand-dark', on);
           b.classList.toggle('text-white', on);
           b.classList.toggle('bg-gray-800', !on);
           b.classList.toggle('text-gray-200', !on);
@@ -125,6 +126,7 @@
     hide($('redact-findings'));
     $('redact-progress-text').textContent = t('redactScanning', 'Scanning…');
     show($('redact-progress'));
+    window.FM_announce && window.FM_announce($('redact-progress-text').textContent);
 
     const fd = new FormData();
     fd.append('file', selectedFile);
@@ -149,6 +151,7 @@
     $('redact-findings-count').textContent = findings.length
       ? t('redactFindings', '{count} item(s) found', { count: findings.length })
       : t('redactNoFindings', 'No PII detected in this file.');
+    window.FM_announce && window.FM_announce($('redact-findings-count').textContent);
 
     let hasPhone = false;
     findings.forEach((f) => {
@@ -163,12 +166,12 @@
       typeSpan.className = 'text-gray-200';
       typeSpan.textContent = entityLabel(f.entity_type);
       const valSpan = document.createElement('span');
-      valSpan.className = 'text-gray-500 ml-1';
+      valSpan.className = 'text-ink-faint ml-1';
       valSpan.textContent = maskValue(f.value);
       left.appendChild(typeSpan);
       left.appendChild(valSpan);
       const right = document.createElement('span');
-      right.className = conf < 90 ? 'text-amber-400' : 'text-gray-600';
+      right.className = conf < 90 ? 'text-amber-400' : 'text-ink-faint';
       right.textContent = `${f.location} · ${conf}%`;
       row.appendChild(left);
       row.appendChild(right);
@@ -218,6 +221,7 @@
     hide($('redact-error'));
     $('redact-progress-text').textContent = t('redactApplying', 'Redacting…');
     show($('redact-progress'));
+    window.FM_announce && window.FM_announce($('redact-progress-text').textContent);
 
     const fd = new FormData();
     fd.append('file', selectedFile);
@@ -245,6 +249,7 @@
       $('redact-result-summary').textContent = summary;
       hide($('redact-findings'));
       show($('redact-result'));
+      window.FM_announce && window.FM_announce($('redact-result').innerText);
     } catch (_) {
       showError(t('redactError', 'Redaction failed. Please try again.'));
     }

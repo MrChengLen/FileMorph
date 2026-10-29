@@ -30,9 +30,9 @@
            (CLAUDE.md "Technology First" + honesty guardrail). -->
       <section id="self-hosted" class="border border-gray-800 rounded-xl px-5 py-4 space-y-3">
         <div class="flex items-center justify-between">
-          <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">{{ _('Open Source · Self-Hosted') }}</p>
+          <p class="text-xs font-semibold uppercase tracking-wider text-ink-faint">{{ _('Open Source · Self-Hosted') }}</p>
           <a href="https://github.com/MrChengLen/FileMorph" target="_blank" rel="noopener"
-             class="text-xs text-gray-500 hover:text-gray-300 transition-colors">{{ _('AGPLv3 ↗') }}</a>
+             class="text-xs text-ink-faint hover:text-gray-300 transition-colors">{{ _('AGPLv3 ↗') }}</a>
         </div>
         <h2 class="text-base font-semibold text-white">{{ _('Run FileMorph on your own infrastructure') }}</h2>
         <p class="text-xs text-gray-400 leading-relaxed">
@@ -49,12 +49,12 @@
         <div class="flex flex-wrap items-center gap-3 pt-1">
           <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/self-hosting.md"
              target="_blank" rel="noopener"
-             class="inline-flex items-center gap-1 text-xs font-semibold py-2 px-3 rounded-lg bg-brand hover:bg-brand-dark text-white transition-colors">
+             class="inline-flex items-center gap-1 text-xs font-semibold py-2 px-3 rounded-lg bg-brand-dark hover:bg-brand-deep text-white transition-colors">
             {{ _('Self-hosting guide ↗') }}
           </a>
           {% if pricing_enabled %}
           <a href="{{ localized_url('/enterprise', current_prefix) }}"
-             class="text-xs text-brand hover:underline">{{ _('Need a commercial license & SLA? Compliance Edition →') }}</a>
+             class="text-xs text-brand-light hover:underline">{{ _('Need a commercial license & SLA? Compliance Edition →') }}</a>
           {% endif %}
         </div>
       </section>
@@ -70,16 +70,16 @@
            so the free teaser below takes its place (same rule as /pricing). -->
       <div class="border border-gray-800 rounded-xl px-5 py-4 space-y-3">
         <div class="flex items-center justify-between">
-          <h2 class="text-xs font-semibold uppercase tracking-wider text-gray-500">{{ _('Plans') }}</h2>
-          <a href="{{ localized_url('/pricing', current_prefix) }}" class="text-xs text-brand hover:underline">{{ _('See all plans →') }}</a>
+          <h2 class="text-xs font-semibold uppercase tracking-wider text-ink-faint">{{ _('Plans') }}</h2>
+          <a href="{{ localized_url('/pricing', current_prefix) }}" class="text-xs text-brand-light hover:underline">{{ _('See all plans →') }}</a>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-center text-xs">
           <div class="bg-gray-800 rounded-lg px-2 py-2.5">
             <p class="font-semibold text-gray-300">{{ _('Free') }}</p>
-            <p class="text-gray-500 mt-0.5">{{ plans.free.max_file_size_mb }} MB · {{ _('API key') }}</p>
+            <p class="text-ink-faint mt-0.5">{{ plans.free.max_file_size_mb }} MB · {{ _('API key') }}</p>
           </div>
           <div class="bg-brand/10 border border-brand/30 rounded-lg px-2 py-2.5">
-            <p class="font-semibold text-brand">
+            <p class="font-semibold text-brand-light">
               {{ _('Pro') }}{% if plans.pro.price_display %} · €{{ plans.pro.price_display }}{{ _('/mo') }}{% endif %}
             </p>
             <p class="text-gray-400 mt-0.5">{{ plans.pro.max_file_size_mb }} MB · {{ plans.pro.api_calls_display }} {{ _('API') }}</p>
@@ -88,12 +88,12 @@
             <p class="font-semibold text-gray-300">
               {{ _('Business') }}{% if plans.business.price_display %} · €{{ plans.business.price_display }}{{ _('/mo') }}{% endif %}
             </p>
-            <p class="text-gray-500 mt-0.5">{{ plans.business.max_file_size_mb }} MB · {{ plans.business.api_calls_display }} {{ _('API') }}</p>
+            <p class="text-ink-faint mt-0.5">{{ plans.business.max_file_size_mb }} MB · {{ plans.business.api_calls_display }} {{ _('API') }}</p>
           </div>
         </div>
-        <p class="text-center text-xs text-gray-600 pt-1">
+        <p class="text-center text-xs text-ink-faint pt-1">
           {{ _('Using anonymously: up to') }} {{ anon_plan.max_file_size_mb }} {{ _('MB per file.') }}
-          <a href="{{ localized_url('/register', current_prefix) }}" class="text-brand hover:underline">{{ _('Register free for more →') }}</a>
+          <a href="{{ localized_url('/register', current_prefix) }}" class="text-brand-light hover:underline">{{ _('Register free for more →') }}</a>
         </p>
       </div>
       {% elif pricing_enabled %}
@@ -104,7 +104,7 @@
       <div class="border border-gray-800 rounded-xl px-5 py-4 space-y-3">
         <div class="flex items-center justify-between">
           <h2 class="text-xs font-semibold uppercase tracking-wider text-ink-muted">{{ _('Free') }}</h2>
-          <a href="{{ localized_url('/pricing', current_prefix) }}" class="text-xs text-brand hover:underline">{{ _('Costs and limits →') }}</a>
+          <a href="{{ localized_url('/pricing', current_prefix) }}" class="text-xs text-brand-light hover:underline">{{ _('Costs and limits →') }}</a>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-center text-xs">
           <div class="bg-gray-800 rounded-lg px-2 py-2.5">
@@ -118,14 +118,14 @@
         </div>
         <p class="text-center text-xs text-ink-muted pt-1">
           {{ _('Files are deleted immediately after processing.') }}
-          <a href="{{ localized_url('/register', current_prefix) }}" class="text-brand hover:underline">{{ _('Register free for more →') }}</a>
+          <a href="{{ localized_url('/register', current_prefix) }}" class="text-brand-light hover:underline">{{ _('Register free for more →') }}</a>
         </p>
       </div>
       {% endif %}
 
       <!-- Developer API teaser -->
       <div class="border border-gray-800 rounded-xl px-5 py-4 space-y-2">
-        <h2 class="text-xs font-semibold uppercase tracking-wider text-gray-500">{{ _('For Developers') }}</h2>
+        <h2 class="text-xs font-semibold uppercase tracking-wider text-ink-faint">{{ _('For Developers') }}</h2>
         <p class="text-xs text-gray-400">{{ _('Integrate file conversion into your app via REST API. One endpoint, all formats.') }}</p>
         {# This instance's own URL (APP_BASE_URL): a key from its key file is valid only here. #}
         <pre class="text-xs text-emerald-400 bg-gray-900 rounded-lg px-3 py-2 overflow-x-auto font-mono">curl -X POST {{ app_base_url }}/api/v1/convert \
@@ -133,7 +133,7 @@
   -F "file=@photo.heic" \
   -F "target_format=jpg" --output result.jpg</pre>
         <div class="flex gap-3">
-          <a href="/docs" target="_blank" class="text-xs text-brand hover:underline">{{ _('API Docs ↗') }}</a>
+          <a href="/docs" target="_blank" class="text-xs text-brand-light hover:underline">{{ _('API Docs ↗') }}</a>
           {% if accounts_enabled() %}
           <a href="{{ localized_url('/register', current_prefix) }}" class="text-xs text-gray-400 hover:text-white">{{ _('Get API Key →') }}</a>
           {% else %}
@@ -154,25 +154,25 @@
         <div class="overflow-x-auto">
           <table class="w-full text-xs">
             <thead>
-              <tr class="text-gray-500 border-b border-gray-800">
+              <tr class="text-ink-faint border-b border-gray-800">
                 <th class="text-left font-medium py-1.5 pr-2"></th>
                 <th class="font-medium py-1.5 px-2">FileMorph</th>
                 <th class="font-medium py-1.5 px-2">{{ _('Typical cloud converter') }}</th>
               </tr>
             </thead>
             <tbody class="text-gray-300">
-              <tr class="border-b border-gray-800/60"><td class="py-1.5 pr-2 text-gray-400">{{ _('Open source (AGPLv3)') }}</td><td class="text-center text-emerald-400">✓</td><td class="text-center text-gray-600">{{ _('rare') }}</td></tr>
-              <tr class="border-b border-gray-800/60"><td class="py-1.5 pr-2 text-gray-400">{{ _('Self-hostable (Docker)') }}</td><td class="text-center text-emerald-400">✓</td><td class="text-center text-gray-600">{{ _('rare') }}</td></tr>
-              <tr class="border-b border-gray-800/60"><td class="py-1.5 pr-2 text-gray-400">{{ _('No account required') }}</td><td class="text-center text-emerald-400">✓</td><td class="text-center text-gray-600">{{ _('often required') }}</td></tr>
-              <tr class="border-b border-gray-800/60"><td class="py-1.5 pr-2 text-gray-400">{{ _('Files deleted right after conversion') }}</td><td class="text-center text-emerald-400">✓</td><td class="text-center text-gray-600">{{ _('varies') }}</td></tr>
-              <tr class="border-b border-gray-800/60"><td class="py-1.5 pr-2 text-gray-400">{{ _('Compress images to a target size') }}</td><td class="text-center text-emerald-400">✓</td><td class="text-center text-gray-600">{{ _('varies') }}</td></tr>
-              <tr><td class="py-1.5 pr-2 text-gray-400">{{ _('REST API included') }}</td><td class="text-center text-emerald-400">✓</td><td class="text-center text-gray-600">{{ _('often paid') }}</td></tr>
+              <tr class="border-b border-gray-800/60"><td class="py-1.5 pr-2 text-gray-400">{{ _('Open source (AGPLv3)') }}</td><td class="text-center text-emerald-400">✓</td><td class="text-center text-ink-faint">{{ _('rare') }}</td></tr>
+              <tr class="border-b border-gray-800/60"><td class="py-1.5 pr-2 text-gray-400">{{ _('Self-hostable (Docker)') }}</td><td class="text-center text-emerald-400">✓</td><td class="text-center text-ink-faint">{{ _('rare') }}</td></tr>
+              <tr class="border-b border-gray-800/60"><td class="py-1.5 pr-2 text-gray-400">{{ _('No account required') }}</td><td class="text-center text-emerald-400">✓</td><td class="text-center text-ink-faint">{{ _('often required') }}</td></tr>
+              <tr class="border-b border-gray-800/60"><td class="py-1.5 pr-2 text-gray-400">{{ _('Files deleted right after conversion') }}</td><td class="text-center text-emerald-400">✓</td><td class="text-center text-ink-faint">{{ _('varies') }}</td></tr>
+              <tr class="border-b border-gray-800/60"><td class="py-1.5 pr-2 text-gray-400">{{ _('Compress images to a target size') }}</td><td class="text-center text-emerald-400">✓</td><td class="text-center text-ink-faint">{{ _('varies') }}</td></tr>
+              <tr><td class="py-1.5 pr-2 text-gray-400">{{ _('REST API included') }}</td><td class="text-center text-emerald-400">✓</td><td class="text-center text-ink-faint">{{ _('often paid') }}</td></tr>
             </tbody>
           </table>
         </div>
-        <p class="text-xs text-gray-500">
+        <p class="text-xs text-ink-faint">
           {{ _('See every supported conversion on the') }}
-          <a href="{{ localized_url('/formats', current_prefix) }}" class="text-brand hover:underline">{{ _('formats page') }}</a>.
+          <a href="{{ localized_url('/formats', current_prefix) }}" class="text-brand-light hover:underline">{{ _('formats page') }}</a>.
         </p>
       </section>
 

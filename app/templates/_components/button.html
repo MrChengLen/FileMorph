@@ -26,7 +26,7 @@
 {%- else -%}{%- set size_cls = 'px-6 py-3 text-base' -%}
 {%- endif -%}
 {%- if disabled -%}
-  {%- set variant_cls = 'bg-surface-sunken text-ink-faint cursor-not-allowed' -%}
+  {%- set variant_cls = 'bg-surface-sunken text-ink-dim cursor-not-allowed' -%}
 {%- elif variant == 'secondary' -%}
   {%- set variant_cls = 'border border-hairline text-ink hover:border-brand hover:text-ink' -%}
 {%- elif variant == 'ghost' -%}
@@ -34,7 +34,7 @@
 {%- elif variant == 'danger' -%}
   {%- set variant_cls = 'border border-red-900 text-red-400' -%}
 {%- else -%}
-  {%- set variant_cls = 'bg-brand text-white hover:bg-brand-dark' -%}
+  {%- set variant_cls = 'bg-brand-dark text-white hover:bg-brand-deep' -%}
 {%- endif -%}
 {%- if full_width -%}{%- set width_cls = 'w-full' -%}{%- else -%}{%- set width_cls = '' -%}{%- endif -%}
 {%- if href and not disabled -%}

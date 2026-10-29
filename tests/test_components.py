@@ -231,7 +231,7 @@ def test_button_primary_renders_button_element(env: Environment) -> None:
     assert b["data-variant"] == "primary"
     assert b.get_text(strip=True) == "Save"
     classes = b["class"]
-    assert "bg-brand" in classes
+    assert "bg-brand-dark" in classes  # white on it: 6.3 : 1 (AA)
     assert "text-white" in classes
 
 
@@ -256,7 +256,7 @@ def test_button_disabled_renders_aria_and_attribute(env: Environment) -> None:
     assert b.has_attr("disabled")
     assert b["aria-disabled"] == "true"
     assert "cursor-not-allowed" in b["class"]
-    assert "bg-brand" not in b["class"]  # primary tone replaced
+    assert "bg-brand-dark" not in b["class"]  # primary tone replaced
 
 
 def test_button_secondary_uses_outline(env: Environment) -> None:
@@ -269,7 +269,7 @@ def test_button_secondary_uses_outline(env: Environment) -> None:
     assert b["data-variant"] == "secondary"
     assert "border" in b["class"]
     assert "border-hairline" in b["class"]
-    assert "bg-brand" not in b["class"]
+    assert "bg-brand-dark" not in b["class"]
 
 
 def test_button_size_lg_uses_large_padding(env: Environment) -> None:
@@ -325,7 +325,7 @@ def test_eyebrow_brand_color(env: Environment) -> None:
         "{{ eyebrow.eyebrow('Featured', color='brand') }}",
     )
     p = soup.find("p", attrs={"data-component": "eyebrow"})
-    assert "text-brand" in p["class"]
+    assert "text-brand-light" in p["class"]
     assert "text-ink-faint" not in p["class"]
 
 

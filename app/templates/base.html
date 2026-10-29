@@ -72,6 +72,11 @@
      the dark body would print dark and swallow the receipt's black heading. On every other
      page that dark body is what keeps their light text legible when graphics are on (with
      them off those pages already print white paper), so it must stay there. #}
+  {# Skip link: the first Tab stop jumps past the navigation to #main-content.
+     Not on minimal_chrome pages (/cancel pins every link it shows). #}
+  {% if not minimal_chrome %}
+  <a href="#main-content" class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-control focus:bg-brand-dark focus:px-4 focus:py-2 focus:text-white">{{ _('Skip to main content') }}</a>
+  {% endif %}
   <!-- B-4: Shared navbar -->
   <nav class="border-b border-gray-800 px-6 py-4 flex items-center justify-between print:hidden">
     <a href="{{ localized_url('/', current_prefix) }}" class="flex items-center gap-3">
@@ -114,13 +119,13 @@
            hreflang="de"
            aria-label="{{ _('Switch to German') }}"
            {% if locale == 'de' %}aria-current="true"{% endif %}
-           class="text-xs uppercase tracking-wider {% if locale == 'de' %}text-white font-semibold{% else %}text-gray-500 hover:text-gray-300{% endif %} transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand rounded">DE</a>
+           class="text-xs uppercase tracking-wider {% if locale == 'de' %}text-white font-semibold{% else %}text-ink-faint hover:text-gray-300{% endif %} transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand rounded">DE</a>
         <span class="text-gray-700" aria-hidden="true">|</span>
         <a href="{{ localized_url(base_path, 'en') }}"
            hreflang="en"
            aria-label="{{ _('Switch to English') }}"
            {% if locale == 'en' %}aria-current="true"{% endif %}
-           class="text-xs uppercase tracking-wider {% if locale == 'en' %}text-white font-semibold{% else %}text-gray-500 hover:text-gray-300{% endif %} transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand rounded">EN</a>
+           class="text-xs uppercase tracking-wider {% if locale == 'en' %}text-white font-semibold{% else %}text-ink-faint hover:text-gray-300{% endif %} transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand rounded">EN</a>
       </div>
       {% if not minimal_chrome and accounts_enabled() %}
       {# Sign In only: registering is reachable from the login page, the
@@ -147,13 +152,13 @@
          hreflang="de"
          aria-label="{{ _('Switch to German') }}"
          {% if locale == 'de' %}aria-current="true"{% endif %}
-         class="text-xs uppercase tracking-wider {% if locale == 'de' %}text-white font-semibold{% else %}text-gray-500{% endif %}">DE</a>
+         class="text-xs uppercase tracking-wider {% if locale == 'de' %}text-white font-semibold{% else %}text-ink-faint{% endif %}">DE</a>
       <span class="text-gray-700" aria-hidden="true">|</span>
       <a href="{{ localized_url(base_path, 'en') }}"
          hreflang="en"
          aria-label="{{ _('Switch to English') }}"
          {% if locale == 'en' %}aria-current="true"{% endif %}
-         class="text-xs uppercase tracking-wider {% if locale == 'en' %}text-white font-semibold{% else %}text-gray-500{% endif %}">EN</a>
+         class="text-xs uppercase tracking-wider {% if locale == 'en' %}text-white font-semibold{% else %}text-ink-faint{% endif %}">EN</a>
     </div>
     {% if accounts_enabled() %}
     <div id="nav-auth-mobile">
@@ -163,10 +168,16 @@
   </div>
   {% endif %}
 
+  {# Skip-link target, right before each page's own <main>. #}
+  <div id="main-content" tabindex="-1" class="outline-none"></div>
+  {# The page's one polite live region: FM_announce() (announce.js) reads the
+     tools' "processing" / "done" messages to screen readers. Always present —
+     a region that is shown only when it changes is announced unreliably. #}
+  <div id="fm-live" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
   {% block content %}{% endblock %}
   {% include "partials/cookie_notice.html" %}
   <footer class="border-t border-gray-800 px-6 py-5 mt-auto print:hidden">
-    <div class="max-w-4xl mx-auto space-y-4 text-xs text-gray-600">
+    <div class="max-w-4xl mx-auto space-y-4 text-xs text-ink-faint">
       {% if not minimal_chrome %}
       <!-- Popular conversions — surfaces the per-pair pages on every page for
            the internal link graph + discovery (footer_convert_links is built
@@ -175,10 +186,10 @@
            a responsive multi-column grid: each conversion is directly readable
            and the columns fill the width evenly. -->
       <div class="space-y-2">
-        <p class="font-semibold uppercase tracking-wider text-gray-600">{{ _('Popular conversions') }}</p>
+        <p class="font-semibold uppercase tracking-wider text-ink-faint">{{ _('Popular conversions') }}</p>
         <nav class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-1.5" aria-label="{{ _('Popular conversions') }}">
           {% for link in footer_convert_links %}
-          <a href="{{ localized_url(link.path, current_prefix) }}" class="text-gray-500 hover:text-gray-300 transition-colors">{{ link.label }}</a>
+          <a href="{{ localized_url(link.path, current_prefix) }}" class="text-ink-faint hover:text-gray-300 transition-colors">{{ link.label }}</a>
           {% endfor %}
         </nav>
       </div>
@@ -194,35 +205,35 @@
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
           {% if not minimal_chrome %}
           <div class="space-y-2">
-            <p class="font-semibold uppercase tracking-wider text-gray-600">{{ _('Tools') }}</p>
+            <p class="font-semibold uppercase tracking-wider text-ink-faint">{{ _('Tools') }}</p>
             <nav class="flex flex-col space-y-1" aria-label="{{ _('Tools') }}">
-              <a href="{{ localized_url('/tools', current_prefix) }}" class="text-gray-500 hover:text-gray-300 transition-colors">{{ _('All tools →') }}</a>
+              <a href="{{ localized_url('/tools', current_prefix) }}" class="text-ink-faint hover:text-gray-300 transition-colors">{{ _('All tools →') }}</a>
               {# The catalogue's footer tools (app/core/catalog.py), under the
                  names they carry on /tools; a gated tool drops out with its switch. #}
               {% for link in footer_tool_links %}
-              <a href="{{ localized_url(link.path, current_prefix) }}" class="text-gray-500 hover:text-gray-300 transition-colors">{{ link.label }}</a>
+              <a href="{{ localized_url(link.path, current_prefix) }}" class="text-ink-faint hover:text-gray-300 transition-colors">{{ link.label }}</a>
               {% endfor %}
-              <a href="{{ localized_url('/formats', current_prefix) }}" class="text-gray-500 hover:text-gray-300 transition-colors">{{ _('Formats') }}</a>
+              <a href="{{ localized_url('/formats', current_prefix) }}" class="text-ink-faint hover:text-gray-300 transition-colors">{{ _('Formats') }}</a>
             </nav>
           </div>
           <div class="space-y-2">
-            <p class="font-semibold uppercase tracking-wider text-gray-600">{{ _('Product') }}</p>
+            <p class="font-semibold uppercase tracking-wider text-ink-faint">{{ _('Product') }}</p>
             <nav class="flex flex-col space-y-1" aria-label="{{ _('Product') }}">
-              <a href="{{ localized_url('/', current_prefix) }}#self-hosted" class="text-gray-500 hover:text-gray-300 transition-colors">{{ _('Self-host') }}</a>
-              {% if pricing_enabled %}<a href="{{ localized_url('/pricing', current_prefix) }}" class="text-gray-500 hover:text-gray-300 transition-colors">{{ _('Pricing') }}</a>{% endif %}
-              {% if pricing_enabled %}<a href="{{ localized_url('/enterprise', current_prefix) }}" class="text-gray-500 hover:text-gray-300 transition-colors">{{ _('For organizations') }}</a>{% endif %}
-              <a href="/docs" target="_blank" class="text-gray-500 hover:text-gray-300 transition-colors">{{ _('API Docs') }}</a>
-              <a href="https://github.com/MrChengLen/FileMorph" target="_blank" class="text-gray-500 hover:text-gray-300 transition-colors">GitHub ↗</a>
+              <a href="{{ localized_url('/', current_prefix) }}#self-hosted" class="text-ink-faint hover:text-gray-300 transition-colors">{{ _('Self-host') }}</a>
+              {% if pricing_enabled %}<a href="{{ localized_url('/pricing', current_prefix) }}" class="text-ink-faint hover:text-gray-300 transition-colors">{{ _('Pricing') }}</a>{% endif %}
+              {% if pricing_enabled %}<a href="{{ localized_url('/enterprise', current_prefix) }}" class="text-ink-faint hover:text-gray-300 transition-colors">{{ _('For organizations') }}</a>{% endif %}
+              <a href="/docs" target="_blank" class="text-ink-faint hover:text-gray-300 transition-colors">{{ _('API Docs') }}</a>
+              <a href="https://github.com/MrChengLen/FileMorph" target="_blank" class="text-ink-faint hover:text-gray-300 transition-colors">GitHub ↗</a>
             </nav>
           </div>
           {% endif %}
           <div class="space-y-2">
-            <p class="font-semibold uppercase tracking-wider text-gray-600">{{ _('Legal') }}</p>
+            <p class="font-semibold uppercase tracking-wider text-ink-faint">{{ _('Legal') }}</p>
             <nav class="flex flex-col space-y-1" aria-label="{{ _('Legal') }}">
-              <a href="{{ localized_url('/privacy', current_prefix) }}" class="text-gray-500 hover:text-gray-300 transition-colors">{{ _('Privacy Policy') }}</a>
-              <a href="{{ localized_url('/terms', current_prefix) }}" class="text-gray-500 hover:text-gray-300 transition-colors">{{ _('Terms of Use') }}</a>
-              <a href="{{ localized_url('/impressum', current_prefix) }}" class="text-gray-500 hover:text-gray-300 transition-colors">{{ _('Impressum') }}</a>
-              <a href="{{ localized_url('/contact', current_prefix) }}" class="text-gray-500 hover:text-gray-300 transition-colors">{{ _('Contact') }}</a>
+              <a href="{{ localized_url('/privacy', current_prefix) }}" class="text-ink-faint hover:text-gray-300 transition-colors">{{ _('Privacy Policy') }}</a>
+              <a href="{{ localized_url('/terms', current_prefix) }}" class="text-ink-faint hover:text-gray-300 transition-colors">{{ _('Terms of Use') }}</a>
+              <a href="{{ localized_url('/impressum', current_prefix) }}" class="text-ink-faint hover:text-gray-300 transition-colors">{{ _('Impressum') }}</a>
+              <a href="{{ localized_url('/contact', current_prefix) }}" class="text-ink-faint hover:text-gray-300 transition-colors">{{ _('Contact') }}</a>
               {# § 312k BGB "Kündigungsbutton": permanently reachable without login on every page. Deliberately a notch brighter than its neighbours — the law requires it to be clearly legible. #}
               {% if stripe_enabled %}<a href="{{ localized_url('/cancel', current_prefix) }}" class="text-gray-400 hover:text-white transition-colors">{{ _('Cancel contracts here') }}</a>{% endif %}
             </nav>
@@ -239,6 +250,7 @@
        pattern for the per-element variant). -->
   <script id="fm-i18n-strings" type="application/json">{{ js_i18n_json | safe }}</script>
   <script src="{{ static_url('js/i18n-bootstrap.js') }}"></script>
+  <script src="{{ static_url('js/announce.js') }}"></script>
   <script src="{{ static_url('js/nav.js') }}"></script>
   <script src="{{ static_url('js/cookie-notice.js') }}"></script>
   {# A strict page (CSP profile "local", app/core/csp.py) empties this block: both

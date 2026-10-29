@@ -96,6 +96,12 @@ def test_cancel_page_renders_when_stripe_on(client, stripe_on, path):
     assert client.get(path).status_code == 200
 
 
+def test_cancel_page_shows_no_skip_link(client, stripe_on):
+    """The page carries only the links it has to (BGH I ZR 200/25) — the skip
+    link of every other page (base.html) is left out with the minimal chrome."""
+    assert 'href="#main-content"' not in client.get("/en/cancel").text
+
+
 def test_cancel_page_is_not_in_the_sitemap(client, stripe_on):
     """A legal entry point, not landing content — it must not be advertised to crawlers."""
     assert "/cancel" not in client.get("/sitemap.xml").text
@@ -401,8 +407,8 @@ def test_footer_links_cancel_page_last_in_legal_group_when_stripe_on(client, str
     last = legal.find_all("a")[-1]
     assert last["href"] == "/en/cancel"
     assert last.get_text(strip=True) == "Cancel contracts here"
-    # A notch brighter than its text-gray-500 neighbours — the law requires legibility.
-    assert "text-gray-400" in last["class"] and "text-gray-500" not in last["class"]
+    # A notch brighter than its text-ink-faint neighbours — the law requires legibility.
+    assert "text-gray-400" in last["class"] and "text-ink-faint" not in last["class"]
 
 
 @pytest.mark.parametrize(

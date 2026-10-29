@@ -32,5 +32,7 @@ async function doLogin() {
 
 document.addEventListener('DOMContentLoaded', function () {
   document.getElementById('login-btn').addEventListener('click', doLogin);
-  document.addEventListener('keydown', function (e) { if (e.key === 'Enter') doLogin(); });
+  // Enter in a field signs in — not Enter on a link or button (the skip link is
+  // the first Tab stop and would send an empty form).
+  document.addEventListener('keydown', function (e) { if (e.key === 'Enter' && e.target.matches('input')) doLogin(); });
 });

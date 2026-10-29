@@ -13,7 +13,7 @@
 
   <!-- Hero -->
   <section class="space-y-6">
-    <p class="text-xs uppercase tracking-widest text-brand">{{ _('FileMorph Compliance Edition') }}</p>
+    <p class="text-xs uppercase tracking-widest text-brand-light">{{ _('FileMorph Compliance Edition') }}</p>
     <h1 class="text-3xl sm:text-4xl font-bold text-white leading-tight">
       {{ _('Run FileMorph on citizen data — on your own servers, with a liable EU contact and an SLA.') }}
     </h1>
@@ -22,12 +22,12 @@
     </p>
     <p class="text-sm text-gray-400 max-w-2xl leading-relaxed">
       {{ _('Internal use is already free under AGPL-3.0') }} —
-      <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/agpl-fuer-behoerden.md" class="text-brand hover:underline" target="_blank" rel="noopener noreferrer">{{ _('here is why ↗') }}</a>.
+      <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/agpl-fuer-behoerden.md" class="text-brand-light hover:underline" target="_blank" rel="noopener noreferrer">{{ _('here is why ↗') }}</a>.
       {{ _('You pay for accountability, not permission.') }}
     </p>
     <div class="flex flex-wrap gap-3 pt-4">
       <a href="mailto:enterprise@filemorph.io"
-         class="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-brand hover:bg-brand-dark text-white font-semibold text-base transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+         class="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-brand-dark hover:bg-brand-deep text-white font-semibold text-base transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
         {{ _('Request pilot call') }}
       </a>
       <a href="#tier-uebersicht"
@@ -37,13 +37,13 @@
     </div>
     <p class="text-sm text-gray-400 pt-1">
       {{ _('Design Partner Programme: 3 spots, 6 months free.') }}
-      <a href="#design-partner" class="text-brand hover:underline">{{ _('Apply →') }}</a>
+      <a href="#design-partner" class="text-brand-light hover:underline">{{ _('Apply →') }}</a>
     </p>
   </section>
 
   <!-- In-page Trust-Summary — proof before doc-links -->
   <section class="bg-gray-900/50 border border-gray-800 rounded-xl p-6 space-y-4">
-    <p class="text-xs uppercase tracking-wider text-gray-500">{{ _('Engineering proof before contract') }}</p>
+    <p class="text-xs uppercase tracking-wider text-ink-faint">{{ _('Engineering proof before contract') }}</p>
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-5 text-sm">
       <div class="space-y-1">
         <p class="text-white font-semibold">{{ _('SHA-256 audit log') }}</p>
@@ -68,7 +68,7 @@
     </div>
     <div class="overflow-x-auto">
       <table class="w-full text-sm bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-        <thead class="bg-gray-950 text-xs uppercase tracking-wider text-gray-500">
+        <thead class="bg-gray-950 text-xs uppercase tracking-wider text-ink-faint">
           <tr>
             <th class="px-4 py-3 text-left font-semibold">{{ _('Tier') }}</th>
             <th class="px-4 py-3 text-left font-semibold">{{ _('Scope') }}</th>
@@ -94,13 +94,13 @@
         </tbody>
       </table>
     </div>
-    <p class="text-xs text-gray-500">
+    <p class="text-xs text-ink-faint">
       {{ _('KRITIS and air-gap variants on request. All tiers include commercial license, signed Docker image and support SLA.') }}
     </p>
     {# Only when at least one tier shows a price (PRICE_COMPLIANCE_*_DISPLAY);
        with every tier "on request" there is nothing to qualify. #}
     {% if compliance_plans | selectattr('price_display') | list %}
-    <p class="text-xs text-gray-600">
+    <p class="text-xs text-ink-faint">
       {{ _('Prices per year. Kleinunternehmer gemäß §19 UStG — keine Umsatzsteuer ausgewiesen (no VAT charged, small-business rule, §19 German VAT Act).') }}
     </p>
     {% endif %}
@@ -176,7 +176,7 @@
       </div>
       <div class="pt-2">
         <a href="mailto:enterprise@filemorph.io?subject=Design-Partner-Bewerbung"
-           class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-brand hover:bg-brand-dark text-white font-semibold text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+           class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-brand-dark hover:bg-brand-deep text-white font-semibold text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
           {{ _('Apply as design partner') }}
         </a>
       </div>
@@ -191,7 +191,7 @@
     </div>
     <div class="overflow-x-auto">
       <table class="w-full text-sm bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-        <thead class="bg-gray-950 text-xs uppercase tracking-wider text-gray-500">
+        <thead class="bg-gray-950 text-xs uppercase tracking-wider text-ink-faint">
           <tr>
             <th class="px-4 py-3 text-left font-semibold">{{ _('Criterion') }}</th>
             <th class="px-4 py-3 text-center font-semibold whitespace-nowrap">FileMorph<br/>{{ _('Compliance') }}</th>
@@ -245,7 +245,7 @@
         </tbody>
       </table>
     </div>
-    <p class="text-xs text-gray-500">
+    <p class="text-xs text-ink-faint">
       {{ _('The table describes typical characteristics of the named provider categories and is not a definitive comparison of specific products. Individual providers may do more or less — please check the current offer directly with the manufacturer.') }}
     </p>
   </section>
@@ -259,39 +259,39 @@
     <ul class="space-y-3 text-gray-300">
       <li>
         <strong class="text-white font-semibold">{{ _('Security Disclosure Policy') }}</strong> —
-        <a href="{{ localized_url('/security', current_prefix) }}" class="text-brand hover:underline">{{ _('RFC 9116, with response times and scope') }}</a>.
+        <a href="{{ localized_url('/security', current_prefix) }}" class="text-brand-light hover:underline">{{ _('RFC 9116, with response times and scope') }}</a>.
       </li>
       <li>
         <strong class="text-white font-semibold">{{ _('Architecture overview') }}</strong> —
-        <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/architecture.md" class="text-brand hover:underline" target="_blank" rel="noopener noreferrer">{{ _('Mermaid diagram and request lifecycle ↗') }}</a>.
+        <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/architecture.md" class="text-brand-light hover:underline" target="_blank" rel="noopener noreferrer">{{ _('Mermaid diagram and request lifecycle ↗') }}</a>.
       </li>
       <li>
         <strong class="text-white font-semibold">{{ _('STRIDE threat model') }}</strong> —
-        <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/threat-model.md" class="text-brand hover:underline" target="_blank" rel="noopener noreferrer">{{ _('threat-mitigation anchors per category ↗') }}</a>.
+        <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/threat-model.md" class="text-brand-light hover:underline" target="_blank" rel="noopener noreferrer">{{ _('threat-mitigation anchors per category ↗') }}</a>.
       </li>
       <li>
         <strong class="text-white font-semibold">{{ _('AGPLv3 for public authorities') }}</strong> —
-        <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/agpl-fuer-behoerden.md" class="text-brand hover:underline" target="_blank" rel="noopener noreferrer">{{ _('when publication obligation applies, when not ↗') }}</a>.
+        <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/agpl-fuer-behoerden.md" class="text-brand-light hover:underline" target="_blank" rel="noopener noreferrer">{{ _('when publication obligation applies, when not ↗') }}</a>.
       </li>
       <li>
         <strong class="text-white font-semibold">{{ _('Patch policy') }}</strong> —
-        <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/patch-policy.md" class="text-brand hover:underline" target="_blank" rel="noopener noreferrer">{{ _('versioning, CVSS bands, signed artefacts ↗') }}</a>.
+        <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/patch-policy.md" class="text-brand-light hover:underline" target="_blank" rel="noopener noreferrer">{{ _('versioning, CVSS bands, signed artefacts ↗') }}</a>.
       </li>
       <li>
         <strong class="text-white font-semibold">{{ _('Incident response plan') }}</strong> —
-        <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/incident-response.md" class="text-brand hover:underline" target="_blank" rel="noopener noreferrer">{{ _('escalation, post-mortem template ↗') }}</a>.
+        <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/incident-response.md" class="text-brand-light hover:underline" target="_blank" rel="noopener noreferrer">{{ _('escalation, post-mortem template ↗') }}</a>.
       </li>
       <li>
         <strong class="text-white font-semibold">{{ _('Sub-processor list') }}</strong> —
-        <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/sub-processors.md" class="text-brand hover:underline" target="_blank" rel="noopener noreferrer">{{ _('GDPR Art. 28 annex ↗') }}</a>.
+        <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/sub-processors.md" class="text-brand-light hover:underline" target="_blank" rel="noopener noreferrer">{{ _('GDPR Art. 28 annex ↗') }}</a>.
       </li>
       <li>
         <strong class="text-white font-semibold">{{ _('Account-deletion design') }}</strong> —
-        <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/gdpr-account-deletion-design.md" class="text-brand hover:underline" target="_blank" rel="noopener noreferrer">{{ _('DSGVO Art. 17 self-service flow, incl. the HGB §257 / AO §147 tax-retention edge case ↗') }}</a>.
+        <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/gdpr-account-deletion-design.md" class="text-brand-light hover:underline" target="_blank" rel="noopener noreferrer">{{ _('DSGVO Art. 17 self-service flow, incl. the HGB §257 / AO §147 tax-retention edge case ↗') }}</a>.
       </li>
       <li>
         <strong class="text-white font-semibold">{{ _('Source code') }}</strong> —
-        <a href="https://github.com/MrChengLen/FileMorph" class="text-brand hover:underline" target="_blank" rel="noopener noreferrer">{{ _('full GitHub repository ↗') }}</a>.
+        <a href="https://github.com/MrChengLen/FileMorph" class="text-brand-light hover:underline" target="_blank" rel="noopener noreferrer">{{ _('full GitHub repository ↗') }}</a>.
       </li>
     </ul>
   </section>
@@ -310,7 +310,7 @@
       </div>
       <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-2">
         <p class="text-white font-semibold">{{ _('How does AGPLv3 behave with citizen-portal integrations?') }}</p>
-        <p class="text-gray-400 leading-relaxed">{{ _('For a publicly accessible service integration, the AGPL publication obligation applies. The commercial license lifts it — you can integrate FileMorph into a citizen portal without disclosing your portal\'s source code. Detail in') }} <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/agpl-fuer-behoerden.md" class="text-brand hover:underline" target="_blank" rel="noopener noreferrer">docs/agpl-fuer-behoerden.md ↗</a>.</p>
+        <p class="text-gray-400 leading-relaxed">{{ _('For a publicly accessible service integration, the AGPL publication obligation applies. The commercial license lifts it — you can integrate FileMorph into a citizen portal without disclosing your portal\'s source code. Detail in') }} <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/agpl-fuer-behoerden.md" class="text-brand-light hover:underline" target="_blank" rel="noopener noreferrer">docs/agpl-fuer-behoerden.md ↗</a>.</p>
       </div>
       <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-2">
         <p class="text-white font-semibold">{{ _('Do I need the Enterprise tier for KRITIS?') }}</p>
@@ -346,17 +346,17 @@
     </div>
     <div class="flex flex-col sm:flex-row gap-3 justify-center items-center">
       <a href="mailto:enterprise@filemorph.io?subject=Pilot-call%20Compliance-Edition"
-         class="inline-flex items-center gap-2 px-7 py-3.5 rounded-lg bg-brand hover:bg-brand-dark text-white font-semibold text-base transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+         class="inline-flex items-center gap-2 px-7 py-3.5 rounded-lg bg-brand-dark hover:bg-brand-deep text-white font-semibold text-base transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
         {{ _('Request pilot call by email') }}
       </a>
       <a href="mailto:enterprise@filemorph.io?subject=Design-Partner-Application"
-         class="text-sm text-gray-400 hover:text-brand transition-colors">
+         class="text-sm text-gray-400 hover:text-brand-light transition-colors">
         {{ _('or apply directly as design partner →') }}
       </a>
     </div>
-    <p class="text-xs text-gray-500 pt-4">
+    <p class="text-xs text-ink-faint pt-4">
       {{ _('Confidential inquiries: email') }}
-      <a href="mailto:security@filemorph.io" class="text-brand hover:underline">security@filemorph.io</a>
+      <a href="mailto:security@filemorph.io" class="text-brand-light hover:underline">security@filemorph.io</a>
       {{ _('— a PGP key is available on request.') }}
     </p>
   </section>

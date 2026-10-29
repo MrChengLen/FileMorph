@@ -10,8 +10,8 @@
   <div class="max-w-4xl mx-auto flex flex-col sm:flex-row sm:items-center gap-3">
     <p class="text-sm text-gray-300 flex-1">
       {{ _('FileMorph sets no cookies and runs no tracking. In your browser we store only what is strictly necessary: your sign-in session, and a note that you closed this bar.') }}
-      <a href="{{ localized_url('/privacy', current_prefix) }}#cookies" class="text-brand hover:underline whitespace-nowrap">{{ _('Details') }}</a>
+      <a href="{{ localized_url('/privacy', current_prefix) }}#cookies" class="text-brand-light hover:underline whitespace-nowrap">{{ _('Details') }}</a>
     </p>
-    <button id="cookie-notice-dismiss" class="shrink-0 px-4 py-1.5 rounded-lg bg-brand hover:bg-brand-dark text-white text-sm font-semibold transition-colors">{{ _('Got it') }}</button>
+    <button id="cookie-notice-dismiss" class="shrink-0 px-4 py-1.5 rounded-lg bg-brand-dark hover:bg-brand-deep text-white text-sm font-semibold transition-colors">{{ _('Got it') }}</button>
   </div>
 </div>

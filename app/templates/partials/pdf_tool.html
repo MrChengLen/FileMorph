@@ -22,13 +22,13 @@
         accept="{{ pdf_accept }}"
         aria-label="{{ _('Select a PDF file') }}" />
       <div id="pdf-idle" class="space-y-2">
-        <svg class="mx-auto w-10 h-10 text-gray-600 group-hover:text-brand transition-colors"
+        <svg class="mx-auto w-10 h-10 text-ink-dim group-hover:text-brand-light transition-colors"
           fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
             d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
         </svg>
         <p class="text-gray-400">{{ _('Drag & drop a file here') }}</p>
-        <p class="text-xs text-gray-600">{{ _('or click to browse') }}</p>
+        <p class="text-xs text-ink-faint">{{ _('or click to browse') }}</p>
       </div>
       <div id="pdf-selected" class="hidden space-y-1">
         <svg class="mx-auto w-10 h-10 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -36,7 +36,7 @@
             d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
         <p id="pdf-filename" class="font-medium text-white text-sm"></p>
-        <button id="pdf-clear" class="text-xs text-gray-600 hover:text-red-400 transition-colors">
+        <button id="pdf-clear" class="text-xs text-ink-faint hover:text-red-400 transition-colors">
           {{ _('Clear') }}
         </button>
       </div>
@@ -55,11 +55,11 @@
           aria-label="{{ _('Select the file to insert') }}" />
         <div id="pdf-insert-idle" class="space-y-1">
           <p class="text-gray-400 text-sm">{{ _('PDF, Word (.docx) or image (JPG, PNG, HEIC …)') }}</p>
-          <p class="text-xs text-gray-600">{{ _('Drag & drop or click to browse') }}</p>
+          <p class="text-xs text-ink-faint">{{ _('Drag & drop or click to browse') }}</p>
         </div>
         <div id="pdf-insert-selected" class="hidden space-y-1">
           <p id="pdf-insert-filename" class="font-medium text-white text-sm"></p>
-          <button id="pdf-insert-clear" class="text-xs text-gray-600 hover:text-red-400 transition-colors">
+          <button id="pdf-insert-clear" class="text-xs text-ink-faint hover:text-red-400 transition-colors">
             {{ _('Clear') }}
           </button>
         </div>
@@ -77,14 +77,14 @@
         {{ _('After page') }}
         <input id="pdf-after-page" type="number" min="1" step="1" inputmode="numeric"
           aria-label="{{ _('Page number') }}"
-          class="w-20 bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 text-sm text-gray-200 focus:outline-none focus:border-brand" />
+          class="w-20 bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 text-base sm:text-sm text-gray-200 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand" />
       </label>
       <label class="flex items-center gap-2 text-sm text-gray-300">
         <input type="radio" name="pdf-position" value="end" class="accent-brand" checked />
         {{ _('At the end') }}
       </label>
       <p id="pdf-position-note" class="text-xs text-gray-400" aria-live="polite"></p>
-      <p class="text-xs text-gray-600">{{ _("Counted from the first page of the PDF file, not by the printed page numbers.") }}</p>
+      <p class="text-xs text-ink-faint">{{ _("Counted from the first page of the PDF file, not by the printed page numbers.") }}</p>
     </fieldset>
     {% endif %}
 
@@ -92,8 +92,8 @@
     <div class="space-y-1">
       <label for="pdf-pages" class="text-sm text-gray-400 font-medium">{{ _('Pages to keep') }}</label>
       <input id="pdf-pages" type="text" placeholder="1-3,5" maxlength="65536"
-        class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-brand transition-colors" />
-      <p class="text-xs text-gray-600">{{ _("1-based, comma-separated — e.g. 1-3,5 keeps pages 1, 2, 3 and 5.") }}</p>
+        class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition-colors" />
+      <p class="text-xs text-ink-faint">{{ _("1-based, comma-separated — e.g. 1-3,5 keeps pages 1, 2, 3 and 5.") }}</p>
       <p id="pdf-pages-warn" class="hidden text-xs text-amber-400 leading-relaxed"></p>
     </div>
     {% endif %}
@@ -102,13 +102,13 @@
     <div class="space-y-1">
       <label for="pdf-target-size" class="text-sm text-gray-400 font-medium">{{ _('Target file size') }}</label>
       <input id="pdf-target-size" type="number" min="0.05" step="0.1" value="2.0"
-        class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-brand" />
-      <p class="text-xs text-gray-600">{{ _('In MB — only embedded images can be recompressed.') }}</p>
+        class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-base sm:text-sm text-gray-200 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand" />
+      <p class="text-xs text-ink-faint">{{ _('In MB — only embedded images can be recompressed.') }}</p>
     </div>
     {% endif %}
 
     {% if tool == 'split' %}
-    <p class="text-xs text-gray-600">{{ _('Returns a ZIP with one PDF per page (page_1.pdf, page_2.pdf, …), capped at 10,000 pages.') }}</p>
+    <p class="text-xs text-ink-faint">{{ _('Returns a ZIP with one PDF per page (page_1.pdf, page_2.pdf, …), capped at 10,000 pages.') }}</p>
     {% endif %}
 
     <div class="space-y-2">
@@ -119,7 +119,7 @@
 
   <!-- Progress -->
   <div id="pdf-progress" class="hidden text-center space-y-2">
-    <div class="flex items-center justify-center gap-2 text-brand">
+    <div class="flex items-center justify-center gap-2 text-brand-light">
       <svg class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
@@ -137,7 +137,7 @@
     <p id="pdf-honest-note"
       class="hidden text-xs text-amber-400 bg-amber-950/40 border border-amber-900/50 rounded-lg px-3 py-2 leading-relaxed"></p>
     <a id="pdf-download" href="#" download
-      class="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-semibold text-white transition-colors text-sm">
+      class="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 font-semibold text-white transition-colors text-sm">
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
           d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -152,13 +152,13 @@
     {# The result becomes the PDF for the next file (pdf-tools.js). #}
     {{ ub.button(_('Insert something else'), id='pdf-insert-more', variant='secondary', size='sm', full_width=True) }}
     {% endif %}
-    <button id="pdf-restart" class="block mx-auto text-xs text-gray-600 hover:text-white transition-colors">
+    <button id="pdf-restart" class="block mx-auto text-xs text-ink-faint hover:text-white transition-colors">
       {{ _('Process another file') }}
     </button>
   </div>
 
   <div id="pdf-error" class="hidden text-center space-y-2">
-    <p id="pdf-error-text" class="text-red-400 text-sm text-center bg-red-950 rounded-lg py-3 px-4"></p>
+    <p id="pdf-error-text" role="alert" class="text-red-400 text-sm text-center bg-red-950 rounded-lg py-3 px-4"></p>
     {# Next step (rule: never a dead end) for a PDF over the page cap or
        too large or complex on the split, compress and insert pages: the
        error text names the Extract tool, this makes it one click. Un-hidden

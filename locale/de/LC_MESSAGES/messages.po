@@ -2944,6 +2944,9 @@ msgstr ""
 "Dumps. Konto-IDs liegen außerhalb des Hashs, damit ihre Löschung nach "
 "DSGVO die Kette nicht bricht."
 
+msgid "Skip to main content"
+msgstr "Zum Inhalt springen"
+
 msgid ""
 "Small-business status under § 19 UStG — no VAT is charged and no USt-"
 "IdNr. is held."

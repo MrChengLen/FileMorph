@@ -61,10 +61,10 @@
   function card(label, value, series, color) {
     return `
       <div class="bg-gray-950 border border-gray-800 rounded-xl p-4">
-        <p class="text-xs text-gray-500 uppercase tracking-wider">${escapeHtml(label)}</p>
+        <p class="text-xs text-ink-faint uppercase tracking-wider">${escapeHtml(label)}</p>
         <p class="text-3xl font-bold mt-1 ${color}">${value.toLocaleString()}</p>
         <div class="mt-3">${sparkline(series, color === 'text-brand' ? '#6366f1' : color === 'text-emerald-400' ? '#34d399' : '#9ca3af')}</div>
-        <p class="text-[10px] text-gray-600 mt-1">last ${state.days} d</p>
+        <p class="text-[10px] text-ink-faint mt-1">last ${state.days} d</p>
       </div>`;
   }
 
@@ -72,7 +72,7 @@
     if (!pairs || pairs.length === 0) {
       const label = (window.FM_I18N && window.FM_I18N.noConversionsYet) || 'No conversions yet.';
       const empty = document.createElement('li');
-      empty.className = 'text-xs text-gray-500';
+      empty.className = 'text-xs text-ink-faint';
       empty.textContent = label;
       $('metrics-pairs').replaceChildren(empty);
       return;
@@ -94,7 +94,7 @@
     const hint = $('metrics-failure-hint');
     if (rate === null || rate === undefined) {
       el.textContent = '—';
-      el.className = 'text-3xl font-bold mt-1 text-gray-500';
+      el.className = 'text-3xl font-bold mt-1 text-ink-faint';
       // Distinguish "no traffic" from "too little traffic to be meaningful".
       // The endpoint returns null + a sample_size for both, so we read the
       // count to pick the right user-facing copy.

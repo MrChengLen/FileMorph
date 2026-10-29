@@ -4,16 +4,16 @@
 <main class="max-w-2xl mx-auto px-6 py-12 space-y-8 text-gray-300 text-sm leading-relaxed">
 
   <div>
-    <a href="{{ localized_url('/', current_prefix) }}" class="text-sm text-gray-500 hover:text-gray-300 transition-colors">{{ _('← Back') }}</a>
+    <a href="{{ localized_url('/', current_prefix) }}" class="text-sm text-ink-faint hover:text-gray-300 transition-colors">{{ _('← Back') }}</a>
     <h1 class="text-2xl font-bold mt-4 text-white">{{ _('Security disclosure policy') }}</h1>
-    <p class="text-xs text-gray-500 mt-1">{{ _('RFC 9116 · referenced from') }} <a href="/.well-known/security.txt" class="text-brand hover:underline">/.well-known/security.txt</a></p>
+    <p class="text-xs text-ink-faint mt-1">{{ _('RFC 9116 · referenced from') }} <a href="/.well-known/security.txt" class="text-brand-light hover:underline">/.well-known/security.txt</a></p>
   </div>
 
   <section class="space-y-3">
     <h2 class="text-base font-semibold text-white">{{ _('Reporting a vulnerability') }}</h2>
     <p>
       {{ _('If you have discovered a security issue in FileMorph or in this deployment, please email') }}
-      <a href="mailto:{{ security_contact_email }}" class="text-brand hover:underline">{{ security_contact_email }}</a>
+      <a href="mailto:{{ security_contact_email }}" class="text-brand-light hover:underline">{{ security_contact_email }}</a>
       {{ _('with a clear description of the issue and any steps required to reproduce it. Encrypted mail is welcome — request our PGP key at the same address if needed.') }}
     </p>
   </section>

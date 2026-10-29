@@ -85,10 +85,10 @@
         <h2 class="text-base font-semibold text-white">{% block related_heading %}{{ _('Related tools') }}{% endblock %}</h2>
         <div class="flex flex-wrap gap-3 text-xs">
           {% for link in related %}
-          <a href="{{ localized_url(link.path, current_prefix) }}" class="text-brand hover:underline">{{ link.label }}</a>
+          <a href="{{ localized_url(link.path, current_prefix) }}" class="text-brand-light hover:underline">{{ link.label }}</a>
           {% endfor %}
-          <a href="{{ localized_url('/tools', current_prefix) }}" class="text-brand hover:underline">{{ _('All tools →') }}</a>
-          <a href="/docs" target="_blank" rel="noopener" class="text-brand hover:underline">{{ _('Use it via the API ↗') }}</a>
+          <a href="{{ localized_url('/tools', current_prefix) }}" class="text-brand-light hover:underline">{{ _('All tools →') }}</a>
+          <a href="/docs" target="_blank" rel="noopener" class="text-brand-light hover:underline">{{ _('Use it via the API ↗') }}</a>
         </div>
         {% block related_note %}{% endblock %}
       </section>

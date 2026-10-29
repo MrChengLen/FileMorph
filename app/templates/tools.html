@@ -7,7 +7,7 @@
 <main class="max-w-4xl mx-auto px-6 py-12 space-y-10 text-gray-300 text-sm leading-relaxed">
 
   <div>
-    <a href="{{ localized_url('/', current_prefix) }}" class="text-sm text-gray-500 hover:text-gray-300 transition-colors">{{ _('← Back to converter') }}</a>
+    <a href="{{ localized_url('/', current_prefix) }}" class="text-sm text-ink-faint hover:text-gray-300 transition-colors">{{ _('← Back to converter') }}</a>
     <h1 class="text-2xl font-bold mt-4 text-white">{{ content.h1 }}</h1>
     <p class="text-gray-400 mt-2 max-w-2xl">{{ content.hero }}</p>
     {# The converter on the homepage is the only surface for multi-file batch
@@ -15,14 +15,14 @@
        intro names it. #}
     <p class="text-gray-400 mt-2 max-w-2xl">
       {{ content.intro }}
-      <a href="{{ localized_url('/', current_prefix) }}" class="text-brand hover:underline">{{ content.intro_link }}</a>
+      <a href="{{ localized_url('/', current_prefix) }}" class="text-brand-light hover:underline">{{ content.intro_link }}</a>
     </p>
   </div>
 
   {% if sections|length > 1 %}
   <nav aria-label="{{ _('Tool sections') }}" class="flex flex-wrap gap-x-6 gap-y-1.5 text-sm">
     {% for family, cards in sections %}
-    <a href="#{{ family }}" class="text-brand hover:underline">{{ ts.section_name(family) }}</a>
+    <a href="#{{ family }}" class="text-brand-light hover:underline">{{ ts.section_name(family) }}</a>
     {% endfor %}
   </nav>
   {% endif %}
@@ -42,7 +42,7 @@
         <h3 class="text-base font-semibold text-ink"><a href="{{ localized_url(card.path, current_prefix) }}" class="after:absolute after:inset-0 after:rounded-card focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-brand">{{ card.title }}</a></h3>
         <span class="inline-block text-xs px-2 py-0.5 rounded border border-hairline bg-surface-sunken text-ink-muted" data-location="server">{{ _('Runs via our server') }}</span>
         <p class="text-sm text-ink-muted leading-relaxed">{{ card.desc }}</p>
-        <span class="inline-block text-sm text-brand" aria-hidden="true">{{ _('Open →') }}</span>
+        <span class="inline-block text-sm text-brand-light" aria-hidden="true">{{ _('Open →') }}</span>
       </div>
       {% endcall %}
       {% endfor %}
@@ -52,9 +52,9 @@
 
   {# Reverse cross-link — /formats is the format-first reference matrix, this
      hub is operations-first; each links back to the other. #}
-  <p class="text-gray-500 text-xs border-t border-gray-800 pt-8">
+  <p class="text-ink-faint text-xs border-t border-gray-800 pt-8">
     {{ _('Looking up a specific format instead? Browse the') }}
-    <a href="{{ localized_url('/formats', current_prefix) }}" class="text-brand hover:underline">{{ _('conversion matrix →') }}</a>
+    <a href="{{ localized_url('/formats', current_prefix) }}" class="text-brand-light hover:underline">{{ _('conversion matrix →') }}</a>
   </p>
 
 </main>
