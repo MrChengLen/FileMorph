@@ -67,7 +67,8 @@ def test_upload_without_content_length_over_the_cap_gets_413(
         content=_chunks(body),
     )
     assert res.status_code == 413
-    assert res.json()["detail"] == "File too large. Maximum size: 1 MB"
+    assert res.json() == {"detail": "File too large. Maximum size: 1 MB", "max_size_mb": 1}
+    assert res.headers["X-FileMorph-Error-Code"] == "request_too_large"
 
 
 def test_upload_without_content_length_under_the_cap_is_converted(client, auth_headers, sample_jpg):
@@ -89,7 +90,8 @@ def test_upload_with_content_length_over_the_cap_gets_413(client, auth_headers, 
         data={"quality": "85"},
     )
     assert res.status_code == 413
-    assert res.json()["detail"] == "File too large. Maximum size: 1 MB"
+    assert res.json() == {"detail": "File too large. Maximum size: 1 MB", "max_size_mb": 1}
+    assert res.headers["X-FileMorph-Error-Code"] == "request_too_large"
 
 
 # ── Every other route: 1 MB ──────────────────────────────────────────────────
@@ -109,7 +111,8 @@ def test_other_routes_take_at_most_one_megabyte(client, monkeypatch, path, chunk
         headers={"content-type": "application/json", "stripe-signature": "t=0,v1=00"},
     )
     assert res.status_code == 413
-    assert res.json()["detail"] == "Request too large. Maximum size: 1 MB"
+    assert res.json() == {"detail": "Request too large. Maximum size: 1 MB", "max_size_mb": 1}
+    assert res.headers["X-FileMorph-Error-Code"] == "request_too_large"
 
 
 def test_limit_answers_carry_the_cors_and_security_headers(client):

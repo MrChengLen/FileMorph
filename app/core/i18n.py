@@ -478,6 +478,34 @@ def _js_i18n_strings(_: gettext.GNUTranslations.gettext) -> dict[str, str]:
         "errorInvalidApiKey": _("Invalid API key. Check your key and try again."),
         "errorNetwork": _("Network error: {detail}"),
         "errorTooManyRequests": _("Too many requests. Please wait a moment and try again."),
+        # X-FileMorph-Error-Code for the server's own English texts, read by
+        # app.js and pdf-tools.js (decompression_bomb: pdfImageTooLarge below).
+        # convert_failed, compress_failed and server_busy word them as the
+        # server does; file_type_not_permitted says why and what next;
+        # request_too_large (the upload cap no account lifts) takes its {max}
+        # from the body's max_size_mb, and a batch counts its files together.
+        "errorCompressFailed": _(
+            "Compression failed. Verify your file is valid and the format is supported."
+        ),
+        "errorConvertFailed": _(
+            "Conversion failed. Verify your file is valid and the format is supported."
+        ),
+        "errorFileTypeNotPermitted": _(
+            "File type not permitted. This file starts like a program or script, whatever "
+            "its name says. Choose a file in one of the supported formats."
+        ),
+        "errorRequestTooLarge": _(
+            "File too large: this server takes at most {max} MB per upload. Use a smaller "
+            "file or self-host FileMorph — there you set the limits."
+        ),
+        "errorRequestTooLargeBatch": _(
+            "Too large together: this server takes at most {max} MB per upload, all files "
+            "together. Select fewer or smaller files, or self-host FileMorph — there you "
+            "set the limits."
+        ),
+        "errorServerBusy": _(
+            "FileMorph is at capacity. The request was not processed; retry in a few seconds."
+        ),
         # pdf-tools.js — the 2 GB form ceiling no account or self-host lifts
         "errorTargetSizeTooHigh": _("The target size is above the allowed maximum of 2 GB."),
         # P2-1 — batch result summary on /batch responses. The template
@@ -647,6 +675,7 @@ def _js_i18n_strings(_: gettext.GNUTranslations.gettext) -> dict[str, str]:
             "This Word file couldn't be converted here. In Word, save it as a PDF "
             "(File → Save as → PDF) and insert the PDF."
         ),
+        # Also app.js: /convert and /compress send the same code (decompression_bomb).
         "pdfImageTooLarge": _(
             "The image is too large to process safely. Make it smaller and try again."
         ),

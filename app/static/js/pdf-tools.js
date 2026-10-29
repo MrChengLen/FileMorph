@@ -97,9 +97,10 @@
   // 400 carries X-FileMorph-Error-Code (invalid_page_selection / invalid_pdf /
   // pdf_encrypted / pdf_encryption_unsupported / pdf_too_many_pages /
   // pdf_too_complex; /pdf/insert also invalid_position / word_not_converted /
-  // decompression_bomb / invalid_input, and 415 unsupported_format); 429 =
-  // rate limit / monthly quota. Anything else falls back to the server's own
-  // (already caller-safe) detail message.
+  // decompression_bomb / invalid_input, and 415 unsupported_format); every
+  // route also file_type_not_permitted (400), request_too_large (413) and
+  // server_busy (503); 429 = rate limit / monthly quota. Anything else falls
+  // back to the server's own (already caller-safe) detail message.
   function errorFromResponse(res, data) {
     const code = res.headers.get('X-FileMorph-Error-Code');
     if (code === 'invalid_page_selection') {
@@ -149,6 +150,15 @@
     }
     if (code === 'invalid_input' && TOOL === 'insert') {
       return t('pdfInsertUnreadable', "The image couldn't be read. Save it as PNG or JPG and try again.");
+    }
+    if (code === 'file_type_not_permitted') {
+      return t('errorFileTypeNotPermitted', 'File type not permitted. This file starts like a program or script, whatever its name says. Choose a file in one of the supported formats.');
+    }
+    if (code === 'request_too_large' && data && data.max_size_mb) {
+      return t('errorRequestTooLarge', 'File too large: this server takes at most {max} MB per upload. Use a smaller file or self-host FileMorph — there you set the limits.', { max: data.max_size_mb });
+    }
+    if (code === 'server_busy') {
+      return t('errorServerBusy', 'FileMorph is at capacity. The request was not processed; retry in a few seconds.');
     }
     if (code === 'input_too_large') return t('errorInputTooLarge', 'File too large.');
     if (code === 'output_cap_exceeded') return t('errorOutputCapExceeded', 'The result would be larger than allowed.');

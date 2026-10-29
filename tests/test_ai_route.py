@@ -121,6 +121,16 @@ def test_detect_finds_pii(client, auth_headers, ai_enabled):
     assert body["credits_estimate"] == settings.ai_credit_cost_redact
 
 
+def test_detect_refuses_a_blocked_file_type_with_its_code(client, auth_headers, ai_enabled):
+    resp = client.post(
+        "/api/v1/ai/redact/detect",
+        headers=auth_headers,
+        files={"file": ("note.txt", b"MZ" + bytes(64), "text/plain")},
+    )
+    assert resp.status_code == 400
+    assert resp.headers.get("X-FileMorph-Error-Code") == "file_type_not_permitted"
+
+
 def test_detect_response_has_no_cost_leak(client, auth_headers, ai_enabled):
     resp = client.post(
         "/api/v1/ai/redact/detect",

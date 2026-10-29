@@ -129,9 +129,10 @@ XLSX. Responses are credit-denominated only —
 no model id, token count, or euro cost. Error codes (`X-FileMorph-Error-Code`):
 `ai_unavailable` (503), `ai_plan_required` (403), `ai_credits_exhausted` (402),
 `unsupported_format` (415, incl. PDF by design), `input_too_large` (413),
-`unknown_entity_type` (400), `document_unreadable` (400),
+`file_type_not_permitted` (400), `unknown_entity_type` (400),
+`document_unreadable` (400),
 `redaction_verification_failed` (500, fail-closed — no file returned),
-`output_cap_exceeded` (413).
+`output_cap_exceeded` (413), `server_busy` (503).
 
 ---
 
@@ -631,9 +632,13 @@ can branch on (the `detail` text may change):
 |---|---|---|
 | `input_too_large` | `413` | A file is larger than your tier allows per file |
 | `output_cap_exceeded` | `413` | The result is larger than your tier's output cap. XLSX → CSV, JSON → CSV, CSV → JSON, `/pdf/split` and `/pdf/insert` stop writing as soon as they pass it |
+| `request_too_large` | `413` | The request is larger than this server takes: `MAX_UPLOAD_SIZE_MB` (default: 100 MB) on a file endpoint, 1 MB on any other — refused before any work. The JSON body adds `max_size_mb`, that limit in MB |
 | `target_size_exceeds_cap` | `413` | `target_size_kb` (`/compress`, `/compress/batch`) or `target_kb` (`/pdf/compress`) is above your tier's output cap — rejected before any work |
 | `batch_too_large` | `400` | `/convert/batch`, `/compress/batch`: more files than your tier allows per request — rejected before any work |
+| `compress_failed` | `500` | `/compress`: the compression failed for a reason the server names only in its log; the file may be damaged or not what its extension says |
+| `convert_failed` | `500` | `/convert`: the conversion failed for a reason the server names only in its log; the file may be damaged or not what its extension says |
 | `decompression_bomb` | `400` | The image's dimensions exceed the decoder's safety limit (`/convert`, `/compress`, an image for `/pdf/insert`) |
+| `file_type_not_permitted` | `400` | The file starts like a program or script (PE, ELF, shell, PHP), whatever its extension — refused on every upload route before any decoder runs. In a batch only that file fails, as a per-file error without the header |
 | `invalid_input` | `400` | A problem you can fix, named in `detail` — e.g. a Markdown, CSV or JSON file that isn't UTF-8, a PDF that can't be read, a PDF → PDF or PDF → TXT conversion of a document over 10 000 pages, a PDF too large or complex to extract its text within 30 seconds, or a table too large or complex to convert within the memory, time and file size limits, or a file without a video picture converted to GIF (`/convert`); an image that isn't in a supported format or is too damaged to be recognised (`/convert`, `/compress`, `/pdf/insert`) |
 | `invalid_page_selection` | `400` | `/pdf/extract`: the `pages` selection is malformed, out of range or longer than 65 536 characters |
 | `invalid_pdf` | `400` | `/pdf/extract`, `/pdf/split`, `/pdf/compress`, `/pdf/insert`: the PDF can't be read; `/pdf/extract`, `/pdf/split` and `/pdf/insert` also for a PDF with no pages |
@@ -642,6 +647,7 @@ can branch on (the `detail` text may change):
 | `pdf_encryption_unsupported` | `400` | The PDF is encrypted with a certificate or a method FileMorph can't open, so no password would help (`/pdf/extract`, `/pdf/split`, `/pdf/compress`, `/pdf/insert`, `/convert`); remove the protection, e.g. by asking the sender for an unprotected copy |
 | `pdf_too_complex` | `400` | `/pdf/compress`: the PDF is too large or complex to compress within the memory, time and file size limits. Extract fewer pages with `/pdf/extract` and compress them in parts. `/pdf/insert`: the files are too large or complex to combine within those limits |
 | `pdf_too_many_pages` | `400` | Over the 10 000-page cap: `/pdf/split` for a PDF with more pages, `/pdf/extract` for a selection that covers more, `/pdf/insert` for both files together. Extract in parts of up to 10 000 pages; for `/pdf/split`, then split each part |
+| `server_busy` | `503` | The server is at its global concurrency cap (`MAX_GLOBAL_CONCURRENCY`) and did not process the request; retry after `Retry-After` seconds |
 | `unsupported_format` | `415` | `/pdf/insert`: the file to insert is not a PDF, a `.docx` or a supported image |
 | `video_too_complex` | `400` | `/convert` video → GIF: the video has more than 4096 × 2160 pixels, or can't be turned into a GIF within 85 seconds. Use a shorter clip or a lower resolution |
 | `video_too_long` | `400` | `/convert` video → GIF: the video is longer than 30 seconds. It is refused, not cut short; shorten it first, or convert it to MP4 or WebM |
@@ -649,9 +655,9 @@ can branch on (the `detail` text may change):
 
 The redaction endpoints add codes of their own, listed under
 [AI operations](#ai-operations--pii-redaction-enterprise-edition-add-on).
-Errors without the header — for example validation errors (`422`), a blocked
-file type (`400 "File type not permitted."`), rate limits and most `500`s —
-are identified by status and `detail`.
+Errors without the header — for example validation errors (`422`), rate
+limits (`429`), the catch-all `500` `"Internal server error."` and the PDF
+tools' `500`s — are identified by status and `detail`.
 
 ### Conversion warnings
 
@@ -723,15 +729,15 @@ every file failed returns `422` with `{"summary": …, "files": […]}`.
 
 | HTTP Status | Meaning |
 |---|---|
-| `400 Bad Request` | Missing or malformed request data (e.g. filename without extension), a batch with more files than your tier allows (`X-FileMorph-Error-Code: batch_too_large`), or file content that has to be fixed first — e.g. a Markdown, CSV or JSON file that isn't UTF-8 or an image that can't be recognised (`X-FileMorph-Error-Code: invalid_input`; `detail` names the fix), a password-protected PDF (`pdf_encrypted`) or a certificate-encrypted one (`pdf_encryption_unsupported`), or a video too long or too large for a GIF (`video_too_long`, `video_too_complex`) |
+| `400 Bad Request` | Missing or malformed request data (e.g. filename without extension), a batch with more files than your tier allows (`X-FileMorph-Error-Code: batch_too_large`), or file content that has to be fixed first — e.g. a Markdown, CSV or JSON file that isn't UTF-8 or an image that can't be recognised (`X-FileMorph-Error-Code: invalid_input`; `detail` names the fix), a password-protected PDF (`pdf_encrypted`) or a certificate-encrypted one (`pdf_encryption_unsupported`), or a video too long or too large for a GIF (`video_too_long`, `video_too_complex`), or a file that starts like a program or script (`file_type_not_permitted`) |
 | `401 Unauthorized` | An `X-API-Key` was sent but is not valid, or an endpoint that needs an account (`/auth/me`, `/keys`, `/billing/*`, …) got no valid `Authorization: Bearer` token. The file endpoints need no credentials: without them — or with an expired Bearer token — they run on the anonymous tier (see [Authentication](#authentication)) |
 | `403 Forbidden` | Authenticated but role/tier doesn't permit the action (e.g. non-admin hitting `/cockpit/*`) |
-| `413 Content Too Large` | Request exceeds `MAX_UPLOAD_SIZE_MB` (default: 100 MB) on a file endpoint or 1 MB on any other endpoint, a file exceeds your tier's size cap, or the output exceeds your tier's output cap |
+| `413 Content Too Large` | Request exceeds `MAX_UPLOAD_SIZE_MB` (default: 100 MB) on a file endpoint or 1 MB on any other endpoint (`request_too_large`, the limit as `max_size_mb` in the body), a file exceeds your tier's size cap, or the output exceeds your tier's output cap |
 | `415 Unsupported Media Type` | `target_size_kb` set on a lossless format (PNG/TIFF), a form body whose `Content-Type` names a charset other than UTF-8, or otherwise incompatible request shape |
 | `422 Unprocessable Content` | Unsupported format combination, missing form field, `target_formats` count ≠ `files` count, or every file in a batch failed |
 | `429 Too Many Requests` | Rate limit exceeded (see Rate Limiting section below), per-tier concurrency cap reached, monthly call quota used up, or too many rejected API keys from your IP (see Rate Limiting — fix the key; waiting won't help) |
-| `500 Internal Server Error` | Conversion failed (e.g. corrupt file, missing binary) |
-| `503 Service Unavailable` | Global concurrency cap reached (`MAX_GLOBAL_CONCURRENCY`). Response carries `Retry-After`. |
+| `500 Internal Server Error` | Conversion failed (e.g. corrupt file, missing binary); `/convert` and `/compress` add `X-FileMorph-Error-Code: convert_failed` or `compress_failed` when the conversion or compression itself fails |
+| `503 Service Unavailable` | Global concurrency cap reached (`MAX_GLOBAL_CONCURRENCY`). Response carries `Retry-After` and `X-FileMorph-Error-Code: server_busy`. |
 
 ---
 

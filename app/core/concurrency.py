@@ -89,11 +89,14 @@ class ConcurrencyExhausted(HTTPException):
     than an unhandled error. Pre-set status + Retry-After header."""
 
     def __init__(self, *, scope: str, retry_after_seconds: int) -> None:
+        headers = {"Retry-After": str(retry_after_seconds)}
         if scope == "global":
             sc = status.HTTP_503_SERVICE_UNAVAILABLE
             detail = (
                 "FileMorph is at capacity. The request was not processed; retry in a few seconds."
             )
+            # The web UI words it in the page's language; a 429 it words by status.
+            headers["X-FileMorph-Error-Code"] = "server_busy"
         else:
             sc = status.HTTP_429_TOO_MANY_REQUESTS
             detail = (
@@ -101,9 +104,7 @@ class ConcurrencyExhausted(HTTPException):
                 "when no account is used. Lower the parallelism, or self-host FileMorph "
                 "for more parallel requests."
             )
-        super().__init__(
-            status_code=sc, detail=detail, headers={"Retry-After": str(retry_after_seconds)}
-        )
+        super().__init__(status_code=sc, detail=detail, headers=headers)
 
 
 def _global_semaphore() -> asyncio.Semaphore:

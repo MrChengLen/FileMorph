@@ -1033,7 +1033,8 @@ async function submitForm() {
       } else if (res.status === 400 && data.detail) {
         // A batch over the tier's files per request lands here, so does a
         // password-protected PDF, or one with a certificate / an unsupported
-        // encryption (all localized, fall back to detail)
+        // encryption, an image too large to decode and a blocked file type
+        // (all localized, fall back to detail)
         const errCode = res.headers.get('X-FileMorph-Error-Code');
         const i18n = window.FM_I18N || {};
         let msg = data.detail;
@@ -1047,6 +1048,11 @@ async function submitForm() {
           msg = i18n.errorVideoTooLong || data.detail;
         } else if (errCode === 'video_too_complex') {
           msg = i18n.errorVideoTooComplex || data.detail;
+        } else if (errCode === 'decompression_bomb') {
+          // The same text as the PDF tools for the same code.
+          msg = i18n.pdfImageTooLarge || data.detail;
+        } else if (errCode === 'file_type_not_permitted') {
+          msg = i18n.errorFileTypeNotPermitted || data.detail;
         }
         showError(msg, errCode);
       } else if (res.status === 401) {
@@ -1067,6 +1073,20 @@ async function submitForm() {
           msg = i18n.errorTargetSizeExceedsCap || data.detail;
         } else if (errCode === 'input_too_large') {
           msg = i18n.errorInputTooLarge || data.detail;
+        } else if (errCode === 'request_too_large' && data.max_size_mb) {
+          // Over the server's upload cap, which no account lifts. A batch is
+          // one upload: its files count together.
+          msg = isBatch
+            ? i18nText(
+              'errorRequestTooLargeBatch',
+              'Too large together: this server takes at most {max} MB per upload, all files together. Select fewer or smaller files, or self-host FileMorph — there you set the limits.',
+              { max: data.max_size_mb },
+            )
+            : i18nText(
+              'errorRequestTooLarge',
+              'File too large: this server takes at most {max} MB per upload. Use a smaller file or self-host FileMorph — there you set the limits.',
+              { max: data.max_size_mb },
+            );
         } else {
           msg = data.detail || i18nText('errorFileTooLarge', 'File too large.');
         }
@@ -1074,7 +1094,18 @@ async function submitForm() {
       } else if (res.status === 429) {
         showError(i18nText('errorTooManyRequests', 'Too many requests. Please wait a moment and try again.'));
       } else {
-        showError(data.detail || i18nText('errorConversionFailed', 'Conversion failed (status {status}).', { status: res.status }));
+        // A failure the server doesn't name: its fixed text, localized.
+        const errCode = res.headers.get('X-FileMorph-Error-Code');
+        const i18n = window.FM_I18N || {};
+        let msg = data.detail;
+        if (errCode === 'convert_failed') {
+          msg = i18n.errorConvertFailed || data.detail;
+        } else if (errCode === 'compress_failed') {
+          msg = i18n.errorCompressFailed || data.detail;
+        } else if (errCode === 'server_busy') {
+          msg = i18n.errorServerBusy || data.detail;
+        }
+        showError(msg || i18nText('errorConversionFailed', 'Conversion failed (status {status}).', { status: res.status }));
       }
       return;
     }

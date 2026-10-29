@@ -96,7 +96,9 @@ def _write_upload_and_check_magic(
         header = f.read(16)
     if any(header.startswith(sig) for sig in BLOCKED_MAGIC):
         raise HTTPException(
-            status_code=400, detail="File type not permitted.", headers=_field_header(field) or None
+            status_code=400,
+            detail="File type not permitted.",
+            headers={"X-FileMorph-Error-Code": "file_type_not_permitted", **_field_header(field)},
         )
     return input_path.stat().st_size
 

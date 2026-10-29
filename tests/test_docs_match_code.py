@@ -558,6 +558,22 @@ def test_docs_quote_the_batch_size_message(client, sample_jpg, accounts):
     assert "| `batch_too_large` | `400` |" in codes
 
 
+# The codes the web UI words in the page's language (tests/test_server_error_codes.py).
+@pytest.mark.parametrize(
+    "code, status",
+    [
+        ("compress_failed", 500),
+        ("convert_failed", 500),
+        ("file_type_not_permitted", 400),
+        ("request_too_large", 413),
+        ("server_busy", 503),
+    ],
+)
+def test_api_reference_lists_the_codes_the_web_ui_words(code, status):
+    codes = _section("api-reference.md", "### Error codes")
+    assert f"| `{code}` | `{status}` |" in codes
+
+
 def test_docs_quote_the_batch_length_mismatch_status(client, auth_headers, sample_jpg):
     # One file, two targets.
     r = _upload(

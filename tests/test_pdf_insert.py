@@ -571,7 +571,7 @@ def test_route_blocks_an_executable_as_the_file_to_insert(client, auth_headers):
     r = _post(client, auth_headers, _pdf([200]), b"MZ\x90\x00 not a pdf", insert_name="x.pdf")
 
     assert r.status_code == 400
-    assert _field(r) == "insert_file"
+    assert (_code(r), _field(r)) == ("file_type_not_permitted", "insert_file")
 
 
 def test_route_answers_a_refusal_with_its_field(client, auth_headers, monkeypatch):

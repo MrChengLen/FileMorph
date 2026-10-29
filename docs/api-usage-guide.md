@@ -514,7 +514,9 @@ Common per-file `error_message` values:
 - `"Conversion from 'docx' to 'mp4' is not supported."` — no
   converter for that pair.
 - `"File type not permitted."` — magic-byte filter rejected the
-  upload (executable / script content).
+  upload (executable / script content). Single-file routes return the
+  same message as a `400` with
+  `X-FileMorph-Error-Code: file_type_not_permitted`.
 - `"The file is not UTF-8 text. Re-save it as UTF-8 …"` — a Markdown,
   CSV or JSON file in another encoding (e.g. Excel's default CSV export
   on Windows). Single-file `/convert` returns the same message as a
@@ -750,7 +752,9 @@ and rejects anything that looks like an executable or script:
 The file extension doesn't matter: a `.jpg` that starts with `MZ` is
 rejected too. (A request that fails earlier — an unsupported format
 pair is a `422` — never reaches this check.) Rejected with
-`400 "File type not permitted."` — there's no retry that helps.
+`400 "File type not permitted."` and
+`X-FileMorph-Error-Code: file_type_not_permitted` — there's no retry that
+helps.
 
 ---
 
@@ -870,7 +874,8 @@ on errors, not on network blips that may have actually succeeded.
 
 The server runs only as many conversions at once as its deploy-time
 limit allows (`MAX_GLOBAL_CONCURRENCY`, default 4), shared by all
-callers; past it you get `503`. Within that, you can keep your tier's
+callers; past it you get `503` with
+`X-FileMorph-Error-Code: server_busy`. Within that, you can keep your tier's
 number of concurrent requests in flight (see the table above) and
 send up to 10 requests/min each to `/convert` and `/compress` — one
 every 6 seconds, per client IP, on every tier. Beyond either of those
