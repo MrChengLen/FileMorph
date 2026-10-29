@@ -690,6 +690,8 @@ def test_gdpr_analysis_describes_the_running_service():
 # ink tokens are read from tailwind.config.js so a token change is caught.
 _TAILWIND_DEFAULTS = {
     "gray-950": "#030712",
+    "gray-900": "#111827",
+    "gray-800": "#1f2937",
     "gray-400": "#9ca3af",
     "gray-500": "#6b7280",
     "gray-600": "#4b5563",
@@ -738,16 +740,101 @@ def test_location_hint_meets_wcag_aa_contrast():
         assert ratio >= 4.5, f"{hint.group(1)!r}: {ratio:.2f} : 1 on {background} (AA: 4.5 : 1)"
 
 
-def test_no_visible_template_text_uses_the_low_contrast_grey():
-    """text-gray-700 on the page background is ~1.95 : 1. It may stay on
-    decorative separators (aria-hidden) and in print styles only."""
+_LOW_CONTRAST_TEXT = {"text-gray-500", "text-gray-600", "text-gray-700"}
+
+
+def _colour_tokens() -> dict[str, str]:
+    """`brand`, `brand-dark`, `ink-faint`, `surface-raised`, … from tailwind.config.js."""
+    config = (ROOT / "tailwind.config.js").read_text(encoding="utf-8")
+    tokens = {}
+    for group in ("brand", "surface", "ink"):
+        body = re.search(rf"{group}:\s*\{{([^}}]*)\}}", config).group(1)
+        for key, value in re.findall(r"(\w+):\s*'(#[0-9a-fA-F]{6})'", body):
+            tokens[group if key == "DEFAULT" else f"{group}-{key}"] = value
+    return tokens
+
+
+def test_text_tokens_meet_wcag_aa_on_every_dark_surface():
+    """Every readable text token reaches 4.5 : 1 on each surface the pages use
+    (cards up to gray-800); white text reaches it on the filled brand buttons;
+    the brand colour itself (logo, icons, focus ring) keeps 3 : 1 on a card."""
+    t = _colour_tokens()
+    surfaces = [t["surface"], t["surface-raised"], t["surface-sunken"]]
+    surfaces += [_TAILWIND_DEFAULTS[k] for k in ("gray-950", "gray-900", "gray-800")]
+    low = [
+        f"{name} on {bg}: {_contrast(t[name], bg):.2f}"
+        for name in ("ink", "ink-muted", "ink-faint", "brand-light")
+        for bg in surfaces
+        if _contrast(t[name], bg) < 4.5
+    ]
+    low += [
+        f"white on {name}: {_contrast('#ffffff', t[name]):.2f}"
+        for name in ("brand-dark", "brand-deep")
+        if _contrast("#ffffff", t[name]) < 4.5
+    ]
+    if _contrast(t["brand"], t["surface-raised"]) < 3:
+        low.append("brand on surface-raised below 3 : 1")
+    assert not low, low
+
+
+def _ui_sources():
+    yield from TEMPLATES.rglob("*.html")
+    yield from (
+        p for p in (ROOT / "app" / "static" / "js").rglob("*.js") if "vendor" not in p.parts
+    )
+
+
+def test_no_visible_text_uses_a_low_contrast_grey():
+    """text-gray-500/600/700 fall below 4.5 : 1 on the dark pages; text uses the
+    ink tokens instead. The grey may stay on decorative separators
+    (aria-hidden) and in print styles only."""
     hits = []
-    for path in TEMPLATES.rglob("*.html"):
-        for tag in re.findall(r"<[a-zA-Z][^>]*>", path.read_text(encoding="utf-8")):
+    for path in _ui_sources():
+        source = path.read_text(encoding="utf-8")
+        if path.suffix == ".js":
+            for cls in _LOW_CONTRAST_TEXT:
+                if re.search(rf"(?<![\w:/-]){cls}(?![\w/-])", source):
+                    hits.append(f"{path.relative_to(ROOT)}: {cls}")
+            continue
+        for tag in re.findall(r"<[a-zA-Z][^>]*>", source):
             classes = re.search(r'class="([^"]*)"', tag)
-            if classes and "text-gray-700" in classes.group(1).split():
+            # A regex, not split(): Jinja glues classes to tags ("{% else %}text-gray-500").
+            if classes and any(
+                re.search(rf"(?<![\w:/-]){cls}(?![\w/-])", classes.group(1))
+                for cls in _LOW_CONTRAST_TEXT
+            ):
                 if 'aria-hidden="true"' not in tag:
                     hits.append(f"{path.relative_to(ROOT)}: {tag[:80]}")
+    assert not hits, hits
+
+
+def test_brand_coloured_text_uses_the_light_shade():
+    """text-brand is 3.9 : 1 on the cards — enough for the logo and icons (3 : 1),
+    too pale for text, which uses text-brand-light. The admin cockpit keeps its
+    colour keys (large numbers, mapped to a hex colour there)."""
+    token = r"(?<![\w/-])(?:[a-z-]+:)?text-brand(?![\w/-])"
+    hits = []
+    for path in _ui_sources():
+        source = path.read_text(encoding="utf-8")
+        if path.suffix == ".js":
+            if not path.name.startswith("cockpit") and re.search(token, source):
+                hits.append(str(path.relative_to(ROOT)))
+            continue
+        for m in re.finditer(r"<([a-zA-Z][\w-]*)([^>]*)>", source):
+            if m.group(1).lower() not in ("svg", "path") and re.search(token, m.group(2)):
+                hits.append(f"{path.relative_to(ROOT)}: <{m.group(1)}{m.group(2)[:60]}")
+    assert not hits, hits
+
+
+def test_filled_buttons_use_the_dark_shades_behind_white_text():
+    """White on brand (#6366f1) is 4.47 : 1 and white on emerald-600/500 3.8 and
+    2.5 : 1 — below AA. Filled buttons use bg-brand-dark (hover brand-deep) and
+    emerald-700 (hover emerald-800); tints like bg-brand/10 stay allowed."""
+    banned = r"(?<![\w/-])(?:[a-z-]+:)?(?:bg-brand|bg-emerald-600|bg-emerald-500)(?![\w/-])"
+    hits = []
+    for path in _ui_sources():
+        for m in re.finditer(banned, path.read_text(encoding="utf-8")):
+            hits.append(f"{path.relative_to(ROOT)}: {m.group(0)}")
     assert not hits, hits
 
 

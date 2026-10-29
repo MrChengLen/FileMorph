@@ -5,7 +5,7 @@
 
   const TIER_COLOR = {
     free: 'text-gray-400',
-    pro: 'text-brand',
+    pro: 'text-brand-light',
     business: 'text-emerald-400',
     enterprise: 'text-yellow-400',
   };
@@ -58,7 +58,7 @@
       .map(
         (c) => `
         <div class="bg-gray-900 border border-gray-800 rounded-xl p-4">
-          <p class="text-xs text-gray-500 uppercase tracking-wider">${escapeHtml(c.label)}</p>
+          <p class="text-xs text-ink-faint uppercase tracking-wider">${escapeHtml(c.label)}</p>
           <p class="text-3xl font-bold mt-1 ${c.color}">${c.value.toLocaleString()}</p>
         </div>`,
       )
@@ -135,7 +135,7 @@
     $('user-count').textContent = `(${state.total.toLocaleString()})`;
     const tbody = $('users-tbody');
     if (!items.length) {
-      tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-8 text-center text-gray-600">No users match these filters.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-8 text-center text-ink-faint">No users match these filters.</td></tr>';
       return;
     }
     tbody.innerHTML = items
@@ -147,7 +147,7 @@
             <td class="px-6 py-3 capitalize font-semibold ${TIER_COLOR[u.tier] || 'text-gray-300'}">${escapeHtml(u.tier)}</td>
             <td class="px-6 py-3 capitalize ${ROLE_COLOR[u.role] || 'text-gray-300'}">${escapeHtml(u.role)}</td>
             <td class="px-6 py-3">${u.is_active ? '<span class="text-emerald-400">✓</span>' : '<span class="text-red-400">✗</span>'}</td>
-            <td class="px-6 py-3 text-gray-500 text-xs">${u.created_at ? new Date(u.created_at).toLocaleDateString('de-DE') : '—'}</td>
+            <td class="px-6 py-3 text-ink-faint text-xs">${u.created_at ? new Date(u.created_at).toLocaleDateString('de-DE') : '—'}</td>
             <td class="px-6 py-3 text-right space-x-2">
               <button class="ck-edit px-2 py-1 text-xs rounded border border-gray-700 hover:border-brand">Edit</button>
               <button class="ck-deact px-2 py-1 text-xs rounded border border-gray-700 hover:border-red-500 disabled:opacity-30" ${isSelf || !u.is_active ? 'disabled' : ''}>Deactivate</button>

@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 document.addEventListener('DOMContentLoaded', function () {
   document.getElementById('reg-btn').addEventListener('click', doRegister);
-  document.addEventListener('keydown', function (e) { if (e.key === 'Enter') doRegister(); });
+  // Enter in a field registers — not Enter on a link or button (skip link).
+  document.addEventListener('keydown', function (e) { if (e.key === 'Enter' && e.target.matches('input')) doRegister(); });
 });
 
 function _t(key, fallback) {

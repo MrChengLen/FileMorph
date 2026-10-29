@@ -217,6 +217,8 @@
     input.focus();
   });
   window.addEventListener('hashchange', () => {
+    // A jump to an anchor (the skip link's #main-content) is not a search.
+    if (location.hash && !new URLSearchParams(location.hash.slice(1)).has('q')) return;
     const q = readHash();
     if (q !== input.value) {
       input.value = q;

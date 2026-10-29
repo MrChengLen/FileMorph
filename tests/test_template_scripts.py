@@ -25,7 +25,12 @@ from app.core.templates import templates
 _TEMPLATES = Path(__file__).resolve().parents[1] / "app" / "templates"
 _SRC = re.compile(r'<script\b[^>]*\bsrc="([^"]+)"', re.IGNORECASE)
 
-_SHARED = ["/static/js/i18n-bootstrap.js", "/static/js/nav.js", "/static/js/cookie-notice.js"]
+_SHARED = [
+    "/static/js/i18n-bootstrap.js",
+    "/static/js/announce.js",
+    "/static/js/nav.js",
+    "/static/js/cookie-notice.js",
+]
 _CORE = ["/static/js/auth.js", "/static/js/app.js"]
 
 # Template → (a path that renders it, or None to render it directly; its own scripts).

@@ -40,7 +40,7 @@ def stripe_enabled(monkeypatch):
 def test_plans_block_uses_h2(client, pricing_enabled, stripe_enabled):
     html = client.get("/en/").text
     assert (
-        '<h2 class="text-xs font-semibold uppercase tracking-wider text-gray-500">'
+        '<h2 class="text-xs font-semibold uppercase tracking-wider text-ink-faint">'
         "Plans</h2>" in html
     )
 
@@ -66,7 +66,7 @@ def test_free_block_uses_h2(client, pricing_enabled, stripe_disabled):
 def test_for_developers_block_uses_h2(client):
     html = client.get("/en/").text
     assert (
-        '<h2 class="text-xs font-semibold uppercase tracking-wider text-gray-500">'
+        '<h2 class="text-xs font-semibold uppercase tracking-wider text-ink-faint">'
         "For Developers</h2>" in html
     )
 

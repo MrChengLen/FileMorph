@@ -18,10 +18,10 @@ document.addEventListener("DOMContentLoaded", () => {
     panelGov.classList.toggle("hidden", dev);
     segDev.setAttribute("aria-pressed", dev ? "true" : "false");
     segGov.setAttribute("aria-pressed", dev ? "false" : "true");
-    segDev.classList.toggle("bg-brand", dev);
+    segDev.classList.toggle("bg-brand-dark", dev);
     segDev.classList.toggle("text-white", dev);
     segDev.classList.toggle("text-gray-400", !dev);
-    segGov.classList.toggle("bg-brand", !dev);
+    segGov.classList.toggle("bg-brand-dark", !dev);
     segGov.classList.toggle("text-white", !dev);
     segGov.classList.toggle("text-gray-400", dev);
   }

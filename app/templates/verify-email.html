@@ -23,13 +23,13 @@
 
       <div id="success-msg" class="hidden text-emerald-400 text-sm bg-emerald-950 rounded-lg px-4 py-3 text-center space-y-2">
         <div>{{ _('Your email is now verified.') }}</div>
-        <a href="{{ localized_url('/dashboard', current_prefix) }}" class="inline-block mt-1 text-brand hover:underline">{{ _('Open dashboard') }} &rarr;</a>
+        <a href="{{ localized_url('/dashboard', current_prefix) }}" class="inline-block mt-1 text-brand-light hover:underline">{{ _('Open dashboard') }} &rarr;</a>
       </div>
 
       <div id="error-msg" class="hidden text-red-400 text-sm bg-red-950 rounded-lg px-4 py-3"></div>
 
       <p class="text-center text-sm text-ink-faint">
-        <a href="{{ localized_url('/login', current_prefix) }}" class="text-brand hover:underline">{{ _('Back to Sign In') }}</a>
+        <a href="{{ localized_url('/login', current_prefix) }}" class="text-brand-light hover:underline">{{ _('Back to Sign In') }}</a>
       </p>
 
     </div>

@@ -81,6 +81,7 @@
   };
 
   function showError(msg, code, field) {
+    window.FM_announce && window.FM_announce('');
     hide($('pdf-progress'));
     // An error replaces a result still on screen from an earlier run.
     hide($('pdf-result'));
@@ -472,6 +473,7 @@
     setExtractLinkVisible(false);
     hide($('pdf-result'));
     show($('pdf-progress'));
+    window.FM_announce && window.FM_announce($('pdf-progress-text').textContent);
 
     const fd = new FormData();
     fd.append('file', selectedFile);
@@ -516,6 +518,7 @@
       }
 
       show($('pdf-result'));
+      window.FM_announce && window.FM_announce($('pdf-result').innerText);
     } catch (_) {
       showError(t('pdfToolError', 'Something went wrong. Please try again.'));
     } finally {

@@ -2497,6 +2497,9 @@ msgstr ""
 "chain from a database dump. Account IDs stay outside the hash, so erasing"
 " them under the GDPR leaves the chain intact."
 
+msgid "Skip to main content"
+msgstr "Skip to main content"
+
 msgid ""
 "Small-business status under § 19 UStG — no VAT is charged and no USt-"
 "IdNr. is held."

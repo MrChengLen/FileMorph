@@ -12,11 +12,11 @@
   {% call uc.card() %}
   <div class="flex items-center gap-5">
     <div id="user-avatar"
-      class="w-14 h-14 rounded-full bg-brand flex items-center justify-center text-2xl font-bold text-white shrink-0">?</div>
+      class="w-14 h-14 rounded-full bg-brand-dark flex items-center justify-center text-2xl font-bold text-white shrink-0">?</div>
     <div class="min-w-0">
       <p id="user-email" class="font-semibold truncate">{{ _('Loading…') }}</p>
       <span id="user-tier"
-        class="inline-block mt-1 text-xs px-2 py-0.5 rounded-full bg-brand/20 text-brand capitalize">—</span>
+        class="inline-block mt-1 text-xs px-2 py-0.5 rounded-full bg-brand/20 text-brand-light capitalize">—</span>
       <p class="text-xs text-ink-faint mt-1">{{ _('Member since') }} <span id="user-since">—</span></p>
     </div>
   </div>
@@ -96,7 +96,7 @@
     </div>
     <div class="flex items-center gap-3">
       <select id="email-lang" aria-label="{{ _('Email language') }}"
-        class="bg-surface-sunken border border-hairline rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-brand">
+        class="bg-surface-sunken border border-hairline rounded-lg px-3 py-1.5 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand">
         <option value="de">Deutsch</option>
         <option value="en">English</option>
       </select>
