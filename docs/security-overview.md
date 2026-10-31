@@ -285,15 +285,27 @@ tini through `env`, which holds none of the capabilities Docker grants the
 container's first process (among the defaults `CAP_DAC_OVERRIDE`, which would
 let it read the program). So no other process of `appuser` can read tini's
 environment or attach to it either — unless the container runs as root or the
-host sets `fs.suid_dumpable` to 1, a debugging mode. The app's code and its Python
-packages belong to root and are read-only for `appuser`; the app writes only
-to `/app/data` and the temp dir. `tests/test_isolated_conversions.py` checks
-that a child can't read the app process's environment and that the app
-doesn't start without the setting, `tests/test_office_gs_isolation.py` the
-environment Ghostscript gets, `tests/test_container_init.py` that the image
-starts tini with its program execute-only, and
-`.github/workflows/docker-pr.yml` the app process, tini and the file
-permissions in the built image.
+host sets `fs.suid_dumpable` to 1, a debugging mode.
+
+Docker starts other processes in the running container with the same
+environment: the health check `docker-compose.yml` defines, which runs `curl`
+every 10 seconds, and every command run through `docker exec` or
+`docker compose exec`. curl's program is execute-only as well, and the health
+check runs it without a shell, so the health check is non-dumpable too. That
+holds because `docker-compose.yml` drops all capabilities: with Docker's
+default ones, Docker starts such a process from one that holds
+`CAP_DAC_OVERRIDE`, the kernel finds the program readable, and the health
+check is dumpable. A command run through `docker exec` whose program
+`appuser` can read (a shell, `python`) is dumpable while it runs. The app's
+code and its Python packages belong to root and are read-only for `appuser`;
+the app writes only to `/app/data` and the temp dir.
+`tests/test_isolated_conversions.py` checks that a child can't read the app
+process's environment and that the app doesn't start without the setting,
+`tests/test_office_gs_isolation.py` the environment Ghostscript gets,
+`tests/test_container_init.py` that the image starts tini and the health
+check runs curl, both with their programs execute-only, and
+`.github/workflows/docker-pr.yml` the app process, tini, curl as
+`docker exec` starts it, and the file permissions in the built image.
 
 ### Office image: LibreOffice subprocess hardening
 
@@ -744,7 +756,11 @@ to be effective. The following list is grouped by importance.
    off (`docker run --init`, `init: true` in Compose or in the daemon's
    `daemon.json`): it would run ahead of tini as PID 1 with the
    container's environment, which other processes of the container's
-   user could read. A debugger or profiler
+   user could read. Keep the health check as `docker-compose.yml` has
+   it, curl in exec form (`["CMD", "curl", …]`) with all capabilities
+   dropped: a shell form (`CMD-SHELL`, a plain string,
+   `docker run --health-cmd`) starts a shell the container's user can
+   read, with the container's environment. A debugger or profiler
    that attaches to the app (gdb, py-spy) needs root — in a container,
    root with the `SYS_PTRACE` capability.
 7. **Add an upload size cap at the proxy.** The application

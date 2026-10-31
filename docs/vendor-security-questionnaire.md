@@ -333,8 +333,9 @@ and renews certificates automatically.
 ### 4.3 Key management
 
 - **`JWT_SECRET`** lives only in the environment of the application
-  process (Cloud features) and, in the Docker image, of its init, tini.
-  Rotation invalidates all active sessions —
+  process (Cloud features) and, in the Docker image, of its init, tini,
+  and of the processes Docker starts in the container (the health
+  check, `docker exec`). Rotation invalidates all active sessions —
   the documented response to suspected compromise.
 - **Stripe webhook secret** lives only in the environment; rotation
   invalidates any intercepted webhook URL.
