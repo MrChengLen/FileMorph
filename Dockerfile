@@ -88,6 +88,9 @@ RUN pip install --require-hashes -r requirements.lock
 #     pango1.0-tools: WeasyPrint native dependency tree.
 #   - curl: in-container ``HEALTHCHECK`` driver (compose.yml uses
 #     ``curl -f http://localhost:8000/api/v1/health``).
+#   - tini: the container's init, PID 1 (see ENTRYPOINT below). Its program
+#     is execute-only for everyone but root; dpkg-statoverride keeps that
+#     mode through a package update.
 # ``libssl3`` and ``libffi8`` are already present in python:3.14-slim
 # (Python's _ssl + cffi need them) so we don't reinstall them here.
 # Pinned to python:3.14-slim (same image as builder; digest is the enforcement).
@@ -102,7 +105,9 @@ RUN apt-get update && \
       libpangocairo-1.0-0 \
       libgdk-pixbuf-xlib-2.0-0 \
       pango1.0-tools \
-      curl && \
+      curl \
+      tini && \
+    dpkg-statoverride --update --add root root 0711 /usr/bin/tini && \
     rm -rf /var/lib/apt/lists/*
 
 # Bring in the compiled Python tree from the builder stage. The venv's
@@ -137,7 +142,18 @@ USER appuser
 
 EXPOSE 8000
 
-ENTRYPOINT ["/app/entrypoint.sh"]
+# tini is PID 1 and starts entrypoint.sh, which hands over to uvicorn with
+# exec. As an init does, it passes the signals the container gets on to
+# uvicorn (docker stop's SIGTERM) and reaps every child process that ends
+# after its parent. uvicorn ends its shutdown by raising the SIGTERM again;
+# -e 143 has tini report that as exit code 0, as before. tini holds the
+# container's environment, the app's secrets with it: a program its user
+# can't read runs non-dumpable, so no other process of appuser can read
+# tini's environment, as none can read the app's (app/main.py). env starts
+# tini because the container's first process holds the capabilities Docker
+# grants, CAP_DAC_OVERRIDE among the defaults, and could read the program;
+# a program a non-root user starts holds none of them.
+ENTRYPOINT ["/usr/bin/env", "--", "/usr/bin/tini", "-e", "143", "--", "/app/entrypoint.sh"]
 
 
 # ----------------------------------------------------------------------------

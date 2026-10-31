@@ -139,7 +139,9 @@ Every conversion or compression request follows the same path:
 A typical deployment is a single FastAPI process behind a reverse proxy.
 The container image is published to GHCR and bundles ffmpeg and the
 converter dependencies; the proxy is the operator's choice (Caddy is the
-documented default — see [`self-hosting.md`](./self-hosting.md)).
+documented default — see [`self-hosting.md`](./self-hosting.md)). In the
+image, tini runs as PID 1 and starts the app: it passes the container's
+signals on to it and reaps child processes that end after their parent.
 
 PostgreSQL and Stripe belong to the Cloud Edition: the application
 connects to PostgreSQL only when `DATABASE_URL` is set and to Stripe only

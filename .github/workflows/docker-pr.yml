@@ -272,34 +272,52 @@ jobs:
           PY
           docker run --rm --entrypoint python "$IMAGE" -c "import ctypes; from app.converters._isolated import limit_resources; prctl = ctypes.CDLL(None).prctl; assert prctl(39, 0, 0, 0, 0) == 0, 'set before'; limit_resources(2**30, 95, 2**30); assert prctl(39, 0, 0, 0, 0) == 1; print('ok: no-new-privileges set by the child')"
 
-      # The app process marks itself non-dumpable as it loads (app/main.py):
-      # a process of appuser, as the conversion children are, reads the
-      # environment of another process of appuser, but not the app's. PID 1
-      # is the app, as entrypoint.sh hands over to uvicorn with exec. Then
-      # the app at work: a conversion through it runs in a child it starts,
-      # and its process metrics still read its own /proc files.
+      # PID 1 is tini, the image's init, and the app is its child, as
+      # entrypoint.sh hands over to uvicorn with exec. Both hold the
+      # container's environment. The app marks itself non-dumpable as it
+      # loads (app/main.py), and tini is non-dumpable as appuser can't read
+      # its program: a process of appuser, as the conversion children are,
+      # reads the environment of another process of appuser, but neither of
+      # theirs. Then the app at work: a conversion through it runs in a child
+      # it starts, and its process metrics still read its own /proc files.
       - name: Check the app process's isolation
         run: |
           docker exec -i filemorph python - <<'PY'
           import os, pathlib, subprocess
-          assert b"uvicorn" in pathlib.Path("/proc/1/cmdline").read_bytes(), "PID 1 is not uvicorn"
-          status = pathlib.Path("/proc/1/status").read_text().splitlines()
-          uids = next(line for line in status if line.startswith("Uid:")).split()[1:]
-          assert uids == [str(os.getuid())] * 4, f"PID 1 runs as {uids}, not as this user"
-          # Non-dumpable: the kernel hands the app's /proc files to root.
-          assert os.stat("/proc/1/environ").st_uid == 0, "PID 1 is dumpable"
+          proc = pathlib.Path("/proc")
+          init = (proc / "1" / "cmdline").read_bytes().split(b"\0")
+          assert init[0] == b"/usr/bin/tini", f"PID 1 is not tini: {init}"
+
+          def is_app(entry):
+              """Whether the process is a child of PID 1 that runs uvicorn."""
+              try:
+                  stat = (entry / "stat").read_text()
+                  cmdline = (entry / "cmdline").read_bytes()
+              except OSError:  # ended meanwhile
+                  return False
+              return stat[stat.rindex(")") + 2 :].split()[1] == "1" and b"uvicorn" in cmdline
+
+          apps = [entry for entry in proc.iterdir() if entry.name.isdigit() and is_app(entry)]
+          assert len(apps) == 1, f"PID 1 has {len(apps)} children that run uvicorn, not 1"
           other = subprocess.Popen(["sleep", "30"])
           try:
-              pathlib.Path(f"/proc/{other.pid}/environ").read_bytes()
+              (proc / str(other.pid) / "environ").read_bytes()
           finally:
               other.kill()
               other.wait()
-          try:
-              pathlib.Path("/proc/1/environ").read_bytes()
-          except PermissionError:
-              print("ok: the app process's environment is out of reach")
-          else:
-              raise SystemExit("a process of appuser read the app process's environment")
+          for name, entry in (("PID 1", proc / "1"), ("the app", apps[0])):
+              status = (entry / "status").read_text().splitlines()
+              uids = next(line for line in status if line.startswith("Uid:")).split()[1:]
+              assert uids == [str(os.getuid())] * 4, f"{name} runs as {uids}, not as this user"
+              # Non-dumpable: the kernel hands the process's /proc files to root.
+              assert (entry / "environ").stat().st_uid == 0, f"{name} is dumpable"
+              try:
+                  (entry / "environ").read_bytes()
+              except PermissionError:
+                  pass
+              else:
+                  raise SystemExit(f"a process of appuser read the environment of {name}")
+          print("ok: PID 1 is tini, and neither its environment nor the app's is in reach")
           PY
           printf 'a,b\n1,2\n' > "$RUNNER_TEMP/in.csv"
           if ! curl -fsS --max-time 60 -F "file=@$RUNNER_TEMP/in.csv" -F target_format=json \
@@ -314,6 +332,28 @@ jobs:
             echo "::error::/api/v1/metrics reports no process_open_fds"
             exit 1
           fi
+
+      # The container above runs without capabilities, as docker-compose.yml
+      # starts it. A plain docker run keeps Docker's default ones, and the
+      # container's first process holds them: CAP_DAC_OVERRIDE would let it
+      # read tini's program, and a tini it started would be dumpable. The
+      # image's first process is env, and the tini it starts holds none.
+      - name: Check tini's isolation with Docker's default capabilities
+        run: |
+          docker run --detach --name filemorph-default-caps "$IMAGE" > /dev/null
+          docker exec -i filemorph-default-caps python - <<'PY'
+          import os, pathlib, time
+          status = pathlib.Path("/proc/self/status").read_text().splitlines()
+          effective = int(next(line for line in status if line.startswith("CapEff:")).split()[1], 16)
+          assert effective & 1 << 1, "no CAP_DAC_OVERRIDE in this container; the check proves nothing"
+          deadline = time.monotonic() + 10
+          while not pathlib.Path("/proc/1/cmdline").read_bytes().startswith(b"/usr/bin/tini\0"):
+              assert time.monotonic() < deadline, "PID 1 did not become tini"
+              time.sleep(0.1)
+          assert os.stat("/proc/1/environ").st_uid == 0, "tini is dumpable with Docker's default capabilities"
+          print("ok: tini is non-dumpable with Docker's default capabilities too")
+          PY
+          docker rm --force filemorph-default-caps > /dev/null
 
       # Outgoing TLS other than Stripe's (the app's mail through aiosmtplib,
       # anything on ssl.create_default_context()) trusts the system CA store:
@@ -441,7 +481,8 @@ jobs:
       # the launcher (soffice.bin). Past the time limit the DOCX converter
       # kills the whole process group (app/converters/document.py::_run_soffice).
       # Verify in the real image, with a document too long to finish in time,
-      # that the worker ran mid-conversion and is gone after the limit.
+      # that the worker ran mid-conversion and that after the limit no
+      # soffice.bin is left, in any state.
       - name: Check a LibreOffice timeout stops all of LibreOffice
         if: matrix.target == 'office'
         run: |
@@ -452,7 +493,7 @@ jobs:
           from app.converters.document import _convert_via_libreoffice
 
           def workers():
-              """Running soffice.bin processes: (pid, parent pid, process group)."""
+              """soffice.bin processes in any state: (pid, parent pid, process group, state)."""
               found = []
               for stat in Path("/proc").glob("[0-9]*/stat"):
                   try:
@@ -460,8 +501,8 @@ jobs:
                   except OSError:
                       continue
                   state, ppid, pgid = text[text.rindex(")") + 2 :].split()[:3]
-                  if text[text.index("(") + 1 : text.rindex(")")] == "soffice.bin" and state != "Z":
-                      found.append((int(stat.parent.name), int(ppid), int(pgid)))
+                  if text[text.index("(") + 1 : text.rindex(")")] == "soffice.bin":
+                      found.append((int(stat.parent.name), int(ppid), int(pgid), state))
               return found
 
           work = Path(tempfile.mkdtemp())
@@ -481,6 +522,20 @@ jobs:
           deadline = time.monotonic() + 5
           while workers() and time.monotonic() < deadline:
               time.sleep(0.1)
-          assert not workers(), f"LibreOffice still running after its time limit: {workers()}"
-          print(f"ok: worker {mid} (pid, parent pid, group) stopped at the time limit")
+          assert not workers(), f"LibreOffice left after its time limit: {workers()}"
+          print(f"ok: worker {mid} (pid, parent pid, group, state) gone after the time limit")
           PY
+
+      # docker stop sends SIGTERM to PID 1: tini passes it on to uvicorn, which
+      # shuts down, and the container ends with exit code 0. Without the
+      # signal, docker stop would kill it after 30 seconds: exit code 137.
+      - name: Check that docker stop shuts the app down
+        run: |
+          docker stop -t 30 filemorph
+          code="$(docker inspect --format '{{.State.ExitCode}}' filemorph)"
+          logs="$(docker logs filemorph 2>&1)"
+          if [ "$code" != 0 ] || ! grep -q 'Finished server process' <<< "$logs"; then
+            tail -n 20 <<< "$logs"
+            echo "::error::docker stop ended the container with exit code $code, without uvicorn's shutdown"
+            exit 1
+          fi

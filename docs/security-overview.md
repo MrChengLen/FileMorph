@@ -277,13 +277,23 @@ read its environment or memory through `/proc` or attach to it, and it writes
 no core dump. Each of these children is dumpable again after `execve` and
 turns that off itself. Ghostscript, which the app runs for the PDF/A
 re-render, gets the app's environment without its secrets, as these children,
-LibreOffice, ffmpeg and ffprobe do. In the Docker image the app's code and its
-Python packages belong to root and are read-only for `appuser`; the app writes
-only to `/app/data` and the temp dir. `tests/test_isolated_conversions.py`
-checks that a child can't read the app process's environment and that the app
+LibreOffice, ffmpeg and ffprobe do. In the Docker image the app runs under
+tini, the image's init (PID 1), which holds the same environment. Its program
+is execute-only for every user but root, and the kernel makes a process
+non-dumpable when it runs a program its user can't read; the image starts
+tini through `env`, which holds none of the capabilities Docker grants the
+container's first process (among the defaults `CAP_DAC_OVERRIDE`, which would
+let it read the program). So no other process of `appuser` can read tini's
+environment or attach to it either — unless the container runs as root or the
+host sets `fs.suid_dumpable` to 1, a debugging mode. The app's code and its Python
+packages belong to root and are read-only for `appuser`; the app writes only
+to `/app/data` and the temp dir. `tests/test_isolated_conversions.py` checks
+that a child can't read the app process's environment and that the app
 doesn't start without the setting, `tests/test_office_gs_isolation.py` the
-environment Ghostscript gets, and `.github/workflows/docker-pr.yml` the app
-process and the file permissions in the built image.
+environment Ghostscript gets, `tests/test_container_init.py` that the image
+starts tini with its program execute-only, and
+`.github/workflows/docker-pr.yml` the app process, tini and the file
+permissions in the built image.
 
 ### Office image: LibreOffice subprocess hardening
 
@@ -729,9 +739,14 @@ to be effective. The following list is grouped by importance.
    root, as the provided Dockerfile does: `appuser` needs write access
    to `/app/data` only. On Linux the process that loads `app/main.py`
    makes itself non-dumpable, so run it as the only server process, as
-   the image and the systemd unit do; a debugger or profiler that
-   attaches to it (gdb, py-spy) needs root — in a container, root with
-   the `SYS_PTRACE` capability.
+   the image and the systemd unit do — in the image under tini, which is
+   non-dumpable too. The image brings its own init, so leave Docker's
+   off (`docker run --init`, `init: true` in Compose or in the daemon's
+   `daemon.json`): it would run ahead of tini as PID 1 with the
+   container's environment, which other processes of the container's
+   user could read. A debugger or profiler
+   that attaches to the app (gdb, py-spy) needs root — in a container,
+   root with the `SYS_PTRACE` capability.
 7. **Add an upload size cap at the proxy.** The application
    enforces per-tier caps, but a proxy-level cap (in Caddy:
    `request_body { max_size 100MB }`) trims malicious requests
