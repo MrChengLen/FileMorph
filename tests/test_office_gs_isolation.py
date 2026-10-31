@@ -9,8 +9,9 @@ FileMorph's own PDF/A path resolves Ghostscript in the app process and must
 keep working, with the app's secrets dropped from that gs as well; the
 pure-Python (mammoth) path is unaffected.
 
-These tests fake ``shutil.which``/``subprocess.run`` so the wiring is asserted
-on any platform, with no real ``soffice`` or ``gs`` installed. The real office
+These tests fake ``shutil.which`` and the calls that start ``soffice``/``gs``
+(``_run_soffice``, ``subprocess.run``) so the wiring is asserted on any
+platform, with no real ``soffice`` or ``gs`` installed. The real office
 image is exercised end-to-end in ``.github/workflows/docker-pr.yml``.
 """
 
@@ -20,6 +21,7 @@ import os
 import shutil
 import stat
 import subprocess
+import sys
 from pathlib import Path
 
 from app.converters import _ghostscript, document
@@ -95,8 +97,8 @@ def test_child_env_prepends_shims_and_drops_secrets(monkeypatch, tmp_path):
 
 def test_convert_via_libreoffice_runs_soffice_with_hardened_env(monkeypatch, tmp_path):
     """The routing guard the hardening turns on: ``soffice`` is invoked with a
-    Ghostscript stub ahead of any real gs, app secrets stripped, documented
-    flags, and no shell."""
+    Ghostscript stub ahead of any real gs, app secrets stripped, and
+    documented flags."""
     real_gs_dir = str(tmp_path / "usr-bin")
     fake_soffice = str(tmp_path / "soffice")
     monkeypatch.setenv("PATH", os.pathsep.join([str(tmp_path / "venv"), real_gs_dir]))
@@ -127,7 +129,7 @@ def test_convert_via_libreoffice_runs_soffice_with_hardened_env(monkeypatch, tmp
         (outdir / f"{Path(argv[-1]).stem}.pdf").write_bytes(b"%PDF-1.7\n")
         return subprocess.CompletedProcess(argv, 0, stdout=b"", stderr=b"")
 
-    monkeypatch.setattr(document.subprocess, "run", fake_run)
+    monkeypatch.setattr(document, "_run_soffice", fake_run)
 
     src = tmp_path / "in.docx"
     src.write_bytes(b"PK\x03\x04")  # the fake runner never reads it
@@ -143,10 +145,7 @@ def test_convert_via_libreoffice_runs_soffice_with_hardened_env(monkeypatch, tmp
     assert "pdf:writer_pdf_Export" in argv
 
     kwargs = calls["kwargs"]
-    assert kwargs["check"] is False
-    assert kwargs["capture_output"] is True
     assert kwargs["timeout"] == 42
-    assert kwargs.get("shell", False) is False  # run() defaults to no shell
 
     env = kwargs["env"]
     assert "STRIPE_SECRET_KEY" not in env  # secret stripped from the child
@@ -155,6 +154,16 @@ def test_convert_via_libreoffice_runs_soffice_with_hardened_env(monkeypatch, tmp
     assert not (out.parent / f".soffice_{out.stem}").exists()
     # The app process keeps its secret and PATH.
     assert os.environ["STRIPE_SECRET_KEY"] == "sk_live_do_not_leak"
+
+
+def test_run_soffice_hands_over_the_env_and_returns_like_subprocess_run():
+    """``_run_soffice`` starts the program with exactly the env it is given and
+    returns its status and captured output (soffice's stderr can quote the
+    document) the way ``subprocess.run(capture_output=True)`` would."""
+    code = "import os, sys; sys.stdout.write(os.environ['FM_PROBE']); sys.stderr.write('e'); sys.exit(3)"
+    env = {**os.environ, "FM_PROBE": "env reached the child"}
+    result = document._run_soffice([sys.executable, "-c", code], timeout=30, env=env)
+    assert (result.returncode, result.stdout, result.stderr) == (3, b"env reached the child", b"e")
 
 
 def test_the_pdfa_rerender_runs_ghostscript_without_secrets(monkeypatch, tmp_path):

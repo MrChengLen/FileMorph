@@ -159,9 +159,10 @@ fallback — it makes a missing `soffice` fail loud instead of silently
 degrading).
 
 `OFFICE_SUBPROCESS_TIMEOUT_SECONDS` (default `60`) bounds how long a
-single `soffice --convert-to` call may run before it is killed —
-raise it if you regularly convert long, complex Word documents on a
-slower host. Ignored when `FILEMORPH_OFFICE_ENGINE=mammoth`.
+single `soffice --convert-to` call may run before it is killed, together
+with LibreOffice's worker process (`soffice.bin`) — raise it if you
+regularly convert long, complex Word documents on a slower host. Ignored
+when `FILEMORPH_OFFICE_ENGINE=mammoth`.
 
 ### Verifying signatures
 
