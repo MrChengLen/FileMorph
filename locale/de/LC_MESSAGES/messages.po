@@ -276,6 +276,9 @@ msgstr ""
 "AVIF dauert deutlich länger — ein großes Foto kann eine Minute oder "
 "länger brauchen, daher AVIF-Stapel klein halten."
 
+msgid "About the same size as the original"
+msgstr "Etwa so groß wie das Original"
+
 msgid "Access (Art. 15 GDPR): which of your data we process and how."
 msgstr "Auskunft (Art. 15 DSGVO): welche deiner Daten wir verarbeiten und wie."
 
@@ -513,6 +516,10 @@ msgstr ""
 "Abs. 3 lit. b zulässig (Ausnahme zur Erfüllung einer rechtlichen "
 "Verpflichtung); die Daten werden ausschließlich für eine Steuerprüfung "
 "vorgehalten und nicht zu anderen Zwecken verarbeitet."
+
+#, python-brace-format
+msgid "Before {before}, now {after}"
+msgstr "Vorher {before}, jetzt {after}"
 
 msgid "Behörden · Krankenhäuser · Kanzleien"
 msgstr "Behörden · Krankenhäuser · Kanzleien"
@@ -2396,6 +2403,10 @@ msgstr "Suchst du lieber nach einem Vorgang statt nach einem Format?"
 #, python-brace-format
 msgid "Preset: {src} to {tgt}. Choose your {src} file."
 msgstr "Voreingestellt: {src} in {tgt}. Wähle deine {src}-Datei."
+
+#, python-brace-format
+msgid "Preview of {name}"
+msgstr "Vorschau von {name}"
 
 msgid "Price / year"
 msgstr "Preis / Jahr"
@@ -4660,6 +4671,10 @@ msgid "{count} item(s) found"
 msgstr "{count} Fund(e)"
 
 #, python-brace-format
+msgid "{factor} times the size of the original"
+msgstr "{factor}-mal so groß wie das Original"
+
+#, python-brace-format
 msgid "{inserted} pages inserted — now {total} pages, {size}."
 msgstr "{inserted} Seiten eingefügt – jetzt {total} Seiten, {size}."
 
@@ -4678,6 +4693,14 @@ msgstr "{n} von {total} Umwandlungen"
 #, python-brace-format
 msgid "{n} of {total} tools"
 msgstr "{n} von {total} Tools"
+
+#, python-brace-format
+msgid "{percent} larger than the original"
+msgstr "{percent} größer als das Original"
+
+#, python-brace-format
+msgid "{percent} smaller than the original"
+msgstr "{percent} kleiner als das Original"
 
 #, python-brace-format
 msgid "{src} → {tgt} isn't available (yet). Everything with {src}:"

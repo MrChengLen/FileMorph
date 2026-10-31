@@ -457,9 +457,11 @@ Caddy, which provisions and renews certificates automatically.
 The CSP is built in `app/main.py::_build_csp_header`, once per
 profile, and each route picks its profile (`app/core/csp.py`):
 
-- **`default`** — every page today, as described below.
+- **`default`** — most pages, as described below.
 - **`hybrid`** — adds `img-src blob:` for previews of files the
-  browser processed itself.
+  browser holds: ones it processed itself, or a converted result. The
+  pages with the converter (home, `/compress`, `/convert/…`) use it,
+  so the result card can show a picture of an image result.
 - **`local`** — for strict pages; also sent with every file of the
   browser engine under `/static/engine/` (it governs a file that runs
   as a worker; a module a page imports runs under that page's

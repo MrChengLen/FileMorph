@@ -5,10 +5,12 @@ The site no longer sends one CSP for every response. ``app/main.py`` builds one
 policy per profile at startup (``_build_csp_header``), and its security-headers
 middleware answers each request with the profile the route chose:
 
-- ``default`` — every page today: scripts from this origin, uploads to this
+- ``default`` — most pages: scripts from this origin, uploads to this
   server (and to ``API_BASE_URL`` when set).
 - ``hybrid`` — ``default`` plus ``blob:`` images, for previews of files the
-  browser processed itself. Uploads stay possible; the page decides when.
+  browser holds: ones it processed itself, or a result the server sent back
+  (the converter pages, ``app/api/routes/pages.py``). Uploads stay possible;
+  the page decides when.
 - ``local`` — strict pages and the engine files: the browser refuses fetch,
   XHR, WebSocket, EventSource and beacons (``connect-src 'none'``), form posts
   (``form-action 'none'``), plugins and frames. It does not stop navigation,
