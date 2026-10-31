@@ -12,6 +12,12 @@ capabilities the container's first process holds. Docker's own init (``init: tru
 run as PID 1 ahead of tini with the same environment, and its program is
 readable.
 
+Docker starts ``docker-compose.yml``'s health check the way it starts a
+``docker exec`` command, with the container's environment. The check runs
+curl, whose program is execute-only too, and runs it directly, without a shell
+``appuser`` could read; with all capabilities dropped, as the Compose file
+does, the process Docker starts it from can't read curl's program either.
+
 The built image is checked in ``.github/workflows/docker-pr.yml``; these tests
 keep the files it is built and started from in line with it.
 """
@@ -50,14 +56,37 @@ def test_the_image_starts_entrypoint_sh_under_tini():
     assert commands[-1].startswith("exec uvicorn "), commands[-1]
 
 
-def test_tini_is_installed_execute_only():
+@pytest.mark.parametrize("program", ["tini", "curl"])
+def test_program_is_installed_execute_only(program):
     base = _stage("base")
-    assert re.search(r"^\s+tini\b", base, re.M), "the base stage does not install tini"
+    assert re.search(rf"^\s+{program}\b", base, re.M), f"the base stage does not install {program}"
     override = re.search(
-        r"dpkg-statoverride --update --add root root (\d{4}) /usr/bin/tini &&", base
+        rf"dpkg-statoverride --update --add root root (\d{{4}}) /usr/bin/{program} &&", base
     )
-    assert override, "the base stage gives /usr/bin/tini no mode of its own"
+    assert override, f"the base stage gives /usr/bin/{program} no mode of its own"
     assert override.group(1) == "0711", f"mode {override.group(1)}, not 0711 (execute-only)"
+
+
+def test_compose_drops_all_capabilities_as_docker_pr_does():
+    # With a capability such as CAP_DAC_OVERRIDE, the process Docker starts
+    # the health check's curl from could read its program. docker-pr.yml
+    # checks curl in a container started with these options.
+    compose = yaml.safe_load((_REPO_ROOT / "docker-compose.yml").read_text(encoding="utf-8"))
+    assert compose["services"]["filemorph"]["cap_drop"] == ["ALL"]
+    workflow = (_REPO_ROOT / ".github" / "workflows" / "docker-pr.yml").read_text(encoding="utf-8")
+    assert "--cap-drop ALL --security-opt no-new-privileges" in workflow
+
+
+@pytest.mark.parametrize("compose", sorted(p.name for p in _REPO_ROOT.glob("docker-compose*.yml")))
+def test_compose_keeps_the_health_check_non_dumpable(compose):
+    # A shell (CMD-SHELL, or the test as a string) would run first, with the
+    # container's environment and a program appuser can read; a capability
+    # added back could let the process Docker starts curl from read curl's.
+    services = yaml.safe_load((_REPO_ROOT / compose).read_text(encoding="utf-8"))["services"]
+    service = services["filemorph"]
+    assert "cap_add" not in service and "privileged" not in service, compose
+    test = service.get("healthcheck", {}).get("test", ["CMD", "curl"])
+    assert test[:2] == ["CMD", "curl"], f"{compose}: {test}"
 
 
 @pytest.mark.parametrize("compose", sorted(p.name for p in _REPO_ROOT.glob("docker-compose*.yml")))

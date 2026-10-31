@@ -86,8 +86,13 @@ RUN pip install --require-hashes -r requirements.lock
 #     cannot be imported at all, HEIC is not offered as an input format.
 #   - libcairo2 / libpangocairo-1.0-0 / libgdk-pixbuf-xlib-2.0-0 /
 #     pango1.0-tools: WeasyPrint native dependency tree.
-#   - curl: in-container ``HEALTHCHECK`` driver (compose.yml uses
-#     ``curl -f http://localhost:8000/api/v1/health``).
+#   - curl: in-container ``HEALTHCHECK`` driver (docker-compose.yml uses
+#     ``curl -f http://localhost:8000/api/v1/health``). Docker starts each
+#     check the way it starts a ``docker exec`` command, with the
+#     container's environment, so curl's program is execute-only too, as
+#     tini's is: the check runs non-dumpable. That needs docker-compose.yml's
+#     ``cap_drop: [ALL]``: with Docker's default capabilities, the process
+#     starting the check holds CAP_DAC_OVERRIDE and can read the program.
 #   - tini: the container's init, PID 1 (see ENTRYPOINT below). Its program
 #     is execute-only for everyone but root; dpkg-statoverride keeps that
 #     mode through a package update.
@@ -108,6 +113,7 @@ RUN apt-get update && \
       curl \
       tini && \
     dpkg-statoverride --update --add root root 0711 /usr/bin/tini && \
+    dpkg-statoverride --update --add root root 0711 /usr/bin/curl && \
     rm -rf /var/lib/apt/lists/*
 
 # Bring in the compiled Python tree from the builder stage. The venv's

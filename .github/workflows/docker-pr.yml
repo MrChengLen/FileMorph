@@ -333,6 +333,72 @@ jobs:
             exit 1
           fi
 
+      # docker-compose.yml's health check runs curl every 10 seconds, and
+      # Docker starts it the way it starts a docker exec command, with the
+      # container's environment. curl's program is execute-only for appuser,
+      # as tini's is, and in a container without capabilities, as this one,
+      # the process Docker starts it from can't read the program either, so
+      # curl runs non-dumpable. A curl that retries a port where nothing
+      # listens runs long enough to be looked at. The control: a readable copy
+      # of curl, started the same way, runs dumpable with the container's
+      # environment, so the check can tell the two apart.
+      - name: Check curl's isolation as docker exec starts it
+        run: |
+          docker exec --user root filemorph sh -c 'cp /usr/bin/curl /tmp/curl-readable && chmod 0755 /tmp/curl-readable'
+          for program in curl /tmp/curl-readable; do
+            docker exec filemorph "$program" -s --retry 30 --retry-connrefused --retry-delay 1 http://127.0.0.1:1/ > /dev/null 2>&1 &
+          done
+          docker exec -i filemorph python - <<'PY'
+          import os, pathlib, signal, time
+
+          def started(argv0):
+              """The one process docker exec started to run argv0."""
+              deadline = time.monotonic() + 10
+              while True:
+                  found = []
+                  for entry in pathlib.Path("/proc").iterdir():
+                      try:
+                          if entry.name.isdigit() and (entry / "cmdline").read_bytes().split(b"\0")[0] == argv0:
+                              found.append(entry)
+                      except OSError:  # ended meanwhile
+                          pass
+                  if found:
+                      assert len(found) == 1, f"{len(found)} processes run {argv0!r}, not 1"
+                      return found[0]
+                  assert time.monotonic() < deadline, f"no process runs {argv0!r}"
+                  time.sleep(0.1)
+
+          curl, control = started(b"curl"), started(b"/tmp/curl-readable")
+          try:
+              for name, entry in (("curl", curl), ("the readable copy", control)):
+                  status = (entry / "status").read_text().splitlines()
+                  # docker exec starts it from outside the container's PID namespace.
+                  ppid = next(line for line in status if line.startswith("PPid:")).split()[1]
+                  assert ppid == "0", f"{name} has a parent in the container: {ppid}"
+                  uids = next(line for line in status if line.startswith("Uid:")).split()[1:]
+                  assert uids == [str(os.getuid())] * 4, f"{name} runs as {uids}, not as this user"
+              try:
+                  environ = (control / "environ").read_bytes()
+              except PermissionError:
+                  raise SystemExit("the readable copy is non-dumpable too; the check proves nothing")
+              assert b"\0PYTHONUNBUFFERED=1\0" in b"\0" + environ, "the readable copy lacks the container's environment"
+              # Non-dumpable: the kernel hands the process's /proc files to root.
+              assert (curl / "environ").stat().st_uid == 0, "curl is dumpable"
+              try:
+                  (curl / "environ").read_bytes()
+              except PermissionError:
+                  pass
+              else:
+                  raise SystemExit("a process of appuser read the environment of curl")
+              # Still running: the /proc files of a process that ended belong to root too.
+              assert (curl / "cmdline").read_bytes().startswith(b"curl\0"), "curl ended before the check"
+          finally:
+              for entry in (curl, control):
+                  os.kill(int(entry.name), signal.SIGKILL)
+          print("ok: curl as docker exec starts it is non-dumpable, a readable copy started the same way is not")
+          PY
+          wait
+
       # The container above runs without capabilities, as docker-compose.yml
       # starts it. A plain docker run keeps Docker's default ones, and the
       # container's first process holds them: CAP_DAC_OVERRIDE would let it
@@ -350,6 +416,36 @@ jobs:
           assert os.stat("/proc/1/environ").st_uid == 0, "tini is dumpable with Docker's default capabilities"
           print("ok: tini is non-dumpable with Docker's default capabilities too")
           PY
+          # TEMPORARY, removed before review: a curl docker exec starts, with these capabilities.
+          docker exec filemorph-default-caps curl -s --retry 30 --retry-connrefused --retry-delay 1 http://127.0.0.1:1/ > /dev/null 2>&1 &
+          docker exec -i filemorph-default-caps python - <<'PY'
+          import os, pathlib, signal, time
+          deadline = time.monotonic() + 10
+          while True:
+              found = []
+              for entry in pathlib.Path("/proc").iterdir():
+                  try:
+                      if entry.name.isdigit() and (entry / "cmdline").read_bytes().split(b"\0")[0] == b"curl":
+                          found.append(entry)
+                  except OSError:
+                      pass
+              if found or time.monotonic() > deadline:
+                  break
+              time.sleep(0.1)
+          entry = found[0]
+          owner = (entry / "environ").stat().st_uid
+          try:
+              readable = b"PYTHONUNBUFFERED=1" in (entry / "environ").read_bytes()
+          except PermissionError:
+              readable = False
+          status = (entry / "status").read_text().splitlines()
+          ppid = next(line for line in status if line.startswith("PPid:")).split()[1]
+          print(f"::notice::default capabilities: curl from docker exec, parent {ppid}, environ owner {owner}, read by appuser: {readable}")
+          os.kill(int(entry.name), signal.SIGKILL)
+          PY
+          wait
+          docker version --format 'Docker server {{.Server.Version}}'
+          docker info --format 'runc {{.RuncCommit.ID}}, containerd {{.ContainerdCommit.ID}}, kernel {{.KernelVersion}}'
           docker rm --force filemorph-default-caps > /dev/null
 
       # Outgoing TLS other than Stripe's (the app's mail through aiosmtplib,
