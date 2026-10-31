@@ -38,6 +38,7 @@ from app.core.convert_pairs import (
     get_pair_content,
     related_pairs,
 )
+from app.core.csp import use_csp_profile
 from app.core.i18n import localized_context, normalize_locale
 from app.core.pdf_tools_content import get_pdf_tool_content
 from app.core.redact_content import get_redact_content
@@ -51,8 +52,17 @@ router = APIRouter(include_in_schema=False)
 # app/main.py mounts once at the root — not under /de and /en like `router`.
 docs_router = APIRouter(include_in_schema=False)
 
+# The pages that embed the converter (partials/convert_tool.html). Its result
+# card shows a converted image from a blob: URL (app.js), which only the
+# "hybrid" CSP profile allows (app/core/csp.py).
+_CONVERTER_PAGES = frozenset(
+    {"index.html", "compress.html", "convert_pair.html", "video_to_gif.html"}
+)
+
 
 def _render(request: Request, name: str, **extra):
+    if name in _CONVERTER_PAGES:
+        use_csp_profile(request.scope, "hybrid")
     return templates.TemplateResponse(request, name, context=localized_context(request, **extra))
 
 

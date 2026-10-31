@@ -943,7 +943,135 @@ function updateQualityVisibility() {
   section.classList.toggle('hidden', !relevant);
 }
 
+// ── Result preview ────────────────────────────────────────────────────────────
+// For a single file, the result card says how the result's size compares to
+// the original's — numbers the browser holds (the selected file, the
+// response), never an estimate — and shows a small picture of an image
+// result. A batch gets neither: its ZIP is compressed, so its size is not the
+// files'. The response is application/octet-stream, so the picture gets its
+// own blob: URL with the image type; the converter pages allow blob: images
+// (CSP profile "hybrid", app/core/csp.py).
+const PREVIEW_IMAGE_TYPES = {
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  webp: 'image/webp',
+  gif: 'image/gif',
+  avif: 'image/avif',
+  bmp: 'image/bmp',
+  ico: 'image/x-icon',
+};
+// Decoding takes about 4 bytes per pixel, whatever the file size (a flat
+// 89-megapixel PNG is under 1 MB): a picture that large, or one slow to
+// decode, could take a phone's tab down, and the result with it. It is left
+// out; so is a large file, before it is even read.
+const PREVIEW_MAX_BYTES = 10 * 1024 * 1024;
+const PREVIEW_MAX_PIXELS = 16e6;
+const PREVIEW_DECODE_MS = 1500;
+let resultPreviewUrl = null;
+
+// "55% smaller than the original" — or larger, "5.3 times the size" from
+// double on, or about the same (less than 1 % apart). Rounded, a strong
+// shrink never reads "100% smaller" unless the result is empty (a PDF → TXT
+// of a scan with no text layer).
+function resultChangeText(before, after) {
+  const ratio = after / before;
+  if (Math.abs(ratio - 1) < 0.01) {
+    return i18nText('resultSizeSame', 'About the same size as the original');
+  }
+  if (ratio < 1) {
+    const percent = formatPercent(Math.min(after > 0 ? 99 : 100, Math.round((1 - ratio) * 100)));
+    return i18nText('resultSizeSmaller', '{percent} smaller than the original', { percent });
+  }
+  if (ratio < 2) {
+    const percent = formatPercent(Math.round((ratio - 1) * 100));
+    return i18nText('resultSizeLarger', '{percent} larger than the original', { percent });
+  }
+  const factor = ratio.toLocaleString(document.documentElement.lang || undefined, {
+    maximumFractionDigits: 1,
+    useGrouping: false,
+  });
+  return i18nText('resultSizeTimes', '{factor} times the size of the original', { factor });
+}
+
+// sizes: the line "Before …, now …" — left out in target-size mode, whose
+// download label names the size in decimal MB. picture: false for a GIF from
+// a video, which would play endlessly on the card (WCAG 2.2.2). Resolves once
+// the picture is decoded, so the card shows complete, without a jump.
+async function showResultPreview(blob, filename, beforeBytes, { sizes, picture }) {
+  const box = document.getElementById('result-preview');
+  if (!box || !(beforeBytes > 0)) return;
+  document.getElementById('result-change').textContent = resultChangeText(beforeBytes, blob.size);
+  document.getElementById('result-sizes').textContent = sizes
+    ? i18nText('resultSizes', 'Before {before}, now {after}', {
+      before: formatBytes(beforeBytes),
+      after: formatBytes(blob.size),
+    })
+    : '';
+  box.classList.remove('hidden');
+
+  const ext = getExtension(filename);
+  const type = Object.prototype.hasOwnProperty.call(PREVIEW_IMAGE_TYPES, ext) && PREVIEW_IMAGE_TYPES[ext];
+  if (!picture || !type || blob.size > PREVIEW_MAX_BYTES) return;
+  const image = document.getElementById('result-preview-image');
+  const url = URL.createObjectURL(blob.slice(0, blob.size, type));
+  resultPreviewUrl = url;
+  image.alt = i18nText('resultPreviewAlt', 'Preview of {name}', { name: filename });
+  try {
+    // Loaded first for its size in pixels, decoded only if small enough —
+    // and never waited on longer than PREVIEW_DECODE_MS, so the card always
+    // shows (a reset during the load would otherwise leave the run hanging).
+    await Promise.race([
+      (async () => {
+        await new Promise((resolve, reject) => {
+          image.onload = resolve;
+          image.onerror = reject;
+          image.src = url;
+        });
+        if (image.naturalWidth * image.naturalHeight > PREVIEW_MAX_PIXELS) throw new Error('too many pixels');
+        await image.decode();
+      })(),
+      new Promise((_, reject) => setTimeout(reject, PREVIEW_DECODE_MS)),
+    ]);
+    if (resultPreviewUrl === url) image.classList.remove('hidden');
+  } catch (_) {
+    // A format this browser can't show, too many pixels, too slow, or a
+    // reset meanwhile: the card goes without a picture, and a picture still
+    // loading or decoding for this run stops.
+    if (resultPreviewUrl === url) image.removeAttribute('src');
+  }
+}
+
+// Every new run, error and reset: the earlier result's preview goes, and
+// both its blob: URLs (picture, download) are released.
+function releaseResult() {
+  const box = document.getElementById('result-preview');
+  if (box) {
+    box.classList.add('hidden');
+    document.getElementById('result-change').textContent = '';
+    document.getElementById('result-sizes').textContent = '';
+    const image = document.getElementById('result-preview-image');
+    image.classList.add('hidden');
+    image.removeAttribute('src');
+    image.alt = '';
+  }
+  if (resultPreviewUrl) {
+    URL.revokeObjectURL(resultPreviewUrl);
+    resultPreviewUrl = null;
+  }
+  const link = document.getElementById('download-link');
+  if (link && link.href.startsWith('blob:')) {
+    URL.revokeObjectURL(link.href);
+    link.href = '#';
+  }
+}
+
 // ── Submit ────────────────────────────────────────────────────────────────────
+
+// Each run, and each reset (another file, another mode), is a new generation:
+// what arrives for an older one is dropped instead of shown — no stale result,
+// no card with a download link its reset has already released.
+let currentRun = 0;
 
 async function submitForm() {
   const I18N = window.FM_I18N || {};
@@ -958,6 +1086,7 @@ async function submitForm() {
   // Read before the upload: the selection may change while the server works.
   const videoToGif = !isBatch && currentMode === 'convert' && isVideoToGif(
     getExtension(selectedFiles[0].name), document.getElementById('target-format').value);
+  const beforeBytes = selectedFiles[0].size;
 
   const formData = new FormData();
   if (isBatch) {
@@ -1005,6 +1134,7 @@ async function submitForm() {
     }
   }
 
+  const run = ++currentRun;
   showProgress(isBatch
     ? i18nText('progressBatch', 'Processing {count} files…', { count: selectedFiles.length })
     : i18nText('progressSingle', 'Processing your file…'));
@@ -1021,10 +1151,12 @@ async function submitForm() {
 
   try {
     const res = await fetch(endpoint, { method: 'POST', headers, body: formData });
+    if (run !== currentRun) return;
 
     if (!res.ok) {
       let data = {};
       try { data = await res.json(); } catch (_) { /* non-JSON body */ }
+      if (run !== currentRun) return;
 
       // Batch all-failed: server returns 422 with {summary, files[]}
       if (res.status === 422 && data && data.summary) {
@@ -1116,6 +1248,7 @@ async function submitForm() {
     }
 
     const blob = await res.blob();
+    if (run !== currentRun) return;
     const disposition = res.headers.get('content-disposition') || '';
     const nameMatch = disposition.match(/filename="?([^"]+)"?/);
     // Defensive fallback: if Content-Disposition is unreadable (e.g. a proxy
@@ -1171,9 +1304,14 @@ async function submitForm() {
       }
     }
 
+    if (!isBatch) {
+      await showResultPreview(blob, filename, beforeBytes, { sizes: !useTargetSize, picture: !videoToGif });
+      if (run !== currentRun) return;
+    }
+
     showResult();
   } catch (e) {
-    showError(i18nText('errorNetwork', 'Network error: {detail}', { detail: e.message }));
+    if (run === currentRun) showError(i18nText('errorNetwork', 'Network error: {detail}', { detail: e.message }));
   }
 }
 
@@ -1194,6 +1332,7 @@ function showProgress(text) {
   // doesn't display stale warnings while the new request is in flight.
   hideConversionWarnings();
   hideBatchSummary();
+  releaseResult();
   setConvertErrorUpsell(false);
   document.getElementById('convert-btn').disabled = true;
   window.FM_announce && window.FM_announce(text);
@@ -1211,6 +1350,7 @@ function showResult() {
 
 function showError(msg, code) {
   window.FM_announce && window.FM_announce('');
+  releaseResult();
   document.getElementById('error-text').textContent = msg;
   document.getElementById('progress-section').classList.add('hidden');
   document.getElementById('result-section').classList.add('hidden');
@@ -1220,7 +1360,9 @@ function showError(msg, code) {
 }
 
 function resetResultState() {
+  currentRun++;
   window.FM_announce && window.FM_announce('');
+  releaseResult();
   document.getElementById('progress-section').classList.add('hidden');
   document.getElementById('result-section').classList.add('hidden');
   document.getElementById('error-section').classList.add('hidden');
@@ -1245,6 +1387,15 @@ function formatDecimal(value, digits) {
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
     useGrouping: false,
+  });
+}
+
+// A whole percentage with its sign as the page's language writes it: "66%"
+// on English pages, "66 %" on German ones.
+function formatPercent(whole) {
+  return (whole / 100).toLocaleString(document.documentElement.lang || undefined, {
+    style: 'percent',
+    maximumFractionDigits: 0,
   });
 }
 

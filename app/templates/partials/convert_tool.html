@@ -263,6 +263,21 @@
       <ul id="batch-summary-notes"
         class="hidden list-disc list-inside space-y-0.5 mt-1"></ul>
     </div>
+    <!-- Result preview, filled by app.js for a single file: how the result's
+         size compares to the original's (numbers the browser holds, no
+         estimate) and, for an image, a small picture of it. The grey behind
+         the picture keeps black and white transparent artwork visible.
+         Emptied on every new run, error and reset. -->
+    <div id="result-preview" class="hidden">
+      <div class="flex items-center gap-3">
+        <img id="result-preview-image" alt="" decoding="async"
+          class="hidden flex-none max-h-16 max-w-16 sm:max-h-20 sm:max-w-20 rounded-lg border border-hairline bg-gray-500" />
+        <div class="min-w-0">
+          <p id="result-change" class="text-sm text-ink"></p>
+          <p id="result-sizes" class="text-xs text-ink-faint"></p>
+        </div>
+      </div>
+    </div>
     <a id="download-link" href="#" download
       class="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 font-semibold text-white transition-colors text-sm">
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
