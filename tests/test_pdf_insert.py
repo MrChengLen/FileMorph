@@ -332,8 +332,9 @@ def test_a_position_past_the_end_names_the_page_count(tmp_path):
 
 
 def test_an_encrypted_pdf_is_counted_by_its_pages(tmp_path):
-    """pypdf takes an encrypted PDF's page count from the file unchecked; the
-    position check and the headers rest on the pages the clone holds."""
+    """pypdf before 6.21.3 took an encrypted PDF's page count from the file
+    unchecked; the position check and the headers rest on the pages the clone
+    holds."""
     writer = _writer([200, 201, 202])
     writer.encrypt(user_password="", owner_password="owner")
     claimed_one = re.sub(rb"/Count 3", b"/Count 1", _bytes(writer), count=1)
