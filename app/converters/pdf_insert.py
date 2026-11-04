@@ -225,8 +225,8 @@ def insert_pages(
         base = _open_reader(base_path)
         with _reading_pdf():
             writer = PdfWriter(clone_from=base)
-            # The pages the clone holds: pypdf takes an encrypted PDF's page
-            # count from the file unchecked.
+            # The pages the clone holds: pypdf before 6.21.3 took an encrypted
+            # PDF's page count from the file unchecked.
             base_count = len(writer.pages)
             base_names = set(base.named_destinations)
     except (EncryptedPdfError, UnreadablePdfError) as exc:

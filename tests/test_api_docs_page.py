@@ -62,6 +62,16 @@ def test_start_script_keeps_the_schema_on_this_server():
     assert "validatorUrl: null" in js
 
 
+def test_start_script_lets_no_url_pick_what_the_explorer_shows():
+    # No option that lets a query string or a config file choose the schema
+    # or how its Markdown renders: the bundled DOMPurify only ever sees this
+    # server's own /openapi.json (docs/security-overview.md).
+    js = (_ROOT / "app" / "static" / "js" / "api-docs.js").read_text(encoding="utf-8")
+    for option in ("queryConfigEnabled", "configUrl", "urls", "useUnsafeMarkdown"):
+        # Anywhere, not only as a key: `opts.configUrl = …` counts too.
+        assert not re.search(rf"\b{option}\b", js), option
+
+
 def test_vendored_swagger_assets_are_served(client):
     for path in ("/static/vendor/swagger-ui-bundle.js", "/static/vendor/swagger-ui.css"):
         assert client.get(path).status_code == 200, path

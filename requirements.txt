@@ -34,8 +34,10 @@ mammoth>=1.13.0
 # 6.21.1 is the first release with the fixes for the eight advisories published
 # 2026-10-21/22: infinite loops and unbounded memory on crafted PDFs (among them
 # GHSA-39mj-jf6j-2qj3, GHSA-cgf9-327m-v77c) and unvalidated JPEG image data
-# (GHSA-5hx5-vpf9-5wcv).
-pypdf>=6.21.2
+# (GHSA-5hx5-vpf9-5wcv); 6.21.4 the first with the fixes for the seven published
+# 2026-10-30: infinite loops, long runtimes and large memory use on crafted
+# PDFs (among them GHSA-5849-834g-hvw5, GHSA-62m5-6wh8-28x7).
+pypdf>=6.21.4
 # pypdf opens AES-encrypted PDFs only with cryptography installed
 # (DependencyError without it, which tests/test_pdf_error_messages.py catches),
 # e.g. an owner-password PDF, which FileMorph processes. It came in through

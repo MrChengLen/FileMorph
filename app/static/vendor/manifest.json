@@ -13,34 +13,34 @@
     {
       "path": "swagger-ui-bundle.js",
       "package": "swagger-ui-dist",
-      "version": "5.33.1",
+      "version": "5.34.1",
       "license": "Apache-2.0",
-      "source": "https://registry.npmjs.org/swagger-ui-dist/-/swagger-ui-dist-5.33.1.tgz",
-      "npm_integrity": "sha512-H872wWkA53bFIsGgi7OWgmq+CRWw3nFQGdJWRqOB9wNwTm6e5ol34+qPDkV4AJlK+gglM2EsJiOOzsGsEGbluA==",
-      "sha256": "050bc415ee7048dcd881682678f720264e7da5e373f7461d7c58c755305255f7",
+      "source": "https://registry.npmjs.org/swagger-ui-dist/-/swagger-ui-dist-5.34.1.tgz",
+      "npm_integrity": "sha512-VSr8fXfI93obYaQicLJbLUKGRxDojj/SfRJDDLCioGTUBj4BK/Nj4eE9jCeCAnJxVLi7iS+08PbiZLyrQKBkJQ==",
+      "sha256": "36eeb4d5640b9c036b1d0f854499af1cceebbdb260b790a03a18be5e8488fbf5",
       "notices": "LICENSE-swagger-ui.md",
       "bundles": {
-        "dompurify": "3.4.13"
+        "dompurify": "3.4.17"
       }
     },
     {
       "path": "swagger-ui.css",
       "package": "swagger-ui-dist",
-      "version": "5.33.1",
+      "version": "5.34.1",
       "license": "Apache-2.0",
-      "source": "https://registry.npmjs.org/swagger-ui-dist/-/swagger-ui-dist-5.33.1.tgz",
-      "npm_integrity": "sha512-H872wWkA53bFIsGgi7OWgmq+CRWw3nFQGdJWRqOB9wNwTm6e5ol34+qPDkV4AJlK+gglM2EsJiOOzsGsEGbluA==",
-      "sha256": "1ac324f7dcd27e4b9386b4bd6421271ec147e922a22c05ba24b11515e9aa6321",
+      "source": "https://registry.npmjs.org/swagger-ui-dist/-/swagger-ui-dist-5.34.1.tgz",
+      "npm_integrity": "sha512-VSr8fXfI93obYaQicLJbLUKGRxDojj/SfRJDDLCioGTUBj4BK/Nj4eE9jCeCAnJxVLi7iS+08PbiZLyrQKBkJQ==",
+      "sha256": "c3cfe8248c4b0b89673600fb829924eafbac6de4bc4b2b06f5f5243483074d0a",
       "notices": "LICENSE-swagger-ui.md"
     },
     {
       "path": "swagger-ui-bundle.js.LICENSE.txt",
       "package": "swagger-ui-dist",
-      "version": "5.33.1",
+      "version": "5.34.1",
       "license": "Apache-2.0",
-      "source": "https://registry.npmjs.org/swagger-ui-dist/-/swagger-ui-dist-5.33.1.tgz",
-      "npm_integrity": "sha512-H872wWkA53bFIsGgi7OWgmq+CRWw3nFQGdJWRqOB9wNwTm6e5ol34+qPDkV4AJlK+gglM2EsJiOOzsGsEGbluA==",
-      "sha256": "63818894e4b04cd0e3180d9cb20761e227a939121e7484f8e1d528227c756f89",
+      "source": "https://registry.npmjs.org/swagger-ui-dist/-/swagger-ui-dist-5.34.1.tgz",
+      "npm_integrity": "sha512-VSr8fXfI93obYaQicLJbLUKGRxDojj/SfRJDDLCioGTUBj4BK/Nj4eE9jCeCAnJxVLi7iS+08PbiZLyrQKBkJQ==",
+      "sha256": "37eb6e7e59aed57b2c1acf076574b818ea07b74265717e0bd67b59e0baf9abbb",
       "notices": "LICENSE-swagger-ui.md"
     }
   ]
