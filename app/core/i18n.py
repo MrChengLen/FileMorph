@@ -355,6 +355,21 @@ def _js_i18n_strings(_: gettext.GNUTranslations.gettext) -> dict[str, str]:
         "resultSizeTimes": _("{factor} times the size of the original"),
         "resultSizes": _("Before {before}, now {after}"),
         "selectFileFirst": _("— select a file first —"),
+        # The size estimate under the compress slider (one JPEG): {size} reads
+        # like "1.87 MB"; {change} is a result-card text ("55% smaller than
+        # the original"). "By target size" names the compress-mode button.
+        "sizeEstimate": _("Estimated size: about {size}"),
+        "sizeEstimateBrowser": _(
+            "Your browser cannot work out the size precisely here. With “By target size” "
+            "you set it yourself."
+        ),
+        "sizeEstimateLarger": _("{change} — choose a lower quality"),
+        "sizeEstimateNone": _(
+            "No size preview for this file. With “By target size” you set the size yourself."
+        ),
+        "sizeEstimateNote": _("{change} · worked out in your browser, nothing uploaded"),
+        "sizeEstimatePending": _("Working out the size…"),
+        "sizeEstimateVideo": _("For a video, the size is known only after compressing."),
         # docx→pdf engine routing — pre-upload notice + post-convert warnings.
         # Surface fidelity-affecting decisions in the UI instead of stuffing
         # them into the PDF artefact (which the user forwards to recipients).
