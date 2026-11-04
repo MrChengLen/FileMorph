@@ -230,7 +230,7 @@ sudo apt install -y \
   python3 python3-venv python3-pip \
   ffmpeg \
   ghostscript \
-  libcairo2 libpangocairo-1.0-0 libgdk-pixbuf2.0-0
+  libcairo2 libpangocairo-1.0-0 libgdk-pixbuf-2.0-0
 python3 --version   # must be 3.11 or newer
 ```
 

@@ -78,7 +78,12 @@ jobs:
           # through and left the job failing identically.
           sudo find /etc/apt/sources.list.d -iname '*google*' -delete
           sudo apt-get update
-          sudo apt-get install -y ffmpeg ghostscript libheif-dev libcairo2 libpangocairo-1.0-0 libgdk-pixbuf2.0-0
+          # The WeasyPrint libraries go by the names the Dockerfile's base stage
+          # installs. Ubuntu 26.04 (ubuntu-latest since November 2026) dropped
+          # the old name libgdk-pixbuf2.0-0; the libgdk-pixbuf-xlib-2.0-0 that
+          # apt offers instead is an add-on Debian is removing
+          # (bugs.debian.org/976677).
+          sudo apt-get install -y ffmpeg ghostscript libheif-dev libcairo2 libpangocairo-1.0-0 libgdk-pixbuf-2.0-0
 
       # Tests run against the versions the image ships. requirements-dev.txt
       # pulls in requirements.txt, whose `>=` ranges resolve to the newest
