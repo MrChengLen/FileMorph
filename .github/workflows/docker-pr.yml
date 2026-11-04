@@ -416,36 +416,6 @@ jobs:
           assert os.stat("/proc/1/environ").st_uid == 0, "tini is dumpable with Docker's default capabilities"
           print("ok: tini is non-dumpable with Docker's default capabilities too")
           PY
-          # TEMPORARY, removed before review: a curl docker exec starts, with these capabilities.
-          docker exec filemorph-default-caps curl -s --retry 30 --retry-connrefused --retry-delay 1 http://127.0.0.1:1/ > /dev/null 2>&1 &
-          docker exec -i filemorph-default-caps python - <<'PY'
-          import os, pathlib, signal, time
-          deadline = time.monotonic() + 10
-          while True:
-              found = []
-              for entry in pathlib.Path("/proc").iterdir():
-                  try:
-                      if entry.name.isdigit() and (entry / "cmdline").read_bytes().split(b"\0")[0] == b"curl":
-                          found.append(entry)
-                  except OSError:
-                      pass
-              if found or time.monotonic() > deadline:
-                  break
-              time.sleep(0.1)
-          entry = found[0]
-          owner = (entry / "environ").stat().st_uid
-          try:
-              readable = b"PYTHONUNBUFFERED=1" in (entry / "environ").read_bytes()
-          except PermissionError:
-              readable = False
-          status = (entry / "status").read_text().splitlines()
-          ppid = next(line for line in status if line.startswith("PPid:")).split()[1]
-          print(f"::notice::default capabilities: curl from docker exec, parent {ppid}, environ owner {owner}, read by appuser: {readable}")
-          os.kill(int(entry.name), signal.SIGKILL)
-          PY
-          wait
-          docker version --format 'Docker server {{.Server.Version}}'
-          docker info --format 'runc {{.RuncCommit.ID}}, containerd {{.ContainerdCommit.ID}}, kernel {{.KernelVersion}}'
           docker rm --force filemorph-default-caps > /dev/null
 
       # Outgoing TLS other than Stripe's (the app's mail through aiosmtplib,
