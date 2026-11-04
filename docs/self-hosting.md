@@ -86,6 +86,12 @@ the exact local tag. For Word documents with footnotes, headers,
 multi-section layout, or table-of-contents, see the
 [office image variant](#image-variants) below.
 
+The image starts its own init, `tini`, as PID 1. Leave Docker's init off
+for FileMorph: no `--init` or `init: true`, and `init: false` if the
+daemon's `daemon.json` turns it on for all containers. An entrypoint of
+your own replaces the image's and drops tini; keep
+`/usr/bin/env -- /usr/bin/tini -e 143 --` in front of your command.
+
 ### 3. Generate API keys
 
 ```bash
@@ -468,8 +474,10 @@ query string in its cache key — the default for Cloudflare, Fastly and
 nginx `proxy_cache`. If yours forwards the query string to the app but
 leaves it out of the key (for example an AWS CloudFront cache policy
 without query strings, combined with an origin request policy that
-forwards them), an update keeps serving the old files until you purge
-the cache.
+forwards them, or Cloudflare's "Ignore query string" cache level), an
+update hands out the old files under the new versions, and browsers keep
+them for a year: a purge empties the cache, not the browsers. Fix the
+cache key before you update.
 
 ---
 

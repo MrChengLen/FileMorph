@@ -355,7 +355,7 @@ class Settings(BaseSettings):
     app_host: str = "0.0.0.0"
     app_port: int = 8000
     app_debug: bool = False
-    app_version: str = "1.4.0"
+    app_version: str = "1.5.0"
     api_keys_file: str = ""  # resolved to data/api_keys.json if left empty
     max_upload_size_mb: int = 100
     cors_origins: str = "http://localhost:8000"

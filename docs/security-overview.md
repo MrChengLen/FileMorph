@@ -755,14 +755,15 @@ to be effective. The following list is grouped by importance.
    makes itself non-dumpable, so run it as the only server process, as
    the image and the systemd unit do — in the image under tini, which is
    non-dumpable too. The image brings its own init, so leave Docker's
-   off (`docker run --init`, `init: true` in Compose or in the daemon's
-   `daemon.json`): it would run ahead of tini as PID 1 with the
-   container's environment, which other processes of the container's
-   user could read. Keep the health check as `docker-compose.yml` has
-   it, curl in exec form (`["CMD", "curl", …]`) with all capabilities
-   dropped: a shell form (`CMD-SHELL`, a plain string,
-   `docker run --health-cmd`) starts a shell the container's user can
-   read, with the container's environment. A debugger or profiler
+   off: no `docker run --init` or `init: true` in Compose, and
+   `init: false` (`docker run --init=false`) where the daemon's
+   `daemon.json` turns it on for all containers. It would run ahead of
+   tini as PID 1 with the container's environment, which other processes
+   of the container's user could read. Keep the health check as
+   `docker-compose.yml` has it, curl in exec form (`["CMD", "curl", …]`)
+   with all capabilities dropped: a shell form (`CMD-SHELL`, a plain
+   string, `docker run --health-cmd`) starts a shell the container's user
+   can read, with the container's environment. A debugger or profiler
    that attaches to the app (gdb, py-spy) needs root — in a container,
    root with the `SYS_PTRACE` capability.
 7. **Add an upload size cap at the proxy.** The application

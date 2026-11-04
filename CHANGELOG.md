@@ -14,6 +14,442 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.5.0] — 2026-11-04
+
+**Upgrading from 1.4.0.** No format or env var was removed, and no database
+migration runs. Every deployment should update:
+- pypdf moves to 6.21.4, past seven advisories rated high (infinite loops,
+  long runtimes and large memory use on crafted PDFs) that scanners report
+  for 1.4.0.
+- Swagger UI moves to 5.34.1. Its DOMPurify 3.4.17 fixes the five advisories
+  that 1.4.0 accepted for `/docs`, so no advisory is accepted any more.
+- A Word conversion that reaches the LibreOffice time limit now stops all of
+  LibreOffice (office image).
+- Single-file conversions and compressions delete the upload as soon as the
+  result exists.
+
+See the Security, Fixed and Changed entries.
+
+Check before pulling:
+
+- **Pinned to `1.4` or `1.4.0` (or their `-office` variants):**
+  - There is no 1.4.1, so these image tags stay on 1.4.0 without these
+    fixes.
+  - Move to `1.5` (or `1.5.0`).
+  - If you can't move to 1.5, `SECURITY.md` describes how to request a
+    backport onto 1.4.
+- **New:**
+  - A format search on `/formats` (`/formats#q=…`), and every conversion
+    there is a link: to its own page, or to the converter pre-set
+    (`/#convert=…`).
+  - `/favicon.ico` and `/apple-touch-icon.png` answer at the root.
+  - After converting or compressing one file, the result card shows how
+    the size changed and, for an image, a small picture. The converter
+    pages send the CSP profile `hybrid`, which allows `blob:` images; a
+    reverse proxy that sets its own Content-Security-Policy must allow
+    them there too.
+- **Docker's own init:** the image now starts `tini` as PID 1.
+  - Turn Docker's init off for FileMorph: remove `--init` and `init: true`;
+    if the daemon's `daemon.json` turns it on for all containers, set
+    `init: false` (`docker run --init=false`). The same goes for Podman's
+    `--init` and ECS's `initProcessEnabled`. Docker's init would run ahead of
+    tini with the container's environment, readable for the container's
+    user.
+  - An entrypoint of your own (Compose `entrypoint:`, `--entrypoint`, a
+    derived image's `ENTRYPOINT`, Kubernetes `command:`) drops tini; keep
+    `/usr/bin/env -- /usr/bin/tini -e 143 --` in front of your command.
+  - uvicorn is no longer PID 1: a tool or script that targets PID 1 (for
+    example `py-spy --pid 1`) now reaches tini.
+- **Health check:** keep it as `docker-compose.yml` has it, curl in exec
+  form (`["CMD", "curl", …]`) with `cap_drop: [ALL]`. Both images now
+  install curl execute-only, which keeps the check's environment
+  unreadable only in that form; `docker run --health-cmd` is a shell form
+  too.
+- **A cache or CDN in front:** scripts and stylesheets are now linked as
+  `/static/…?v=<hash>`, and a request naming the current version is cached
+  for a year. The cache must keep the query string in its key, the default
+  for Cloudflare, Fastly and nginx (see "A cache or CDN in front" in
+  `docs/self-hosting.md`). If yours leaves it out (Cloudflare's "Ignore
+  query string" cache level, for example), fix that before you update past
+  1.5.0: from then on it would hand out an old script under the new version
+  for a year, and no purge takes that back out of browsers.
+- **API clients:** more error responses carry `X-FileMorph-Error-Code`:
+  `convert_failed` / `compress_failed` (`500`), `file_type_not_permitted`
+  (`400`), `request_too_large` (`413`, with `max_size_mb` in the JSON body)
+  and `server_busy` (`503`). The `detail` texts are unchanged.
+- **PDFs:** rare PDFs that 1.4.0 read now get the "could not read" message:
+  more than two million cross-reference-stream entries, or more than two
+  million page-dictionary entries copied while the page tree is flattened.
+- **Without Docker:**
+  - Reinstall from `requirements.txt`: pypdf's floor moves to 6.21.4.
+  - On Debian 13 or Ubuntu 26.04, install `libgdk-pixbuf-2.0-0` instead of
+    `libgdk-pixbuf2.0-0` (`docs/installation.md`).
+- **Forks:** `tests/test_workflow_timeouts.py` fails any workflow job without
+  a `timeout-minutes` between 1 and 90, so a fork's own workflows need one.
+
+### Security — Swagger UI 5.34.1: the API explorer's DOMPurify is current again
+
+The API explorer at `/docs` bundles Swagger UI, which bundles DOMPurify. Five
+DOMPurify advisories against the bundled 3.4.13 (GHSA-6688-9rhm-gjv2,
+GHSA-p98j-92pf-mc4p, GHSA-c6gr-qvv4-5v3f, GHSA-cg2g-xh64-v4q7,
+GHSA-mrv2-3pqr-j5jr) were accepted until 2026-11-02, because none is reachable
+here; since 2026-11-03 the OSV check of the vendored code has failed every
+build.
+Swagger UI 5.34.1 bundles DOMPurify 3.4.17, which fixes all five, so the
+exceptions are gone.
+
+- Adopted five days after its release, ahead of the two-week wait planned on
+  2026-10-20: the tarball matches the registry's SHA-512 integrity, and
+  `npm audit signatures` verified its registry signature and its SLSA
+  provenance (built by the release workflow of swagger-api/swagger-ui).
+- The three files are copied unmodified. The bundled libraries' notices now
+  also list regenerator-runtime (MIT). The explorer calls DOMPurify as before:
+  one `sanitize()` with string output, one hook that sets `rel` on links.
+- A new test keeps `api-docs.js` free of the options that would let a URL or a
+  config file choose what the explorer loads (`queryConfigEnabled`,
+  `configUrl`, `urls`, `useUnsafeMarkdown`).
+
+### Fixed — the Linux install steps work on Debian 13 and Ubuntu 26.04
+
+The system packages for running FileMorph without Docker on Ubuntu or Debian
+(`docs/installation.md`) now include `libgdk-pixbuf-2.0-0` instead of
+`libgdk-pixbuf2.0-0`. The old name was only a transitional package; Debian 13
+and Ubuntu 26.04 no longer have it, so `apt install` failed there. The Docker
+image installs `libgdk-pixbuf-2.0-0` too, instead of
+`libgdk-pixbuf-xlib-2.0-0`, an add-on that Debian is removing and FileMorph
+does not use.
+
+### Added — the result card shows how the size changed, and a picture of an image
+
+After converting or compressing one file, the card with the download button
+says how the result's size compares to the original's — "55% smaller than the
+original", above "Before 123.8 KB, now 55.9 KB" — and says just as plainly
+when a result is larger ("5 times the size of the original"). The numbers are
+the browser's own (the selected file and the response), not an estimate;
+nothing new goes to the server.
+
+- An image result (JPG, PNG, WebP, GIF, AVIF, BMP, ICO) shows as a small
+  picture beside it, on a grey ground that keeps black and white transparent
+  artwork visible. A GIF made from a video gets none (it would play endlessly
+  on the card), nor does a result over 10 MB or 16 megapixels (decoding could
+  exhaust a phone's memory), or one not ready within 1.5 s (the card doesn't
+  wait).
+- Target-size compression shows only the change, since its download label
+  already names the size. A batch shows neither: its ZIP is compressed, so its
+  size is not the files'.
+- Screen readers hear the change and the sizes together with the download
+  label.
+- The pages with the converter (home, `/compress`, `/convert/…`) send the CSP
+  profile `hybrid`, which allows `blob:` images; every other page keeps
+  `default`.
+- A result that arrives after the user picked another file or switched mode
+  is dropped. Before, it still appeared, next to the newly picked file.
+- Each new run frees the previous result in the browser (in the redaction
+  tool, the next result does). Before, every result stayed in memory until the
+  page was closed.
+
+### Security — pypdf 6.21.4
+
+pypdf moves from 6.21.2 to 6.21.4, which fixes the seven advisories published
+on 2026-10-30, all rated high: infinite loops, long runtimes and large memory
+use on crafted PDFs (GHSA-42gh-23hr-vphw, GHSA-4vqv-7265-gm2w,
+GHSA-5849-834g-hvw5, GHSA-62m5-6wh8-28x7, GHSA-cggf-277g-3q54,
+GHSA-mfr5-77xh-9j7h, GHSA-x3rh-gjgm-fmqc). The floor in `requirements.txt`
+moves to `pypdf>=6.21.4`, so a later re-lock cannot fall back below it; nothing
+else in the lockfile moved.
+
+The new pypdf also turns away rare PDFs that 6.21.2 read: those whose
+cross-reference streams add up to more than two million entries, and those
+whose page tree, when flattened, copies more than two million page-dictionary
+entries. Such files now get the "could not read" message.
+
+### Changed — the health check's curl runs non-dumpable
+
+`docker-compose.yml`'s health check runs `curl` in the container every 10
+seconds, and Docker starts it as it starts every `docker exec` command: with
+the container's environment. Both images now install curl execute-only for
+every user but root, as they do tini, so the health check runs non-dumpable
+and no other process of the container's user can read its environment. This
+holds as long as the check runs curl directly, as `docker-compose.yml` does
+(`["CMD", "curl", …]`), and with the container's capabilities dropped
+(`cap_drop: [ALL]`); with Docker's default capabilities, the health check
+stays dumpable.
+
+### Changed — the Docker image runs under an init
+
+Both images now start `tini` as PID 1, the container's init, which starts
+`entrypoint.sh` and with it uvicorn: tini passes the signals the container
+gets on to uvicorn and reaps child processes that end after their parent.
+`docker stop` shuts uvicorn down as before, and the container still ends with
+exit code 0.
+
+Like the app process, tini holds the container's environment, and like it,
+tini is non-dumpable, so no other process of the container's user can read
+that environment: its program is execute-only for that user, and the image
+starts it through `env`, which holds none of the capabilities Docker grants
+the container's first process. The image
+brings its own init, so leave Docker's off (`docker run --init`, `init: true`
+in Compose or in the daemon's `daemon.json`): it would run ahead of tini with
+the same environment, readable for the container's user.
+
+### Changed — the upload is deleted as soon as the result exists
+
+Single-file conversions and compressions, page extraction and PDF compression
+now delete the uploaded file — the copy in the request's temporary folder and
+the web framework's own — as soon as the result is written, instead of
+together with the result when the response ends. Inserting pages already
+deleted its own copies early; it, splitting and redaction now release the
+framework's copy early too, and a PDF → PDF conversion writes its result over
+the upload. Batch requests release the framework's copy of each file as soon
+as it is copied.
+
+### Changed — the whole card on `/tools` opens the tool
+
+On `/tools`, only the small "Open →" line under each tool card was a link.
+Now the whole card is: a click anywhere on it opens the tool.
+
+- The link text is now the tool's name (before: "Open →", with the name only
+  in a label for screen readers), so search engines see the name too;
+  "Open →" stays as a visual cue.
+- Hovering highlights the card's border; keyboard focus outlines the whole
+  card.
+
+### Fixed — scripts and stylesheets are current right after an update
+
+Pages now link every script and stylesheet with a version taken from the
+file's content (`/static/js/app.js?v=<hash>`). After an update, the first
+page a browser opens loads the new files. Before, a browser could keep the
+previous release's scripts for a while, so a new page could meet code that
+did not know it yet — a pre-set conversion link from `/formats`, for
+example, would open the plain converter. The app asked browsers to check
+scripts again after 5 minutes, but a CDN in front may stretch that
+(Cloudflare's default makes it 4 hours).
+
+A request that names the file's current version is cached for a year
+(`immutable`), so returning visitors no longer re-check unchanged files. A
+request naming any other version is not cached at all, and one without a
+version keeps the 5-minute revalidation. If a CDN or cache sits in front of
+your instance, it must keep the query string in its cache key — the default
+for Cloudflare, Fastly and nginx (see "A cache or CDN in front" in
+`docs/self-hosting.md`).
+
+### Added — error codes for a failed conversion, a blocked file type, an oversized request and a busy server
+
+More error responses now carry `X-FileMorph-Error-Code`, so a client can
+branch on them instead of on the `detail` text:
+
+- `convert_failed` / `compress_failed` (`500`) — the conversion or
+  compression itself failed on `/convert` or `/compress`; the server names
+  the reason only in its log;
+- `file_type_not_permitted` (`400`) — the file starts like a program or
+  script, on every upload route (in a batch only that file fails, without
+  the code);
+- `request_too_large` (`413`) — the request is larger than the server takes
+  (`MAX_UPLOAD_SIZE_MB` on file endpoints, 1 MB elsewhere); the JSON body
+  adds `max_size_mb`, that limit in MB;
+- `server_busy` (`503`) — the server is at its global concurrency cap.
+
+The `detail` texts stay as they were.
+
+### Security — text on a page stays text
+
+Every page carries two JSON blocks inside `<script>` elements: the text
+catalogue the scripts read, and the structured data for search engines. Both
+are now written with Jinja's HTML-safe JSON encoding (the one behind
+`|tojson`): `<`, `>`, `&` and `'` become JSON Unicode escapes, so no text — a
+future translation, a configured base URL — can end the element or open a
+comment, and a JSON parser reads the same data.
+
+The scripts no longer put values into the page unescaped: three empty states
+are set as text, and the account menu and the API-key list escape what they
+show (e-mail address, key name, labels).
+
+### Changed — the navigation's menu button says "Menu", and the full bar starts at 1024 px
+
+On phones and tablets the navigation sits behind a button. It used to be a
+small icon, 32 px. It now also says "Menu" ("Menü" on German pages) and is
+44 px high, easy to hit with a thumb. Screen readers hear whether the menu is
+open, and Escape closes it again.
+
+At 768 px the full bar used to wrap three of its links onto two lines. It
+now starts at 1024 px; below that, the menu button shows.
+
+### Changed — a shared link previews the page it points to
+
+A link to a FileMorph page in a messenger or on a social network (WhatsApp,
+Signal, Slack, LinkedIn, iMessage, Mastodon) used to preview as "FileMorph"
+with the same generic line on every page. The preview now carries the page's
+own title and description, for example "PDF-Seiten einfügen oder anhängen —
+kostenlos"; the name FileMorph moves to `og:site_name`.
+
+- An iPhone or iPad that adds a page to its home screen shows the FileMorph
+  logo (180 × 180 px) instead of a screenshot of the page.
+- `/apple-touch-icon.png` and `/favicon.ico` answer at the root, where clients
+  look for them on their own, instead of rendering the 404 page. They don't
+  count as page views.
+- The web manifest lists 192 and 512 px PNG icons, one of them maskable, for
+  Android home screens.
+
+### Fixed — a LibreOffice time limit stops all of LibreOffice
+
+When a DOCX → PDF conversion through LibreOffice (office image) — including a
+Word file inserted into a PDF — reaches `OFFICE_SUBPROCESS_TIMEOUT_SECONDS`,
+the converter now stops LibreOffice's worker process (`soffice.bin`) together
+with the `soffice` launcher, so the conversion ends completely at the limit.
+For this, `soffice` runs in a process group of its own.
+
+### Fixed — the icons' sources are credited
+
+The quick-action icons adapt path data from Heroicons and Feather, both
+MIT-licensed. Their copyright and permission notice now ships in the icon
+template, and `docs/third-party-licenses.md` lists them.
+
+### Added — a format search on `/formats`, and each conversion listed once
+
+`/formats` has a search field above the list. Type a format, and the page
+shows only what works with it:
+
+- a format or file extension ("heic", ".PDF"), another spelling ("jpeg",
+  "tif") or another name ("Word", "Excel", "E-Mail", "PDF/A");
+- a kind of file ("Foto", "Video", "Musik", "Tabelle"; "iPhone" stands for
+  HEIC, HEIF and MOV);
+- a pair ("heic to jpg", "heic in jpg", "mp4 → gif", also "convert heic to
+  jpg"). For a pair FileMorph can't convert, the page says so and shows
+  everything with the first format.
+
+The matching tools come along from a new "Tools" row: a search for "PDF"
+also shows the four PDF tools. A line says how many conversions and tools
+match. When nothing matches, the page offers to show all formats or to drop
+the file into the converter, instead of an empty page. The search is kept in
+the link's fragment (`/formats#q=heic`), so such a link can be shared. The
+page's address stays the same. Without JavaScript the field is hidden and the
+full list shows, as before.
+
+Each conversion is now listed once. The converter also accepts the spellings
+JPEG, TIF and HTM, and the list showed them as formats of their own. Three of
+those entries weren't conversions at all (JPG to JPEG, TIF to TIFF, TIFF to
+TIF). A .jpeg, .tif or .htm file converts as before. The chips now read
+"PDF/A", "WebP" and "WebM".
+
+The homepage links the page under its tools: "All formats →".
+
+### Fixed — the converter and the PDF tools show the server's common error messages in German
+
+On German pages, these errors are now worded in German, by their error code:
+
+- a conversion or compression that failed;
+- an image too large to open safely (the PDF tools already did this);
+- a file that starts like a program or script, with what to do next;
+- an upload over the server's size limit, with that limit — for a batch,
+  counting all its files together;
+- a server too busy to take the request.
+
+On English pages, the messages for a blocked file and an oversized upload
+now name the next step too. Messages about a problem specific to one format
+(for example a PDF that can't be read) and the reasons listed per file in a
+batch are still in English.
+
+### Fixed — the converter's own texts are German on German pages
+
+The converter wrote some of its own texts in English on every page. They now
+come from the translation catalogue, like the rest of the page:
+
+- the progress text ("Processing your file…") and the download button;
+- the file counter under the drop field;
+- the hint when a target makes the file much larger (for example JPG to PNG);
+- the messages for a wrong API key and too many requests, and the fallback
+  texts for a failed conversion or batch and a network error;
+- the screen-reader labels of each file row.
+
+Sizes and other numbers use the page's decimal separator ("1,5 KB" on German
+pages). Messages the server writes itself, for example when a file can't be
+converted, are still in English.
+
+### Changed — every CI job stops after a time limit
+
+Each job in `.github/workflows/` now has `timeout-minutes` — 10 to 30 minutes,
+a few times its usual run — so a hanging step fails within minutes instead of
+holding a runner for GitHub's default six hours. A test fails when a job has
+no limit or one over 90 minutes.
+
+### Changed — easier to read, and usable by keyboard and screen reader
+
+Small grey and indigo texts on the dark pages were too pale (down to about
+2.3 : 1, where WCAG AA asks for 4.5 : 1), and so were the white labels on the
+indigo and green buttons. All text now reaches at least 4.5 : 1:
+
+- the palest text colour is lighter, and every page uses it instead of
+  hand-picked greys;
+- filled buttons are one shade darker (indigo, and the green download
+  button), indigo links and texts one shade lighter;
+- disabled buttons stay visibly dimmed.
+
+Screen readers now hear what the tools do: the progress text, the result card
+(download, hints, batch summary) and error messages are announced. Also:
+
+- a "Skip to main content" link is the first Tab stop on every page;
+- the quality slider and the target-size field are named by their headings;
+- form fields show a focus ring, and on phones their text is 16 px, so iOS no
+  longer zooms in when you tap one;
+- the selected compress mode (by quality / by target size) is highlighted and
+  announced as selected — a grey background used to cover the highlight;
+- the account menu opens by keyboard too and closes with Escape, and the
+  dashboard and sign-out entries of the mobile menu are as easy to tap as the
+  others;
+- Enter submits the sign-in, registration and password forms only from one of
+  their fields, and the password-reset page shows "email sent" only when the
+  request went through;
+- the batch download button counts the files that are in the ZIP, not the ones
+  that were selected.
+
+### Fixed — a pre-set converter no longer picks another target for a file that doesn't fit
+
+On a conversion page such as "JPG to PDF", the target list is hidden. Until
+now, a file that can't become the page's target (a PDF dropped on "JPG to
+PDF", say) was converted to the first target it could reach (for a PDF:
+TXT) without a word. Now:
+
+- the target list appears, starting at "— choose a target format —";
+- a note says which file the page expects;
+- nothing converts until a target is chosen.
+
+In a batch, each file that doesn't fit gets the same choice in its own row.
+The same applies on "Video to GIF".
+
+### Changed — the homepage's quick actions come in groups, now with “Insert PDF pages” and “Video to GIF”
+
+The quick actions under the converter on the homepage now sit in groups named
+after the `/tools` sections: “PDF tools”, “Images” and “More tools”. Two tools
+join them, so there are nine:
+
+- “Insert PDF pages” (`/pdf/insert`);
+- “Video to GIF” (`/convert/video-to-gif`).
+
+Unchanged: the converter, its target list and the “All tools →” link. The groups
+come from the page catalogue (`app/core/catalog.py`) and follow the section rule
+of `/tools`, so a tool sits under the same name on both pages. The catalogue now
+allows up to twelve quick actions, at most six to a group.
+
+### Added — every conversion on `/formats` is a link
+
+`/formats` lists every conversion FileMorph supports, and each one is now a
+link. Where a conversion has a page of its own (the curated pairs, and
+Video to GIF for every video format), the link goes there.
+
+Every other link opens the converter on the homepage, pre-set to that
+conversion:
+
+- a note above the drop field names the conversion and the file to choose;
+- the file picker offers only that format;
+- "Convert something else" goes back to the plain converter.
+
+The preset travels in the link's fragment (`/#convert=xlsx-to-csv`). A
+fragment never reaches the server, so no new pages appear for search
+engines. The preset only takes effect for a conversion the instance
+supports.
+
+---
+
 ## [1.4.0] — 2026-10-28
 
 **Upgrading from 1.3.0.** No format or env var was removed, and no database
