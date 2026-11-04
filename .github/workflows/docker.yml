@@ -28,7 +28,7 @@ env:
 
 jobs:
   build-and-push:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
     strategy:
       # Build slim + office in parallel; fail-fast off because the two
@@ -159,7 +159,7 @@ jobs:
   # differ — so dispatching sbom.yml on a branch tries them; this workflow
   # pushes images and cannot be tried that way.
   sbom:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 20
     permissions:
       contents: read
@@ -225,7 +225,7 @@ jobs:
   # GitHub's attest action.
   attest-sbom:
     needs: [build-and-push, sbom]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     strategy:
       fail-fast: false

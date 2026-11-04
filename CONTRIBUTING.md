@@ -79,7 +79,8 @@ your change touches before you push:
   asks the OSV database about every package in
   `app/static/vendor/manifest.json`, plus the libraries a file's `bundles`
   field names. An advisory blocks unless the script's `ACCEPTED` list names it
-  for that version with a reason and a review date.
+  for that version with a reason and a review date; two weeks before that date
+  the run shows a warning.
 - **Tests** — `pytest tests/`. CI runs them on Python 3.14 with
   `requirements-dev.txt` constrained to the versions pinned in
   `requirements.lock`, so they test what the Docker image ships.
@@ -91,6 +92,12 @@ your change touches before you push:
   `app/converters/pdfa.py` or `app/converters/_ghostscript.py`; building the
   fixture needs Ghostscript, validating it needs Docker (the `docker run`
   command is in `ci.yml`).
+
+After the dependency install, a failed check does not stop the job: the
+checks after it still run, so one red run shows every problem (the dependency
+audit and the PDF/A steps are the exception and run only while everything
+before them passed). The run's summary page lists each check with its result,
+the test counts and the slowest tests.
 
 `secret-scan` runs the gitleaks secret scanner; `scope-check` rejects
 operations files and internal documents, which do not belong in this public

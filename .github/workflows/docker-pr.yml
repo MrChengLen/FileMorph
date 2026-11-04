@@ -39,7 +39,7 @@ permissions:
 jobs:
   smoke-test:
     name: smoke-test (${{ matrix.target }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     # A cold office build takes about four minutes; a hung step should not
     # hold a runner for the default six hours.
     timeout-minutes: 20

@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -284,18 +285,29 @@ if [ -n "$STUB_TIP" ]; then printf '%s\trefs/heads/main\n' "$STUB_TIP"; fi
 """
 
 # `curl` as the dispatch step calls it: keeps the request body, writes the
-# response file it is told to and answers the status code `-w` asks for.
+# response file it is told to, the response headers to the `-D` file (with the
+# token expiry $STUB_EXPIRY names, as GitHub sends it, if set) and answers the
+# status code `-w` asks for.
 _CURL_STUB = r"""#!/usr/bin/env bash
 out=
+headers=
 while [ $# -gt 0 ]; do
   case "$1" in
     -o) out="$2"; shift ;;
+    -D) headers="$2"; shift ;;
     -d) printf '%s' "$2" > "$STUB_DIR/body.json"; shift ;;
-    -X|-H|-w) shift ;;
+    -X|-H|-w|--max-time|--retry|--retry-delay) shift ;;
   esac
   shift
 done
 if [ -n "$out" ]; then echo '{}' > "$out"; fi
+if [ -n "$headers" ]; then
+  : > "$headers"
+  if [ -n "${STUB_EXPIRY:-}" ]; then
+    printf 'github-authentication-token-expiration: %s\r\n' \
+      "$(date -u -d "$STUB_EXPIRY" '+%Y-%m-%d %H:%M:%S UTC')" > "$headers"
+  fi
+fi
 printf 204
 """
 
@@ -361,6 +373,7 @@ def _step_environment(folder: Path, **inputs: str) -> dict[str, str]:
         "REPO": _REPO,
         "SHA": _SHA,
         "GITHUB_SHA": "0" * 40,
+        "RUNNER_TEMP": folder.as_posix(),
         **inputs,
     }
 
@@ -669,3 +682,31 @@ def test_notify_ops_dispatch_names_the_commit(tmp_path: Path) -> None:
     assert done.returncode == 0, f"the dispatch step failed:\n{done.stdout}\n{done.stderr}"
     body = json.loads((folder / "body.json").read_text(encoding="utf-8"))
     assert body == {"event_type": "filemorph-published", "client_payload": {"sha": _SHA}}, body
+
+
+@pytest.mark.parametrize(("expiry", "warns"), [("+5 days", True), ("+40 days", False), ("", False)])
+def test_notify_ops_warns_before_the_dispatch_token_expires(
+    tmp_path: Path, expiry: str, warns: bool
+) -> None:
+    """The PAT runs out silently, and every deploy then stops at the dispatch
+    (twice in 2026). The step reads the expiry GitHub sends with every answer and
+    warns in the last two weeks; with no such header it stays quiet. The log is
+    public, so the warning gives the days left and no date."""
+    bash, _ = _need("bash"), _need("jq")
+    _, dispatch = _gate_and_dispatch_steps(_notify_ops())
+    folder = tmp_path / "dispatch"
+    _install(folder, curl=_CURL_STUB)
+    env = _step_environment(folder, PAT="placeholder", STUB_EXPIRY=expiry)
+    done = subprocess.run(
+        [bash, "-e", "-o", "pipefail", "-c", dispatch["run"]],
+        env=env,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
+    assert done.returncode == 0, f"the dispatch step failed:\n{done.stdout}\n{done.stderr}"
+    warning = [line for line in done.stdout.splitlines() if line.startswith("::warning::")]
+    assert bool(warning) == warns, done.stdout
+    if warns:
+        assert re.search(r"expires in [45] days", warning[0]), warning
+        assert not re.search(r"\d{4}-\d{2}-\d{2}", warning[0]), "the public log shows no date"

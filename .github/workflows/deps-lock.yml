@@ -61,7 +61,7 @@ concurrency:
 
 jobs:
   compile:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 20
 
     steps:
@@ -121,7 +121,7 @@ jobs:
 
   commit:
     needs: compile
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     permissions:
       contents: write
