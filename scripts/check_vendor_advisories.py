@@ -34,17 +34,18 @@ OSV_QUERYBATCH = "https://api.osv.dev/v1/querybatch"
 # not apply or cannot be fixed yet, and the date by which to look again.
 _DOMPURIFY_IN_SWAGGER_UI = (
     "Bundled in Swagger UI 5.33.1 (/docs). Needs DOMPurify's IN_PLACE mode, "
-    "which Swagger UI does not use. Fixed in swagger-ui-dist 5.34.0 "
-    "(published 2026-10-19), adopted once it is two weeks old "
-    "(maintainer decision 2026-10-20)."
+    "which Swagger UI does not use. Fixed in swagger-ui-dist 5.34.0 and later; "
+    "the update goes straight to 5.34.1 (published 2026-10-30), which fixes all "
+    "five accepted DOMPurify advisories, once 5.34.1 is two weeks old "
+    "(maintainer decision 2026-11-04)."
 )
 _DOMPURIFY_OPTIONS_IN_SWAGGER_UI = (
     "Bundled in Swagger UI 5.33.1 (/docs). Needs a DOMPurify option Swagger UI "
     "does not set: its one sanitize() call passes ADD_ATTR, FORBID_TAGS, "
     "ALLOW_DATA_ATTR and FORBID_ATTR, so no IN_PLACE, SAFE_FOR_TEMPLATES, "
-    "RETURN_DOM or XHTML parser. Fixed in DOMPurify 3.4.17, which no Swagger UI "
-    "release bundles yet: 5.34.0 ships 3.4.16. Decided again with the Swagger UI "
-    "update (maintainer decision 2026-10-23)."
+    "RETURN_DOM or XHTML parser. Fixed in DOMPurify 3.4.17, which swagger-ui-dist "
+    "5.34.1 (published 2026-10-30) bundles; the update lands once 5.34.1 is two "
+    "weeks old (maintainer decision 2026-11-04)."
 )
 ACCEPTED = [
     {
@@ -52,35 +53,35 @@ ACCEPTED = [
         "package": "dompurify",
         "version": "3.4.13",
         "reason": _DOMPURIFY_IN_SWAGGER_UI,
-        "review_by": "2026-11-02",
+        "review_by": "2026-11-16",
     },
     {
         "id": "GHSA-p98j-92pf-mc4p",
         "package": "dompurify",
         "version": "3.4.13",
         "reason": _DOMPURIFY_IN_SWAGGER_UI,
-        "review_by": "2026-11-02",
+        "review_by": "2026-11-16",
     },
     {
         "id": "GHSA-c6gr-qvv4-5v3f",
         "package": "dompurify",
         "version": "3.4.13",
         "reason": _DOMPURIFY_OPTIONS_IN_SWAGGER_UI,
-        "review_by": "2026-11-02",
+        "review_by": "2026-11-16",
     },
     {
         "id": "GHSA-cg2g-xh64-v4q7",
         "package": "dompurify",
         "version": "3.4.13",
         "reason": _DOMPURIFY_OPTIONS_IN_SWAGGER_UI,
-        "review_by": "2026-11-02",
+        "review_by": "2026-11-16",
     },
     {
         "id": "GHSA-mrv2-3pqr-j5jr",
         "package": "dompurify",
         "version": "3.4.13",
         "reason": _DOMPURIFY_OPTIONS_IN_SWAGGER_UI,
-        "review_by": "2026-11-02",
+        "review_by": "2026-11-16",
     },
 ]
 
