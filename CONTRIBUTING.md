@@ -49,8 +49,9 @@ git push origin feature/add-epub-support
 
 ## CI gates
 
-Merging into `main` requires three green checks: **lint-and-test**,
-**secret-scan** and **scope-check**. `lint-and-test`
+Merging into `main` requires five green checks: **lint-and-test**,
+**secret-scan**, **scope-check**, **smoke-test (base)** and
+**smoke-test (office)**. `lint-and-test`
 ([`ci.yml`](.github/workflows/ci.yml)) runs the steps below — run the ones
 your change touches before you push:
 
@@ -101,11 +102,12 @@ the test counts and the slowest tests.
 
 `secret-scan` runs the gitleaks secret scanner; `scope-check` rejects
 operations files and internal documents, which do not belong in this public
-repository. More checks run on pull requests without blocking the merge:
-`lockfile-drift` (`requirements.lock` must match `requirements.txt` — see
-[docs/development.md](docs/development.md)), and `smoke-test (base)` and
-`smoke-test (office)` ([`docker-pr.yml`](.github/workflows/docker-pr.yml)),
-which build both Docker images without pushing them and smoke-test each one.
+repository; `smoke-test (base)` and `smoke-test (office)`
+([`docker-pr.yml`](.github/workflows/docker-pr.yml)) build both Docker images
+without pushing them and smoke-test each one. `lockfile-drift`
+(`requirements.lock` must match `requirements.txt` — see
+[docs/development.md](docs/development.md)) runs on pull requests too, without
+blocking the merge.
 
 After the merge, `ci.yml` and [`docker.yml`](.github/workflows/docker.yml) run
 on `main` (`docker.yml` does not run on pull requests; `docker-pr.yml` does).
