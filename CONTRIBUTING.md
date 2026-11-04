@@ -83,7 +83,10 @@ your change touches before you push:
   the run shows a warning.
 - **Tests** — `pytest tests/`. CI runs them on Python 3.14 with
   `requirements-dev.txt` constrained to the versions pinned in
-  `requirements.lock`, so they test what the Docker image ships.
+  `requirements.lock`, so they test what the Docker image ships, and in
+  parallel (`pytest -n logical --dist loadgroup`): a test must pass on its own
+  and in any order, and tests that share an outside resource (the Postgres
+  database) take `@pytest.mark.xdist_group`.
 - **PDF/A-2b conformance** — the last steps of the job.
   `python scripts/verapdf_check.py` converts a worst-case PDF (an unembedded
   standard font) with the PDF/A converter, and the veraPDF Docker image,

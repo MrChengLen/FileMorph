@@ -1,6 +1,7 @@
 -r requirements.txt
 pytest>=9.1.1
 pytest-asyncio>=1.4.0
+pytest-xdist>=3.8.0
 httpx>=0.28.1
 aiosqlite>=0.22.1
 # Pinned exactly: unpinned ruff drifted in CI and reddened every PR on

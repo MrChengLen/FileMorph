@@ -90,7 +90,7 @@ jobs:
           FILEMORPH_TEST_POSTGRES_URL: postgresql+asyncpg://postgres@localhost:5432/filemorph_test
         run: |
           set -o pipefail
-          pytest tests/ -ra --durations=15 --tb=short | tee "$RUNNER_TEMP/tests.log"
+          pytest tests/ -n logical --dist loadgroup -ra --durations=15 --tb=short | tee "$RUNNER_TEMP/tests.log"
 
   # The weekly copy of ci.yml's "Vendored browser code vulnerability scan" step
   # (see the comment there). A job of its own, so neither result hides the other.

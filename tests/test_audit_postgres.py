@@ -59,6 +59,11 @@ _PASSWORD = "initial-password"
 
 needs_postgres = pytest.mark.skipif(not _URL, reason=f"{_ENV} is not set")
 
+# CI runs the suite on several workers (pytest-xdist, `--dist loadgroup`). These
+# tests share one database and empty its tables before each test, so they run
+# on one worker, one after the other.
+pytestmark = pytest.mark.xdist_group("postgres")
+
 
 @pytest.fixture(scope="module")
 def pg_factory():
