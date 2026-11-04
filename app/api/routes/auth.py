@@ -167,7 +167,8 @@ async def _session_user(db: AsyncSession, token: str, expected_type: str) -> Use
     """Resolve an access or refresh token to its live user, or raise 401.
 
     The token's ``phv`` must match the user's current password hash, so a
-    password reset ends every session issued before it."""
+    password reset ends every session issued before it. Commits ``db`` (see
+    below): call it before anything writes to that session."""
     user_id, token_phv = decode_session_token(token, expected_type=expected_type)
     # asyncpg happily binds a str to a UUID column, but SQLAlchemy's generic
     # UUID type (used by the SQLite test engine) calls ``.hex`` on the value
@@ -192,6 +193,11 @@ async def _session_user(db: AsyncSession, token: str, expected_type: str) -> Use
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token."
         )
+    # Ends the read transaction so the pooled connection goes back before the
+    # route runs: a conversion keeps its request open for up to minutes, and
+    # the open transaction would hold the connection and a lock on ``users``
+    # that long. ``expire_on_commit=False`` keeps ``user``.
+    await db.commit()
     return user
 
 
@@ -227,6 +233,10 @@ async def get_optional_user(
             except Exception:
                 await db.rollback()
             return api_key.user
+    # A lookup above that found nobody (an outdated token, a key from the key
+    # file) left its read transaction open; end it, as in ``_session_user``.
+    if db.in_transaction():
+        await db.commit()
     return None
 
 
