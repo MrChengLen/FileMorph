@@ -28,9 +28,15 @@ stated, not assumed from the product's own marketing copy elsewhere:
   parameter, and ``/api/v1/compress`` 415s a video upload that sets
   ``target_size_kb``. So video compression is never described as hitting a
   target size here, only "by quality".
+- PNG and TIFF are saved losslessly whatever the quality
+  (``compress_image()``), so the tool hides the slider for them and the page
+  never says a lower quality makes them smaller.
 - The page runs on the server (``/api/v1/compress``), so it never says
   "in your browser", and it makes no hosting claim of its own — where the
-  server runs is said once, in ``partials/hosting_note.html``.
+  server runs is said once, in ``partials/hosting_note.html``. The one thing
+  the browser works out is the size estimate under the slider (one JPEG,
+  ``app.js``, only where a probe proves its encoder writes the server's
+  bytes — Chromium-based browsers today), and only that is said so.
 - The "achieved size shown next to the download" honesty note is scoped to
   target-size mode only — ``app.js``'s ``download-link-label`` only gets the
   "(X.XX MB)" suffix when ``X-FileMorph-Achieved-Bytes`` is present, which
@@ -72,9 +78,11 @@ COMPRESS_CONTENT: dict[str, dict] = {
             "The achieved size is shown next to the download. AVIF takes "
             "noticeably longer: "
             "its encoder is CPU-heavy and the search re-encodes several times, so a large "
-            "photo can take a minute or more. PNG, TIFF and video don't take a "
-            "target size: they compress by quality instead, where a lower "
-            "number gives a smaller but lower-fidelity file."
+            "photo can take a minute or more. Video doesn't take a target "
+            "size: it compresses by quality instead, where a lower number "
+            "gives a smaller but lower-fidelity file. PNG and TIFF are "
+            "lossless: compressing repacks them as tightly as it can, with no "
+            "quality setting — as WebP or JPG they usually get much smaller."
         ),
         "how_it_works": [
             (
@@ -85,14 +93,16 @@ COMPRESS_CONTENT: dict[str, dict] = {
             (
                 "Pick a size or a quality",
                 "For JPEG, WebP or AVIF, switch to “By target size” and enter a "
-                "size in MB. Everything else uses the quality slider instead — "
-                "lower is smaller.",
+                "size in MB, or use the quality slider — lower is smaller. For a "
+                "JPEG, Chromium-based browsers such as Chrome and Edge show the "
+                "size it will have right under the slider. Video uses the "
+                "slider; PNG and TIFF need no setting.",
             ),
             (
                 "Download the result",
-                "In target-size mode, the achieved size appears right on the "
-                "download button; in quality mode, just download the "
-                "compressed file.",
+                "For a single file, the result shows how its size changed; in "
+                "target-size mode, the achieved size also appears on the "
+                "download button.",
             ),
         ],
         "when": (
@@ -108,10 +118,11 @@ COMPRESS_CONTENT: dict[str, dict] = {
                 "and AVIF images — the engine searches for the best quality at "
                 "which the output stays at or under your target, and scales the "
                 "image down if even the lowest quality is too big (AVIF takes "
-                "noticeably longer). PNG and "
-                "TIFF images, and every video format, use quality-based "
+                "noticeably longer). Every video format uses quality-based "
                 "compression instead: there's no byte-exact target, just a "
-                "slider between smaller and higher-fidelity.",
+                "slider between smaller and higher-fidelity. PNG and TIFF are "
+                "lossless and get repacked without a setting; as WebP or JPG "
+                "they usually get much smaller.",
             ),
             (
                 "I need to compress a PDF — is that here too?",
@@ -153,10 +164,13 @@ COMPRESS_CONTENT: dict[str, dict] = {
             "direkt neben dem Download angezeigt. AVIF dauert deutlich "
             "länger: Der Encoder ist rechenintensiv und die Suche kodiert "
             "mehrmals neu, daher kann ein großes Foto eine Minute oder "
-            "länger brauchen. PNG, TIFF und Video nehmen "
-            "keine Zielgröße entgegen: Sie werden stattdessen per "
-            "Qualitätsregler komprimiert — ein niedrigerer Wert ergibt "
-            "eine kleinere, aber weniger originalgetreue Datei."
+            "länger brauchen. Videos nehmen keine Zielgröße entgegen: Sie "
+            "werden stattdessen per Qualitätsregler komprimiert — ein "
+            "niedrigerer Wert ergibt eine kleinere, aber weniger "
+            "originalgetreue Datei. PNG und TIFF sind verlustfrei: "
+            "Komprimieren packt sie so dicht wie möglich, ohne "
+            "Qualitätsregler — als WebP oder JPG werden sie meist deutlich "
+            "kleiner."
         ),
         "how_it_works": [
             (
@@ -167,14 +181,17 @@ COMPRESS_CONTENT: dict[str, dict] = {
             (
                 "Größe oder Qualität wählen",
                 "Bei JPEG, WebP oder AVIF zu „Nach Zielgröße“ wechseln und "
-                "eine Größe in MB eingeben. Alles andere nutzt den "
-                "Qualitätsregler — niedriger bedeutet kleiner.",
+                "eine Größe in MB eingeben, oder den Qualitätsregler nutzen — "
+                "niedriger bedeutet kleiner. Bei einem JPG zeigen "
+                "Chromium-Browser wie Chrome und Edge direkt unter dem Regler, "
+                "wie groß es wird. Videos nutzen den Regler; PNG und TIFF "
+                "brauchen keine Einstellung.",
             ),
             (
                 "Ergebnis herunterladen",
-                "Im Zielgrößen-Modus wird die erreichte Größe "
-                "direkt am Download-Button angezeigt; im Qualitätsmodus "
-                "einfach herunterladen und prüfen.",
+                "Bei einer einzelnen Datei zeigt das Ergebnis, wie sich ihre "
+                "Größe verändert hat; im Zielgrößen-Modus steht die erreichte "
+                "Größe zusätzlich am Download-Button.",
             ),
         ],
         "when": (
@@ -191,11 +208,12 @@ COMPRESS_CONTENT: dict[str, dict] = {
                 "nur für JPEG-, WebP- und AVIF-Bilder — die Engine sucht die "
                 "beste Qualität, bei der das Ergebnis höchstens so groß wird wie "
                 "dein Ziel, und verkleinert das Bild, wenn selbst die niedrigste "
-                "Qualität nicht reicht (AVIF dauert deutlich länger). "
-                "PNG- und TIFF-Bilder sowie alle "
+                "Qualität nicht reicht (AVIF dauert deutlich länger). Alle "
                 "Videoformate werden stattdessen per Qualität komprimiert: "
                 "kein exaktes Byte-Ziel, nur ein Regler zwischen kleiner und "
-                "originalgetreuer.",
+                "originalgetreuer. PNG und TIFF sind verlustfrei und werden "
+                "ohne Einstellung dichter gepackt; als WebP oder JPG werden "
+                "sie meist deutlich kleiner.",
             ),
             (
                 "Ich will ein PDF komprimieren — geht das hier auch?",

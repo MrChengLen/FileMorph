@@ -196,12 +196,29 @@
       <span id="quality-label" class="text-brand-light font-semibold">85%</span>
     </label>
     <input id="quality-slider" type="range" min="1" max="100" value="85"
-      aria-labelledby="quality-heading"
+      aria-labelledby="quality-heading" aria-describedby="size-estimate"
       class="w-full accent-brand" />
     <div class="flex justify-between text-xs text-ink-faint">
       <span>{{ _('Smaller file') }}</span>
       <span>{{ _('Best quality') }}</span>
     </div>
+    {# Size estimate, filled by app.js in compress mode for one JPEG: how large
+       the result will be at this quality, worked out by the browser (nothing
+       is uploaded for it); for WebP/AVIF and video a note instead. #}
+    <div id="size-estimate" class="hidden pt-1" aria-live="polite">
+      <p id="size-estimate-text" class="text-sm text-ink"></p>
+      <p id="size-estimate-note" class="text-xs text-ink-faint"></p>
+    </div>
+  </div>
+
+  {# Compress mode with only PNG/TIFF chosen (app.js): both are stored
+     losslessly, so the slider hides — it would change nothing — and this says
+     what does make the file smaller. #}
+  <div id="lossless-note"
+    class="hidden text-xs text-sky-300 bg-sky-950/40 border border-sky-900/50 rounded-lg px-3 py-2 leading-relaxed">
+    {{ _('PNG and TIFF are lossless: there is no quality setting, compressing only packs the file tighter. As WebP or JPG it usually gets much smaller.') }}
+    <button id="lossless-to-webp" type="button"
+      class="hidden underline hover:text-sky-200 font-semibold ml-1">{{ _('Convert to WebP instead →') }}</button>
   </div>
 
   <!-- Target Size Input (compress + cmode=target) -->

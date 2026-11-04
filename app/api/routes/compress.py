@@ -74,7 +74,12 @@ def target_notes(result: dict) -> list[str]:
 async def compress_file(
     request: Request,
     file: UploadFile,
-    quality: int | None = Form(None, ge=1, le=100, description="Quality 1 (smallest) - 100 (best)"),
+    quality: int | None = Form(
+        None,
+        ge=1,
+        le=100,
+        description="Quality 1 (smallest) - 100 (best). PNG and TIFF are lossless and ignore it.",
+    ),
     target_size_kb: int | None = Form(
         None,
         ge=5,
@@ -135,7 +140,8 @@ async def _do_compress(
                 status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
                 detail=(
                     "Target-size compression supports only JPEG, WebP and AVIF. "
-                    "Use quality= for PNG/TIFF."
+                    "Leave out target_size_kb: video then compresses by quality, "
+                    "PNG and TIFF losslessly."
                 ),
             )
         target_bytes = target_size_kb * 1024
@@ -494,7 +500,8 @@ async def _do_compress_batch(
                     if ext not in TARGET_SIZE_FORMATS:
                         raise BatchFileError(
                             "Target-size compression supports only JPEG, WebP and AVIF. "
-                            "Use quality= for PNG/TIFF."
+                            "Leave out target_size_kb: video then compresses by quality, "
+                            "PNG and TIFF losslessly."
                         )
                     target_result = await asyncio.to_thread(
                         compress_image_to_target,

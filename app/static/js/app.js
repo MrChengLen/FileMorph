@@ -102,6 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const qualitySlider = document.getElementById('quality-slider');
   if (qualitySlider) qualitySlider.addEventListener('input', e => {
     document.getElementById('quality-label').textContent = e.target.value + '%';
+    scheduleSizeEstimate();
   });
 
   const cmodeQuality = document.getElementById('cmode-quality');
@@ -116,6 +117,20 @@ document.addEventListener('DOMContentLoaded', () => {
   if (targetSelect) targetSelect.addEventListener('change', () => {
     updateFormatWarning();
     updateQualityVisibility();
+  });
+
+  // PNG/TIFF note in compress mode (showLosslessNote): convert the one file to
+  // WebP instead, which keeps transparency.
+  const toWebp = document.getElementById('lossless-to-webp');
+  if (toWebp) toWebp.addEventListener('click', () => {
+    setMode('convert');
+    const sel = document.getElementById('target-format');
+    if (sel && Array.from(sel.options).some(o => o.value === 'webp')) {
+      sel.value = 'webp';
+      updateFormatWarning();
+      updateQualityVisibility();
+      sel.focus(); // the button is gone now; keep the keyboard on the choice
+    }
   });
 
   const suggestBtn = document.getElementById('format-warning-suggest');
@@ -528,6 +543,10 @@ const DOWNLOAD_SUFFIX = { pdfa: '_pdfa.pdf' };
 // File types where quality slider is relevant
 const QUALITY_TYPES = ['jpg', 'jpeg', 'png', 'webp', 'mp4', 'avi', 'mov', 'mkv', 'webm'];
 
+// Compress mode: formats the server stores losslessly whatever the quality
+// (app/compressors/image.py) — the slider hides for them.
+const LOSSLESS_COMPRESS_TYPES = ['png', 'tiff', 'tif'];
+
 // Mirrors _VIDEO_FORMATS in app/converters/video.py — a parity test pins this.
 const VIDEO_TYPES = ['mp4', 'avi', 'mov', 'mkv', 'webm', 'flv', 'wmv'];
 
@@ -890,6 +909,12 @@ function hideBatchSummary() {
 }
 
 function updateQualityVisibility() {
+  updateQualityControls();
+  // After the controls: the estimate goes by which of them show.
+  scheduleSizeEstimate();
+}
+
+function updateQualityControls() {
   const section = document.getElementById('quality-section');
   const cmodeToggle = document.getElementById('compress-mode-toggle');
   const targetSection = document.getElementById('target-size-section');
@@ -898,6 +923,7 @@ function updateQualityVisibility() {
     section.classList.add('hidden');
     if (cmodeToggle) cmodeToggle.classList.add('hidden');
     if (targetSection) targetSection.classList.add('hidden');
+    showLosslessNote(false);
   };
 
   if (selectedFiles.length === 0) { hideAll(); return; }
@@ -915,7 +941,13 @@ function updateQualityVisibility() {
       compressMode = 'quality';
     }
     const showTarget = compressMode === 'target' && targetEligible;
-    section.classList.toggle('hidden', showTarget);
+    // PNG and TIFF are stored losslessly (app/compressors/image.py): the
+    // slider would change nothing, so it hides and a note says what does.
+    const lossless = selectedFiles.every(f =>
+      LOSSLESS_COMPRESS_TYPES.includes(getExtension(f.name))
+    );
+    section.classList.toggle('hidden', showTarget || lossless);
+    showLosslessNote(lossless);
     if (targetSection) targetSection.classList.toggle('hidden', !showTarget);
     if (showTarget) updateTargetSizeLabel();
     // AVIF target-size compression is much slower — only warn when it applies.
@@ -930,6 +962,7 @@ function updateQualityVisibility() {
   // Convert mode: hide compress-mode-toggle and target-size-section.
   if (cmodeToggle) cmodeToggle.classList.add('hidden');
   if (targetSection) targetSection.classList.add('hidden');
+  showLosslessNote(false);
 
   // Batch: one target per file, the rows in the order of selectedFiles.
   const isBatch = selectedFiles.length > 1;
@@ -1064,6 +1097,282 @@ function releaseResult() {
     URL.revokeObjectURL(link.href);
     link.href = '#';
   }
+}
+
+// Compress mode with only PNG/TIFF chosen: the note in place of the slider,
+// and for one file the switch to WebP when this file can become one.
+function showLosslessNote(visible) {
+  const note = document.getElementById('lossless-note');
+  if (!note) return;
+  note.classList.toggle('hidden', !visible);
+  const button = document.getElementById('lossless-to-webp');
+  if (!button) return;
+  const single = visible && selectedFiles.length === 1 && document.getElementById('btn-mode-convert');
+  const targets = single ? supportedConversions[getExtension(selectedFiles[0].name)] || [] : [];
+  button.classList.toggle('hidden', !targets.includes('webp'));
+}
+
+// ── Size estimate ─────────────────────────────────────────────────────────────
+// Compress mode, one JPEG, quality slider: the line under the slider says how
+// large the result will be — worked out by this browser, nothing is uploaded
+// for it. The server (compress_image in app/compressors/image.py) re-encodes
+// the decoded pixels with libjpeg-turbo: the chosen quality, optimised
+// Huffman tables, 4:2:0, the EXIF orientation applied, the colour values as
+// stored, and of the APPn segments only its 18-byte JFIF header.
+// Chromium's canvas encoder is the same libjpeg-turbo, its file differs only
+// in its own APPn segments: result = browser file − its APPn bytes + 18.
+// Other engines encode differently, so a probe picture proves the match at
+// the chosen quality first; without that proof, or for a picture over
+// ESTIMATE_MAX_PIXELS (decoding takes 4 bytes a pixel, iOS canvases end at
+// 16.7 MP), over ESTIMATE_MAX_BYTES, or one that doesn't decode in time and
+// at its own size, the line names "By target size" instead of a number.
+const ESTIMATE_TYPES = ['jpg', 'jpeg'];
+const ESTIMATE_PILLOW_APP_BYTES = 18;
+const ESTIMATE_MAX_PIXELS = (navigator.deviceMemory || 0) >= 8 ? 25e6 : PREVIEW_MAX_PIXELS;
+// The browser reads the whole file before it decodes; a JPEG of 25 MP stays
+// far below this.
+const ESTIMATE_MAX_BYTES = 64 * 1024 * 1024;
+const ESTIMATE_DECODE_MS = 5000;
+// The frame header (SOF) follows EXIF, the colour profile and the like,
+// mostly within a few KB; one further in counts as unreadable.
+const ESTIMATE_HEAD_BYTES = 512 * 1024;
+const ESTIMATE_DELAY_MS = 250;
+const ESTIMATE_PROBE_SIZE = 64;
+// The server's JPEG of the probe picture at quality 1…100, without its
+// 18-byte JFIF header — tests/test_size_estimate.py checks these with Pillow.
+const ESTIMATE_PROBE_BYTES = [
+  299, 299, 299, 300, 302, 302, 303, 305, 305, 314, 317, 319, 323, 326, 334, 346, 356, 369, 376, 381,
+  392, 403, 418, 426, 435, 438, 454, 461, 468, 479, 486, 494, 501, 511, 520, 531, 536, 545, 555, 560,
+  573, 580, 582, 600, 606, 611, 614, 621, 635, 638, 641, 660, 672, 680, 688, 694, 702, 710, 719, 730,
+  735, 741, 759, 770, 790, 807, 822, 845, 864, 889, 914, 936, 967, 993, 1006, 1046, 1074, 1113, 1140, 1176,
+  1220, 1255, 1313, 1361, 1416, 1477, 1536, 1616, 1678, 1774, 1843, 1916, 2043, 2180, 2339, 2512, 2715, 2906, 3226, 3548,
+];
+let estimateRun = 0;
+let estimateTimer = null;
+let estimateSource = null; // { file, canvas }: the chosen JPEG, decoded once
+let estimateFailed = null; // the file whose decode failed: not tried again on every slider move
+let estimateQueue = Promise.resolve();
+const estimateProbes = new Map(); // quality → Promise<boolean>
+
+// The probe picture: a gradient with grain, as RGBA. The Python copy in
+// tests/test_size_estimate.py makes the same pixels.
+function estimateProbePixels(size) {
+  const data = new Uint8ClampedArray(size * size * 4);
+  let seed = 12345;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      seed = (Math.imul(seed, 1103515245) + 12345) >>> 0;
+      const grain = (seed >>> 16) % 32;
+      const i = (y * size + x) * 4;
+      data[i] = ((x * 3 + y) >> 1) + grain;
+      data[i + 1] = ((x * y) >> 8) + grain;
+      data[i + 2] = (((x - 128) * (x - 128) + (y - 96) * (y - 96)) >> 7) + grain;
+      data[i + 3] = 255;
+    }
+  }
+  return data;
+}
+
+// A JPEG's segments up to its scan: the bytes its APPn segments take, and the
+// frame header's bit depth, size and component count. null for data that is
+// no JPEG, ends before the scan, or has a second or misshapen frame header
+// (which the pixel check would otherwise read wrongly).
+function jpegInfo(bytes) {
+  if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) return null;
+  const info = { appBytes: 0, precision: 0, width: 0, height: 0, components: 0 };
+  let frame = false;
+  let pos = 2;
+  while (pos + 4 <= bytes.length) {
+    if (bytes[pos] !== 0xff) return null;
+    const marker = bytes[pos + 1];
+    if (marker === 0xff) { pos++; continue; } // a fill byte
+    if (marker === 0x01 || (marker >= 0xd0 && marker <= 0xd9)) return null; // no segment
+    const length = (bytes[pos + 2] << 8) | bytes[pos + 3];
+    if (length < 2) return null;
+    if (marker >= 0xe0 && marker <= 0xef) info.appBytes += length + 2;
+    if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+      if (pos + 10 > bytes.length) return null;
+      if (frame || length !== 8 + 3 * bytes[pos + 9]) return null;
+      frame = true;
+      info.precision = bytes[pos + 4];
+      info.height = (bytes[pos + 5] << 8) | bytes[pos + 6];
+      info.width = (bytes[pos + 7] << 8) | bytes[pos + 8];
+      info.components = bytes[pos + 9];
+    }
+    if (marker === 0xda) return frame ? info : null;
+    pos += length + 2;
+  }
+  return null;
+}
+
+async function jpegHead(blob) {
+  return new Uint8Array(await blob.slice(0, ESTIMATE_HEAD_BYTES).arrayBuffer());
+}
+
+function jpegBlob(canvas, quality) {
+  return new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', quality));
+}
+
+// The picture on a canvas, decoded as the server decodes it (turned upright,
+// colour values as stored) — or null when decoding takes longer than
+// ESTIMATE_DECODE_MS or the picture comes out at another size than its
+// frame header says (Chromium decodes smaller when memory is short). A
+// decode that finishes late is released then.
+async function decodeForEstimate(file, info) {
+  const decoding = createImageBitmap(file, { imageOrientation: 'from-image', colorSpaceConversion: 'none' });
+  const bitmap = await Promise.race([
+    decoding,
+    new Promise(resolve => setTimeout(resolve, ESTIMATE_DECODE_MS, null)),
+  ]);
+  if (!bitmap) {
+    decoding.then(late => late.close(), () => {});
+    return null;
+  }
+  const upright = bitmap.width === info.width && bitmap.height === info.height;
+  const turned = bitmap.width === info.height && bitmap.height === info.width;
+  if (!upright && !turned) {
+    bitmap.close();
+    return null;
+  }
+  const canvas = document.createElement('canvas');
+  canvas.width = bitmap.width;
+  canvas.height = bitmap.height;
+  canvas.getContext('2d').drawImage(bitmap, 0, 0);
+  bitmap.close();
+  return canvas;
+}
+
+// Whether this browser writes the server's JPEG at this quality: checked
+// once per quality, on the probe picture.
+function estimateProbeMatches(quality) {
+  if (!estimateProbes.has(quality)) {
+    estimateProbes.set(quality, (async () => {
+      const size = ESTIMATE_PROBE_SIZE;
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      canvas.getContext('2d').putImageData(new ImageData(estimateProbePixels(size), size, size), 0, 0);
+      const blob = await jpegBlob(canvas, quality / 100);
+      if (!blob || blob.type !== 'image/jpeg') return false;
+      const info = jpegInfo(await jpegHead(blob));
+      return Boolean(info) && blob.size - info.appBytes === ESTIMATE_PROBE_BYTES[quality - 1];
+    })().catch(() => false));
+  }
+  return estimateProbes.get(quality);
+}
+
+// What the line under the slider is for: 'jpeg' (an estimate, where this
+// browser can make one), 'video' (the size is known only afterwards),
+// 'none' (WebP/AVIF: no estimate, "By target size" sets the size) or nothing.
+function sizeEstimateKind() {
+  if (currentMode !== 'compress' || compressMode !== 'quality' || selectedFiles.length !== 1) return null;
+  const section = document.getElementById('quality-section');
+  if (!section || section.classList.contains('hidden')) return null;
+  const ext = getExtension(selectedFiles[0].name);
+  if (ESTIMATE_TYPES.includes(ext)) return 'jpeg';
+  if (VIDEO_TYPES.includes(ext) && QUALITY_TYPES.includes(ext)) return 'video';
+  if (TARGET_SIZE_FORMATS.includes(ext)) return 'none';
+  return null;
+}
+
+// On every change the estimate depends on — the slider, the files, the mode
+// (updateQualityVisibility). The line blanks at once: a number for an
+// earlier setting never stands beside the current one.
+function scheduleSizeEstimate() {
+  const run = ++estimateRun;
+  clearTimeout(estimateTimer);
+  const kind = sizeEstimateKind();
+  if (kind !== 'jpeg' || (estimateSource && estimateSource.file !== selectedFiles[0])) releaseEstimateSource();
+  if (kind !== 'jpeg') { showSizeEstimate(kind); return; }
+  showSizeEstimate('pending');
+  estimateTimer = setTimeout(() => {
+    // One estimate at a time: the next waits, an outdated one stops early.
+    estimateQueue = estimateQueue.then(() => runSizeEstimate(run)).catch(() => {
+      if (run === estimateRun) showSizeEstimate('none');
+    });
+  }, ESTIMATE_DELAY_MS);
+}
+
+async function runSizeEstimate(run) {
+  if (run !== estimateRun) return;
+  const file = selectedFiles[0];
+  const quality = Number(document.getElementById('quality-slider').value);
+  const matches = await estimateProbeMatches(quality);
+  if (run !== estimateRun) return;
+  if (!matches) { showSizeEstimate('browser'); return; }
+  if (estimateFailed === file) { showSizeEstimate('none'); return; }
+  if (!estimateSource || estimateSource.file !== file) {
+    releaseEstimateSource();
+    // Read before decoding: 8-bit colour (the server writes greyscale with
+    // one component, CMYK with four), not too many pixels or bytes.
+    const info = jpegInfo(await jpegHead(file));
+    if (run !== estimateRun) return;
+    const pixels = info ? info.width * info.height : 0;
+    if (!info || info.precision !== 8 || info.components !== 3 || !(pixels > 0)
+        || pixels > ESTIMATE_MAX_PIXELS || file.size > ESTIMATE_MAX_BYTES) {
+      showSizeEstimate('none');
+      return;
+    }
+    const canvas = await decodeForEstimate(file, info);
+    if (run !== estimateRun && !(canvas && selectedFiles[0] === file && sizeEstimateKind() === 'jpeg')) {
+      // Another file or mode meanwhile; after a mere slider move the next
+      // run uses this picture instead of decoding it again.
+      if (canvas) { canvas.width = 0; canvas.height = 0; } else estimateFailed = file;
+      return;
+    }
+    if (!canvas) { estimateFailed = file; showSizeEstimate('none'); return; }
+    estimateSource = { file, canvas };
+    if (run !== estimateRun) return;
+  }
+  const blob = await jpegBlob(estimateSource.canvas, quality / 100);
+  if (run !== estimateRun) return;
+  const out = blob && blob.type === 'image/jpeg' ? jpegInfo(await jpegHead(blob)) : null;
+  if (run !== estimateRun) return;
+  if (!out) { showSizeEstimate('none'); return; }
+  showSizeEstimate('value', { before: file.size, after: blob.size - out.appBytes + ESTIMATE_PILLOW_APP_BYTES });
+}
+
+function releaseEstimateSource() {
+  if (!estimateSource) return;
+  estimateSource.canvas.width = 0;
+  estimateSource.canvas.height = 0;
+  estimateSource = null;
+}
+
+// state: null (hidden), 'pending', 'value' (with the sizes), 'none' (this
+// file), 'browser' (this browser at this quality — Chromium at 100 encodes
+// 4:4:4, the server 4:2:0), 'video'.
+function showSizeEstimate(state, sizes) {
+  const box = document.getElementById('size-estimate');
+  if (!box) return;
+  let text = '';
+  let note = '';
+  let larger = false;
+  if (state === 'pending') {
+    text = i18nText('sizeEstimatePending', 'Working out the size…');
+  } else if (state === 'value') {
+    text = i18nText('sizeEstimate', 'Estimated size: about {size}', { size: formatBytes(sizes.after) });
+    const change = resultChangeText(sizes.before, sizes.after);
+    larger = sizes.after >= sizes.before * 0.99;
+    note = larger
+      ? i18nText('sizeEstimateLarger', '{change} — choose a lower quality', { change })
+      : i18nText('sizeEstimateNote', '{change} · worked out in your browser, nothing uploaded', { change });
+  } else if (state === 'none') {
+    text = i18nText('sizeEstimateNone', 'No size preview for this file. With “By target size” you set the size yourself.');
+  } else if (state === 'browser') {
+    text = i18nText('sizeEstimateBrowser', 'Your browser cannot work out the size precisely here. With “By target size” you set it yourself.');
+  } else if (state === 'video') {
+    text = i18nText('sizeEstimateVideo', 'For a video, the size is known only after compressing.');
+  }
+  document.getElementById('size-estimate-text').textContent = text;
+  const noteEl = document.getElementById('size-estimate-note');
+  noteEl.textContent = note;
+  noteEl.classList.toggle('text-amber-400', larger);
+  noteEl.classList.toggle('text-ink-faint', !larger);
+  // Busy while working it out: screen readers then wait for the number
+  // instead of repeating "Working out the size…" on every slider step.
+  box.setAttribute('aria-busy', state === 'pending' ? 'true' : 'false');
+  box.classList.toggle('hidden', !state);
 }
 
 // ── Submit ────────────────────────────────────────────────────────────────────
