@@ -1,17 +1,17 @@
 # Swagger UI — Apache License 2.0
 
 FileMorph vendors `swagger-ui-bundle.js` and `swagger-ui.css` from Swagger UI
-**v5.33.1** (https://github.com/swagger-api/swagger-ui), distributed under the
+**v5.34.1** (https://github.com/swagger-api/swagger-ui), distributed under the
 Apache License 2.0. They power the API explorer at `/docs`
 (`app/templates/api_docs.html`, started by `app/static/js/api-docs.js`).
 No modifications were made to the upstream files.
 
-- Upstream package: `swagger-ui-dist@5.33.1` — https://registry.npmjs.org/swagger-ui-dist/-/swagger-ui-dist-5.33.1.tgz
-- npm integrity of the tarball (checked on download): `sha512-H872wWkA53bFIsGgi7OWgmq+CRWw3nFQGdJWRqOB9wNwTm6e5ol34+qPDkV4AJlK+gglM2EsJiOOzsGsEGbluA==`.
+- Upstream package: `swagger-ui-dist@5.34.1` — https://registry.npmjs.org/swagger-ui-dist/-/swagger-ui-dist-5.34.1.tgz
+- npm integrity of the tarball (checked on download): `sha512-VSr8fXfI93obYaQicLJbLUKGRxDojj/SfRJDDLCioGTUBj4BK/Nj4eE9jCeCAnJxVLi7iS+08PbiZLyrQKBkJQ==`.
   The package carries an SLSA provenance attestation on the npm registry.
-- SHA-256 (`swagger-ui-bundle.js`, this copy): `050bc415ee7048dcd881682678f720264e7da5e373f7461d7c58c755305255f7`
-- SHA-256 (`swagger-ui.css`, this copy): `1ac324f7dcd27e4b9386b4bd6421271ec147e922a22c05ba24b11515e9aa6321`
-- SHA-256 (`swagger-ui-bundle.js.LICENSE.txt`, this copy): `63818894e4b04cd0e3180d9cb20761e227a939121e7484f8e1d528227c756f89`
+- SHA-256 (`swagger-ui-bundle.js`, this copy): `36eeb4d5640b9c036b1d0f854499af1cceebbdb260b790a03a18be5e8488fbf5`
+- SHA-256 (`swagger-ui.css`, this copy): `c3cfe8248c4b0b89673600fb829924eafbac6de4bc4b2b06f5f5243483074d0a`
+- SHA-256 (`swagger-ui-bundle.js.LICENSE.txt`, this copy): `37eb6e7e59aed57b2c1acf076574b818ea07b74265717e0bd67b59e0baf9abbb`
 
 ## NOTICE
 
@@ -91,9 +91,11 @@ the Apache License 2.0.
  * Licensed under the MIT License.
  */
 
-/*! @license DOMPurify 3.4.13 | (c) Cure53 and other contributors | Released under the Apache license 2.0 and Mozilla Public License 2.0 | github.com/cure53/DOMPurify/blob/3.4.13/LICENSE */
+/*! @license DOMPurify 3.4.17 | (c) Cure53 and other contributors | Released under the Apache license 2.0 and Mozilla Public License 2.0 | github.com/cure53/DOMPurify/blob/3.4.17/LICENSE */
 
 /*! ieee754. BSD-3-Clause License. Feross Aboukhadijeh <https://feross.org/opensource> */
+
+/*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/babel/babel/blob/main/packages/babel-helpers/LICENSE */
 
 /*! safe-buffer. MIT License. Feross Aboukhadijeh <https://feross.org/opensource> */
 
