@@ -28,6 +28,9 @@ async def require_api_key(
     if validate_api_key(x_api_key):
         return x_api_key
     if db is not None and await find_active_api_key(db, x_api_key):
+        # Ends the lookup's read transaction before the route's slow part
+        # (see ``app/api/routes/auth.py::_session_user``).
+        await db.commit()
         return x_api_key
     reject_failed_api_key(request)
     raise HTTPException(

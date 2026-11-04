@@ -38,6 +38,7 @@ from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
+from app.api.routes import convert as convert_route
 from app.core import audit as audit_module
 from app.core import email as email_mod
 from app.core.audit import (
@@ -154,6 +155,41 @@ def test_deleting_a_free_account_nulls_its_audit_actor(client, pg, monkeypatch):
     }
     assert [e.actor_user_id for e in events] == [None] * len(events)
     assert broken_at is None
+
+
+@needs_postgres
+def test_a_signed_in_conversion_holds_no_transaction_open(client, pg, monkeypatch, sample_jpg):
+    """The sign-in lookup used to leave its read transaction open for the
+    whole request: a conversion of up to minutes kept a pooled connection
+    "idle in transaction", holding a lock on ``users``. The monthly quota
+    check runs after sign-in and before the file converts; look from there."""
+    monkeypatch.setattr(email_mod, "send_email", AsyncMock())
+    email = "converts@example.com"
+    res = client.post("/api/v1/auth/register", json={"email": email, "password": _PASSWORD})
+    assert res.status_code == 201, res.text
+    token = res.json()["access_token"]
+    idle = []
+
+    async def _probe(user, **_):
+        async with pg() as s:
+            idle.append(
+                await s.scalar(
+                    text(
+                        "SELECT count(*) FROM pg_stat_activity WHERE datname = current_database()"
+                        " AND state = 'idle in transaction'"
+                    )
+                )
+            )
+
+    monkeypatch.setattr(convert_route, "enforce_monthly_quota", _probe)
+    res = client.post(
+        "/api/v1/convert",
+        files={"file": ("photo.jpg", sample_jpg.read_bytes(), "image/jpeg")},
+        data={"target_format": "png"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert res.status_code == 200, res.text
+    assert idle == [0]
 
 
 @needs_postgres

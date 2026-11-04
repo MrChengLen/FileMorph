@@ -34,6 +34,8 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
+from app.api.deps import require_api_key
+from app.api.routes.auth import get_optional_user
 from app.core.auth import hash_password
 from app.core.config import settings
 from app.core.security import validate_api_key
@@ -334,3 +336,70 @@ def test_file_store_key_accepted_with_database_configured(client, sample_jpg):
     res = _convert_jpg(client, sample_jpg, TEST_KEY)
 
     assert res.status_code == 200, res.text
+
+
+# ── The lookups end their read transaction ─────────────────────────────────────
+# The request's session stays open until the response is done, which for a
+# conversion takes up to minutes. A read transaction left open by these
+# dependencies would hold a pooled connection, and a lock on ``users`` or
+# ``api_keys``, for that long.
+
+
+def _open_after(dependency) -> bool:
+    async def _run() -> bool:
+        async with _TestSession() as db:
+            await dependency(db)
+            return db.in_transaction()
+
+    return asyncio.run(_run())
+
+
+def _token_for(user: User) -> str:
+    return create_access_token(
+        str(user.id), phv=password_hash_version(user.password_hash), role=user.role.value
+    )
+
+
+def test_a_bearer_login_ends_its_read_transaction():
+    user = asyncio.run(_insert_business_user())
+    seen = {}
+
+    async def dependency(db):
+        resolved = await get_optional_user(
+            authorization=f"Bearer {_token_for(user)}", x_api_key=None, db=db
+        )
+        seen["tier"] = resolved.tier  # still loaded after the commit
+
+    assert _open_after(dependency) is False
+    assert seen["tier"] == TierEnum.business
+
+
+def test_a_token_whose_account_is_gone_ends_its_read_transaction():
+    user = asyncio.run(_insert_business_user())
+    token = _token_for(user)
+    asyncio.run(_update_owner(user, is_active=False))
+
+    async def dependency(db):
+        assert (
+            await get_optional_user(authorization=f"Bearer {token}", x_api_key=None, db=db) is None
+        )
+
+    assert _open_after(dependency) is False
+
+
+def test_a_key_file_key_ends_the_dashboard_key_lookup():
+    async def dependency(db):
+        assert await get_optional_user(authorization=None, x_api_key=TEST_KEY, db=db) is None
+
+    assert _open_after(dependency) is False
+
+
+def test_the_upload_gate_ends_its_dashboard_key_lookup(client):
+    user = asyncio.run(_insert_business_user())
+    raw_key = _mint_dashboard_key(client, user)
+
+    async def dependency(db):
+        # ``request`` is only read when the key is refused.
+        assert await require_api_key(request=None, x_api_key=raw_key, db=db) == raw_key
+
+    assert _open_after(dependency) is False
