@@ -21,7 +21,9 @@ async def require_api_key(
     an active dashboard-minted key — the same rule ``get_optional_user`` uses
     to resolve the key to its owner. A rejected key costs one of the caller's
     per-IP failed attempts; past the budget the answer is 429 instead of 401
-    (``app/core/rate_limit.py``). A valid key always passes.
+    (``app/core/rate_limit.py``). A valid key always passes. Commits ``db``
+    after a dashboard-key lookup: run it before anything writes to that
+    session.
     """
     if x_api_key is None:
         return None
@@ -29,7 +31,9 @@ async def require_api_key(
         return x_api_key
     if db is not None and await find_active_api_key(db, x_api_key):
         # Ends the lookup's read transaction before the route's slow part
-        # (see ``app/api/routes/auth.py::_session_user``).
+        # (see ``app/api/routes/auth.py::_session_user``). The upload routes
+        # run ``get_optional_user`` next, which ends it too; this dependency
+        # does not rely on that.
         await db.commit()
         return x_api_key
     reject_failed_api_key(request)

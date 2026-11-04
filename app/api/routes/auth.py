@@ -167,7 +167,8 @@ async def _session_user(db: AsyncSession, token: str, expected_type: str) -> Use
     """Resolve an access or refresh token to its live user, or raise 401.
 
     The token's ``phv`` must match the user's current password hash, so a
-    password reset ends every session issued before it."""
+    password reset ends every session issued before it. Commits ``db`` (see
+    below): call it before anything writes to that session."""
     user_id, token_phv = decode_session_token(token, expected_type=expected_type)
     # asyncpg happily binds a str to a UUID column, but SQLAlchemy's generic
     # UUID type (used by the SQLite test engine) calls ``.hex`` on the value

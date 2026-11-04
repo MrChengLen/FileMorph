@@ -123,15 +123,20 @@ async def _last_used_at(user: User) -> datetime | None:
         return await s.scalar(select(ApiKey.last_used_at).where(ApiKey.user_id == user.id))
 
 
+def _token_for(user: User) -> str:
+    return create_access_token(
+        str(user.id), phv=password_hash_version(user.password_hash), role=user.role.value
+    )
+
+
 def _mint_dashboard_key(client, user: User) -> str:
     """Mint a key the way the dashboard does (``POST /api/v1/keys``). It
     lands only in the DB ``api_keys`` table — never in the file store that
     self-host/CLI keys live in."""
-    token = create_access_token(
-        str(user.id), phv=password_hash_version(user.password_hash), role=user.role.value
-    )
     res = client.post(
-        "/api/v1/keys", json={"label": "cli"}, headers={"Authorization": f"Bearer {token}"}
+        "/api/v1/keys",
+        json={"label": "cli"},
+        headers={"Authorization": f"Bearer {_token_for(user)}"},
     )
     assert res.status_code == 201, res.text
     raw_key = res.json()["key"]
@@ -168,9 +173,7 @@ def test_batch_resolves_bearer_jwt_to_user_tier(client, sample_jpg):
     ``tier_for(user)`` sees ``business`` (limit 100) and a 2-file batch
     is not rejected with ``tier limit of 1``."""
     user = asyncio.run(_insert_business_user())
-    token = create_access_token(
-        str(user.id), phv=password_hash_version(user.password_hash), role=user.role.value
-    )
+    token = _token_for(user)
 
     res = client.post(
         "/api/v1/convert/batch",
@@ -354,12 +357,6 @@ def _open_after(dependency) -> bool:
     return asyncio.run(_run())
 
 
-def _token_for(user: User) -> str:
-    return create_access_token(
-        str(user.id), phv=password_hash_version(user.password_hash), role=user.role.value
-    )
-
-
 def test_a_bearer_login_ends_its_read_transaction():
     user = asyncio.run(_insert_business_user())
     seen = {}
@@ -374,7 +371,7 @@ def test_a_bearer_login_ends_its_read_transaction():
     assert seen["tier"] == TierEnum.business
 
 
-def test_a_token_whose_account_is_gone_ends_its_read_transaction():
+def test_a_token_of_a_deactivated_account_ends_its_read_transaction():
     user = asyncio.run(_insert_business_user())
     token = _token_for(user)
     asyncio.run(_update_owner(user, is_active=False))
@@ -387,7 +384,7 @@ def test_a_token_whose_account_is_gone_ends_its_read_transaction():
     assert _open_after(dependency) is False
 
 
-def test_a_key_file_key_ends_the_dashboard_key_lookup():
+def test_a_key_file_key_leaves_no_read_transaction_open():
     async def dependency(db):
         assert await get_optional_user(authorization=None, x_api_key=TEST_KEY, db=db) is None
 

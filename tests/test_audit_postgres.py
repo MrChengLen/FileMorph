@@ -172,14 +172,13 @@ def test_a_signed_in_conversion_holds_no_transaction_open(client, pg, monkeypatc
 
     async def _probe(user, **_):
         async with pg() as s:
-            idle.append(
-                await s.scalar(
-                    text(
-                        "SELECT count(*) FROM pg_stat_activity WHERE datname = current_database()"
-                        " AND state = 'idle in transaction'"
-                    )
+            rows = await s.execute(
+                text(
+                    "SELECT query FROM pg_stat_activity WHERE datname = current_database()"
+                    " AND state = 'idle in transaction'"
                 )
             )
+            idle.append(rows.scalars().all())  # the statement that left it open
 
     monkeypatch.setattr(convert_route, "enforce_monthly_quota", _probe)
     res = client.post(
@@ -189,7 +188,7 @@ def test_a_signed_in_conversion_holds_no_transaction_open(client, pg, monkeypatc
         headers={"Authorization": f"Bearer {token}"},
     )
     assert res.status_code == 200, res.text
-    assert idle == [0]
+    assert idle == [[]]
 
 
 @needs_postgres
