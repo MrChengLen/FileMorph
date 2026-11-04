@@ -100,6 +100,18 @@ def test_an_accepted_advisory_passes_through_its_review_date():
     assert any("accepted until 2026-11-02" in line for line in lines)
 
 
+def test_an_acceptance_warns_in_its_last_two_weeks():
+    advisories = {"dompurify": ["GHSA-aaaa"]}
+    code, lines = check.run(MANIFEST, _fetch(advisories), dt.date(2026, 10, 19), ACCEPTED)
+    assert code == 0
+    assert any(
+        line.startswith("::warning::") and "2026-11-02 (14 more day(s))" in line for line in lines
+    )
+    code, lines = check.run(MANIFEST, _fetch(advisories), dt.date(2026, 10, 18), ACCEPTED)
+    assert code == 0
+    assert not any(line.startswith("::warning::") for line in lines)
+
+
 def test_an_acceptance_fails_again_after_its_review_date():
     advisories = {"dompurify": ["GHSA-aaaa"]}
     code, lines = check.run(MANIFEST, _fetch(advisories), dt.date(2026, 11, 3), ACCEPTED)

@@ -11,7 +11,8 @@ Libraries built into a file but not named there are not checked.
 Blocking like pip-audit: an advisory fails the check unless ACCEPTED lists it
 for that package and version, with a reason and a review date. An acceptance
 holds through its review date and fails again afterwards, so an exception
-cannot outlive its reason unnoticed (docs/patch-policy.md).
+cannot outlive its reason unnoticed (docs/patch-policy.md). In its last two
+weeks it prints a GitHub warning annotation, so the date is seen in time.
 
 Exit codes: 0 no advisory, or all accepted; 1 an advisory that is not
 accepted or whose review date has passed; 2 the check could not run
@@ -106,6 +107,14 @@ def run(manifest: dict, fetch, today: dt.date, accepted: list[dict]) -> tuple[in
                 failing.append(f"FAIL: {where} review date {review_by} has passed")
             else:
                 lines.append(f"accepted until {review_by}: {where} - {acceptance['reason']}")
+                # Two weeks ahead, a yellow annotation on the run: on 2026-11-02
+                # an acceptance ran out unnoticed and turned main red.
+                days_left = (review_by - today).days
+                if days_left <= 14:
+                    lines.append(
+                        f"::warning::{where} is accepted through {review_by} "
+                        f"({days_left} more day(s)); after that this check fails"
+                    )
     for name, version, vuln_id in sorted(set(by_key) - used):
         lines.append(
             f"note: {vuln_id} for {name}@{version} is no longer reported; remove it from ACCEPTED"
