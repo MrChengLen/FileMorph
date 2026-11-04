@@ -307,26 +307,24 @@ FileMorph's tables, so the migrations still run at every start, but it is no
 superuser. FileMorph's migrations need nothing more; CI runs them as such a
 role.
 
-The steps work on a new and on an existing volume, and the app keeps running
-as before until step 3. Run them in the directory with your `.env`.
+The overlay switches on a single variable: while `POSTGRES_APP_PASSWORD` is
+not in `.env`, the app logs in as `filemorph` as before; once it is, as
+`filemorph_app` with that password. The steps work on a new and on an
+existing volume. Run them in one shell session, in the directory with your
+`.env`; the app keeps running as before until step 2.
 
-1. Generate a password for the role (it goes into `DATABASE_URL`, so letters
-   and digits only):
-
-   ```bash
-   printf '\nPOSTGRES_APP_PASSWORD=%s\n' "$(openssl rand -hex 32)" >> .env
-   ```
-
-2. Create the role and hand it FileMorph's tables. This runs in one
-   transaction: either everything changes or nothing does. The password
-   reaches `psql` through the environment, and the session logs no
-   statement. Running it again does no harm. Expected: a `NOTICE` with the
-   number of objects it moved (0 on a second run), then `done`. On
+1. Create the role with a new password and hand it FileMorph's tables. This
+   runs in one transaction: either everything changes or nothing does. The
+   password reaches `psql` through the environment and stays out of `.env`
+   until step 2, and the session logs no statement. Running it again does no
+   harm (with a new password, so do step 2 after it). Expected: a `NOTICE`
+   with the number of objects it moved (0 on a second run), then `done`. On
    `lock timeout` or `statement timeout`, a request held a table: nothing
    changed, run it again a minute later.
 
    ```bash
-   POSTGRES_APP_PASSWORD="$(sed -n 's/^POSTGRES_APP_PASSWORD=//p' .env)" \
+   pw="$(openssl rand -hex 32)"
+   POSTGRES_APP_PASSWORD="$pw" \
      docker compose -f docker-compose.yml -f docker-compose.cloud.yml exec -T -e POSTGRES_APP_PASSWORD \
      postgres psql -U filemorph -d filemorph -q -v ON_ERROR_STOP=1 <<'SQL'
    -- Only pg_catalog: nothing in public can stand in for a function or operator.
@@ -346,7 +344,14 @@ as before until step 3. Run them in the directory with your `.env`.
    \endif
    \if :pw_ok
    \else
-   DO $$ BEGIN RAISE EXCEPTION 'stopped: .env has no POSTGRES_APP_PASSWORD of at least 16 letters and digits (step 1)'; END $$;
+   DO $$ BEGIN RAISE EXCEPTION 'stopped: no password of at least 16 letters and digits'; END $$;
+   \endif
+   -- A role someone else created could carry memberships or settings.
+   SELECT NOT EXISTS (SELECT FROM pg_auth_members m JOIN pg_roles r ON r.oid = m.member
+                      WHERE r.rolname = 'filemorph_app') AS no_member \gset
+   \if :no_member
+   \else
+   DO $$ BEGIN RAISE EXCEPTION 'stopped: filemorph_app is a member of another role, check before going on'; END $$;
    \endif
    BEGIN;
    SELECT NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'filemorph_app') AS role_missing \gset
@@ -354,6 +359,8 @@ as before until step 3. Run them in the directory with your `.env`.
    CREATE ROLE filemorph_app;
    \endif
    ALTER ROLE filemorph_app WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD :'pw';
+   ALTER ROLE filemorph_app RESET ALL;
+   ALTER ROLE filemorph_app IN DATABASE filemorph RESET ALL;
    GRANT CONNECT ON DATABASE filemorph TO filemorph_app;
    GRANT USAGE, CREATE ON SCHEMA public TO filemorph_app;
    DO $$
@@ -410,42 +417,83 @@ as before until step 3. Run them in the directory with your `.env`.
    SQL
    ```
 
-3. Switch the app to the role. `up -d` recreates the app container, which
-   then migrates and logs in as `filemorph_app`; the second command prints
-   that name.
+2. Switch the app to the role. `up --wait` returns once the containers are
+   healthy, and fails if the app cannot log in. The last command prints
+   `filemorph_app`.
 
    ```bash
-   printf 'POSTGRES_APP_USER=filemorph_app\n' >> .env
-   docker compose -f docker-compose.yml -f docker-compose.cloud.yml up -d
+   printf '\nPOSTGRES_APP_PASSWORD=%s\n' "$pw" >> .env
+   docker compose -f docker-compose.yml -f docker-compose.cloud.yml up -d --wait
    docker compose -f docker-compose.yml -f docker-compose.cloud.yml exec -T filemorph sh -c 'u=${DATABASE_URL#*://}; echo "${u%%:*}"' </dev/null
    ```
 
-4. Then sign in and convert a file. To go back, delete the
-   `POSTGRES_APP_USER` line from `.env` and run `up -d` again: the app logs
-   in as the superuser, which may use the tables that now belong to
-   `filemorph_app`.
+3. Take the superuser's network login away. Inside the database container
+   `filemorph` still logs in without a password (`docker compose … exec
+   postgres psql -U filemorph`); from the app container it no longer can,
+   whatever `POSTGRES_PASSWORD` says, the default `changeme` included. Tools
+   that log in as `filemorph` over the network stop working.
+
+   ```bash
+   docker compose -f docker-compose.yml -f docker-compose.cloud.yml exec -T postgres psql -U filemorph -d filemorph -c "ALTER ROLE filemorph PASSWORD NULL" </dev/null
+   ```
+
+Then sign in and convert a file.
+
+To go back, give the superuser its password from `.env` again, delete the
+`POSTGRES_APP_PASSWORD` line from `.env`, and run
+`docker compose -f docker-compose.yml -f docker-compose.cloud.yml up -d --wait`.
+The app then logs in as `filemorph`, which may use the tables that now belong
+to `filemorph_app`. If `POSTGRES_PASSWORD` is empty in `.env`, set it there
+first.
+
+```bash
+POSTGRES_PASSWORD="$(sed -n 's/^POSTGRES_PASSWORD=//p' .env | tail -n 1)" \
+  docker compose -f docker-compose.yml -f docker-compose.cloud.yml exec -T -e POSTGRES_PASSWORD \
+  postgres psql -U filemorph -d filemorph -q -v ON_ERROR_STOP=1 <<'SQL'
+SET log_statement = 'none';
+SET log_min_error_statement = panic;
+\getenv pw POSTGRES_PASSWORD
+\if :{?pw}
+SELECT :'pw' <> '' AS pw_ok \gset
+\else
+\set pw_ok false
+\endif
+\if :pw_ok
+\else
+DO $$ BEGIN RAISE EXCEPTION 'stopped: set POSTGRES_PASSWORD in .env first'; END $$;
+\endif
+ALTER ROLE filemorph PASSWORD :'pw';
+SQL
+```
 
 From then on:
 
-- **Look at or change FileMorph's data as `filemorph_app`:**
+- **Never read or write FileMorph's tables or views as `filemorph`.**
+  `filemorph_app` owns them and can attach triggers, rules, defaults and
+  functions to them that would run with the superuser's rights. Look at or
+  change the data as `filemorph_app`:
   `docker compose -f docker-compose.yml -f docker-compose.cloud.yml exec postgres psql -U filemorph_app -d filemorph`
-  (no password inside the container). The role may create functions,
-  operators, views and triggers in `public`; a superuser session would run
-  them with superuser rights, even for a `SELECT`. Use `filemorph` only for
-  roles, grants and `pg_dump`, and start each such `psql` session with
+  (no password inside the container). Use `filemorph` only for roles and
+  grants, and start such a session with
   `SET search_path = pg_catalog, pg_temp;`.
-- **Restore a dump as `filemorph_app`**, into an empty database before the
-  app starts: `pg_restore -U filemorph_app --no-owner --no-acl -d filemorph`
-  inside the postgres container, with the dump on its standard input.
+- **Backups as `filemorph_app` too:**
+  `docker compose … exec -T postgres pg_dump -U filemorph_app -Fc filemorph > filemorph.dump`.
+  To restore into a new volume, start only the database (`up -d postgres`),
+  do step 1, then
+  `docker compose … exec -T postgres pg_restore -U filemorph_app --no-owner --no-acl -d filemorph < filemorph.dump`,
+  then steps 2 and 3.
 - **A migration that needs a superuser** (`CREATE EXTENSION`,
   `CREATE SCHEMA`, an event trigger) stops the app from starting. FileMorph's
   CI keeps such migrations out; for your own, run that statement once as
   `filemorph` first, an extension into a schema of its own rather than
   `public`.
-- **The superuser's password** used to reach the app container through
-  `env_file`. If that container may ever have been compromised, give the
-  superuser a new one (`\password filemorph` in a `psql` session as
-  `filemorph`) and the same value in `POSTGRES_PASSWORD`.
+- **The audit log:** as the owner of `audit_events`, `filemorph_app` can
+  switch off its append-only trigger. The role protects the database
+  server, not the audit log, against someone holding the app's login.
+- **After a suspected compromise** of the app or the database, restore a dump
+  from before the incident into a new volume instead of relying on these
+  steps: a superuser can leave roles, grants and settings behind that they
+  do not remove.
 
 ## Reverse proxy (HTTPS)
 
@@ -1222,4 +1270,5 @@ sudo systemctl status filemorph
 - [ ] Restrict `/api/v1/metrics` at the reverse proxy — it is unauthenticated while `METRICS_ENABLED` is on, which is the default (see [Monitoring & metrics](#monitoring--metrics))
 - [ ] Rotate API keys regularly
 - [ ] Cloud Edition: set a strong `POSTGRES_PASSWORD` (the overlay falls back to `changeme`)
+- [ ] Cloud Edition: run the app without the database superuser (see [Without the database superuser](#without-the-database-superuser))
 - [ ] Monitor disk usage (temp files are cleaned up, but check `/tmp` if issues occur)

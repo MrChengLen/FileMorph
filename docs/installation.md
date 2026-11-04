@@ -97,9 +97,10 @@ Optional but recommended for production:
 - `STRIPE_*` envs — if you want billing
 - `SMTP_*` envs — if you want password-reset / email-verification flows
   (see [`docs/email-setup.md`](email-setup.md) for a step-by-step walkthrough)
-- `POSTGRES_APP_USER` / `POSTGRES_APP_PASSWORD` — after the first start, so
-  the app logs in as a role of its own instead of the database superuser; see
+- `POSTGRES_APP_PASSWORD` — not now: after the first start, once the steps in
   [`docs/self-hosting.md`](self-hosting.md#without-the-database-superuser)
+  have created the app's own role, so the app no longer logs in as the
+  database superuser
 
 `.env.example` documents every supported variable with a one-line description.
 

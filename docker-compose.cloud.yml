@@ -43,8 +43,9 @@ services:
     # root cannot look into the data directory (mode 0700), without SETUID
     # or SETGID it cannot switch users, and Postgres does not start; CHOWN
     # repairs files with the wrong owner, as a restored copy may have.
-    # FOWNER is not needed. Not DAC_READ_SEARCH instead of DAC_OVERRIDE:
-    # with it, Docker's seccomp profile allows open_by_handle_at.
+    # FOWNER is not needed, unless you set POSTGRES_INITDB_WALDIR. Not
+    # DAC_READ_SEARCH instead of DAC_OVERRIDE: with it, Docker's seccomp
+    # profile allows open_by_handle_at.
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -55,7 +56,7 @@ services:
       - SETGID
       - SETUID
     # One process per connection: at most max_connections (100) plus the
-    # server's own (9 when idle).
+    # server's own (9 when idle). Raise it with max_connections.
     pids_limit: 256
     # No core dumps: a crashing backend would write rows and password hashes
     # from its memory to disk.
@@ -71,11 +72,12 @@ services:
     environment:
       # By default the app logs in as the superuser POSTGRES_USER, which can
       # run programs in the postgres container (COPY ... FROM PROGRAM) and
-      # read its files. docs/self-hosting.md, section
-      # "Without the database superuser", creates a role that owns
-      # FileMorph's tables but is no superuser; then set POSTGRES_APP_USER
-      # and POSTGRES_APP_PASSWORD in .env.
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_APP_USER:-filemorph}:${POSTGRES_APP_PASSWORD:-${POSTGRES_PASSWORD:-changeme}}@postgres/filemorph
+      # read its files. With POSTGRES_APP_PASSWORD set it logs in as
+      # filemorph_app instead, a role that owns FileMorph's tables but is no
+      # superuser. One variable switches both name and password, so no
+      # half-set state can pair the wrong ones. docs/self-hosting.md, section
+      # "Without the database superuser", creates the role first.
+      DATABASE_URL: postgresql+asyncpg://filemorph${POSTGRES_APP_PASSWORD:+_app}:${POSTGRES_APP_PASSWORD:-${POSTGRES_PASSWORD:-changeme}}@postgres/filemorph
       # env_file (docker-compose.yml) passes every line of .env into the
       # container, the superuser's password included. The app never reads it.
       POSTGRES_PASSWORD: ""

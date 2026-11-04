@@ -18,7 +18,8 @@ These tests run ``alembic upgrade head`` against the database in
 test empties the tables, so the database name must contain ``test``. CI's
 ``lint-and-test`` job provides a Postgres service and logs in as a role that
 is no superuser, as docs/self-hosting.md recommends for the app;
-``test_ci_runs_these_tests_on_postgres`` keeps it that way.
+``test_ci_runs_these_tests_on_postgres`` and
+``test_ci_migrates_without_a_superuser`` keep it that way.
 """
 
 from __future__ import annotations

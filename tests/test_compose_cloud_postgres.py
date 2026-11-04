@@ -3,20 +3,22 @@
 service's restrictions.
 
 By default the app logs in as the superuser the postgres image creates. With
-POSTGRES_APP_USER and POSTGRES_APP_PASSWORD in .env it logs in as a role that
-is no superuser (docs/self-hosting.md, "Without the database superuser"). The
-password falls back through a nested default, ``${A:-${B:-c}}``, so the
-rendering test below runs Docker Compose itself: a Compose that read it
-differently fails here, not on an installation. It skips where Docker Compose
-is missing, except on CI.
+POSTGRES_APP_PASSWORD in .env it logs in as filemorph_app, a role that is no
+superuser (docs/self-hosting.md, "Without the database superuser"). One
+variable switches name and password together, through ``${A:+...}`` and a
+nested ``${A:-${B:-c}}``, so the tests below run Docker Compose itself: a
+Compose that read them differently fails here, not on an installation. Those
+tests skip where Docker Compose is missing, except on CI.
 """
 
 from __future__ import annotations
 
+import functools
 import json
 import os
 import shutil
 import subprocess
+import uuid
 from pathlib import Path
 
 import pytest
@@ -55,39 +57,33 @@ def test_the_docs_section_the_compose_files_name_exists():
         assert '"Without the database superuser"' in (_ROOT / name).read_text(encoding="utf-8")
 
 
-def _compose() -> list[str] | None:
+@functools.cache
+def _compose() -> tuple[str, ...] | None:
     docker = shutil.which("docker")
     if docker is None:
         return None
     probe = subprocess.run(
-        [docker, "compose", "version"], capture_output=True, text=True, encoding="utf-8"
+        [docker, "compose", "version"],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=60,
     )
-    return [docker, "compose"] if probe.returncode == 0 else None
+    return (docker, "compose") if probe.returncode == 0 else None
 
 
-@pytest.mark.parametrize(
-    ("env", "login"),
-    [
-        ({"POSTGRES_PASSWORD": "pw1"}, "filemorph:pw1"),
-        (
-            {
-                "POSTGRES_PASSWORD": "pw1",
-                "POSTGRES_APP_USER": "filemorph_app",
-                "POSTGRES_APP_PASSWORD": "pw2",
-            },
-            "filemorph_app:pw2",
-        ),
-        ({}, "filemorph:changeme"),
-    ],
-    ids=["superuser", "app-role", "nothing-set"],
-)
-def test_compose_renders_the_database_login(tmp_path, env, login):
+def _compose_or_skip() -> tuple[str, ...]:
     compose = _compose()
     if compose is None:
         if os.environ.get("CI"):
             pytest.fail("Docker Compose is missing; on CI this test has to run")
         pytest.skip("Docker Compose is not installed")
-    # Copies without a .env next to them: only `env` reaches the interpolation.
+    return compose
+
+
+def _project(tmp_path: Path, env: dict[str, str]) -> dict[str, str]:
+    """Copy the two files into ``tmp_path``, without a .env next to them, and
+    return an environment in which only ``env`` reaches the interpolation."""
     for name in _FILES:
         shutil.copy(_ROOT / name, tmp_path / name)
     child = {
@@ -96,10 +92,25 @@ def test_compose_renders_the_database_login(tmp_path, env, login):
         if not k.startswith(("POSTGRES_", "COMPOSE_")) and k != "JWT_SECRET"
     }
     child.update({"JWT_SECRET": "x" * 32, **env})
+    return child
+
+
+@pytest.mark.parametrize(
+    ("env", "login"),
+    [
+        ({"POSTGRES_PASSWORD": "pw1"}, "filemorph:pw1"),
+        ({"POSTGRES_PASSWORD": "pw1", "POSTGRES_APP_PASSWORD": "pw2"}, "filemorph_app:pw2"),
+        ({"POSTGRES_PASSWORD": "pw1", "POSTGRES_APP_PASSWORD": ""}, "filemorph:pw1"),
+        ({}, "filemorph:changeme"),
+    ],
+    ids=["superuser", "app-role", "app-password-empty", "nothing-set"],
+)
+def test_compose_renders_the_database_login(tmp_path, env, login):
+    compose = _compose_or_skip()
     rendered = subprocess.run(
         [*compose, "-f", _FILES[0], "-f", _FILES[1], "config", "--format", "json"],
         cwd=tmp_path,
-        env=child,
+        env=_project(tmp_path, env),
         capture_output=True,
         text=True,
         encoding="utf-8",
@@ -109,3 +120,31 @@ def test_compose_renders_the_database_login(tmp_path, env, login):
     environment = json.loads(rendered.stdout)["services"]["filemorph"]["environment"]
     assert environment["DATABASE_URL"] == f"postgresql+asyncpg://{login}@postgres/filemorph"
     assert environment["POSTGRES_PASSWORD"] == ""
+
+
+def test_postgres_starts_with_its_restrictions(tmp_path):
+    """The floating ``postgres:16-alpine`` tag could change its entrypoint so
+    that it needs another capability; the YAML checks above would not see
+    that. Start the overlay's database as configured and wait until it is
+    healthy."""
+    compose = _compose_or_skip()
+    env = _project(tmp_path, {"POSTGRES_PASSWORD": "pw1"})
+    base = [*compose, "-p", f"fm-pg-{uuid.uuid4().hex[:8]}", "-f", _FILES[0], "-f", _FILES[1]]
+
+    def run(*args: str, timeout: int) -> subprocess.CompletedProcess:
+        return subprocess.run(
+            [*base, *args],
+            cwd=tmp_path,
+            env=env,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=timeout,
+        )
+
+    try:
+        started = run("up", "-d", "--wait", "postgres", timeout=300)
+        logs = run("logs", "postgres", timeout=60).stdout
+        assert started.returncode == 0, started.stderr + logs
+    finally:
+        run("down", "-v", timeout=120)
