@@ -10,8 +10,8 @@ homepage; titles/metas stay in SERP range and deliberately never say "pdf"
 (cannibalization guard — the PDF slice of this query space stays on
 ``/pdf/compress``); content is plain bilingual data (not gettext, see
 app/core/compress_content.py), so DE vs EN must genuinely differ; the honest
-claim that only JPEG/WebP/AVIF hit an exact target (video and PNG/TIFF are
-quality-only) is present in both locales; a "PDFs?" handoff links
+claim that only JPEG/WebP/AVIF hit an exact target (video is quality-only,
+PNG/TIFF lossless without a setting) is present in both locales; a "PDFs?" handoff links
 ``/pdf/compress``; the sitemap / llms.txt / footer / /tools / /formats
 surfaces all discover the page; and it stays deployment-agnostic.
 """
@@ -133,7 +133,8 @@ def test_compress_page_states_which_formats_support_target_size(client):
     TARGET_SIZE_FORMATS in app/compressors/image.py and the JS constant in
     app/static/js/app.js (tests/test_target_size_formats_parity.py pins the
     two equal), and app/compressors/video.py (no target_bytes parameter at
-    all). Video and PNG/TIFF are quality-only, stated plainly in both
+    all). Video is quality-only and PNG/TIFF are lossless without a setting
+    (compress_image ignores the quality for them), stated plainly in both
     locales; AVIF's slower encode gets its own honest caveat."""
     en = client.get("/en/compress").text
     de = client.get("/de/compress").text
@@ -146,13 +147,21 @@ def test_compress_page_states_which_formats_support_target_size(client):
     assert "JPEG, WebP and AVIF images only" in en  # limits
     assert "and AVIF images — the engine" in en  # FAQ
     assert "so a large photo can take a minute or more" in en
-    assert "PNG, TIFF and video" in en and "take a target size" in en
+    assert "take a target size: it compresses by quality instead" in en
+    assert "compressing repacks them as tightly as it can, with no quality setting" in en
     assert "no byte-exact target" in en
+    assert "PNG and TIFF are lossless and get repacked without a setting" in en  # FAQ
     assert "AVIF-Bilder. Die Größe ist eine feste Obergrenze" in de  # limits
     assert "AVIF-Bilder — die Engine" in de  # FAQ
     assert "daher kann ein großes Foto eine Minute oder länger brauchen" in de
-    assert "PNG, TIFF und Video nehmen keine Zielgröße entgegen" in de
+    assert "Videos nehmen keine Zielgröße entgegen" in de
+    assert "Komprimieren packt sie so dicht wie möglich, ohne Qualitätsregler" in de
     assert "kein exaktes Byte-Ziel" in de
+    assert "PNG und TIFF sind verlustfrei und werden ohne Einstellung dichter gepackt" in de
+    # The page no longer tells anyone that a lower quality shrinks PNG/TIFF.
+    for html in (en, de):
+        assert "Everything else uses the quality slider" not in html
+        assert "Alles andere nutzt den Qualitätsregler" not in html
 
 
 # ── PDF handoff ───────────────────────────────────────────────────────────────

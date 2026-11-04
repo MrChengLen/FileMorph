@@ -1,4 +1,6 @@
 name: Notify Ops Repo
+# Two runs per merge, one per finishing workflow; the name says which.
+run-name: "Notify Ops: ${{ github.event.workflow_run.name }} finished for ${{ github.event.workflow_run.head_sha }}"
 
 # The deploy is started only for main's newest commit, once Docker (the images
 # built, pushed and signed) and CI (lint, tests, PDF/A validation, dependency
@@ -32,7 +34,7 @@ jobs:
       github.event.workflow_run.head_repository.full_name == github.repository &&
       (github.event.workflow_run.event == 'push' ||
       github.event.workflow_run.event == 'workflow_dispatch')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     # The gate sleeps 10 s at most between its few network calls; a hung call
     # should not hold a runner for the default six hours.
     timeout-minutes: 10
@@ -107,6 +109,7 @@ jobs:
           if [ "$state" != completed/success ]; then
             echo "::warning::No deploy: $other ${state%/null} for $SHA"
             echo "If it is still running, or is re-run, its own run starts this check again."
+            decision="no deploy: $other ${state%/null}"
           elif [ "$UPDATED" \> "${run#* }" ] || { [ "$UPDATED" = "${run#* }" ] && [ "$WORKFLOW" \> "$other" ]; }; then
             tip=$(git ls-remote "https://github.com/$REPO" refs/heads/main | cut -f1) || tip=
             if [[ ! "$tip" =~ ^[0-9a-f]{40}$ ]]; then
@@ -116,13 +119,25 @@ jobs:
             if [ "$tip" = "$SHA" ]; then
               echo "$WORKFLOW finished after $other, and $SHA is the tip of main: dispatching the deploy."
               dispatch=true
+              decision="deploy: $WORKFLOW finished last and the commit is main's tip"
             else
-              echo "main has moved on to $tip; that commit's own runs deploy it."
+              echo "::notice::No deploy from this run: main has moved on to $tip; that commit's own runs deploy it."
+              decision="no deploy: main has moved on to $tip"
             fi
           else
-            echo "$other finished after $WORKFLOW: the check that $other started dispatches the deploy."
+            echo "::notice::No deploy from this run: $other finished after $WORKFLOW, so the check that $other started dispatches the deploy."
+            decision="no deploy from this run: $other finished later and decides"
           fi
           echo "dispatch=$dispatch" >> "$GITHUB_OUTPUT"
+          # The run's page answers "did this one deploy?" without the log.
+          # (The tests run this step without GitHub's variables, hence the
+          # fallback.)
+          {
+            echo "### Deploy gate for $SHA"
+            echo
+            echo "- $WORKFLOW finished $UPDATED; $other: $run"
+            echo "- Decision: $decision"
+          } >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
 
       - name: Trigger ops-repo deploy
         if: steps.gate.outputs.dispatch == 'true'
@@ -135,7 +150,12 @@ jobs:
             exit 1
           fi
           body=$(jq -n --arg sha "$SHA" '{event_type:"filemorph-published",client_payload:{sha:$sha}}')
-          status=$(curl -sS -o /tmp/resp.json -w "%{http_code}" \
+          # Retried on a timeout, a refused connection or a 408, 429, 500, 502,
+          # 503 or 504 answer. A
+          # second dispatch would only queue a second, identical deploy: the
+          # ops Deploy runs one at a time (concurrency, no cancel-in-progress).
+          status=$(curl -sS -o "$RUNNER_TEMP/resp.json" -D "$RUNNER_TEMP/headers.txt" -w "%{http_code}" \
+            --max-time 30 --retry 3 --retry-delay 5 --retry-connrefused \
             -X POST \
             -H "Authorization: Bearer $PAT" \
             -H "Accept: application/vnd.github+json" \
@@ -143,8 +163,25 @@ jobs:
             https://api.github.com/repos/MrChengLen/filemorph-ops/dispatches \
             -d "$body")
           echo "HTTP $status"
-          cat /tmp/resp.json
+          cat "$RUNNER_TEMP/resp.json"
           if [ "$status" != "204" ]; then
             echo "::error::dispatch failed (expected 204)"
             exit 1
+          fi
+          echo "::notice::Deploy dispatched for $SHA. Whether it went live, the ops repository's Deploy run says."
+          echo "- Dispatched: HTTP $status" >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
+
+          # The PAT runs out without warning, and every deploy then stops at
+          # this step until it is renewed (twice in 2026). GitHub names the
+          # expiry in every answer: warn in the last two weeks. This log is
+          # public, so it shows the days left and nothing more.
+          expiry=
+          if [ -f "$RUNNER_TEMP/headers.txt" ]; then
+            expiry=$(grep -i '^github-authentication-token-expiration:' "$RUNNER_TEMP/headers.txt" | head -n 1 | cut -d: -f2- | tr -d '\r' | sed 's/^ *//' || true)
+          fi
+          if [ -n "$expiry" ] && expires=$(date -d "$expiry" +%s 2>/dev/null); then
+            days=$(( (expires - $(date +%s)) / 86400 ))
+            if [ "$days" -lt 14 ]; then
+              echo "::warning::OPS_REPO_DISPATCH_PAT expires in $days days. Renew it before then: an expired token stops every deploy."
+            fi
           fi

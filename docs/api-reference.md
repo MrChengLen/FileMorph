@@ -224,7 +224,7 @@ Reduce a file's size by re-encoding at a lower quality, keeping the same format.
 
 **Supported formats**: JPG, JPEG, PNG, WebP, AVIF, TIFF, TIF · MP4, MOV, AVI, MKV, WebM. FLV and WMV can be converted but not compressed (`422`). A video keeps its container; see [`formats.md`](formats.md#video) for the codecs and how `quality` maps onto them.
 
-`target_size_kb` is JPEG/WebP/AVIF only — PNG/TIFF are lossless and quality does not control size meaningfully. Sending `target_size_kb` with a PNG returns `415`. AVIF/AV1 encode is more CPU-intensive than JPEG/WebP, and target-size runs several encode passes.
+`target_size_kb` is JPEG/WebP/AVIF only — PNG/TIFF are lossless and quality has no effect on them. Sending `target_size_kb` with a PNG returns `415`. AVIF/AV1 encode is more CPU-intensive than JPEG/WebP, and target-size runs several encode passes.
 
 **Response**: `200 OK` — the compressed file as a download (same format, `_compressed` suffix in filename).
 

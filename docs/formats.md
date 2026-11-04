@@ -54,22 +54,31 @@ Re-encode an image at a lower quality to reduce file size without changing forma
 | Format | Compression method | Notes |
 |--------|--------------------|-------|
 | JPG | Lossy (JPEG quality 1–100) | Most effective. Quality 75–85 is a good balance. |
-| PNG | Lossless (zlib level 0–9) | PNG is always lossless — "quality" controls compression speed, not visual quality. Smaller effect on file size than JPEG. |
+| PNG | Lossless (zlib, highest level) | Always lossless, and `quality` changes nothing: the file is repacked as tightly as zlib allows. Saves little on an already optimised PNG — as WebP or JPG it gets much smaller. |
 | WebP | Lossy (quality 1–100) | Excellent compression. Comparable to JPEG but 25–35% smaller. |
 | AVIF | Lossy (quality 1–100) | Best compression ratio of the lossy formats; **target-size** supported (binary search on quality). Encode is more CPU-intensive than JPEG/WebP. |
-| TIFF | Format save (no quality param) | TIFF supports multiple compression algorithms; basic optimization applied. |
+| TIFF | Lossless (Deflate with the horizontal predictor; black and white: Group 4 or Deflate, whichever is smaller) | `quality` changes nothing. A TIFF holding JPEG data can come out larger. Only the first page of a multi-page TIFF is kept. |
 
 > **Target-size compression** (`target_size_kb`) is supported for **JPEG, WebP and
 > AVIF** — the lossy formats where quality controls output size. PNG/TIFF are
-> lossless, so use `quality=` there instead. Video (`compress_video()`) only
-> takes a quality/CRF re-encode — there is no target-size mode for video.
+> lossless and come out the same whatever the `quality`. Video (`compress_video()`)
+> only takes a quality/CRF re-encode — there is no target-size mode for video.
 
 **Web UI:** the dedicated landing page for this is `/compress` — ungated,
 bilingual (DE/EN), the same embedded Convert/Compress tool as the homepage,
 pre-set to Compress mode. Its target-size mode toggle covers the same
 formats as the API (JPEG, WebP, AVIF); with an AVIF file in target-size mode
 it notes that this takes noticeably longer. A video file always uses
-quality-based compression there.
+quality-based compression there. For PNG and TIFF the quality slider hides
+(it would change nothing) and a note points to WebP or JPG instead.
+
+**Size estimate (Web UI):** with one JPEG in quality mode, the line under the
+slider shows the result's size before anything is uploaded — the browser
+encodes the picture itself. It does so only where a probe picture proves the
+browser's JPEG encoder writes the server's bytes at the chosen quality
+(Chromium-based browsers today; Safari and Firefox encode differently and
+get a pointer to target-size mode instead), and only up to 16 megapixels
+(25 on devices with 8 GB or more). The result card then shows the real size.
 
 > **Note on AVIF / AV1 encode cost**: AVIF uses the AV1 codec, which is
 > significantly more CPU-intensive to encode than JPEG or WebP — a single image

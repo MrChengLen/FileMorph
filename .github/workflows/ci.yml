@@ -6,15 +6,16 @@ on:
   pull_request:
     branches: ["main"]
 
-# A newer push on the same ref cancels older queued / running runs.
-# Saves Actions quota and reduces queue pressure when iterating on a PR.
-# main is excluded by ref-pattern so post-merge gates always get to complete.
+# A newer push on the same pull request cancels its older queued / running
+# runs: saves Actions quota while iterating on a PR. On main every commit gets a
+# group of its own, so its post-merge gates always complete and never wait.
+# Grouped by ref, a merge's CI queued behind the previous merge's: on 2026-11-04
+# the commit that was then deployed waited 3 min, and in 10 of the 100 runs
+# before it up to 32 min. notify-ops.yml deploys only main's tip, so runs side
+# by side do no harm.
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.ref == 'refs/heads/main' && github.sha || github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
-
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 # Least-privilege default for GITHUB_TOKEN (OpenSSF Scorecard Token-Permissions).
 # Both jobs only read the checkout; no job here writes back to the repo.
@@ -23,7 +24,9 @@ permissions:
 
 jobs:
   lint-and-test:
-    runs-on: ubuntu-latest
+    # Pinned like every job except deps-latest.yml's, which keeps ubuntu-latest
+    # as the canary (tests/test_workflow_runs.py).
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
 
     # A real PostgreSQL for tests/test_audit_postgres.py. The rest of the suite
@@ -52,6 +55,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
@@ -63,6 +68,7 @@ jobs:
           cache: "pip"
 
       - name: Install system dependencies
+        id: system-deps
         run: |
           # The runner image ships an apt source for Google Chrome, which this
           # project does not use. Its index is intermittently inconsistent and
@@ -77,13 +83,17 @@ jobs:
           # silently — which is exactly how the first attempt at this slipped
           # through and left the job failing identically.
           sudo find /etc/apt/sources.list.d -iname '*google*' -delete
+          echo "::group::apt-get update"
           sudo apt-get update
+          echo "::endgroup::"
           # The WeasyPrint libraries go by the names the Dockerfile's base stage
           # installs. Ubuntu 26.04 (ubuntu-latest since November 2026) dropped
           # the old name libgdk-pixbuf2.0-0; the libgdk-pixbuf-xlib-2.0-0 that
           # apt offers instead is an add-on Debian is removing
           # (bugs.debian.org/976677).
+          echo "::group::apt-get install"
           sudo apt-get install -y ffmpeg ghostscript libheif-dev libcairo2 libpangocairo-1.0-0 libgdk-pixbuf-2.0-0
+          echo "::endgroup::"
 
       # Tests run against the versions the image ships. requirements-dev.txt
       # pulls in requirements.txt, whose `>=` ranges resolve to the newest
@@ -110,6 +120,7 @@ jobs:
       # out of the lockfile header, so lockfile-drift stays green):
       #   uv pip compile --generate-hashes --python-version 3.14 --python-platform x86_64-unknown-linux-gnu --upgrade-package <name> --output-file requirements.lock requirements.txt
       - name: Install Python dependencies
+        id: deps
         run: |
           constraints="$RUNNER_TEMP/constraints.txt"
           grep -E '^[A-Za-z0-9._-]+==' requirements.lock | cut -d' ' -f1 > "$constraints"
@@ -119,10 +130,20 @@ jobs:
           fi
           pip install -r requirements-dev.txt -c "$constraints"
 
+      # From here on every check runs even when an earlier one failed, so that
+      # one red run shows them all: a new advisory used to stop the job at
+      # pip-audit and leave the tests unrun (13 times in two weeks of October
+      # 2026). The pip-audit and veraPDF steps keep the default condition:
+      # tests/test_supply_chain_hygiene.py allows them no `if:`, and the job
+      # fails either way. The ids feed the summary at the end.
       - name: Lint (ruff)
+        id: lint
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
         run: ruff check .
 
       - name: Format check (ruff)
+        id: format
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
         run: ruff format --check .
 
       # One Python version across image, CI, and lockfile. A Dependabot base-image
@@ -130,12 +151,16 @@ jobs:
       # 3.14, undetected for three months). The Dockerfile is the source of truth;
       # this fails if anything disagrees. See the script's docstring.
       - name: Python-version consistency gate
+        id: python-version
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
         run: python scripts/check_python_version.py
 
       # Tailwind dynamic-class gate — forbids `class="prefix-{{ x }}-suffix"`
       # patterns that JIT extraction misses, leaving the production bundle
       # silently incomplete. See scripts/check_template_classes.py docstring.
       - name: Template class gate
+        id: template-classes
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
         run: python scripts/check_template_classes.py
 
       # Tailwind bundle freshness gate — rebuild the purged bundle from the
@@ -151,6 +176,7 @@ jobs:
       # differs (Tailwind also scans untracked template files, CI never sees them).
       - name: Tailwind bundle freshness gate
         id: tailwind
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
         run: |
           bash scripts/build-tailwind.sh
           changes="$(git status --porcelain -- app/static/css/)"
@@ -175,6 +201,8 @@ jobs:
       # `_('...')` calls but forgot `python scripts/i18n.py extract` before
       # pushing. Translation work then stays in sync with code.
       - name: i18n message-catalog drift
+        id: i18n
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
         run: python scripts/i18n.py drift-check
 
       # pip-audit scans dependencies for known CVEs.
@@ -206,14 +234,32 @@ jobs:
       # deps-latest.yml runs the same audits weekly.
       #
       # Ignored advisories: none at the moment.
-      - name: Dependency vulnerability scan (pip-audit)
-        run: |
-          pip-audit -r requirements.lock --disable-pip --strict
-          pip-audit -r requirements.lock --disable-pip --strict -s osv
-          pip-audit -r requirements-uv.lock --disable-pip --strict
-          pip-audit -r requirements-uv.lock --disable-pip --strict -s osv
-          pip-audit -r requirements-sbom.lock --disable-pip --strict
-          pip-audit -r requirements-sbom.lock --disable-pip --strict -s osv
+      #
+      # One step per lockfile and source, so the run's page names the one that
+      # failed.
+      - name: "Dependency vulnerability scan: requirements.lock (PyPI)"
+        id: audit-lock-pypi
+        run: pip-audit -r requirements.lock --disable-pip --strict
+
+      - name: "Dependency vulnerability scan: requirements.lock (OSV)"
+        id: audit-lock-osv
+        run: pip-audit -r requirements.lock --disable-pip --strict -s osv
+
+      - name: "Dependency vulnerability scan: requirements-uv.lock (PyPI)"
+        id: audit-uv-pypi
+        run: pip-audit -r requirements-uv.lock --disable-pip --strict
+
+      - name: "Dependency vulnerability scan: requirements-uv.lock (OSV)"
+        id: audit-uv-osv
+        run: pip-audit -r requirements-uv.lock --disable-pip --strict -s osv
+
+      - name: "Dependency vulnerability scan: requirements-sbom.lock (PyPI)"
+        id: audit-sbom-pypi
+        run: pip-audit -r requirements-sbom.lock --disable-pip --strict
+
+      - name: "Dependency vulnerability scan: requirements-sbom.lock (OSV)"
+        id: audit-sbom-osv
+        run: pip-audit -r requirements-sbom.lock --disable-pip --strict -s osv
 
       # The vendored browser code in app/static/vendor/ (listed in its
       # manifest.json, plus the libraries a file's "bundles" field names) is
@@ -222,6 +268,8 @@ jobs:
       # for that version with a reason and a review date, and it fails again
       # once that date has passed. deps-latest.yml re-runs it weekly.
       - name: Vendored browser code vulnerability scan (OSV)
+        id: vendor-osv
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
         run: python scripts/check_vendor_advisories.py
 
       # The WeasyPrint tests, the SSRF guard's included, skip where WeasyPrint
@@ -229,12 +277,27 @@ jobs:
       # This runner installs Pango above, so they have to run here: fail now
       # if WeasyPrint cannot render, instead of letting them skip unnoticed.
       - name: WeasyPrint renders (its tests must not skip)
+        id: weasyprint
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
         run: python -c "import weasyprint; assert weasyprint.HTML(string='<p>probe</p>').write_pdf().startswith(b'%PDF')"
 
+      # -n logical runs the suite on one worker per vCPU (pytest-xdist; `auto`
+      # would count physical cores once psutil is installed). --dist loadfile
+      # keeps each test file on one worker, so the Postgres tests, which share
+      # one database, run one after another (tests/test_audit_postgres.py);
+      # (With pytest 9.2, xdist 3.8's xdist_group mark has no effect: xdist
+      # rewrites Node._nodeid, which pytest 9.2 no longer reads.)
+      # -ra lists every skipped and failed test
+      # with its reason, --durations the slowest. The log feeds the summary at
+      # the end.
       - name: Run tests
+        id: tests
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
         env:
           FILEMORPH_TEST_POSTGRES_URL: postgresql+asyncpg://postgres@localhost:5432/filemorph_test
-        run: pytest tests/ -v --tb=short
+        run: |
+          set -o pipefail
+          pytest tests/ -n logical --dist loadfile -ra --durations=15 --tb=short | tee "$RUNNER_TEMP/tests.log"
 
       # PDF/A-2b conformance gate (NEU-C.1.c), in three steps. This one has
       # PdfToPdfaConverter convert a worst-case source (unembedded standard-14
@@ -250,6 +313,7 @@ jobs:
       # fixture would come out markup-only and veraPDF would correctly reject
       # it for "fonts not embedded", i.e. this gate would mask a broken gs path.
       - name: Generate PDF/A fixture via PdfToPdfaConverter
+        id: pdfa-fixture
         run: python scripts/verapdf_check.py
 
       # The veraPDF maintainers publish a thin Docker image that wraps
@@ -263,6 +327,7 @@ jobs:
       # does not track images in workflow scripts — to move the pin, take the
       # new digest from `docker buildx imagetools inspect verapdf/cli:<tag>`.
       - name: Validate PDF/A-2b conformance with veraPDF
+        id: verapdf
         env:
           # verapdf/cli:v1.30.2 (what `latest` pointed at on 2026-09-26)
           VERAPDF_IMAGE: verapdf/cli@sha256:d5ee329657cf9bc4b2400392dd54c7d0a0ce9980ff6fa2da5590eebeec007cdb
@@ -284,6 +349,34 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+      # The run's page shows every check above with its result, the test counts
+      # and the slowest tests, without opening the log.
+      - name: Summary
+        if: ${{ !cancelled() }}
+        env:
+          STEPS: ${{ toJSON(steps) }}
+        run: |
+          {
+            echo "### lint-and-test"
+            echo
+            echo "| Check | Result |"
+            echo "|---|---|"
+            jq -r 'to_entries[] | "| \(.key) | \({"success": "✅ passed", "failure": "❌ failed", "skipped": "⏭️ skipped", "cancelled": "⚪ cancelled"}[.value.outcome] // .value.outcome) |"' <<< "$STEPS"
+            log="$RUNNER_TEMP/tests.log"
+            if [ -f "$log" ]; then
+              echo
+              echo "**Tests:** $(grep -E '^=+ .* in [0-9.]+s' "$log" | tail -n 1 | sed -E 's/^=+ | =+$//g')"
+              echo
+              echo "<details><summary>Slowest tests</summary>"
+              echo
+              echo '```'
+              awk '/slowest 15 durations/ {f = 1; next} f && /^=/ {exit} f' "$log"
+              echo '```'
+              echo
+              echo "</details>"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
   # requirements.lock is what the image installs, so it has to keep
   # corresponding to requirements.txt. Before this gate existed it did not:
   # Dependabot pushed 32 commits to requirements.txt in six months while the
@@ -303,10 +396,12 @@ jobs:
   # way against requirements-sbom.txt. Dependabot only edits that .txt, so
   # without this a generator bump would merge green and change nothing.
   lockfile-drift:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
@@ -375,12 +470,13 @@ jobs:
           retention-days: 7
 
   secret-scan:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: gitleaks (server-side secret scanner)
         uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:

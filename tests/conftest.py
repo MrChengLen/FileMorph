@@ -6,6 +6,21 @@ from pathlib import Path
 # Must be set before app modules are imported so slowapi reads it at Limiter init time.
 os.environ["RATELIMIT_ENABLED"] = "0"
 
+# Under pytest-xdist every worker gets a temp directory of its own, so that the
+# tests that compare the `fm_*` directories before and after a request never see
+# another worker's. TMPDIR carries it into the subprocesses the tests start.
+# mkdtemp makes it fresh and private (0700) on every run, where a fixed name
+# could be taken over by another user of a shared machine.
+if os.environ.get("PYTEST_XDIST_WORKER"):
+    import atexit
+    import shutil
+    import tempfile
+
+    _worker_tmp = tempfile.mkdtemp(prefix=f"filemorph-tests-{os.environ['PYTEST_XDIST_WORKER']}-")
+    atexit.register(shutil.rmtree, _worker_tmp, ignore_errors=True)
+    os.environ["TMPDIR"] = _worker_tmp
+    tempfile.tempdir = _worker_tmp
+
 # Cockpit/auth tests opt into an in-memory SQLite database on demand via the
 # `sqlite_db` fixture. By default, `DATABASE_URL` stays unset so the existing
 # Community-Edition tests run exactly as before.

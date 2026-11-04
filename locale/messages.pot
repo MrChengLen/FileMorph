@@ -726,6 +726,9 @@ msgstr ""
 msgid "Convert something else"
 msgstr ""
 
+msgid "Convert to WebP instead →"
+msgstr ""
+
 msgid ""
 "Converting and compressing your files, creating and running your account,"
 " paid subscriptions and transactional emails are based on Art. 6(1)(b) "
@@ -981,6 +984,10 @@ msgstr ""
 msgid "Erasure (Art. 17 GDPR) — for your account, see below."
 msgstr ""
 
+#, python-brace-format
+msgid "Estimated size: about {size}"
+msgstr ""
+
 msgid ""
 "Every conversion FileMorph supports — images, documents, spreadsheets, "
 "audio and video, plus compression to a target size. Free, open source."
@@ -1053,8 +1060,8 @@ msgid ""
 "FileMorph can shrink a JPEG, WebP or AVIF image to at most a target size "
 "(for example 5 MB) — useful for upload limits and email attachments. It "
 "searches for the best quality that fits and, if even the lowest quality "
-"is too big, scales the image down and says so. PNG, TIFF and video below "
-"compress by quality only, not to a target size."
+"is too big, scales the image down and says so. PNG and TIFF below are "
+"compressed losslessly and video by quality, not to a target size."
 msgstr ""
 
 msgid ""
@@ -1067,9 +1074,9 @@ msgstr ""
 
 msgid ""
 "FileMorph converts between the formats below and compresses JPEG, WebP "
-"and AVIF images to a target size — PNG, TIFF and video use quality-based "
-"compression instead. Everything runs for free, with no account — or self-"
-"host it under AGPLv3. Pick any pair and start on the"
+"and AVIF images to a target size — PNG and TIFF are compressed "
+"losslessly, video by quality. Everything runs for free, with no account —"
+" or self-host it under AGPLv3. Pick any pair and start on the"
 msgstr ""
 
 msgid ""
@@ -1188,6 +1195,9 @@ msgid ""
 "obligation applies. The commercial license lifts it — you can integrate "
 "FileMorph into a citizen portal without disclosing your portal's source "
 "code. Detail in"
+msgstr ""
+
+msgid "For a video, the size is known only after compressing."
 msgstr ""
 
 msgid "For developers & SaaS"
@@ -1691,6 +1701,11 @@ msgid "No format matches “{q}”."
 msgstr ""
 
 msgid ""
+"No size preview for this file. With “By target size” you set the size "
+"yourself."
+msgstr ""
+
+msgid ""
 "Not at the moment. If that changes, it will be announced here in advance "
 "— never as a surprise."
 msgstr ""
@@ -1854,6 +1869,11 @@ msgid "PII redaction is a paid add-on (Pro and up)"
 msgstr ""
 
 msgid "PII redaction with audit trail"
+msgstr ""
+
+msgid ""
+"PNG and TIFF are lossless: there is no quality setting, compressing only "
+"packs the file tighter. As WebP or JPG it usually gets much smaller."
 msgstr ""
 
 msgid "Page footers were simplified"
@@ -3249,6 +3269,9 @@ msgstr ""
 msgid "Without an account:"
 msgstr ""
 
+msgid "Working out the size…"
+msgstr ""
+
 msgid ""
 "Yes. FileMorph can compress JPEG, WebP and AVIF images to at most a "
 "target size (for example 5 MB), so the result fits an upload limit of the"
@@ -3428,6 +3451,11 @@ msgid "Your account does not have the admin role."
 msgstr ""
 
 msgid "Your account has been deleted"
+msgstr ""
+
+msgid ""
+"Your browser cannot work out the size precisely here. With “By target "
+"size” you set it yourself."
 msgstr ""
 
 msgid "Your cancellation"
@@ -3720,6 +3748,14 @@ msgid "without an account"
 msgstr ""
 
 msgid "your JWT session tokens; strictly necessary to keep you signed in."
+msgstr ""
+
+#, python-brace-format
+msgid "{change} · worked out in your browser, nothing uploaded"
+msgstr ""
+
+#, python-brace-format
+msgid "{change} — choose a lower quality"
 msgstr ""
 
 #, python-brace-format

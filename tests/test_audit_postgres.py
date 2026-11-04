@@ -38,6 +38,7 @@ from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
+from app.api.routes import convert as convert_route
 from app.core import audit as audit_module
 from app.core import email as email_mod
 from app.core.audit import (
@@ -58,6 +59,10 @@ _URL = os.environ.get(_ENV, "")
 _PASSWORD = "initial-password"
 
 needs_postgres = pytest.mark.skipif(not _URL, reason=f"{_ENV} is not set")
+
+# CI runs the suite on several workers, one test file per worker at a time
+# (pytest-xdist, `--dist loadfile`). These tests share one database and empty
+# its tables before each test, so they have to stay in this one file.
 
 
 @pytest.fixture(scope="module")
@@ -154,6 +159,40 @@ def test_deleting_a_free_account_nulls_its_audit_actor(client, pg, monkeypatch):
     }
     assert [e.actor_user_id for e in events] == [None] * len(events)
     assert broken_at is None
+
+
+@needs_postgres
+def test_a_signed_in_conversion_holds_no_transaction_open(client, pg, monkeypatch, sample_jpg):
+    """The sign-in lookup used to leave its read transaction open for the
+    whole request: a conversion of up to minutes kept a pooled connection
+    "idle in transaction", holding a lock on ``users``. The monthly quota
+    check runs after sign-in and before the file converts; look from there."""
+    monkeypatch.setattr(email_mod, "send_email", AsyncMock())
+    email = "converts@example.com"
+    res = client.post("/api/v1/auth/register", json={"email": email, "password": _PASSWORD})
+    assert res.status_code == 201, res.text
+    token = res.json()["access_token"]
+    idle = []
+
+    async def _probe(user, **_):
+        async with pg() as s:
+            rows = await s.execute(
+                text(
+                    "SELECT query FROM pg_stat_activity WHERE datname = current_database()"
+                    " AND state = 'idle in transaction'"
+                )
+            )
+            idle.append(rows.scalars().all())  # the statement that left it open
+
+    monkeypatch.setattr(convert_route, "enforce_monthly_quota", _probe)
+    res = client.post(
+        "/api/v1/convert",
+        files={"file": ("photo.jpg", sample_jpg.read_bytes(), "image/jpeg")},
+        data={"target_format": "png"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert res.status_code == 200, res.text
+    assert idle == [[]]
 
 
 @needs_postgres
@@ -439,3 +478,8 @@ def test_ci_runs_these_tests_on_postgres(workflow):
     assert pytest_steps, f"{workflow} no longer runs pytest"
     for step in pytest_steps:
         assert _ENV in step.get("env", {}), f"{step.get('name')!r} does not set {_ENV}"
+        # These tests share one database: under xdist they must stay on one
+        # worker, which `loadfile` ensures by keeping each file together.
+        assert "-n " not in step["run"] or "--dist loadfile" in step["run"], (
+            f"{step.get('name')!r} must keep each test file on one worker (--dist loadfile)"
+        )

@@ -49,8 +49,9 @@ git push origin feature/add-epub-support
 
 ## CI gates
 
-Merging into `main` requires three green checks: **lint-and-test**,
-**secret-scan** and **scope-check**. `lint-and-test`
+Merging into `main` requires five green checks: **lint-and-test**,
+**secret-scan**, **scope-check**, **smoke-test (base)** and
+**smoke-test (office)**. `lint-and-test`
 ([`ci.yml`](.github/workflows/ci.yml)) runs the steps below — run the ones
 your change touches before you push:
 
@@ -79,10 +80,14 @@ your change touches before you push:
   asks the OSV database about every package in
   `app/static/vendor/manifest.json`, plus the libraries a file's `bundles`
   field names. An advisory blocks unless the script's `ACCEPTED` list names it
-  for that version with a reason and a review date.
+  for that version with a reason and a review date; two weeks before that date
+  the run shows a warning.
 - **Tests** — `pytest tests/`. CI runs them on Python 3.14 with
   `requirements-dev.txt` constrained to the versions pinned in
-  `requirements.lock`, so they test what the Docker image ships.
+  `requirements.lock`, so they test what the Docker image ships, and in
+  parallel, one file per worker at a time (`pytest -n logical --dist
+  loadfile`): a test must pass on its own and in any order, and tests that
+  share an outside resource (the Postgres database) belong in one file.
 - **PDF/A-2b conformance** — the last steps of the job.
   `python scripts/verapdf_check.py` converts a worst-case PDF (an unembedded
   standard font) with the PDF/A converter, and the veraPDF Docker image,
@@ -92,13 +97,20 @@ your change touches before you push:
   fixture needs Ghostscript, validating it needs Docker (the `docker run`
   command is in `ci.yml`).
 
+After the dependency install, a failed check does not stop the job: the
+checks after it still run, so one red run shows every problem (the dependency
+audit and the PDF/A steps are the exception and run only while everything
+before them passed). The run's summary page lists each check with its result,
+the test counts and the slowest tests.
+
 `secret-scan` runs the gitleaks secret scanner; `scope-check` rejects
 operations files and internal documents, which do not belong in this public
-repository. More checks run on pull requests without blocking the merge:
-`lockfile-drift` (`requirements.lock` must match `requirements.txt` — see
-[docs/development.md](docs/development.md)), and `smoke-test (base)` and
-`smoke-test (office)` ([`docker-pr.yml`](.github/workflows/docker-pr.yml)),
-which build both Docker images without pushing them and smoke-test each one.
+repository; `smoke-test (base)` and `smoke-test (office)`
+([`docker-pr.yml`](.github/workflows/docker-pr.yml)) build both Docker images
+without pushing them and smoke-test each one. `lockfile-drift`
+(`requirements.lock` must match `requirements.txt` — see
+[docs/development.md](docs/development.md)) runs on pull requests too, without
+blocking the merge.
 
 After the merge, `ci.yml` and [`docker.yml`](.github/workflows/docker.yml) run
 on `main` (`docker.yml` does not run on pull requests; `docker-pr.yml` does).

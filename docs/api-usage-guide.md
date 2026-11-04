@@ -248,9 +248,10 @@ def convert(path: str, target_format: str, key: str, quality: int = 85) -> tuple
   40 → 18 for H.264, CRF 45 → 18 for VP9 (WebM), qscale 31 → 2 for AVI
   and WMV. The table is in [`formats.md`](formats.md#video).
 - **PNG, TIFF, BMP, GIF, ICO** — `quality` is ignored on `/convert`
-  (video → GIF too: its frame size and rate are fixed).
-  (On `/compress`, PNG turns quality into the zlib compression level,
-  which changes speed and size, never the pixels.)
+  (video → GIF too: its frame size and rate are fixed). On `/compress`
+  PNG and TIFF ignore it as well: PNG is packed at zlib's highest
+  level, TIFF with Deflate (black and white: Group 4 or Deflate,
+  whichever is smaller).
 - **Audio** — `quality` sets the bitrate: the VBR level for MP3 and
   OGG, 64–256 kbit/s for AAC/M4A, 32–192 kbit/s for Opus. WMA is always
   128 kbit/s, and WAV and FLAC are lossless and ignore it. There is no
@@ -288,8 +289,8 @@ fit. An image that already fits at quality 95 comes back at quality 95.
 
 **Constraints:**
 
-- **JPEG, WebP and AVIF only.** PNG and TIFF are lossless — quality does
-  not control size meaningfully. Sending `target_size_kb` with a PNG
+- **JPEG, WebP and AVIF only.** PNG and TIFF are lossless — quality has
+  no effect on them. Sending `target_size_kb` with a PNG
   returns `415`. AVIF encoding is CPU-heavy and the search re-encodes
   several times, so a large AVIF photo can take a minute or more.
 - **At least 5.** A smaller `target_size_kb` is rejected with `422`.
@@ -698,7 +699,7 @@ array describing each invalid field. Two responses look different:
 | `403` | Authenticated but not allowed (admin-only routes) | No |
 | `409` | Conflict — email already registered, or the account already has 25 active API keys (revoke one first) | No |
 | `413` | Request, file or output exceeds a cap | No — reduce size, register free or self-host |
-| `415` | `target_size_kb` on a lossless format (PNG/TIFF), or a form body declared in a charset other than UTF-8 | No — use `quality` instead, or send the form as UTF-8 |
+| `415` | `target_size_kb` on a format other than JPEG, WebP or AVIF (PNG, TIFF, video), or a form body declared in a charset other than UTF-8 | No — leave out `target_size_kb` (video then compresses by `quality`, PNG and TIFF losslessly), or send the form as UTF-8 |
 | `422` | Missing or invalid field, `target_formats` count ≠ `files` count, unsupported format pair, or batch where every file failed | No — fix the request (for a batch, check each file's `error_message`) |
 | `429` | Rate limit, concurrent-request cap, monthly API calls used up, or too many rejected API keys | Yes — after `Retry-After` if sent (monthly quota: from the 1st of next month); rejected keys: fix the key instead |
 | `5xx` | Server error (`503`: server at capacity) | Yes, with backoff |

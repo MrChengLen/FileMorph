@@ -60,12 +60,18 @@ _MIN_EDGE_PX = 16
 def compress_image(input_path: Path, output_path: Path, quality: int = 85) -> Path:
     """Compress an image by re-encoding at a lower quality.
 
-    quality: 1 (worst) – 100 (best). For PNG (lossless) the quality
-    parameter controls compression speed/level rather than visual quality.
+    quality: 1 (worst) – 100 (best), for JPEG, WebP and AVIF. PNG and TIFF
+    are lossless and come out the same whatever the quality: PNG packed at
+    zlib's highest level (``optimize=True`` overrides ``compress_level``),
+    TIFF with Deflate (see the TIFF branch). The web UI hides the slider for
+    them (``LOSSLESS_COMPRESS_TYPES`` in ``app/static/js/app.js``).
 
     NEU-C.2: PII-bearing metadata (EXIF GPS, camera serial, XMP/IPTC
     creator) is stripped from the output by default — see
-    ``app/converters/_metadata.py``. ICC colour profile is preserved.
+    ``app/converters/_metadata.py``. ``strip_metadata`` keeps the ICC colour
+    profile, but only the PNG, TIFF and AVIF saves write it; the JPEG and
+    WebP saves don't pass ``icc_profile`` and drop it. The size estimate in
+    ``app.js`` counts on that for JPEG (``ESTIMATE_PILLOW_APP_BYTES``).
     """
     quality = max(1, min(100, quality))
     ext = input_path.suffix.lstrip(".").lower()
@@ -79,7 +85,8 @@ def compress_image(input_path: Path, output_path: Path, quality: int = 85) -> Pa
     if pil_fmt == "JPEG":
         img.save(output_path, format="JPEG", quality=quality, optimize=True)
     elif pil_fmt == "PNG":
-        # PNG compress_level 0-9: map quality 100→0, quality 1→9
+        # PNG compress_level 0-9: map quality 100→0, quality 1→9. optimize=True
+        # packs at level 9 regardless, so the quality changes nothing here.
         compress_level = max(0, min(9, 9 - round(quality / 100 * 9)))
         img.save(output_path, format="PNG", compress_level=compress_level, optimize=True)
     elif pil_fmt == "WEBP":
@@ -89,8 +96,22 @@ def compress_image(input_path: Path, output_path: Path, quality: int = 85) -> Pa
         # libavif effort knob (0 slowest/best … 10 fastest); 6 keeps encode
         # cost reasonable on a request thread while staying well-compressed.
         img.save(output_path, format="AVIF", quality=quality, speed=6)
+    elif pil_fmt == "TIFF" and img.mode == "1":
+        # TIFF in black and white: the smaller of Group 4 (scanned text packs
+        # best so) and Deflate (dithered pictures do).
+        packed = []
+        for compression in ("group4", "tiff_adobe_deflate"):
+            buf = io.BytesIO()
+            img.save(buf, format=pil_fmt, compression=compression)
+            packed.append(buf.getvalue())
+        output_path.write_bytes(min(packed, key=len))
     else:
-        img.save(output_path, format=pil_fmt)
+        # TIFF. Saved without a compression it was raw pixels, larger than an
+        # LZW or Deflate original. Deflate, with the horizontal predictor that
+        # photo TIFFs from Photoshop, GIMP or libvips use — not for palette
+        # images, which it makes larger.
+        options = {} if img.mode == "P" else {"tiffinfo": {317: 2}}  # 317: Predictor
+        img.save(output_path, format=pil_fmt, compression="tiff_adobe_deflate", **options)
 
     return output_path
 
