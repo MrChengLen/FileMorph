@@ -281,9 +281,15 @@ jobs:
         if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
         run: python -c "import weasyprint; assert weasyprint.HTML(string='<p>probe</p>').write_pdf().startswith(b'%PDF')"
 
-      # -ra lists every skipped and failed test with its reason, --durations the
-      # slowest; the per-file progress still streams live. The log feeds the
-      # summary at the end.
+      # -n logical runs the suite on one worker per vCPU (pytest-xdist; `auto`
+      # would count physical cores once psutil is installed). --dist loadfile
+      # keeps each test file on one worker, so the Postgres tests, which share
+      # one database, run one after another (tests/test_audit_postgres.py);
+      # (With pytest 9.2, xdist 3.8's xdist_group mark has no effect: xdist
+      # rewrites Node._nodeid, which pytest 9.2 no longer reads.)
+      # -ra lists every skipped and failed test
+      # with its reason, --durations the slowest. The log feeds the summary at
+      # the end.
       - name: Run tests
         id: tests
         if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
@@ -291,7 +297,7 @@ jobs:
           FILEMORPH_TEST_POSTGRES_URL: postgresql+asyncpg://postgres@localhost:5432/filemorph_test
         run: |
           set -o pipefail
-          pytest tests/ -ra --durations=15 --tb=short | tee "$RUNNER_TEMP/tests.log"
+          pytest tests/ -n logical --dist loadfile -ra --durations=15 --tb=short | tee "$RUNNER_TEMP/tests.log"
 
       # PDF/A-2b conformance gate (NEU-C.1.c), in three steps. This one has
       # PdfToPdfaConverter convert a worst-case source (unembedded standard-14
