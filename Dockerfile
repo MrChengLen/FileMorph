@@ -84,7 +84,7 @@ RUN pip install --require-hashes -r requirements.lock
 #     libheif, libde265 and x265 and loads them from ``pillow_heif.libs/``,
 #     so on those architectures nothing loads this package. If pillow-heif
 #     cannot be imported at all, HEIC is not offered as an input format.
-#   - libcairo2 / libpangocairo-1.0-0 / libgdk-pixbuf-xlib-2.0-0 /
+#   - libcairo2 / libpangocairo-1.0-0 / libgdk-pixbuf-2.0-0 /
 #     pango1.0-tools: WeasyPrint native dependency tree.
 #   - curl: in-container ``HEALTHCHECK`` driver (compose.yml uses
 #     ``curl -f http://localhost:8000/api/v1/health``).
@@ -103,7 +103,7 @@ RUN apt-get update && \
       libheif1 \
       libcairo2 \
       libpangocairo-1.0-0 \
-      libgdk-pixbuf-xlib-2.0-0 \
+      libgdk-pixbuf-2.0-0 \
       pango1.0-tools \
       curl \
       tini && \
