@@ -59,10 +59,9 @@ _PASSWORD = "initial-password"
 
 needs_postgres = pytest.mark.skipif(not _URL, reason=f"{_ENV} is not set")
 
-# CI runs the suite on several workers (pytest-xdist, `--dist loadgroup`). These
-# tests share one database and empty its tables before each test, so they run
-# on one worker, one after the other.
-pytestmark = pytest.mark.xdist_group("postgres")
+# CI runs the suite on several workers, one test file per worker at a time
+# (pytest-xdist, `--dist loadfile`). These tests share one database and empty
+# its tables before each test, so they have to stay in this one file.
 
 
 @pytest.fixture(scope="module")
@@ -444,3 +443,8 @@ def test_ci_runs_these_tests_on_postgres(workflow):
     assert pytest_steps, f"{workflow} no longer runs pytest"
     for step in pytest_steps:
         assert _ENV in step.get("env", {}), f"{step.get('name')!r} does not set {_ENV}"
+        # These tests share one database: under xdist they must stay on one
+        # worker, which `loadfile` ensures by keeping each file together.
+        assert "-n " not in step["run"] or "--dist loadfile" in step["run"], (
+            f"{step.get('name')!r} must keep each test file on one worker (--dist loadfile)"
+        )

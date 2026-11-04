@@ -5,8 +5,9 @@
   vCPU
   instead of one process for all 3,400 tests, which took about 2.7 of the
   job's 5 minutes.
-- The Postgres tests share one database and empty its tables before each
-  test, so they stay together on one worker (`--dist loadgroup`).
+- Each test file stays on one worker (`--dist loadfile`), so the Postgres
+  tests, which share one database and empty its tables before each test, run
+  one after another.
 - Under xdist every worker gets a temp directory of its own, so the tests
   that compare the `fm_*` directories before and after a request never see
   another worker's.
