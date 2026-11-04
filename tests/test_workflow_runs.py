@@ -137,3 +137,119 @@ def test_the_summary_lists_each_check_the_counts_and_the_slowest_tests(tmp_path:
     details = text.split("<details>", 1)[1].split("</details>", 1)[0]
     assert "2.50s call" in details and "0.40s call" in details, details
     assert "SKIPPED" not in details and "passed" not in details, details
+
+
+def test_no_checkout_keeps_the_workflow_token_but_the_one_that_pushes() -> None:
+    """actions/checkout leaves the job's token where git finds it (a file that
+    .git/config includes) unless told not to, and every later step can read it.
+    Only deps-lock.yml's `commit` job pushes (the recompiled lockfiles), so only
+    it keeps the default."""
+    paths = sorted(_WORKFLOW_DIR.glob("*.y*ml"))
+    assert paths, f"no workflow files in {_WORKFLOW_DIR}"
+    for path in paths:
+        for name, job in yaml.safe_load(path.read_text(encoding="utf-8"))["jobs"].items():
+            for step in job.get("steps") or []:
+                if not str(step.get("uses", "")).startswith("actions/checkout@"):
+                    continue
+                keeps = (step.get("with") or {}).get("persist-credentials", True)
+                expected = (path.name, name) == ("deps-lock.yml", "commit")
+                assert keeps is expected, (
+                    f"{path.name} job `{name}`: checkout with persist-credentials "
+                    f"{keeps!r}; only deps-lock.yml's `commit` job, which pushes, keeps it"
+                )
+
+
+def _docker_steps() -> list[dict]:
+    return _workflow("docker.yml")["jobs"]["build-and-push"]["steps"]
+
+
+def _run_step(script: str, env: dict[str, str]) -> subprocess.CompletedProcess:
+    bash = shutil.which("bash")
+    if bash is None:
+        if os.environ.get("GITHUB_ACTIONS"):
+            pytest.fail("bash is missing, which GitHub's runners have")
+        pytest.skip("needs bash")
+    return subprocess.run(
+        [bash, "-e", "-c", script],
+        env={**os.environ, **env},
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
+
+
+@pytest.mark.parametrize(
+    ("ref", "refused"),
+    [
+        ("refs/heads/main", False),
+        ("refs/heads/Main", True),
+        ("refs/heads/pr-anything", True),
+        ("refs/tags/v1.5.0", True),
+    ],
+)
+def test_docker_refuses_a_manual_run_off_main_before_anything_else(ref: str, refused: bool) -> None:
+    """The tags are unconditional, so a manual run off main would publish that
+    ref as :latest and :office. The guard is the first step, runs for manual
+    runs only, and compares in bash: GitHub's expressions ignore case."""
+    guard = _docker_steps()[0]
+    assert guard.get("if") == "github.event_name == 'workflow_dispatch'", guard
+    done = _run_step(guard["run"], {"GITHUB_REF": ref})
+    assert (done.returncode != 0) is refused, (ref, done.stdout, done.stderr)
+
+
+def test_docker_installs_cosign_before_it_pushes() -> None:
+    """An install that fails after the push leaves the moving tags on an
+    unsigned image (2026-10-08 and -12)."""
+    steps = _docker_steps()
+    names = [step.get("name") for step in steps]
+    ids = [step.get("id") for step in steps]
+    assert names.index("Install cosign") < ids.index("build"), names
+
+
+@pytest.mark.parametrize(("failures", "calls", "ok"), [(0, 1, True), (2, 3, True), (3, 3, False)])
+def test_docker_signs_each_image_once_by_digest(
+    tmp_path: Path, failures: int, calls: int, ok: bool
+) -> None:
+    """One signature per image, by its digest, on the lower-cased repository;
+    three tries, as signing once failed on a bad OIDC answer (2026-10-21). The
+    summary names the exact identity the docs verify against."""
+    (sign,) = [step for step in _docker_steps() if step.get("name", "").startswith("Sign")]
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    stubs = {
+        "cosign": (
+            'echo "$*" >> "$STUB/calls"\nn=$(wc -l < "$STUB/calls")\n[ "$n" -gt "$FAILURES" ]\n'
+        ),
+        "sleep": 'echo "$*" >> "$STUB/sleeps"\n',
+    }
+    for name, body in stubs.items():
+        stub = bin_dir / name
+        stub.write_text("#!/usr/bin/env bash\n" + body, encoding="utf-8", newline="\n")
+        stub.chmod(0o755)
+    digest = "sha256:" + "a" * 64
+    summary = tmp_path / "summary.md"
+    done = _run_step(
+        sign["run"],
+        {
+            "PATH": f"{bin_dir.as_posix()}{os.pathsep}{os.environ['PATH']}",
+            "STUB": tmp_path.as_posix(),
+            "FAILURES": str(failures),
+            "IMAGE": "ghcr.io/MrChengLen/FileMorph",
+            "DIGEST": digest,
+            "TAGS": "ghcr.io/mrchenglen/filemorph:latest\nghcr.io/mrchenglen/filemorph:sha-abc1234",
+            "TARGET": "base",
+            "GITHUB_REPOSITORY": "MrChengLen/FileMorph",
+            "GITHUB_REF": "refs/heads/main",
+            "GITHUB_STEP_SUMMARY": summary.as_posix(),
+        },
+    )
+    assert (done.returncode == 0) is ok, (done.stdout, done.stderr)
+    made = (tmp_path / "calls").read_text(encoding="utf-8").splitlines()
+    assert made == [f"sign --yes ghcr.io/mrchenglen/filemorph@{digest}"] * calls, made
+    if ok:
+        text = summary.read_text(encoding="utf-8")
+        assert f"cosign verify ghcr.io/mrchenglen/filemorph@{digest}" in text, text
+        assert (
+            "--certificate-identity 'https://github.com/MrChengLen/FileMorph/"
+            ".github/workflows/docker.yml@refs/heads/main'" in text
+        ), text
