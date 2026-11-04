@@ -4,11 +4,14 @@
 app/main.py builds one policy per profile (app/core/csp.py). Every response
 keeps ``default`` unless its route picks another profile; the engine files
 under /static/engine/ always get ``local``, 404s included. These tests pin the
-three policies, the choice per route and per file, and that no public page has
-switched yet: a page that does adds its row to ``_ROUTE_PROFILES``.
+three policies, the choice per route and per file, and which public pages
+switched: a page that does adds its row to ``_ROUTE_PROFILES``.
 """
 
 from __future__ import annotations
+
+import re
+from pathlib import Path
 
 import pytest
 from fastapi import Request
@@ -21,8 +24,15 @@ from app.core.engine import engine_tree_hash
 from app.core.jsonld import build_site_jsonld
 from app.main import _CSP_HEADERS, _build_csp_header, app
 
-# Route path → profile, for every page route that does not use "default".
-_ROUTE_PROFILES: dict[str, str] = {}
+# Route path → profile, for every page route that does not use "default": the
+# pages with the converter show the result's preview image from a blob: URL.
+_ROUTE_PROFILES: dict[str, str] = {
+    prefix + path: "hybrid"
+    for path in ("/", "/compress", "/convert/video-to-gif", "/convert/jpg-to-pdf")
+    for prefix in ("", "/de", "/en")
+}
+
+_TEMPLATES = Path(__file__).resolve().parent.parent / "app" / "templates"
 
 _PATH_PARAMS = {"{pair_slug}": "jpg-to-pdf", "{tool}": "split"}
 
@@ -114,6 +124,26 @@ def test_each_page_route_answers_with_its_profile(client, every_page_on, path):
     assert r.headers["content-security-policy"] == _CSP_HEADERS[profile]
 
 
+def test_every_page_with_the_converter_allows_blob_images():
+    """The converter's result card shows its preview image from a blob: URL. A
+    new page that embeds the converter needs "hybrid" too, or the browser
+    blocks the image."""
+    include = re.compile(r"""["']partials/convert_tool\.html["']""")
+    # Names as _render gets them: relative to the template folder.
+    embedding = {
+        path.relative_to(_TEMPLATES).as_posix()
+        for path in _TEMPLATES.rglob("*.html")
+        if include.search(path.read_text(encoding="utf-8"))
+    }
+    assert embedding == pages._CONVERTER_PAGES
+
+
+def test_a_converter_page_that_404s_keeps_default(client):
+    r = client.get("/de/convert/nope-to-x")
+    assert r.status_code == 404
+    assert r.headers["content-security-policy"] == _CSP_HEADERS["default"]
+
+
 @pytest.mark.parametrize(
     "path",
     ["/api/v1/health", "/robots.txt", "/no-such-page", "/static/js/app.js", "/static/nope.js"],
@@ -147,7 +177,7 @@ def test_a_route_picks_its_profile(client, profile_route, profile):
 
 def test_the_choice_ends_with_its_request(client, profile_route):
     client.get("/csp-profile-test/local")
-    assert client.get("/").headers["content-security-policy"] == _CSP_HEADERS["default"]
+    assert client.get("/tools").headers["content-security-policy"] == _CSP_HEADERS["default"]
 
 
 @pytest.mark.parametrize("enabled", [False, True])

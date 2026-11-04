@@ -240,6 +240,7 @@
       const blob = await res.blob();
       const name = filenameFromDisposition(res, 'redacted');
       const link = $('redact-download');
+      if (link.href && link.href.startsWith('blob:')) URL.revokeObjectURL(link.href);
       link.href = URL.createObjectURL(blob);
       link.download = name;
       const n = res.headers.get('X-FileMorph-AI-Entities-Redacted') || '0';

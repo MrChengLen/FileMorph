@@ -344,6 +344,16 @@ def _js_i18n_strings(_: gettext.GNUTranslations.gettext) -> dict[str, str]:
         "progressBatch": _("Processing {count} files…"),
         "progressSingle": _("Processing your file…"),
         "quality": _("Quality"),
+        # The result card (one file): {name} is the result's file name; the
+        # size change, where {percent} comes with its sign in the page's
+        # language ("55%", "55 %") and {factor} is a number ("5.3"); the sizes,
+        # where {before} and {after} read like "123.9 KB".
+        "resultPreviewAlt": _("Preview of {name}"),
+        "resultSizeLarger": _("{percent} larger than the original"),
+        "resultSizeSame": _("About the same size as the original"),
+        "resultSizeSmaller": _("{percent} smaller than the original"),
+        "resultSizeTimes": _("{factor} times the size of the original"),
+        "resultSizes": _("Before {before}, now {after}"),
         "selectFileFirst": _("— select a file first —"),
         # docx→pdf engine routing — pre-upload notice + post-convert warnings.
         # Surface fidelity-affecting decisions in the UI instead of stuffing

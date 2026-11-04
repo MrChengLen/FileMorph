@@ -246,6 +246,9 @@ msgid ""
 "so keep AVIF batches small."
 msgstr ""
 
+msgid "About the same size as the original"
+msgstr "About the same size as the original"
+
 msgid "Access (Art. 15 GDPR): which of your data we process and how."
 msgstr ""
 
@@ -457,6 +460,10 @@ msgid ""
 "17(3)(b) (legal-obligation exception); the data is held solely for tax "
 "audit and is not processed for any other purpose."
 msgstr ""
+
+#, python-brace-format
+msgid "Before {before}, now {after}"
+msgstr "Before {before}, now {after}"
 
 msgid "Behörden · Krankenhäuser · Kanzleien"
 msgstr ""
@@ -2012,6 +2019,10 @@ msgstr ""
 #, python-brace-format
 msgid "Preset: {src} to {tgt}. Choose your {src} file."
 msgstr ""
+
+#, python-brace-format
+msgid "Preview of {name}"
+msgstr "Preview of {name}"
 
 msgid "Price / year"
 msgstr ""
@@ -3841,6 +3852,10 @@ msgid "{count} item(s) found"
 msgstr ""
 
 #, python-brace-format
+msgid "{factor} times the size of the original"
+msgstr "{factor} times the size of the original"
+
+#, python-brace-format
 msgid "{inserted} pages inserted — now {total} pages, {size}."
 msgstr ""
 
@@ -3859,6 +3874,14 @@ msgstr ""
 #, python-brace-format
 msgid "{n} of {total} tools"
 msgstr ""
+
+#, python-brace-format
+msgid "{percent} larger than the original"
+msgstr "{percent} larger than the original"
+
+#, python-brace-format
+msgid "{percent} smaller than the original"
+msgstr "{percent} smaller than the original"
 
 #, python-brace-format
 msgid "{src} → {tgt} isn't available (yet). Everything with {src}:"

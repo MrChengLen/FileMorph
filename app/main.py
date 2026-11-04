@@ -341,10 +341,11 @@ def _build_csp_header(api_base_url: str, profile: str = "default") -> str:
     utility classes still produce inline style for animations/accents.
 
     `hybrid` adds `blob:` images, for previews of files the browser
-    processed itself. `local` keeps them and refuses data connections
-    (`connect-src 'none'`, no `API_BASE_URL` either), form posts, plugins
-    and frames (a same-origin frame would bring its own, looser policy);
-    `worker-src` and `manifest-src` are pinned to this origin.
+    holds (processed itself, or a converted result). `local` keeps them
+    and refuses data connections (`connect-src 'none'`, no `API_BASE_URL`
+    either), form posts, plugins and frames (a same-origin frame would
+    bring its own, looser policy); `worker-src` and `manifest-src` are
+    pinned to this origin.
 
     `script-src` stays `'self'` instead of `/static/` paths only. A path
     needs the origin spelled out (`'self'` takes none), and the app does
