@@ -51,6 +51,26 @@ def test_vendored_file_notice_names_the_same_sha256(entry):
     assert entry["sha256"] in notices.read_text(encoding="utf-8")
 
 
+@pytest.mark.parametrize("entry", _ENTRIES, ids=_IDS)
+def test_vendored_file_notice_names_its_version_and_integrity(entry):
+    notices = (_VENDOR / entry["notices"]).read_text(encoding="utf-8")
+    assert entry["version"] in notices
+    assert entry.get("npm_integrity", "") in notices
+
+
+def test_the_swagger_bundle_is_the_release_the_manifest_names():
+    # OSV is asked about the manifest's versions, so they must be the code's.
+    entry = next(e for e in _ENTRIES if e["path"] == "swagger-ui-bundle.js")
+    bundle = (_VENDOR / entry["path"]).read_text(encoding="utf-8")
+    assert f'PACKAGE_VERSION:"{entry["version"]}"' in bundle
+    assert f'DOMPurify.version="{entry["bundles"]["dompurify"]}"' in bundle
+
+
+def test_the_swagger_notice_holds_the_bundled_notices_verbatim():
+    banner = (_VENDOR / "swagger-ui-bundle.js.LICENSE.txt").read_text(encoding="utf-8")
+    assert banner.strip() in (_VENDOR / "LICENSE-swagger-ui.md").read_text(encoding="utf-8")
+
+
 def test_every_vendored_file_is_in_the_manifest():
     # Everything under vendor/ is served at /static/vendor/, subfolders included;
     # only the manifest itself and the notice files it names are exempt.
