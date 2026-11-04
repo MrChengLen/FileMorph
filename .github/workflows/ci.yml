@@ -231,9 +231,23 @@ jobs:
       - name: WeasyPrint renders (its tests must not skip)
         run: python -c "import weasyprint; assert weasyprint.HTML(string='<p>probe</p>').write_pdf().startswith(b'%PDF')"
 
+      # docs/self-hosting.md ("Without the database superuser") runs the app,
+      # and with it every migration, as a role that owns FileMorph's tables
+      # but is no superuser. The Postgres tests log in as such a role too, so
+      # a migration that needs a superuser (CREATE EXTENSION, CREATE SCHEMA,
+      # an event trigger, ALTER SYSTEM) fails here instead of when an
+      # installation starts.
+      - name: A database role without superuser rights
+        env:
+          POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+        run: >-
+          docker exec "$POSTGRES_CONTAINER" psql -U postgres -d filemorph_test -v ON_ERROR_STOP=1
+          -c "CREATE ROLE filemorph_app LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS"
+          -c "GRANT USAGE, CREATE ON SCHEMA public TO filemorph_app"
+
       - name: Run tests
         env:
-          FILEMORPH_TEST_POSTGRES_URL: postgresql+asyncpg://postgres@localhost:5432/filemorph_test
+          FILEMORPH_TEST_POSTGRES_URL: postgresql+asyncpg://filemorph_app@localhost:5432/filemorph_test
         run: pytest tests/ -v --tb=short
 
       # PDF/A-2b conformance gate (NEU-C.1.c), in three steps. This one has

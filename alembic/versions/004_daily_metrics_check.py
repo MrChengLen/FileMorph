@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""S10-polish: defense-in-depth CHECK constraint on ``daily_metrics.metric_key``.
+r"""S10-polish: defense-in-depth CHECK constraint on ``daily_metrics.metric_key``.
 
 Revision ID: 004_daily_metrics_check
 Revises: 003_daily_metrics

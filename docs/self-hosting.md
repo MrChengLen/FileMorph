@@ -281,7 +281,12 @@ near production:
 
 The overlay derives `DATABASE_URL` from `POSTGRES_PASSWORD`
 automatically (`postgresql+asyncpg://filemorph:***@postgres/filemorph`);
-you only need to set the password. To point at a database you run
+you only need to set the password. That login is the database superuser;
+[Without the database superuser](#without-the-database-superuser) below
+switches the app to a role with fewer rights, which is recommended. The
+overlay's `postgres` service runs with `no-new-privileges`, only the four
+capabilities its entrypoint needs, a process limit and no core dumps.
+To point at a database you run
 yourself instead of the bundled container, edit the `DATABASE_URL` line
 in the overlay (or in a copy of it) and remove both the `postgres`
 service and the `depends_on` entry under `filemorph`. Setting
@@ -290,6 +295,157 @@ service and the `depends_on` entry under `filemorph`. Setting
 [`docs/installation.md`](installation.md) "Method 2" for the full
 first-boot walkthrough (migrations, the legacy single-user key, what
 `/register` and `/cockpit` need).
+
+### Without the database superuser
+
+The postgres image makes `POSTGRES_USER` (`filemorph`) a superuser, and by
+default the app logs in as it. A superuser can run programs in the database
+container (`COPY … FROM PROGRAM`) and read its files, so whoever gets hold of
+the app's database login — through a break-in into the app container or an
+SQL injection — could do the same. Give the app a role of its own: it owns
+FileMorph's tables, so the migrations still run at every start, but it is no
+superuser. FileMorph's migrations need nothing more; CI runs them as such a
+role.
+
+The steps work on a new and on an existing volume, and the app keeps running
+as before until step 3. Run them in the directory with your `.env`.
+
+1. Generate a password for the role (it goes into `DATABASE_URL`, so letters
+   and digits only):
+
+   ```bash
+   printf '\nPOSTGRES_APP_PASSWORD=%s\n' "$(openssl rand -hex 32)" >> .env
+   ```
+
+2. Create the role and hand it FileMorph's tables. This runs in one
+   transaction: either everything changes or nothing does. The password
+   reaches `psql` through the environment, and the session logs no
+   statement. Running it again does no harm. Expected: a `NOTICE` with the
+   number of objects it moved (0 on a second run), then `done`. On
+   `lock timeout` or `statement timeout`, a request held a table: nothing
+   changed, run it again a minute later.
+
+   ```bash
+   POSTGRES_APP_PASSWORD="$(sed -n 's/^POSTGRES_APP_PASSWORD=//p' .env)" \
+     docker compose -f docker-compose.yml -f docker-compose.cloud.yml exec -T -e POSTGRES_APP_PASSWORD \
+     postgres psql -U filemorph -d filemorph -q -v ON_ERROR_STOP=1 <<'SQL'
+   -- Only pg_catalog: nothing in public can stand in for a function or operator.
+   SET search_path = pg_catalog, pg_temp;
+   -- One statement below carries the password: log none of them.
+   SET log_statement = 'none';
+   SET log_min_duration_statement = -1;
+   SET log_min_error_statement = panic;
+   -- Give up rather than hold the app up: 3 s per table, 10 s per statement.
+   SET lock_timeout = '3s';
+   SET statement_timeout = '10s';
+   \getenv pw POSTGRES_APP_PASSWORD
+   \if :{?pw}
+   SELECT :'pw' ~ '^[A-Za-z0-9]{16,}$' AS pw_ok \gset
+   \else
+   \set pw_ok false
+   \endif
+   \if :pw_ok
+   \else
+   DO $$ BEGIN RAISE EXCEPTION 'stopped: .env has no POSTGRES_APP_PASSWORD of at least 16 letters and digits (step 1)'; END $$;
+   \endif
+   BEGIN;
+   SELECT NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'filemorph_app') AS role_missing \gset
+   \if :role_missing
+   CREATE ROLE filemorph_app;
+   \endif
+   ALTER ROLE filemorph_app WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD :'pw';
+   GRANT CONNECT ON DATABASE filemorph TO filemorph_app;
+   GRANT USAGE, CREATE ON SCHEMA public TO filemorph_app;
+   DO $$
+   DECLARE
+       stmt text;
+       n int := 0;
+   BEGIN
+       FOR stmt IN
+           -- Tables, views, sequences; indexes, constraints, triggers and the
+           -- sequence of a serial column move with their table. Objects of an
+           -- extension stay with it.
+           SELECT format('ALTER %s %s OWNER TO filemorph_app',
+                         CASE c.relkind WHEN 'v' THEN 'VIEW' WHEN 'm' THEN 'MATERIALIZED VIEW'
+                                        WHEN 'S' THEN 'SEQUENCE' ELSE 'TABLE' END,
+                         c.oid::regclass)
+           FROM pg_class c
+           WHERE c.relnamespace = 'public'::regnamespace
+             AND c.relowner = 'filemorph'::regrole
+             AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
+             AND NOT EXISTS (
+                     SELECT FROM pg_depend d
+                     WHERE d.classid = 'pg_class'::regclass AND d.objid = c.oid
+                       AND (d.deptype = 'e' OR (c.relkind = 'S' AND d.refclassid = 'pg_class'::regclass
+                                                AND d.deptype IN ('a', 'i'))))
+           UNION ALL
+           -- Enums, domains, ranges, standalone composite types; row, array and
+           -- multirange types move with their table, element or range.
+           SELECT format('ALTER %s %s OWNER TO filemorph_app',
+                         CASE t.typtype WHEN 'd' THEN 'DOMAIN' ELSE 'TYPE' END, t.oid::regtype)
+           FROM pg_type t
+           WHERE t.typnamespace = 'public'::regnamespace
+             AND t.typowner = 'filemorph'::regrole
+             AND (t.typtype IN ('e', 'd', 'r')
+                  OR (t.typtype = 'c' AND EXISTS (SELECT FROM pg_class r WHERE r.oid = t.typrelid AND r.relkind = 'c')))
+             AND NOT EXISTS (SELECT FROM pg_depend d
+                             WHERE d.classid = 'pg_type'::regclass AND d.objid = t.oid AND d.deptype = 'e')
+           UNION ALL
+           -- Functions, procedures, aggregates; a range's constructors stay with it.
+           SELECT format('ALTER ROUTINE %s OWNER TO filemorph_app', p.oid::regprocedure)
+           FROM pg_proc p
+           WHERE p.pronamespace = 'public'::regnamespace
+             AND p.proowner = 'filemorph'::regrole
+             AND NOT EXISTS (SELECT FROM pg_depend d
+                             WHERE d.classid = 'pg_proc'::regclass AND d.objid = p.oid AND d.deptype IN ('e', 'i'))
+       LOOP
+           EXECUTE stmt;
+           n := n + 1;
+       END LOOP;
+       RAISE NOTICE '% objects now belong to filemorph_app', n;
+   END
+   $$;
+   COMMIT;
+   \echo 'done'
+   SQL
+   ```
+
+3. Switch the app to the role. `up -d` recreates the app container, which
+   then migrates and logs in as `filemorph_app`; the second command prints
+   that name.
+
+   ```bash
+   printf 'POSTGRES_APP_USER=filemorph_app\n' >> .env
+   docker compose -f docker-compose.yml -f docker-compose.cloud.yml up -d
+   docker compose -f docker-compose.yml -f docker-compose.cloud.yml exec -T filemorph sh -c 'u=${DATABASE_URL#*://}; echo "${u%%:*}"' </dev/null
+   ```
+
+4. Then sign in and convert a file. To go back, delete the
+   `POSTGRES_APP_USER` line from `.env` and run `up -d` again: the app logs
+   in as the superuser, which may use the tables that now belong to
+   `filemorph_app`.
+
+From then on:
+
+- **Look at or change FileMorph's data as `filemorph_app`:**
+  `docker compose -f docker-compose.yml -f docker-compose.cloud.yml exec postgres psql -U filemorph_app -d filemorph`
+  (no password inside the container). The role may create functions,
+  operators, views and triggers in `public`; a superuser session would run
+  them with superuser rights, even for a `SELECT`. Use `filemorph` only for
+  roles, grants and `pg_dump`, and start each such `psql` session with
+  `SET search_path = pg_catalog, pg_temp;`.
+- **Restore a dump as `filemorph_app`**, into an empty database before the
+  app starts: `pg_restore -U filemorph_app --no-owner --no-acl -d filemorph`
+  inside the postgres container, with the dump on its standard input.
+- **A migration that needs a superuser** (`CREATE EXTENSION`,
+  `CREATE SCHEMA`, an event trigger) stops the app from starting. FileMorph's
+  CI keeps such migrations out; for your own, run that statement once as
+  `filemorph` first, an extension into a schema of its own rather than
+  `public`.
+- **The superuser's password** used to reach the app container through
+  `env_file`. If that container may ever have been compromised, give the
+  superuser a new one (`\password filemorph` in a `psql` session as
+  `filemorph`) and the same value in `POSTGRES_PASSWORD`.
 
 ## Reverse proxy (HTTPS)
 

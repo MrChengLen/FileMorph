@@ -16,7 +16,8 @@ downgrade refuses once recipe-2 rows exist.
 These tests run ``alembic upgrade head`` against the database in
 ``FILEMORPH_TEST_POSTGRES_URL`` (an asyncpg URL) and skip without it. Every
 test empties the tables, so the database name must contain ``test``. CI's
-``lint-and-test`` job provides a Postgres service;
+``lint-and-test`` job provides a Postgres service and logs in as a role that
+is no superuser, as docs/self-hosting.md recommends for the app;
 ``test_ci_runs_these_tests_on_postgres`` keeps it that way.
 """
 
@@ -439,3 +440,24 @@ def test_ci_runs_these_tests_on_postgres(workflow):
     assert pytest_steps, f"{workflow} no longer runs pytest"
     for step in pytest_steps:
         assert _ENV in step.get("env", {}), f"{step.get('name')!r} does not set {_ENV}"
+
+
+@pytest.mark.parametrize("workflow", sorted(_TEST_JOBS))
+def test_ci_migrates_without_a_superuser(workflow):
+    """The migrations run in the app's container entrypoint, as whatever role
+    DATABASE_URL names. Run as the superuser here, a migration that needs one
+    (CREATE EXTENSION, CREATE SCHEMA, an event trigger) would pass CI and then
+    stop every installation that follows docs/self-hosting.md."""
+    steps = _test_job(workflow)["steps"]
+    pytest_steps = [step for step in steps if "pytest" in step.get("run", "")]
+    roles = {make_url(step["env"][_ENV]).username for step in pytest_steps}
+    assert len(roles) == 1, f"{workflow} tests as {roles}"
+    (role,) = roles
+    assert role != "postgres", f"{workflow} migrates as the superuser postgres"
+    creating = [step for step in steps if f"CREATE ROLE {role} " in step.get("run", "")]
+    assert creating, f"{workflow} never creates the role {role}"
+    command = creating[0]["run"]
+    assert "NOSUPERUSER" in command and "GRANT USAGE, CREATE ON SCHEMA public" in command, command
+    assert steps.index(creating[0]) < steps.index(pytest_steps[0]), (
+        f"{workflow} creates {role} after the tests ran"
+    )
