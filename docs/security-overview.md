@@ -607,8 +607,14 @@ mechanically.
   capture timestamps) by default — see
   [`app/converters/_metadata.py`](../app/converters/_metadata.py).
   ICC colour profiles are preserved so wide-gamut workflows are
-  not visibly desaturated. There is no per-request opt-out: a
-  caller who needs metadata kept holds the original.
+  not visibly desaturated. A profile describes the colour space.
+  A display profile (a macOS screenshot's, say) can name the
+  monitor — make, model, and in Apple's `mmod` tag its serial
+  number — and carry a profile name its user chose; never the
+  place or the capture time. One over 4 MB is dropped (print
+  profiles stay under about 2 MB; a larger one would only cost
+  encode time). There is no per-request opt-out: a caller who
+  needs metadata kept holds the original.
 - Video conversions and compressions copy no metadata from the
   source — no container or stream tags (location, device, capture
   time) and no chapters — see

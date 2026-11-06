@@ -211,21 +211,23 @@ def test_unit_scaling_keeps_a_mode_the_format_can_write():
     assert _scaled(Image.new("I;16", (200, 100)), "WEBP", 0.5).mode == "RGB"
 
 
-def test_unit_huge_colour_profile_stops_before_scaling(tmp_path):
-    """When a 600 KB colour profile rides along with every AVIF encode, no
-    size can fit: the search finds that out from one smallest-size probe
-    instead of scaling round after round."""
-    import os
+def test_unit_unreachable_target_stops_before_scaling(tmp_path, monkeypatch):
+    """When 600 KB ride along with every encode — no scaling shrinks them —
+    no size can fit: the search finds that out from one smallest-size probe
+    instead of scaling round after round. (A colour profile that large is
+    dropped for the target first, so the extra bytes are patched in here.)"""
+    from app.compressors import image as image_module
+    from app.compressors.image import compress_image_to_target
 
-    from app.compressors.image import TARGET_SIZE_FORMATS, compress_image_to_target
-
-    if "avif" not in TARGET_SIZE_FORMATS:
-        pytest.skip("AVIF encoder not available")
-    src = tmp_path / "profile.avif"  # JPEG data under an .avif name, as an upload can be
-    Image.effect_noise((400, 300), 90).convert("RGB").save(
-        src, format="JPEG", quality=95, icc_profile=os.urandom(600 * 1024)
+    encode = image_module._encode_to_bytes
+    monkeypatch.setattr(
+        image_module,
+        "_encode_to_bytes",
+        lambda img, pil_fmt, quality: encode(img, pil_fmt, quality) + bytes(600 * 1024),
     )
-    out = tmp_path / "out.avif"
+    src = tmp_path / "noise.jpg"
+    Image.effect_noise((400, 300), 90).convert("RGB").save(src, format="JPEG", quality=95)
+    out = tmp_path / "out.jpg"
 
     result = compress_image_to_target(src, out, target_bytes=100 * 1024)
 

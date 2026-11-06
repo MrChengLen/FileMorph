@@ -5,7 +5,7 @@ from pathlib import Path
 
 from PIL import Image
 
-from app.converters._metadata import strip_metadata
+from app.converters._metadata import icc_for, strip_metadata
 from app.core.image_hardening import open_image
 
 # Register pillow-avif-plugin if available. Importing it registers AVIF
@@ -48,13 +48,15 @@ if _avif_available:
 # quality 1. Each round shrinks to at most _MAX_RESIZE_FACTOR, never below a
 # short edge of _MIN_EDGE_PX, and all rounds together spend at most
 # _RESIZE_ENCODES encodes. Scaling is skipped when not even the smallest size
-# fits (an image carrying a large colour profile, say): the target can't be
-# reached then, and the image keeps its size.
+# fits: the target can't be reached then, and the image keeps its size. (A
+# colour profile that would make it so goes first, see _ICC_TARGET_SHARE.)
 _RESIZE_QUALITY = 80
 _RESIZE_MARGIN = 0.9
 _MAX_RESIZE_FACTOR = 0.75
 _RESIZE_ENCODES = 12
 _MIN_EDGE_PX = 16
+# A colour profile larger than this share of the target is dropped for it.
+_ICC_TARGET_SHARE = 4
 
 
 def compress_image(input_path: Path, output_path: Path, quality: int = 85) -> Path:
@@ -68,10 +70,10 @@ def compress_image(input_path: Path, output_path: Path, quality: int = 85) -> Pa
 
     NEU-C.2: PII-bearing metadata (EXIF GPS, camera serial, XMP/IPTC
     creator) is stripped from the output by default — see
-    ``app/converters/_metadata.py``. ``strip_metadata`` keeps the ICC colour
-    profile, but only the PNG, TIFF and AVIF saves write it; the JPEG and
-    WebP saves don't pass ``icc_profile`` and drop it. The size estimate in
-    ``app.js`` counts on that for JPEG (``ESTIMATE_PILLOW_APP_BYTES``).
+    ``app/converters/_metadata.py``. The ICC colour profile stays: PNG, TIFF
+    and AVIF write it on their own, JPEG and WebP only when passed
+    ``icc_profile``. The size estimate in ``app.js`` adds its bytes for a JPEG
+    (``pillowIccBytes``).
     """
     quality = max(1, min(100, quality))
     ext = input_path.suffix.lstrip(".").lower()
@@ -83,19 +85,29 @@ def compress_image(input_path: Path, output_path: Path, quality: int = 85) -> Pa
     img = strip_metadata(img)
 
     if pil_fmt == "JPEG":
-        img.save(output_path, format="JPEG", quality=quality, optimize=True)
+        img.save(
+            output_path,
+            format="JPEG",
+            quality=quality,
+            optimize=True,
+            icc_profile=icc_for(img, "JPEG"),
+        )
     elif pil_fmt == "PNG":
         # PNG compress_level 0-9: map quality 100→0, quality 1→9. optimize=True
         # packs at level 9 regardless, so the quality changes nothing here.
         compress_level = max(0, min(9, 9 - round(quality / 100 * 9)))
         img.save(output_path, format="PNG", compress_level=compress_level, optimize=True)
     elif pil_fmt == "WEBP":
-        img.save(output_path, format="WEBP", quality=quality, method=6)
+        img.save(
+            output_path, format="WEBP", quality=quality, method=6, icc_profile=icc_for(img, "WEBP")
+        )
     elif pil_fmt == "AVIF":
         # Lossy; quality 1-100 maps to the AV1 quantizer. speed is the
         # libavif effort knob (0 slowest/best … 10 fastest); 6 keeps encode
         # cost reasonable on a request thread while staying well-compressed.
-        img.save(output_path, format="AVIF", quality=quality, speed=6)
+        img.save(
+            output_path, format="AVIF", quality=quality, speed=6, icc_profile=icc_for(img, "AVIF")
+        )
     elif pil_fmt == "TIFF" and img.mode == "1":
         # TIFF in black and white: the smaller of Group 4 (scanned text packs
         # best so) and Deflate (dithered pictures do).
@@ -119,11 +131,13 @@ def compress_image(input_path: Path, output_path: Path, quality: int = 85) -> Pa
 def _encode_to_bytes(img: Image.Image, pil_fmt: str, quality: int) -> bytes:
     buf = io.BytesIO()
     if pil_fmt == "JPEG":
-        img.save(buf, format="JPEG", quality=quality, optimize=True)
+        img.save(
+            buf, format="JPEG", quality=quality, optimize=True, icc_profile=icc_for(img, "JPEG")
+        )
     elif pil_fmt == "AVIF":
-        img.save(buf, format="AVIF", quality=quality, speed=6)
+        img.save(buf, format="AVIF", quality=quality, speed=6, icc_profile=icc_for(img, "AVIF"))
     else:
-        img.save(buf, format="WEBP", quality=quality, method=6)
+        img.save(buf, format="WEBP", quality=quality, method=6, icc_profile=icc_for(img, "WEBP"))
     return buf.getvalue()
 
 
@@ -223,6 +237,12 @@ def compress_image_to_target(
     # NEU-C.2: strip PII before any encode pass — applies to every probe
     # in the binary search, not just the final write.
     img = strip_metadata(img)
+    # The target is the promise (an upload limit), the colour profile a
+    # nicety: one that would take more than a quarter of it goes — a print
+    # profile of some hundred KB, say. sRGB (3 KB) or Display P3 (under 1 KB)
+    # stay for any target worth setting.
+    if len(img.info.get("icc_profile") or b"") > target_bytes // _ICC_TARGET_SHARE:
+        del img.info["icc_profile"]
 
     quality, data, iterations = _best_fit(img, pil_fmt, target_bytes, tolerance, max_iterations)
     resized_to: tuple[int, int] | None = None

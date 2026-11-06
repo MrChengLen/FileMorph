@@ -102,12 +102,14 @@ def test_strip_metadata_preserves_icc_profile():
     survive ``strip_metadata`` so wide-gamut workflows do not
     visibly desaturate after a round-trip."""
     img = Image.new("RGB", (10, 10))
-    img.info["icc_profile"] = b"\x00\x01\x02icc-profile-bytes"
+    profile = b"\x00\x01\x02icc-profile-b" + b"RGB " + b"-and-the-rest"  # "RGB " at byte 16
+    assert profile[16:20] == b"RGB "
+    img.info["icc_profile"] = profile
     img.info["exif"] = b"some-exif"
 
     clean = strip_metadata(img)
     assert "exif" not in clean.info
-    assert clean.info.get("icc_profile") == b"\x00\x01\x02icc-profile-bytes"
+    assert clean.info.get("icc_profile") == profile
 
 
 def _image(mode: str, colour: bool = False) -> Image.Image:
@@ -408,14 +410,15 @@ def test_strip_metadata_turned_palette_image_keeps_palette_icc_and_transparency(
     transparent index stay, nothing else does. The colours are checked
     against a turn of the RGB picture, which no lost palette could match."""
     img = _image("P")
-    img.info.update(transparency=7, icc_profile=b"icc", exif=_turn_tag(), comment=b"by me")
+    profile = b"\x00" * 16 + b"RGB " + b"\x00" * 12  # a palette holds RGB colours
+    img.info.update(transparency=7, icc_profile=profile, exif=_turn_tag(), comment=b"by me")
     expected = img.convert("RGB").transpose(Image.Transpose.ROTATE_270)
 
     clean = strip_metadata(img)
 
     assert clean.mode == "P" and clean.size == expected.size == (40, 60)
     assert clean.convert("RGB").tobytes() == expected.tobytes()
-    assert clean.info == {"icc_profile": b"icc", "transparency": 7}
+    assert clean.info == {"icc_profile": profile, "transparency": 7}
 
 
 def test_strip_metadata_reads_the_orientation_from_xmp():
