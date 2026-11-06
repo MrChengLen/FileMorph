@@ -784,6 +784,10 @@ to be effective. The following list is grouped by importance.
     intercepted webhook URL.
 11. **Keep SMTP credentials in environment, not in `.env`
     committed to a repo.** `.env.example` is the template.
+12. **Run the app without the database superuser.** By default the
+    Cloud overlay's app logs in as the superuser, which can run
+    programs in the database container; `self-hosting.md` ("Without
+    the database superuser") switches it to a role of its own.
 
 ---
 
