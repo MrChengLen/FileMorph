@@ -614,7 +614,17 @@ mechanically.
   place or the capture time. One over 4 MB is dropped (print
   profiles stay under about 2 MB; a larger one would only cost
   encode time). There is no per-request opt-out: a caller who
-  needs metadata kept holds the original.
+  needs metadata kept holds the original. When compressing would
+  not make a JPEG, PNG or WebP smaller, the original comes back
+  instead (`original=kept`), put together anew from the parts of
+  the picture — see
+  [`app/converters/_lossless_strip.py`](../app/converters/_lossless_strip.py):
+  metadata, thumbnails and other parts are left out (a file with
+  a part it can't judge keeps the re-encode), the colour profile
+  follows the rules above, and the decoded picture is checked to
+  be unchanged. The coded image data and a JPEG's tables are
+  copied as they are, so — unlike a re-encode — bytes hidden inside
+  them stay; no camera or editor writes metadata there.
 - Video conversions and compressions copy no metadata from the
   source — no container or stream tags (location, device, capture
   time) and no chapters — see

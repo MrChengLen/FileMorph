@@ -324,6 +324,10 @@ def _js_i18n_strings(_: gettext.GNUTranslations.gettext) -> dict[str, str]:
         "compress": _("Compress"),
         "compression": _("Compression"),
         "convert": _("Convert"),
+        # Compressing didn't make the file smaller, so the original comes back
+        # without its metadata (compress.py::keep_original).
+        "downloadOriginal": _("Download the original without metadata"),
+        "downloadOriginalSize": _("Download the original without metadata ({size} MB)"),
         "downloadResult": _("Download Result"),
         "downloadResultSize": _("Download Result ({size} MB)"),
         "downloadZip": _("Download ZIP ({count} files)"),
@@ -368,6 +372,11 @@ def _js_i18n_strings(_: gettext.GNUTranslations.gettext) -> dict[str, str]:
             "No size preview for this file. With “By target size” you set the size yourself."
         ),
         "sizeEstimateNote": _("{change} · worked out in your browser, nothing uploaded"),
+        "sizeEstimateOriginal": _("At this quality the file would not get smaller"),
+        "sizeEstimateOriginalNote": _(
+            "You then get your original back, without location and camera data. Choose a "
+            "lower quality for a smaller file."
+        ),
         "sizeEstimatePending": _("Working out the size…"),
         "sizeEstimateVideo": _("For a video, the size is known only after compressing."),
         # docx→pdf engine routing — pre-upload notice + post-convert warnings.
@@ -383,10 +392,16 @@ def _js_i18n_strings(_: gettext.GNUTranslations.gettext) -> dict[str, str]:
         "docxPdfEngineLearnMore": _("Engine details ↗"),
         "conversionWarningTitle": _("Conversion completed with notes"),
         "compressionWarningTitle": _("Compressed — with a note"),
+        # The same box when the original came back (compress.py::keep_original).
+        "compressionOriginalTitle": _("Your original, without metadata"),
         # Target-size notes (compress.py::target_notes), single file and batch.
         "warningTargetResized": _(
             "Scaled down to {width} × {height} pixels — the lowest quality alone "
             "wasn't enough for the target size."
+        ),
+        "warningOriginalKept": _(
+            "At this setting the file would not have got smaller. You get your original "
+            "back, without location and camera data."
         ),
         "warningTargetMissed": _(
             "The target size can't be reached, not even by scaling the image down: "

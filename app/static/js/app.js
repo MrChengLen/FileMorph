@@ -768,9 +768,13 @@ function parseWarningsHeader(raw) {
   return items;
 }
 
-// Target-size tokens (compress.py::target_notes) → a localized note, or null.
+// Compress tokens (compress.py::target_notes, ORIGINAL_KEPT) → a localized
+// note, or null.
 function targetNoteLabel(key, value) {
   const i18n = window.FM_I18N || {};
+  if (key === 'original' && value === 'kept') {
+    return i18n.warningOriginalKept || 'At this setting the file would not have got smaller. You get your original back, without location and camera data.';
+  }
   if (key === 'resized') {
     const [width, height] = value.split('x').map(n => Number(n).toLocaleString(document.documentElement.lang || undefined));
     return (i18n.warningTargetResized || "Scaled down to {width} × {height} pixels — the lowest quality alone wasn't enough for the target size.")
@@ -795,9 +799,14 @@ function showConversionWarnings(rawHeader) {
     return;
   }
   const i18n = window.FM_I18N || {};
-  titleEl.textContent = currentMode === 'compress'
-    ? (i18n.compressionWarningTitle || 'Compressed — with a note')
-    : (i18n.conversionWarningTitle || 'Conversion completed with notes');
+  let title = i18n.conversionWarningTitle || 'Conversion completed with notes';
+  if (currentMode === 'compress') {
+    // Not "compressed" when the original came back (compress.py::keep_original).
+    title = rawHeader.split(',').includes('original=kept')
+      ? (i18n.compressionOriginalTitle || 'Your original, without metadata')
+      : (i18n.compressionWarningTitle || 'Compressed — with a note');
+  }
+  titleEl.textContent = title;
   list.innerHTML = '';
   for (const item of items) {
     const li = document.createElement('li');
@@ -820,8 +829,9 @@ function hideConversionWarnings() {
 //   X-FileMorph-Batch-Failures   — semicolon-joined URL-encoded
 //                                  "<name>|<reason>" pairs; absent on
 //                                  all-success runs
-//   X-FileMorph-Batch-Notes      — the same for files with target-size
-//                                  notes ("<name>|resized=2400x1600")
+//   X-FileMorph-Batch-Notes      — the same for files with notes
+//                                  ("<name>|resized=2400x1600",
+//                                  "<name>|original=kept")
 // (See app/core/batch.py::batch_summary_headers for the producer.)
 
 function parseBatchFailures(rawHeader) {
@@ -850,7 +860,8 @@ function parseBatchFailures(rawHeader) {
 }
 
 // X-FileMorph-Batch-Notes: the same "<name>|<value>" list as the failures,
-// the value being comma-joined note tokens (``resized=2400x1600``).
+// the value being comma-joined note tokens (``resized=2400x1600``,
+// ``original=kept``).
 function parseBatchNotes(rawHeader) {
   return parseBatchFailures(rawHeader).map(({ name, reason }) => {
     const labels = reason.split(',').map(token => {
@@ -1391,6 +1402,12 @@ function showSizeEstimate(state, sizes) {
   let larger = false;
   if (state === 'pending') {
     text = i18nText('sizeEstimatePending', 'Working out the size…');
+  } else if (state === 'value' && sizes.after >= sizes.before) {
+    // No smaller: the server then hands back the original without its
+    // metadata (compress.py::keep_original), so no size of a re-encode shows.
+    text = i18nText('sizeEstimateOriginal', 'At this quality the file would not get smaller');
+    note = i18nText('sizeEstimateOriginalNote', 'You then get your original back, without location and camera data. Choose a lower quality for a smaller file.');
+    larger = true;
   } else if (state === 'value') {
     text = i18nText('sizeEstimate', 'Estimated size: about {size}', { size: formatBytes(sizes.after) });
     const change = resultChangeText(sizes.before, sizes.after);
@@ -1648,9 +1665,17 @@ async function submitForm() {
     const label = document.getElementById('download-link-label');
     if (label) {
       const achieved = res.headers.get('X-FileMorph-Achieved-Bytes');
-      if (!isBatch && useTargetSize && achieved) {
-        // Decimal MB, as the target was entered.
-        const mb = formatDecimal(parseInt(achieved, 10) / 1e6, 2);
+      // Decimal MB, as the target was entered.
+      const mb = achieved ? formatDecimal(parseInt(achieved, 10) / 1e6, 2) : '';
+      // Compressing didn't make it smaller: the original comes back without
+      // its metadata (compress.py::keep_original), and the button says so.
+      const keptOriginal = !isBatch
+        && (res.headers.get('X-FileMorph-Warnings') || '').split(',').includes('original=kept');
+      if (keptOriginal) {
+        label.textContent = useTargetSize && achieved
+          ? i18nText('downloadOriginalSize', 'Download the original without metadata ({size} MB)', { size: mb })
+          : i18nText('downloadOriginal', 'Download the original without metadata');
+      } else if (!isBatch && useTargetSize && achieved) {
         label.textContent = i18nText('downloadResultSize', 'Download Result ({size} MB)', { size: mb });
       } else {
         label.textContent = isBatch

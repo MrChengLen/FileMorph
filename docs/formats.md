@@ -69,6 +69,14 @@ Re-encode an image at a lower quality to reduce file size without changing forma
 | AVIF | Lossy (quality 1–100) | Best compression ratio of the lossy formats; **target-size** supported (binary search on quality). Encode is more CPU-intensive than JPEG/WebP. |
 | TIFF | Lossless (Deflate with the horizontal predictor; black and white: Group 4 or Deflate, whichever is smaller) | `quality` changes nothing. A TIFF holding JPEG data can come out larger. Only the first page of a multi-page TIFF is kept. |
 
+> **Never larger than the original**: a photo from the web or a messenger is
+> often compressed harder already than the chosen quality. When compressing
+> would not make a JPEG, PNG or WebP smaller, you get your original back with
+> its metadata cut out (location, camera, names, comments, thumbnails — the
+> image data is not touched; colour profile and orientation stay), and the
+> download says so. A PNG or WebP that is turned or animated, TIFF, AVIF and
+> video keep the re-encode; the result then says how much larger it is.
+
 > **Target-size compression** (`target_size_kb`) is supported for **JPEG, WebP and
 > AVIF** — the lossy formats where quality controls output size. PNG/TIFF are
 > lossless and come out the same whatever the `quality`. Video (`compress_video()`)
