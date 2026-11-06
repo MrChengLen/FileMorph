@@ -515,6 +515,7 @@ def test_content_modules_and_docs_make_no_bare_eu_hosting_claim():
             "convert_pairs",
             "redact_content",
             "video_gif_content",
+            "video_audio_content",
             "jsonld",
         )
     ]

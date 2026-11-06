@@ -201,6 +201,21 @@
     "meta": "Kurze Videos (MP4, MOV, WebM und mehr, bis 30 Sekunden) kostenlos online in ein animiertes GIF umwandeln, ohne Konto. Dateien sofort gelöscht.",
     "title": "Video in GIF umwandeln — kostenlos | FileMorph"
   },
+  "/de/convert/video-to-mp3": {
+    "headings": [
+      "h1: Video in MP3 umwandeln",
+      "h2: Ehrliche Grenzen",
+      "h2: So funktioniert es",
+      "h2: Wann es sinnvoll ist",
+      "h2: Häufige Fragen",
+      "h3: Welches Audioformat soll ich wählen?",
+      "h3: Warum wurde mein Video abgelehnt?",
+      "h3: Brauche ich ein Konto?",
+      "h2: Verwandte Tools"
+    ],
+    "meta": "Den Ton eines Videos (MP4, MOV, MKV, WebM und mehr) kostenlos online als MP3, M4A oder WAV speichern, ohne Konto. Dateien sofort gelöscht.",
+    "title": "Video in MP3 umwandeln — kostenlos | FileMorph"
+  },
   "/de/convert/webp-to-jpg": {
     "headings": [
       "h1: WebP in JPG umwandeln",
@@ -297,8 +312,9 @@
       "h3: WebP in JPG",
       "h3: JPG in WebP",
       "h3: PNG in WebP",
-      "h2: Weitere Tools",
-      "h3: Video in GIF"
+      "h2: Video",
+      "h3: Video in GIF",
+      "h3: Video in MP3"
     ],
     "meta": "Alle FileMorph-Tools: Dateien konvertieren und komprimieren, PDF-Seiten aufteilen, extrahieren oder einfügen und PDFs verkleinern. Kostenlos und ohne Konto.",
     "title": "Tools — konvertieren, komprimieren, PDF | FileMorph"
@@ -505,6 +521,21 @@
     "meta": "Turn a short video clip (MP4, MOV, WebM and more, up to 30 seconds) into an animated GIF online for free, no account. Files deleted right after.",
     "title": "Convert a video to GIF online — free | FileMorph"
   },
+  "/en/convert/video-to-mp3": {
+    "headings": [
+      "h1: Convert a video to MP3",
+      "h2: Honest limits",
+      "h2: How it works",
+      "h2: When to use it",
+      "h2: Frequently asked questions",
+      "h3: Which audio format should I choose?",
+      "h3: Why was my video refused?",
+      "h3: Do I need an account?",
+      "h2: Related tools"
+    ],
+    "meta": "Save the sound of a video (MP4, MOV, MKV, WebM and more) as MP3, M4A or WAV online for free, no account. Files deleted right after.",
+    "title": "Convert a video to MP3 online — free | FileMorph"
+  },
   "/en/convert/webp-to-jpg": {
     "headings": [
       "h1: Convert WebP to JPG",
@@ -601,8 +632,9 @@
       "h3: WebP to JPG",
       "h3: JPG to WebP",
       "h3: PNG to WebP",
-      "h2: More tools",
-      "h3: Video to GIF"
+      "h2: Video",
+      "h3: Video to GIF",
+      "h3: Video to MP3"
     ],
     "meta": "Browse every FileMorph tool — convert & compress files, split, extract or insert PDF pages, or shrink a PDF to a target size. Free, no account needed.",
     "title": "File tools — convert, compress & PDF | FileMorph"

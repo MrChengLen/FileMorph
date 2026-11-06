@@ -50,12 +50,15 @@ _CHIPS = (
     ("/convert/heic-to-jpg", "HEIC to JPG", "HEIC in JPG"),
     ("/compress", "Compress image (KB/MB)", "Bild verkleinern (KB/MB)"),
     ("/convert/video-to-gif", "Video to GIF", "Video in GIF"),
+    ("/convert/video-to-mp3", "Video to MP3", "Video in MP3"),
 )
 # The groups: (id suffix, EN label, DE label) — the /tools section names.
+# Video to GIF sat under "More tools" until Video to MP3 (2026-11-04) gave
+# the video family the two tools a section of its own needs.
 _GROUPS = (
     ("pdf", "PDF tools", "PDF-Tools"),
     ("image", "Images", "Bilder"),
-    ("more", "More tools", "Weitere Tools"),
+    ("video", "Video", "Video"),
 )
 
 
@@ -166,9 +169,12 @@ def test_at_most_six_quick_actions_to_a_group(request, redact):
 
 @pytest.mark.parametrize(("prefix", "words"), [("/en", "More tools"), ("/de", "Weitere Tools")])
 def test_more_tools_is_no_heading_on_the_homepage(client, prefix, words):
+    # Every tool with a quick action now sits in a section of its own, so the
+    # words appear nowhere; were a group to collect the rest again, it would
+    # be inside the quick actions, never a heading.
     main = _main(client.get(f"{prefix}/").text)
     assert not re.search(rf"<h[1-6][^>]*>\s*{words}", main)
-    assert main.count(words) == _quick_actions_block(main).count(words) == 1
+    assert main.count(words) == _quick_actions_block(main).count(words)
 
 
 # ── Redact never an idle homepage link, flag on or off ────────────────────

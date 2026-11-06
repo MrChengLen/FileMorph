@@ -497,6 +497,12 @@ def _js_i18n_strings(_: gettext.GNUTranslations.gettext) -> dict[str, str]:
             "This video is too large to turn into a GIF in time. Use a shorter clip or "
             "a lower resolution (for example 1080p), then try again."
         ),
+        # X-FileMorph-Error-Code: no_audio_track — /convert video → audio
+        # (NoAudioTrackError in app/converters/base.py).
+        "errorNoAudioTrack": _(
+            "This video has no sound, so there is nothing to save as audio. Choose a "
+            "video with sound and try again."
+        ),
         # Other failed requests; {status} is the HTTP status, {detail} the
         # browser's own error text.
         "errorConversionFailed": _("Conversion failed (status {status})."),

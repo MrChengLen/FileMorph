@@ -102,6 +102,21 @@ class VideoTooComplexError(InvalidInputError):
         super().__init__(self.message)
 
 
+class NoAudioTrackError(InvalidInputError):
+    """The video has no sound to save as an audio file (video → audio in
+    ``app/converters/video.py``). The routes send ``error_code`` as
+    ``X-FileMorph-Error-Code``."""
+
+    error_code = "no_audio_track"
+    message = (
+        "This video has no sound, so there is nothing to save as audio. Choose a "
+        "video with sound and try again."
+    )
+
+    def __init__(self, *_args: object) -> None:
+        super().__init__(self.message)
+
+
 def open_pypdf(path: Path) -> "PdfReader":
     """``pypdf.PdfReader(path)``; :class:`UnsupportedPdfEncryptionError` if
     pypdf can't handle the file's encryption.
