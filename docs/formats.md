@@ -292,7 +292,9 @@ An audio output keeps the source's music tags — title, artist and album
 artist, album, track number, genre, and the year of its date — and nothing
 else: other tags (such as the recording time, the device or comments),
 embedded cover art and chapters are dropped. An AAC (ADTS) output carries
-no tags, a WAV output no album artist.
+no tags, a WAV output no album artist. Surround (5.1) sound is mixed down to
+stereo for MP3, Opus and WMA (whose encoders take it as stereo) and kept for
+AAC, Vorbis, FLAC and WAV.
 
 ### Conversions
 
@@ -331,7 +333,9 @@ A video output — converted or compressed — carries no metadata from the
 source: none of its tags (such as where, when and with which device a clip
 was filmed) and none of its chapters, the same default as the metadata
 strip for images. Portrait clips stay upright: their rotation is applied to
-the frames.
+the frames. Surround (5.1) sound is kept where the container's audio codec
+takes it (MP4, MOV, MKV, FLV — AAC) and mixed down to stereo otherwise
+(WebM, WMV, AVI).
 
 ### Conversions
 
@@ -395,21 +399,19 @@ incomplete or fail. Save it again at one size first, then convert it.
 
 | From | To | Notes |
 |------|----|-------|
-| MP4 / MOV / AVI / MKV / WebM / FLV / WMV | MP3, M4A, WAV, FLAC, OGG, AAC | The sound of the video: its first audio track, without the picture |
+| MP4 / MOV / AVI / MKV / WebM / FLV / WMV | MP3, M4A, WAV, FLAC, OGG, AAC, Opus, WMA | The sound of the video: its first audio track, without the picture |
 
 Saves the sound of a video — a talk, a lecture, a voice note recorded as a
-video — as an audio file. Only the first audio track is kept (a video with
-one track per language gives its first); the picture, further tracks,
-subtitles, chapters and cover art are left out, and so is every tag of the
-video: where, when and with which device it was filmed, and also a title or
-artist, which audio → audio keeps as music tags. The codecs and the
-`quality` mapping are those of the audio conversions above; 5.1 sound is
-mixed down to stereo for MP3, the other formats keep all six channels. A
-video whose picture or subtitles are in a codec FileMorph doesn't read
-still gives its sound, as long as the sound is in one it reads. WMA and
-Opus are not offered: their encoders fail on the 5.1 sound many videos
-carry (WMA takes at most two channels, Opus not the 5.1 layout of AC-3,
-E-AC-3 and DTS).
+video — as an audio file, in any of the audio formats above. Only the first
+audio track is kept (a video with one track per language gives its first);
+the picture, further tracks, subtitles, chapters and cover art are left out,
+and so is every tag of the video: where, when and with which device it was
+filmed, and also a title or artist, which audio → audio keeps as music tags.
+The codecs and the `quality` mapping are those of the audio conversions
+above; surround (5.1) sound is mixed down to stereo for MP3, Opus and WMA and
+kept for AAC, Vorbis, FLAC and WAV. A video whose picture or subtitles are in
+a codec FileMorph doesn't read still gives its sound, as long as the sound is
+in one it reads.
 
 **Web UI:** the dedicated, bilingual (DE/EN) page is `/convert/video-to-mp3` —
 ungated, the same embedded Convert/Compress tool as the homepage, pre-set to

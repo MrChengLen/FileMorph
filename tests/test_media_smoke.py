@@ -98,6 +98,28 @@ def test_video_args_copy_no_source_metadata():
         assert args["map_metadata"] == args["map_chapters"] == -1
 
 
+def test_surround_safe_downmix_only_for_libopus_and_wmav2():
+    # libopus (WebM) and wmav2 (WMV) fail on surround sound; one -af downmixes
+    # it to stereo for them. The other containers' encoders (AAC, VP9's audio
+    # aside, MP3) keep every channel, so they get no filter.
+    af = "aformat=channel_layouts=mono|stereo"
+    assert video_output_args("webm", 70, audio_bitrate="128k")["af"] == af
+    assert video_output_args("wmv", 70, audio_bitrate="128k")["af"] == af
+    for container in ("mp4", "mov", "mkv", "flv", "avi"):
+        assert "af" not in video_output_args(container, 70, audio_bitrate="128k")
+    assert audio_output_args("opus", 85)["af"] == af
+    assert audio_output_args("wma", 85)["af"] == af
+    for target in ("mp3", "m4a", "wav", "flac", "ogg", "aac"):
+        assert "af" not in audio_output_args(target, 85)
+    # The dict reaches the CLI as -af, beside the video -vf (no ffmpeg needed).
+    cmd = ffmpeg.compile(
+        ffmpeg.input("in.mp4").output(
+            "out.webm", **video_output_args("webm", 70, audio_bitrate="128k")
+        )
+    )
+    assert "-af" in cmd and "-vf" in cmd and af in cmd
+
+
 def test_x264_crf_mapping_endpoints_unchanged():
     # Same mapping the compressor always documented: quality 100→CRF 18, 1→40.
     assert video_output_args("mp4", 100, audio_bitrate="128k")["crf"] == 18

@@ -262,6 +262,17 @@ def _scale(quality: int, at_q1: float, at_q100: float) -> int:
 # autorotate turns the frames upright before encoding either way.
 _NO_SOURCE_METADATA = {"map_metadata": -1, "map_chapters": -1}
 
+# libopus rejects the "5.1(side)" channel layout the AC-3/E-AC-3/DTS decoders
+# emit, and wmav2 takes at most two channels: a file with surround sound would
+# fail these two encoders with an error (a 500, not a converted file). Downmix
+# anything above stereo to stereo for them — mono and stereo pass through
+# untouched — as libmp3lame already does on its own. AAC, Vorbis, FLAC and PCM
+# keep every channel. One ``-af`` keyed on the audio codec covers video →
+# WebM/WMV, audio → Opus/WMA and the WebM path of the video compressor (all
+# route through the two functions below).
+_SURROUND_SAFE_CODECS = ("libopus", "wmav2")
+_SURROUND_SAFE_AF = "aformat=channel_layouts=mono|stereo"
+
 
 def video_output_args(container: str, quality: int, *, audio_bitrate: str) -> dict:
     """Build ffmpeg output kwargs for a video container at a quality level.
@@ -290,6 +301,8 @@ def video_output_args(container: str, quality: int, *, audio_bitrate: str) -> di
         "threads": THREADS,  # the encoder's, as media_input sets the decoder's
         **_NO_SOURCE_METADATA,
     }
+    if acodec in _SURROUND_SAFE_CODECS:
+        args["af"] = _SURROUND_SAFE_AF
     if vcodec == "libx264":
         args["crf"] = _scale(quality, 40, 18)
     elif vcodec == "libvpx-vp9":
@@ -339,6 +352,8 @@ def audio_output_args(target_ext: str, quality: int, *, tags: dict[str, str] | N
         # wmav2 only accepts a narrow bitrate table; 128k is the safe,
         # universally decodable point — quality does not scale it.
         args["audio_bitrate"] = "128k"
+    if codec in _SURROUND_SAFE_CODECS:
+        args["af"] = _SURROUND_SAFE_AF
     return args
 
 

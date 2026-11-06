@@ -165,13 +165,12 @@ def _time_left(deadline: float) -> float:
 register(*((src, "gif") for src in _VIDEO_FORMATS))(VideoToGifConverter)
 
 
-# The audio formats a video's sound is saved as: those of audio → audio
-# (_AUDIO_FORMATS in app/converters/audio.py) except two whose encoders fail
-# on the 5.1 sound many videos carry. ffmpeg mixes such sound down to stereo
-# for the MP3 encoder; the AAC, Vorbis and FLAC encoders and WAV keep all six
-# channels. The WMA encoder takes at most two channels, and libopus refuses
-# the 5.1 order of AC-3, E-AC-3 and DTS ("5.1(side)").
-_AUDIO_TARGETS = ["mp3", "m4a", "wav", "flac", "ogg", "aac"]
+# The audio formats a video's sound is saved as — all of audio → audio
+# (_AUDIO_FORMATS in app/converters/audio.py). Surround sound reaches the MP3,
+# Opus and WMA encoders as stereo (``_SURROUND_SAFE_AF`` in _ffmpeg.py downmixes
+# it for them, as libmp3lame does on its own); AAC, Vorbis, FLAC and WAV keep
+# every channel. MP3 is pre-set on the page; the rest are in the list.
+_AUDIO_TARGETS = ["mp3", "m4a", "wav", "flac", "ogg", "aac", "opus", "wma"]
 
 
 class VideoToAudioConverter(BaseConverter):
