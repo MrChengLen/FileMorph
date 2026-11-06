@@ -70,9 +70,10 @@ def test_every_video_format_converts_to_the_audio_targets():
             converter = get_converter(src, tgt)
             assert isinstance(converter, VideoToAudioConverter), (src, tgt)
             assert converter._tgt_fmt == tgt
-        # Their encoders fail on 5.1 sound (the comment on _AUDIO_TARGETS).
-        assert {"wma", "opus"}.isdisjoint(conversions[src]), src
-    assert set(_AUDIO_TARGETS) == set(_AUDIO_FORMATS) - {"wma", "opus"}
+        # Every audio format, Opus and WMA included — their encoders take
+        # surround sound as stereo (_SURROUND_SAFE_AF), so nothing is left out.
+        assert set(_AUDIO_FORMATS) <= set(conversions[src]), src
+    assert set(_AUDIO_TARGETS) == set(_AUDIO_FORMATS)
     # Audio → audio keeps its own converter.
     assert type(get_converter("wav", "mp3")).__module__ == "app.converters.audio"
 
@@ -454,6 +455,11 @@ def sample_surround_mkv(tmp_path_factory):
     return path
 
 
+# MP3, Opus and WMA take surround as stereo (_SURROUND_SAFE_AF downmixes it);
+# AAC/M4A, Vorbis (OGG), FLAC and WAV keep all six channels.
+_SURROUND_DOWNMIXED = {"mp3", "opus", "wma"}
+
+
 @requires_ffmpeg
 @pytest.mark.parametrize("tgt", _AUDIO_TARGETS)
 def test_surround_sound_converts_to_every_target(sample_surround_mkv, tmp_path, tgt):
@@ -462,8 +468,20 @@ def test_surround_sound_converts_to_every_target(sample_surround_mkv, tmp_path, 
     get_converter("mkv", tgt).convert(sample_surround_mkv, out, quality=85)
     streams = _probe_json(out)["streams"]
     assert len(streams) == 1 and streams[0]["codec_type"] == "audio"
-    if tgt == "mp3":  # MP3 holds at most two channels: mixed down
-        assert streams[0]["channels"] == 2
+    assert streams[0]["channels"] == (2 if tgt in _SURROUND_DOWNMIXED else 6)
+
+
+@requires_ffmpeg
+@pytest.mark.parametrize("tgt", ["webm", "wmv"])
+def test_surround_video_conversions_downmix_the_audio(sample_surround_mkv, tmp_path, tgt):
+    # The regression this PR fixes: libopus (WebM) and wmav2 (WMV) fail on a
+    # 5.1(side) source. The audio is downmixed to stereo, the picture stays.
+    out = tmp_path / f"out.{tgt}"
+    get_converter("mkv", tgt).convert(sample_surround_mkv, out, quality=70)
+    kinds = {s["codec_type"] for s in _probe_json(out)["streams"]}
+    assert {"video", "audio"} <= kinds
+    audio = next(s for s in _probe_json(out)["streams"] if s["codec_type"] == "audio")
+    assert audio["channels"] == 2
 
 
 # What a phone writes into a clip (tests/test_media_smoke.py), plus a title,
