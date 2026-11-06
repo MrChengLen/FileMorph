@@ -33,6 +33,16 @@ A complete reference of all supported input and output formats, with notes on qu
 > to the pixels before the metadata is stripped, so a portrait photo comes back
 > (and lands on a PDF page) upright.
 
+> **Colour profile**: the ICC profile is the one piece of metadata that stays —
+> it says which colours the pixel values mean (an iPhone photo's Display P3,
+> Adobe RGB). Image conversions and compressions write it into JPEG, WebP,
+> AVIF, PNG and TIFF results; BMP, GIF, ICO and PDF results never carry one.
+> It goes when it no longer fits the pixels as written (a CMYK profile after
+> the conversion to RGB, a greyscale one in a WebP, which is always colour),
+> when it is over 4 MB (RGB profiles take a few KB, print profiles up to about
+> 2 MB), and in target-size
+> compression when it alone would take more than a quarter of the target.
+
 > **Note**: HEIC/HEIF input needs only the `pillow-heif` Python package, which
 > `requirements.txt` installs; its binary wheels bundle libheif, so no ffmpeg and
 > no system package is needed. There are wheels for 64-bit x86 and ARM on Linux,

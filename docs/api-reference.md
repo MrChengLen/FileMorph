@@ -237,7 +237,7 @@ When `target_size_kb` is set, the response also carries:
 | `X-FileMorph-Converged` | `true` if the output is at most the target, else `false` |
 | `X-FileMorph-Warnings` | Only when the image was scaled down or the target can't be reached — see [Target-size notes](#target-size-notes) |
 
-The target is an upper bound: the result is the best quality whose output is at most `target_size_kb`, never above it (an image that already fits at quality 95 is returned at 95). If even quality `1` is too big, the image is scaled down — to where a good quality fits — and searched again; `X-FileMorph-Warnings: resized=<w>x<h>` names the new pixel size. Only an image whose smallest size — short edge 16 px, quality `1` — still doesn't fit (one carrying a large colour profile, say) stays above the target: then it comes back unscaled at quality `1`, with `X-FileMorph-Converged: false` and `target=missed`.
+The target is an upper bound: the result is the best quality whose output is at most `target_size_kb`, never above it (an image that already fits at quality 95 is returned at 95). If even quality `1` is too big, the image is scaled down — to where a good quality fits — and searched again; `X-FileMorph-Warnings: resized=<w>x<h>` names the new pixel size. The image's colour profile (ICC) stays in the result and counts toward the target; one that would take more than a quarter of the target is dropped instead. Only an image whose smallest size — short edge 16 px, quality `1` — still doesn't fit stays above the target: then it comes back unscaled at quality `1`, with `X-FileMorph-Converged: false` and `target=missed`.
 
 **Example — Compress a JPG to 70% quality**
 ```bash
