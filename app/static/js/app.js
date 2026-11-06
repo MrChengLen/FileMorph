@@ -550,14 +550,20 @@ const LOSSLESS_COMPRESS_TYPES = ['png', 'tiff', 'tif'];
 // Mirrors _VIDEO_FORMATS in app/converters/video.py — a parity test pins this.
 const VIDEO_TYPES = ['mp4', 'avi', 'mov', 'mkv', 'webm', 'flv', 'wmv'];
 
+// Mirrors _AUDIO_FORMATS in app/converters/audio.py — a parity test pins this.
+const AUDIO_TYPES = ['mp3', 'wav', 'flac', 'ogg', 'm4a', 'aac', 'wma', 'opus'];
+
 function isVideoToGif(ext, target) {
   return target === 'gif' && VIDEO_TYPES.includes(ext);
 }
 
 // A GIF target ignores the quality setting (video → GIF has a fixed size and
-// frame rate, image → GIF is lossless), so the slider hides for it.
+// frame rate, image → GIF is lossless), so the slider hides for it. So it
+// does for every audio target, as it always has for audio → audio: the file
+// gets the server's default (submitForm sends no hidden value).
 function pairUsesQuality(ext, target) {
   if (target === 'gif') return false;
+  if (AUDIO_TYPES.includes(target)) return false;
   return QUALITY_TYPES.includes(ext) || QUALITY_TYPES.includes(target);
 }
 
@@ -1413,7 +1419,10 @@ async function submitForm() {
     // rounded down: the result then fits a limit of that size however it is
     // counted. The API takes KiB.
     formData.append('target_size_kb', String(Math.max(5, Math.floor(mb * 1e6 / 1024))));
-  } else {
+  } else if (!document.getElementById('quality-section').classList.contains('hidden')) {
+    // A hidden slider sends nothing, so the server's default applies — not a
+    // value left from an earlier file the user can no longer see (an audio
+    // target's bit rate, for one).
     formData.append('quality', quality);
   }
 
@@ -1494,6 +1503,8 @@ async function submitForm() {
           msg = i18n.errorVideoTooLong || data.detail;
         } else if (errCode === 'video_too_complex') {
           msg = i18n.errorVideoTooComplex || data.detail;
+        } else if (errCode === 'no_audio_track') {
+          msg = i18n.errorNoAudioTrack || data.detail;
         } else if (errCode === 'decompression_bomb') {
           // The same text as the PDF tools for the same code.
           msg = i18n.pdfImageTooLarge || data.detail;

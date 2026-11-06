@@ -82,6 +82,7 @@ def build_site_jsonld(app_base_url: str) -> tuple[str, str]:
         "Convert audio (MP3, WAV, FLAC, OGG, M4A, AAC, WMA, Opus)",
         "Convert video (MP4, MOV, AVI, MKV, WebM, FLV, WMV)",
         "Convert short video clips to animated GIF",
+        "Save the sound of a video as MP3, M4A, WAV and other audio formats",
         "Compress images to a target size",
         "Split, extract, insert and compress PDF files",
         "Convert PDF to PDF/A-2b",

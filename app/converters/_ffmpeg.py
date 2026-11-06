@@ -29,7 +29,8 @@ on Linux under memory, CPU time and file size limits
 never ``ffmpeg.input()`` directly. The output arguments copy no metadata
 from the source (``_NO_SOURCE_METADATA``) except an audio file's music
 tags (:func:`music_tags`). It also builds the two video → GIF passes and
-the ffprobe checks around them (bottom of the file).
+the ffprobe checks around them, and the check for a video's sound when
+saving it as audio failed (bottom of the file).
 """
 
 from __future__ import annotations
@@ -351,7 +352,8 @@ _MUSIC_TAGS = ("title", "artist", "album_artist", "album", "track", "genre")
 _YEAR_TAGS = ("date", "year", "wm/year")
 # What a crafted upload's tags may cost: how much of the dump is read into
 # memory, the length of each value kept from it (Linux refuses an argument
-# over 128 KiB), and the time for the dump, which needs only the headers.
+# over 128 KiB), and the time for the dump, which needs only the headers
+# (as does has_audio's probe, which gets the same time).
 _MAX_TAGS_READ = 1_000_000
 _MAX_TAG_LENGTH = 1_000
 _TAGS_TIMEOUT_SECONDS = 60
@@ -529,7 +531,7 @@ def _raise_on_failure(tool: str, result: subprocess.CompletedProcess) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Video → GIF (app/converters/video.py)
+# Video → GIF and video → audio (app/converters/video.py)
 # ---------------------------------------------------------------------------
 
 # A GIF is for short clips. GIF counts frame delays in hundredths of a
@@ -606,6 +608,25 @@ def probe_video(path: Path, *, timeout: float) -> VideoProbe | None:
     if duration is None:
         duration = _seconds((data.get("format") or {}).get("duration"))
     return VideoProbe(width, height, duration)
+
+
+def has_audio(path: Path) -> bool:
+    """Whether an upload has an audio stream — asked when saving a video's
+    sound failed (``app/converters/video.py``), so a video without one gets
+    its own message, not ffmpeg's failure. Opened as :func:`media_input`
+    opens an upload: the same demuxers and decoders, frames up to
+    ``MAX_PIXELS``. Only the stream's index is read, so none of the upload's
+    tags are echoed. Like :func:`music_tags`, it needs only the headers."""
+    data = _ffprobe(
+        path,
+        "-max_pixels", str(MAX_PIXELS),
+        "-select_streams", "a:0",
+        "-show_entries", "stream=index",
+        demuxers=INPUT_DEMUXERS,
+        decoders=INPUT_DECODERS,
+        timeout=min(_TAGS_TIMEOUT_SECONDS, settings.media_subprocess_timeout_seconds),
+    )  # fmt: skip
+    return bool(data.get("streams"))
 
 
 def count_gif_frames(path: Path, *, timeout: float) -> int:

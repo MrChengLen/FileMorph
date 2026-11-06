@@ -50,8 +50,8 @@ FileMorph is an open-source file conversion service with two interfaces:
 │     [Split PDF] [Extract PDF pages] [Insert PDF pages]  │
 │     Images                                              │
 │     [HEIC to JPG] [Compress image (KB/MB)]              │
-│     More tools                                          │
-│     [Video to GIF]                                      │
+│     Video                                               │
+│     [Video to GIF] [Video to MP3]                       │
 │     All tools →                                         │
 │                                                         │
 │     Target Format:  [ JPG                  ▼ ]          │
@@ -163,7 +163,7 @@ every edition runs.
 | **PDF**       | PDF                                                              | TXT, PDF/A-2b<sup>†</sup>                     |
 | **Spreadsheets** | XLSX, CSV, JSON                                               | CSV, XLSX, JSON                               |
 | **Audio**     | MP3, WAV, FLAC, OGG, M4A, AAC, WMA, Opus                        | MP3, WAV, FLAC, OGG, M4A, AAC, WMA, Opus     |
-| **Video**     | MP4, MOV, AVI, MKV, WebM, FLV, WMV                              | MP4, MOV, AVI, MKV, WebM, FLV, WMV, GIF      |
+| **Video**     | MP4, MOV, AVI, MKV, WebM, FLV, WMV                              | MP4, MOV, AVI, MKV, WebM, FLV, WMV, GIF, MP3, M4A, WAV, FLAC, OGG, AAC |
 
 **Compression** (quality-based or target-size, no re-encoding format change):
 Images: JPG, PNG, WebP, AVIF, TIFF · Video: MP4, MOV, AVI, MKV, WebM
@@ -171,7 +171,7 @@ Compress mode supports both *by quality %* and *by target size MB*.
 Target-size compression covers the lossy image formats (JPEG, WebP, AVIF); AVIF/AV1 encode is more CPU-intensive than JPEG/WebP.
 PNG and TIFF are compressed losslessly, so quality has no effect on them. With one JPEG, the web UI shows the result's size under the quality slider before anything is uploaded (in Chromium-based browsers, where a probe proves the browser encodes like the server).
 
-**PDF tools:** split a PDF into single-page files, extract a page range, compress to at most a target size, or insert a PDF, a Word file or an image at a chosen page — via the web UI (`/pdf/split`, `/pdf/extract`, `/pdf/compress`, `/pdf/insert`) or the API; see [docs/formats.md](docs/formats.md#pdf-structural-operations). Image compression to a target size (video too, by quality) has its own page at `/compress`, and turning a short video into an animated GIF has one at `/convert/video-to-gif`. All tool pages are listed at `/tools`.
+**PDF tools:** split a PDF into single-page files, extract a page range, compress to at most a target size, or insert a PDF, a Word file or an image at a chosen page — via the web UI (`/pdf/split`, `/pdf/extract`, `/pdf/compress`, `/pdf/insert`) or the API; see [docs/formats.md](docs/formats.md#pdf-structural-operations). Image compression to a target size (video too, by quality) has its own page at `/compress`, turning a short video into an animated GIF has one at `/convert/video-to-gif`, and saving a video's sound as MP3 (or M4A, WAV and other audio formats) one at `/convert/video-to-mp3`. All tool pages are listed at `/tools`.
 
 <sup>†</sup> Full PDF/A-2b conformance (passes
 [veraPDF](https://verapdf.org/) validation) requires

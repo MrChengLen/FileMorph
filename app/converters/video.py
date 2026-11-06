@@ -8,10 +8,13 @@ from app.converters._ffmpeg import (
     GIF_MAX_SOURCE_PIXELS,
     GIF_SLACK_SECONDS,
     GIF_TIME_BUDGET_SECONDS,
+    FFmpegError,
     FFmpegTimeoutError,
+    audio_output_args,
     count_gif_frames,
     gif_palette_stream,
     gif_stream,
+    has_audio,
     media_input,
     media_time_left,
     out_of_time,
@@ -22,6 +25,7 @@ from app.converters._ffmpeg import (
 from app.converters.base import (
     BaseConverter,
     InvalidInputError,
+    NoAudioTrackError,
     OutputTooLargeError,
     VideoTooComplexError,
     VideoTooLongError,
@@ -159,3 +163,68 @@ def _time_left(deadline: float) -> float:
 
 
 register(*((src, "gif") for src in _VIDEO_FORMATS))(VideoToGifConverter)
+
+
+# The audio formats a video's sound is saved as: those of audio → audio
+# (_AUDIO_FORMATS in app/converters/audio.py) except two whose encoders fail
+# on the 5.1 sound many videos carry. ffmpeg mixes such sound down to stereo
+# for the MP3 encoder; the AAC, Vorbis and FLAC encoders and WAV keep all six
+# channels. The WMA encoder takes at most two channels, and libopus refuses
+# the 5.1 order of AC-3, E-AC-3 and DTS ("5.1(side)").
+_AUDIO_TARGETS = ["mp3", "m4a", "wav", "flac", "ogg", "aac"]
+
+
+class VideoToAudioConverter(BaseConverter):
+    """Save the sound of a video as an audio file.
+
+    Only the first audio track is kept: the picture, further audio tracks,
+    subtitles, chapters and cover art stay behind, and so does every tag of
+    the video — where, when and with which device it was filmed, as for a
+    video output, and also a title or artist, which audio → audio would keep
+    as music tags. The codec and the ``quality`` mapping are those of
+    audio → audio (``audio_output_args``); ffmpeg stops writing at the
+    ``max_output_bytes`` cap.
+
+    A video without sound gives ffmpeg no audio track to map, so the run
+    fails; only then does :func:`has_audio` tell that case apart from a
+    damaged file and raise :class:`NoAudioTrackError`. A probe up front would
+    also refuse a video with another stream in a codec FileMorph doesn't read
+    (e.g. image subtitles in an MKV): ffprobe opens a decoder for every
+    stream, while this run decodes the first audio track only.
+    """
+
+    def __init__(self, tgt_fmt: str):
+        self._tgt_fmt = tgt_fmt
+
+    @property
+    def output_cap_tip(self) -> str:
+        """The routes' tip when the audio file passes the output cap (read via getattr)."""
+        if self._tgt_fmt in ("wav", "flac"):
+            return "Choose MP3 or M4A, a fraction of the size of WAV or FLAC"
+        return "Use a shorter video for a smaller audio file"
+
+    def convert(self, input_path: Path, output_path: Path, **kwargs) -> Path:
+        quality = int(kwargs.get("quality", 85))
+        stream = media_input(input_path)["a:0"].output(
+            str(output_path), **audio_output_args(self._tgt_fmt, quality)
+        )
+        try:
+            run_ffmpeg(stream, max_output_bytes=kwargs.get("max_output_bytes"))
+        except FFmpegError as exc:
+            if not has_audio(input_path):
+                raise NoAudioTrackError() from exc
+            raise
+        return output_path
+
+
+def _make_audio(tgt: str) -> type[BaseConverter]:
+    class _Converter(VideoToAudioConverter):
+        def __init__(self):
+            super().__init__(tgt)
+
+    _Converter.__name__ = f"VideoTo{tgt.upper()}Converter"
+    return _Converter
+
+
+for _tgt in _AUDIO_TARGETS:
+    register(*((src, _tgt) for src in _VIDEO_FORMATS))(_make_audio(_tgt))

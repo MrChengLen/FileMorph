@@ -255,7 +255,8 @@ def convert(path: str, target_format: str, key: str, quality: int = 85) -> tuple
 - **Audio** — `quality` sets the bitrate: the VBR level for MP3 and
   OGG, 64–256 kbit/s for AAC/M4A, 32–192 kbit/s for Opus. WMA is always
   128 kbit/s, and WAV and FLAC are lossless and ignore it. There is no
-  separate bitrate parameter.
+  separate bitrate parameter. The same holds when a video's sound is
+  saved as audio (e.g. MP4 → MP3).
 
 ---
 

@@ -536,7 +536,7 @@ source format, and only seven of them are shown here.
     "docx": ["pdf", "txt"],
     "txt": ["pdf"],
     "csv": ["xlsx", "json"],
-    "mp4": ["avi", "mov", "mkv", "webm", "flv", "wmv", "gif"],
+    "mp4": ["avi", "mov", "mkv", "webm", "flv", "wmv", "gif", "mp3", "m4a", "wav", "flac", "ogg", "aac"],
     "mp3": ["wav", "flac", "ogg", "m4a", "aac", "wma", "opus"]
   },
   "compression": {
@@ -643,6 +643,7 @@ can branch on (the `detail` text may change):
 | `invalid_page_selection` | `400` | `/pdf/extract`: the `pages` selection is malformed, out of range or longer than 65 536 characters |
 | `invalid_pdf` | `400` | `/pdf/extract`, `/pdf/split`, `/pdf/compress`, `/pdf/insert`: the PDF can't be read; `/pdf/extract`, `/pdf/split` and `/pdf/insert` also for a PDF with no pages |
 | `invalid_position` | `400` | `/pdf/insert`: `after_page` is past the PDF's last page; `X-FileMorph-Page-Count` carries its page count |
+| `no_audio_track` | `400` | `/convert` video → audio (MP3, M4A, WAV, …): the video has no sound to save. Choose a video with sound |
 | `pdf_encrypted` | `400` | The PDF needs a password to open (`/pdf/extract`, `/pdf/split`, `/pdf/compress`, `/pdf/insert`, `/convert`); remove the password and upload it again |
 | `pdf_encryption_unsupported` | `400` | The PDF is encrypted with a certificate or a method FileMorph can't open, so no password would help (`/pdf/extract`, `/pdf/split`, `/pdf/compress`, `/pdf/insert`, `/convert`); remove the protection, e.g. by asking the sender for an unprotected copy |
 | `pdf_too_complex` | `400` | `/pdf/compress`: the PDF is too large or complex to compress within the memory, time and file size limits. Extract fewer pages with `/pdf/extract` and compress them in parts. `/pdf/insert`: the files are too large or complex to combine within those limits |
@@ -729,7 +730,7 @@ every file failed returns `422` with `{"summary": …, "files": […]}`.
 
 | HTTP Status | Meaning |
 |---|---|
-| `400 Bad Request` | Missing or malformed request data (e.g. filename without extension), a batch with more files than your tier allows (`X-FileMorph-Error-Code: batch_too_large`), or file content that has to be fixed first — e.g. a Markdown, CSV or JSON file that isn't UTF-8 or an image that can't be recognised (`X-FileMorph-Error-Code: invalid_input`; `detail` names the fix), a password-protected PDF (`pdf_encrypted`) or a certificate-encrypted one (`pdf_encryption_unsupported`), or a video too long or too large for a GIF (`video_too_long`, `video_too_complex`), or a file that starts like a program or script (`file_type_not_permitted`) |
+| `400 Bad Request` | Missing or malformed request data (e.g. filename without extension), a batch with more files than your tier allows (`X-FileMorph-Error-Code: batch_too_large`), or file content that has to be fixed first — e.g. a Markdown, CSV or JSON file that isn't UTF-8 or an image that can't be recognised (`X-FileMorph-Error-Code: invalid_input`; `detail` names the fix), a password-protected PDF (`pdf_encrypted`) or a certificate-encrypted one (`pdf_encryption_unsupported`), or a video too long or too large for a GIF (`video_too_long`, `video_too_complex`), or a video without sound saved as audio (`no_audio_track`), or a file that starts like a program or script (`file_type_not_permitted`) |
 | `401 Unauthorized` | An `X-API-Key` was sent but is not valid, or an endpoint that needs an account (`/auth/me`, `/keys`, `/billing/*`, …) got no valid `Authorization: Bearer` token. The file endpoints need no credentials: without them — or with an expired Bearer token — they run on the anonymous tier (see [Authentication](#authentication)) |
 | `403 Forbidden` | Authenticated but role/tier doesn't permit the action (e.g. non-admin hitting `/cockpit/*`) |
 | `413 Content Too Large` | Request exceeds `MAX_UPLOAD_SIZE_MB` (default: 100 MB) on a file endpoint or 1 MB on any other endpoint (`request_too_large`, the limit as `max_size_mb` in the body), a file exceeds your tier's size cap, or the output exceeds your tier's output cap |

@@ -2861,6 +2861,11 @@ msgid ""
 msgstr ""
 
 msgid ""
+"This video has no sound, so there is nothing to save as audio. Choose a "
+"video with sound and try again."
+msgstr ""
+
+msgid ""
 "This video is longer than 30 seconds, the maximum for a GIF. Shorten it "
 "to 30 seconds or less (for example in your phone's gallery or a video "
 "editor), or convert it to MP4 or WebM instead."

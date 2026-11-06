@@ -28,7 +28,13 @@ from app.main import _CSP_HEADERS, _build_csp_header, app
 # pages with the converter show the result's preview image from a blob: URL.
 _ROUTE_PROFILES: dict[str, str] = {
     prefix + path: "hybrid"
-    for path in ("/", "/compress", "/convert/video-to-gif", "/convert/jpg-to-pdf")
+    for path in (
+        "/",
+        "/compress",
+        "/convert/video-to-gif",
+        "/convert/video-to-mp3",
+        "/convert/jpg-to-pdf",
+    )
     for prefix in ("", "/de", "/en")
 }
 

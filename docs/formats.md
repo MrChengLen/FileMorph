@@ -381,6 +381,38 @@ Known limit: a video whose frame size changes partway through — a browser
 screen recording of a window that was resized, for example — may come out
 incomplete or fail. Save it again at one size first, then convert it.
 
+### Video → audio
+
+| From | To | Notes |
+|------|----|-------|
+| MP4 / MOV / AVI / MKV / WebM / FLV / WMV | MP3, M4A, WAV, FLAC, OGG, AAC | The sound of the video: its first audio track, without the picture |
+
+Saves the sound of a video — a talk, a lecture, a voice note recorded as a
+video — as an audio file. Only the first audio track is kept (a video with
+one track per language gives its first); the picture, further tracks,
+subtitles, chapters and cover art are left out, and so is every tag of the
+video: where, when and with which device it was filmed, and also a title or
+artist, which audio → audio keeps as music tags. The codecs and the
+`quality` mapping are those of the audio conversions above; 5.1 sound is
+mixed down to stereo for MP3, the other formats keep all six channels. A
+video whose picture or subtitles are in a codec FileMorph doesn't read
+still gives its sound, as long as the sound is in one it reads. WMA and
+Opus are not offered: their encoders fail on the 5.1 sound many videos
+carry (WMA takes at most two channels, Opus not the 5.1 layout of AC-3,
+E-AC-3 and DTS).
+
+**Web UI:** the dedicated, bilingual (DE/EN) page is `/convert/video-to-mp3` —
+ungated, the same embedded Convert/Compress tool as the homepage, pre-set to
+MP3; the other audio formats are in its list. As for audio → audio, the web
+UI shows no quality slider for an audio target.
+
+A video without sound is answered with `400`
+(`X-FileMorph-Error-Code: no_audio_track`) and a `detail` that names the next
+step. An audio file over your tier's output cap — a long video saved as WAV,
+for example — is answered with `413` (`output_cap_exceeded`) and a tip: MP3
+or M4A, a fraction of the size of WAV or FLAC, or for a compressed format a
+shorter video.
+
 ### Compression
 
 Video compression re-encodes the video and **keeps its container**: an MP4

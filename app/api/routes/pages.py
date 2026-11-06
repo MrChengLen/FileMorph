@@ -44,6 +44,7 @@ from app.core.pdf_tools_content import get_pdf_tool_content
 from app.core.redact_content import get_redact_content
 from app.core.templates import templates
 from app.core.tools_content import get_tools_content
+from app.core.video_audio_content import get_video_audio_content
 from app.core.video_gif_content import get_video_gif_content
 from app.db.base import accounts_enabled
 
@@ -56,7 +57,7 @@ docs_router = APIRouter(include_in_schema=False)
 # card shows a converted image from a blob: URL (app.js), which only the
 # "hybrid" CSP profile allows (app/core/csp.py).
 _CONVERTER_PAGES = frozenset(
-    {"index.html", "compress.html", "convert_pair.html", "video_to_gif.html"}
+    {"index.html", "compress.html", "convert_pair.html", "video_to_gif.html", "video_to_mp3.html"}
 )
 
 
@@ -189,35 +190,47 @@ def _grouped_conversions() -> list[tuple[str, list[tuple[str, list[str]]]]]:
     return [(cat, buckets[cat]) for cat in _CATEGORY_ORDER if buckets[cat]]
 
 
+# The video tool pages: one page per target for every video format (a GIF,
+# the sound as an MP3) instead of a pair page per container.
+_VIDEO_TOOL_PAGES: dict[str, str] = {
+    "gif": "/convert/video-to-gif",
+    "mp3": "/convert/video-to-mp3",
+}
+
+
 def _pair_pages() -> dict[tuple[str, str], str]:
     """``{(src, tgt): path}`` for the conversions with a page of their own:
-    the catalogue's pair pages, and /convert/video-to-gif for every video
-    format the registry turns into a GIF."""
+    the catalogue's pair pages, and for every video format the registry turns
+    into a GIF or an MP3, /convert/video-to-gif or /convert/video-to-mp3."""
     pages = {catalog.pair_of(page.path): page.path for page in catalog.pages(kind="convert")}
-    gif_page = catalog.get("/convert/video-to-gif")
-    if gif_page is not None:
-        for src, targets in get_public_conversions().items():
-            if "gif" in targets and _FORMAT_CATEGORY.get(src) == "video":
-                pages[(src, "gif")] = gif_page.path
+    conversions = get_public_conversions()
+    for tgt, path in _VIDEO_TOOL_PAGES.items():
+        if catalog.get(path) is None:
+            continue
+        for src, targets in conversions.items():
+            if tgt in targets and _FORMAT_CATEGORY.get(src) == "video":
+                pages[(src, tgt)] = path
     return pages
 
 
 def _tool_formats() -> dict[str, list[str]]:
     """``{path: formats}`` for the tool pages of the catalogue: the formats
-    each takes, and the one it makes where that is another (Video to GIF),
-    for the format search on /formats. Each list comes from the code that
-    decides what the tool accepts. tests/test_format_search.py checks that
-    the keys are exactly the catalogue's tool pages."""
-    video_to_gif = [
-        src for (src, _), path in _pair_pages().items() if path == "/convert/video-to-gif"
-    ]
+    each takes, and the one it makes where that is another (Video to GIF,
+    Video to MP3), for the format search on /formats. Each list comes from
+    the code that decides what the tool accepts. tests/test_format_search.py
+    checks that the keys are exactly the catalogue's tool pages."""
+    pair_pages = _pair_pages()
+    video_tools = {
+        path: _fold([*(src for (src, _), p in pair_pages.items() if p == path), tgt])
+        for tgt, path in _VIDEO_TOOL_PAGES.items()
+    }
     return {
         "/pdf/compress": ["pdf"],
         "/pdf/split": ["pdf"],
         "/pdf/extract": ["pdf"],
         "/pdf/insert": _fold(INSERT_FORMATS),
         "/compress": _fold([*IMAGE_COMPRESS_FMTS, *VIDEO_COMPRESS_FMTS]),
-        "/convert/video-to-gif": _fold([*video_to_gif, "gif"]),
+        **video_tools,
         "/redact": _fold([*REDACT_TEXT_FORMATS, "docx", "xlsx"]),
     }
 
@@ -364,6 +377,23 @@ async def video_to_gif_page(request: Request):
         crumb=page.label[locale],
         related=_related(page.related, locale),
         preset_target="gif",
+    )
+
+
+@router.get("/convert/video-to-mp3")
+async def video_to_mp3_page(request: Request):
+    # Video → audio: one page for every video format, like /convert/video-to-gif
+    # and declared before /convert/{pair_slug} for the same reason. Pre-set to
+    # MP3; the other audio targets are in the converter's list.
+    locale = normalize_locale(getattr(request.state, "locale", settings.lang_default))
+    page = catalog.get("/convert/video-to-mp3")
+    return _render(
+        request,
+        "video_to_mp3.html",
+        content=get_video_audio_content(locale),
+        crumb=page.label[locale],
+        related=_related(page.related, locale),
+        preset_target="mp3",
     )
 
 

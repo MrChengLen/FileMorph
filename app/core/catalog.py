@@ -290,8 +290,9 @@ PAGES: tuple[Page, ...] = (
     _pair("webp", "jpg", "image"),
     _pair("jpg", "webp", "image"),
     _pair("png", "webp", "image"),
-    # Video. One page for every video format: the task is the same whatever
-    # the container, so seven pair pages would only compete with each other.
+    # Video. One page per task for every video format: the task is the same
+    # whatever the container, so seven pair pages would only compete with
+    # each other.
     Page(
         "/convert/video-to-gif",
         "tool",
@@ -301,7 +302,7 @@ PAGES: tuple[Page, ...] = (
             "turn a short video clip (up to 30 seconds) into an animated GIF",
         ),
         # /compress shrinks videos too, and links back here.
-        related=("/compress",),
+        related=("/convert/video-to-mp3", "/compress"),
         family="video",
         label={"de": "Video in GIF", "en": "Video to GIF"},
         blurb={
@@ -315,6 +316,32 @@ PAGES: tuple[Page, ...] = (
             ),
         },
         chip=9,
+        icon="video",
+        footer=True,
+    ),
+    Page(
+        "/convert/video-to-mp3",
+        "tool",
+        priority="0.6",
+        llms=(
+            "Video to MP3",
+            "save the sound of a video (MP4, MOV, MKV, WebM and more) as an MP3, or as "
+            "M4A, WAV and other audio formats",
+        ),
+        related=("/convert/video-to-gif", "/compress"),
+        family="video",
+        label={"de": "Video in MP3", "en": "Video to MP3"},
+        blurb={
+            "de": (
+                "Den Ton eines Videos – MP4, MOV, MKV, WebM und mehr – als MP3 "
+                "speichern, oder in M4A, WAV und weiteren Audioformaten."
+            ),
+            "en": (
+                "Save the sound of a video — MP4, MOV, MKV, WebM and more — as an MP3, "
+                "or as M4A, WAV and other audio formats."
+            ),
+        },
+        chip=10,
         icon="video",
         footer=True,
     ),

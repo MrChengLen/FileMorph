@@ -26,6 +26,7 @@ _PAGES = [
     ("/compress", "convert-btn"),
     (f"/convert/{_PAIR[0]}-to-{_PAIR[1]}", "convert-btn"),
     ("/convert/video-to-gif", "convert-btn"),
+    ("/convert/video-to-mp3", "convert-btn"),
     *((f"/pdf/{tool}", "pdf-submit") for tool in PDF_TOOL_CONTENT),
 ]
 
