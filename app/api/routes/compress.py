@@ -13,6 +13,7 @@ from fastapi.responses import JSONResponse, Response
 from app.api.deps import caller_tier, require_api_key
 from app.api.routes.auth import get_optional_user
 from app.compressors.image import (
+    _PIL_FORMAT as IMAGE_PIL_FORMAT,
     _SUPPORTED_FORMATS as IMAGE_FMTS,
     TARGET_SIZE_FORMATS,
     compress_image,
@@ -21,6 +22,7 @@ from app.compressors.image import (
 from app.compressors.video import _SUPPORTED_FORMATS as VIDEO_FMTS
 from app.compressors.video import compress_video
 from app.converters._ffmpeg import media_time_limit
+from app.converters._lossless_strip import STRIPPABLE, original_without_metadata
 from app.converters.base import InvalidInputError, OutputTooLargeError
 from app.core.audit import record_event as audit_record
 from app.core.batch import (
@@ -67,6 +69,46 @@ def target_notes(result: dict) -> list[str]:
     if not result["converged"]:
         notes.append("target=missed")
     return notes
+
+
+# The warning token for a result that is the original without its metadata.
+ORIGINAL_KEPT = "original=kept"
+
+
+def keep_original(
+    input_path: Path, output_path: Path, ext: str, target_bytes: int | None
+) -> int | None:
+    """Never larger than the original: when the result is not smaller than
+    the upload — a photo from a messenger, compressed harder already — the
+    original replaces it, without its metadata and not re-encoded
+    (``app/converters/_lossless_strip.py``), if that is no larger than the
+    result and, for a target size, fits it. Returns the new size, or
+    ``None`` when the result stays (it is smaller, or the format — TIFF,
+    AVIF, video — has no such strip)."""
+    output_size = output_path.stat().st_size
+    pil_fmt = IMAGE_PIL_FORMAT.get(ext)
+    if pil_fmt not in STRIPPABLE or output_size < input_path.stat().st_size:
+        return None
+    original = original_without_metadata(input_path.read_bytes(), pil_fmt)
+    if original is None or len(original) > output_size:
+        return None
+    if target_bytes is not None and len(original) > target_bytes:
+        return None
+    output_path.write_bytes(original)
+    return len(original)
+
+
+def kept_result(result: dict, size: int) -> dict:
+    """The target-size result once the original replaced the search's output:
+    it fits (``keep_original`` checked), no quality was chosen, nothing was
+    scaled."""
+    return {
+        **result,
+        "final_quality": None,
+        "achieved_bytes": size,
+        "converged": True,
+        "resized_to": None,
+    }
 
 
 @router.post("/compress", tags=["Compress"], dependencies=[Depends(require_api_key)])
@@ -244,6 +286,20 @@ async def _do_compress(
         else:
             output_disk_size = output_path.stat().st_size
 
+        kept_original = False
+        if output_disk_size is not None and ext in IMAGE_FMTS:
+            kept_size = await asyncio.to_thread(
+                keep_original,
+                input_path,
+                output_path,
+                ext,
+                target_size_kb * 1024 if target_size_kb is not None else None,
+            )
+            if kept_size is not None:
+                output_disk_size, kept_original = kept_size, True
+                if target_result is not None:
+                    target_result = kept_result(target_result, kept_size)
+
         # Only the result is needed to answer; the upload goes now.
         input_path.unlink(missing_ok=True)
 
@@ -298,6 +354,7 @@ async def _do_compress(
             "amplification_ratio": amplification_ratio,
             "duration_ms": round((time.monotonic() - _t0) * 1000),
             "success": True,
+            "kept_original": kept_original,
         }
         if target_result is not None:
             log_extra.update(
@@ -374,15 +431,17 @@ async def _do_compress(
         raise
 
     response_headers: dict[str, str] = {"X-Output-SHA256": output_hash}
+    notes = [ORIGINAL_KEPT] if kept_original else []
     if target_result is not None:
         response_headers["X-FileMorph-Achieved-Bytes"] = str(target_result["achieved_bytes"])
-        response_headers["X-FileMorph-Final-Quality"] = str(target_result["final_quality"])
+        if target_result["final_quality"] is not None:  # none for the original (kept_result)
+            response_headers["X-FileMorph-Final-Quality"] = str(target_result["final_quality"])
         response_headers["X-FileMorph-Converged"] = (
             "true" if target_result["converged"] else "false"
         )
-        notes = target_notes(target_result)
-        if notes:
-            response_headers["X-FileMorph-Warnings"] = ",".join(notes)
+        notes += target_notes(target_result)
+    if notes:
+        response_headers["X-FileMorph-Warnings"] = ",".join(notes)
 
     return TempDirFileResponse(
         output_path,
@@ -528,6 +587,17 @@ async def _do_compress_batch(
                             f"Output too large (over the {quota.output_cap_bytes // _MB} MB "
                             f"cap). Lower the quality. {higher_cap_hint(tier)}"
                         ) from None
+
+                if ext in IMAGE_FMTS:
+                    kept_size = await asyncio.to_thread(
+                        keep_original,
+                        input_path,
+                        output_path,
+                        ext,
+                        target_size_kb * 1024 if target_size_kb is not None else None,
+                    )
+                    if kept_size is not None:
+                        notes = [ORIGINAL_KEPT]
 
                 # S1-B: Output-cap check — reject before loading into memory.
                 output_disk_size = output_path.stat().st_size

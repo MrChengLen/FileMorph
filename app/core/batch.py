@@ -29,7 +29,8 @@ class BatchFileResult:
     content: bytes | None = None
     error_message: str = ""
     # ``X-FileMorph-Warnings`` tokens for an output the user should know
-    # about, e.g. ``resized=2400x1600`` (see compress.py::target_notes).
+    # about, e.g. ``resized=2400x1600`` (see compress.py::target_notes) or
+    # ``original=kept`` (compress.py::keep_original).
     notes: list[str] = field(default_factory=list)
 
 
@@ -42,8 +43,9 @@ def build_batch_zip(
 
     A ``manifest.json`` is only included when at least one file failed or
     carries notes — then it explains which file broke and why, or which one
-    was scaled down to fit its target size, the only cases where the
-    manifest adds value for a normal user. For other batches (the common
+    was scaled down to fit its target size or came back as the original
+    without its metadata, the only cases where the manifest adds value for a
+    normal user. For other batches (the common
     Web-UI path) the ZIP contains just the converted files, keeping the
     download clean. The summary dict is always returned to the caller for
     logging.

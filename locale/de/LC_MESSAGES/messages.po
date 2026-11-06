@@ -459,6 +459,16 @@ msgstr "Am Ende"
 msgid "At the start"
 msgstr "Am Anfang"
 
+msgid "At this quality the file would not get smaller"
+msgstr "Mit dieser Qualität wird die Datei nicht kleiner"
+
+msgid ""
+"At this setting the file would not have got smaller. You get your "
+"original back, without location and camera data."
+msgstr ""
+"Mit dieser Einstellung wäre die Datei nicht kleiner geworden. Du bekommst"
+" dein Original zurück, ohne Orts- und Kameradaten."
+
 msgid "Attempt to circumvent rate limits or security controls"
 msgstr "Versuche zu unternehmen, Rate-Limits oder Sicherheitskontrollen zu umgehen"
 
@@ -1034,6 +1044,13 @@ msgstr "ZIP herunterladen ({count} Dateien)"
 
 msgid "Download redacted file"
 msgstr "Geschwärzte Datei herunterladen"
+
+msgid "Download the original without metadata"
+msgstr "Original ohne Metadaten herunterladen"
+
+#, python-brace-format
+msgid "Download the original without metadata ({size} MB)"
+msgstr "Original ohne Metadaten herunterladen ({size} MB)"
 
 msgid "Download unchanged file"
 msgstr "Unveränderte Datei herunterladen"
@@ -4276,6 +4293,13 @@ msgstr ""
 "kündigen“ abgegeben."
 
 msgid ""
+"You then get your original back, without location and camera data. Choose"
+" a lower quality for a smaller file."
+msgstr ""
+"Du bekommst dann dein Original zurück, ohne Orts- und Kameradaten. Für "
+"eine kleinere Datei wähle eine niedrigere Qualität."
+
+msgid ""
 "You'll receive a confirmation email shortly. You can re-register at any "
 "time — a new registration creates a fresh account with no link to this "
 "one."
@@ -4375,6 +4399,9 @@ msgstr "Deine Datei ist bereit zum Download."
 
 msgid "Your name"
 msgstr "Dein Name"
+
+msgid "Your original, without metadata"
+msgstr "Dein Original, ohne Metadaten"
 
 msgid "Your password has been updated."
 msgstr "Dein Passwort wurde aktualisiert."

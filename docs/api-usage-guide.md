@@ -286,7 +286,11 @@ grep -i x-filemorph headers.txt
 The target is an upper bound. The server runs a binary search on quality
 (1–100) for the best output that is at most the target, and stops early
 once one lands within 3 % below it; after eight steps it returns its best
-fit. An image that already fits at quality 95 comes back at quality 95.
+fit. An image that already fits at quality 95 comes back at quality 95 —
+or as the original without its metadata, if that is smaller and fits:
+then with `X-FileMorph-Warnings: original=kept` and no
+`X-FileMorph-Final-Quality` (the same happens without a target whenever
+compressing would not make a JPEG, PNG or WebP smaller).
 
 **Constraints:**
 
@@ -477,7 +481,8 @@ When `manifest.json` is present (a ZIP in which a file failed or has
 notes) or as the body of a 422, it has this shape — `name` is the output
 file's name, `notes` lists a file's
 [target-size notes](api-reference.md#target-size-notes) (`/compress/batch`
-only, e.g. `"resized=2400x1600"`), and the 422 body leaves out `size_out`:
+only, e.g. `"resized=2400x1600"` or `"original=kept"`), and the 422 body
+leaves out `size_out`:
 
 ```json
 {
