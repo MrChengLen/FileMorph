@@ -441,7 +441,9 @@ class DocxToTxtConverter(BaseConverter):
     def convert(self, input_path: Path, output_path: Path, **kwargs) -> Path:
         from docx import Document  # python-docx
 
-        doc = Document(str(input_path))
+        # Closed on every path: an upload that is still open can't be deleted on Windows.
+        with input_path.open("rb") as upload:
+            doc = Document(upload)
         text = "\n".join(p.text for p in doc.paragraphs)
         output_path.write_text(text, encoding="utf-8")
         return output_path
