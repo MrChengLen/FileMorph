@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 import io
 import math
+from contextlib import closing
 from pathlib import Path
 
 from PIL import Image
@@ -79,10 +80,12 @@ def compress_image(input_path: Path, output_path: Path, quality: int = 85) -> Pa
     ext = input_path.suffix.lstrip(".").lower()
     pil_fmt = _PIL_FORMAT.get(ext, "JPEG")
 
-    img = open_image(input_path)
-    if pil_fmt == "JPEG" and img.mode in ("RGBA", "LA", "P"):
-        img = img.convert("RGB")
-    img = strip_metadata(img)
+    # The upload is closed however the block ends (see _open_image in
+    # app/converters/image.py); strip_metadata hands back a copy in memory.
+    with closing(open_image(input_path)) as img:
+        if pil_fmt == "JPEG" and img.mode in ("RGBA", "LA", "P"):
+            img = img.convert("RGB")
+        img = strip_metadata(img)
 
     if pil_fmt == "JPEG":
         img.save(
@@ -231,12 +234,12 @@ def compress_image_to_target(
         )
     pil_fmt = _PIL_FORMAT[ext]
 
-    img = open_image(input_path)
-    if pil_fmt == "JPEG" and img.mode in ("RGBA", "LA", "P"):
-        img = img.convert("RGB")
-    # NEU-C.2: strip PII before any encode pass — applies to every probe
-    # in the binary search, not just the final write.
-    img = strip_metadata(img)
+    with closing(open_image(input_path)) as img:
+        if pil_fmt == "JPEG" and img.mode in ("RGBA", "LA", "P"):
+            img = img.convert("RGB")
+        # NEU-C.2: strip PII before any encode pass — applies to every probe
+        # in the binary search, not just the final write.
+        img = strip_metadata(img)
     # The target is the promise (an upload limit), the colour profile a
     # nicety: one that would take more than a quarter of it goes — a print
     # profile of some hundred KB, say. sRGB (3 KB) or Display P3 (under 1 KB)

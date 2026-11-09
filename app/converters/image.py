@@ -1,4 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
+from collections.abc import Iterator
+from contextlib import closing, contextmanager
 from pathlib import Path
 
 from PIL import Image
@@ -51,12 +53,19 @@ if _heif_available:
     _IMAGE_FORMATS = ["heic", "heif"] + _IMAGE_FORMATS
 
 
-def _open_image(path: Path) -> Image.Image:
-    img = open_image(path)
-    # Ensure we have a usable mode for saving
-    if img.mode in ("RGBA", "LA", "P"):
-        return img
-    return img.convert("RGB") if img.mode != "RGB" else img
+@contextmanager
+def _open_image(path: Path) -> Iterator[Image.Image]:
+    """The image at ``path`` in a mode the encoders take. The image is closed
+    when the block ends, however it ends: an exception would otherwise hold
+    its file open until the request is over, and Windows cannot delete an open
+    file. Closing the image, not just leaving ``with`` on it, also releases a
+    file Pillow mapped into memory instead of reading (an uncompressed BMP)."""
+    with closing(open_image(path)) as img:
+        # Ensure we have a usable mode for saving
+        if img.mode in ("RGBA", "LA", "P"):
+            yield img
+        else:
+            yield img.convert("RGB") if img.mode != "RGB" else img
 
 
 class _ImageConverter(BaseConverter):
@@ -68,26 +77,26 @@ class _ImageConverter(BaseConverter):
 
     def convert(self, input_path: Path, output_path: Path, **kwargs) -> Path:
         quality = int(kwargs.get("quality", self._default_quality))
-        img = _open_image(input_path)
-
         pil_fmt = _PIL_FORMAT.get(self._tgt_fmt, self._tgt_fmt.upper())
 
-        # NEU-C.2: strip PII-bearing metadata (EXIF GPS / camera serial /
-        # XMP creator / IPTC byline) before any save path. Default-on
-        # for every image conversion — see app/converters/_metadata.py.
-        # JPEG requires RGB (no alpha); do the mode coercion before the
-        # strip so we don't paste from a soon-to-be-discarded mode.
-        if pil_fmt == "JPEG" and img.mode in ("RGBA", "LA", "P"):
-            img = img.convert("RGB")
-        elif (
-            pil_fmt == "GIF"
-            and isinstance(img.info.get("transparency"), bytes)
-            and len(img.info["transparency"]) <= 256
-        ):
-            # GIF has one transparent index, not a PNG's alpha table. (A
-            # longer, malformed table is dropped by strip_metadata instead.)
-            img = img.convert("RGBA")
-        img = strip_metadata(img)
+        with _open_image(input_path) as img:
+            # NEU-C.2: strip PII-bearing metadata (EXIF GPS / camera serial /
+            # XMP creator / IPTC byline) before any save path. Default-on
+            # for every image conversion — see app/converters/_metadata.py.
+            # JPEG requires RGB (no alpha); do the mode coercion before the
+            # strip so we don't paste from a soon-to-be-discarded mode.
+            if pil_fmt == "JPEG" and img.mode in ("RGBA", "LA", "P"):
+                img = img.convert("RGB")
+            elif (
+                pil_fmt == "GIF"
+                and isinstance(img.info.get("transparency"), bytes)
+                and len(img.info["transparency"]) <= 256
+            ):
+                # GIF has one transparent index, not a PNG's alpha table. (A
+                # longer, malformed table is dropped by strip_metadata instead.)
+                img = img.convert("RGBA")
+            # A copy in memory: the saves below need no open file.
+            img = strip_metadata(img)
 
         # PNG and BMP are lossless — quality param is ignored
         if pil_fmt == "PNG":
@@ -142,7 +151,8 @@ for _src in _sources:
 # channel — flatten RGBA/LA/P onto white (same spirit as the JPEG path).
 class _ImageToPdfConverter(BaseConverter):
     def convert(self, input_path: Path, output_path: Path, **kwargs) -> Path:
-        img = strip_metadata(_open_image(input_path))
+        with _open_image(input_path) as img:
+            img = strip_metadata(img)
         if img.mode in ("RGBA", "LA", "P"):
             rgba = img.convert("RGBA")
             background = Image.new("RGB", rgba.size, (255, 255, 255))
