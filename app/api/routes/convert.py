@@ -529,6 +529,11 @@ async def _do_convert_batch(
                     )
 
                 content = output_path.read_bytes()
+                # The one converter note the page words per file in a batch: a
+                # multi-page TIFF as a picture format kept its first page.
+                notes = [
+                    w for w in getattr(converter, "warnings", None) or [] if w == "pages=first"
+                ]
                 results.append(
                     BatchFileResult(
                         name=out_name,
@@ -536,6 +541,7 @@ async def _do_convert_batch(
                         size_in=size_in,
                         size_out=len(content),
                         content=content,
+                        notes=notes,
                     )
                 )
                 key = f"convert.{src_ext}-to-{tgt_ext}"

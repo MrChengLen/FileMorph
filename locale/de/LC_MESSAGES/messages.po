@@ -2189,6 +2189,13 @@ msgstr "Docker-Deployment mit einem Befehl"
 msgid "Online cancellation is not available right now."
 msgstr "Die Online-Kündigung ist gerade nicht verfügbar."
 
+msgid ""
+"Only the first page of this TIFF was converted. Convert it to PDF to keep"
+" every page."
+msgstr ""
+"Nur die erste Seite dieses TIFFs wurde umgewandelt. Wandle es in PDF um, "
+"um alle Seiten zu behalten."
+
 msgid "Open Source · Self-Hosted"
 msgstr "Open Source · Self-Hosted"
 
@@ -3498,6 +3505,14 @@ msgstr ""
 "Dieses PDF ist zu groß oder zu komplex, um es auf einmal zu verkleinern. "
 "Extrahiere jeweils weniger Seiten mit „PDF-Seiten extrahieren“ und "
 "verkleinere dann jeden Teil."
+
+msgid ""
+"This TIFF has more pages or pixels than one file may have. Split it into "
+"smaller files (a few pages each) and try again."
+msgstr ""
+"Dieses TIFF hat mehr Seiten oder Pixel, als eine Datei haben darf. Teile "
+"es in kleinere Dateien auf (je ein paar Seiten) und versuche es noch "
+"einmal."
 
 msgid ""
 "This Word file couldn't be converted here. In Word, save it as a PDF "

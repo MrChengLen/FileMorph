@@ -1779,6 +1779,11 @@ msgstr ""
 msgid "Online cancellation is not available right now."
 msgstr ""
 
+msgid ""
+"Only the first page of this TIFF was converted. Convert it to PDF to keep"
+" every page."
+msgstr ""
+
 msgid "Open Source · Self-Hosted"
 msgstr ""
 
@@ -2831,6 +2836,11 @@ msgstr ""
 msgid ""
 "This PDF is too large or complex to compress in one go. Extract fewer "
 "pages at a time with “Extract PDF pages”, then compress each part."
+msgstr ""
+
+msgid ""
+"This TIFF has more pages or pixels than one file may have. Split it into "
+"smaller files (a few pages each) and try again."
 msgstr ""
 
 msgid ""

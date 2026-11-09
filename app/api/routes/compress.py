@@ -272,7 +272,8 @@ async def _do_compress(
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(exc),
-                headers={"X-FileMorph-Error-Code": "invalid_input"},
+                # A subclass with its own code (tiff_too_large), as in /convert.
+                headers={"X-FileMorph-Error-Code": getattr(exc, "error_code", "invalid_input")},
             )
         except Exception:
             # A-3: log the failure server-side (type and traceback; the text only

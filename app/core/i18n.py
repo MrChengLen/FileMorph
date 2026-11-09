@@ -425,6 +425,10 @@ def _js_i18n_strings(_: gettext.GNUTranslations.gettext) -> dict[str, str]:
         # A feature the list above doesn't know yet, by its server name.
         "warningSimplifiedOther": _("Simplified: {feature}"),
         "warningFidelityReduced": _("Some document elements were simplified during conversion"),
+        # A multi-page TIFF converted to a picture format (image.py, pages=first).
+        "warningPagesFirst": _(
+            "Only the first page of this TIFF was converted. Convert it to PDF to keep every page."
+        ),
         # 413 disambiguation — distinguishes "your upload was too big"
         # (before any work) from "the rendered output exceeded the cap"
         # (after conversion). Same status code; very different remediation.
@@ -517,6 +521,13 @@ def _js_i18n_strings(_: gettext.GNUTranslations.gettext) -> dict[str, str]:
         "errorNoAudioTrack": _(
             "This video has no sound, so there is nothing to save as audio. Choose a "
             "video with sound and try again."
+        ),
+        # X-FileMorph-Error-Code: tiff_too_large — a multi-page TIFF compressed,
+        # converted to PDF or inserted into one (TiffTooLargeError in
+        # app/converters/base.py); app.js and pdf-tools.js.
+        "errorTiffTooLarge": _(
+            "This TIFF has more pages or pixels than one file may have. Split it into "
+            "smaller files (a few pages each) and try again."
         ),
         # Other failed requests; {status} is the HTTP status, {detail} the
         # browser's own error text.

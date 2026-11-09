@@ -768,10 +768,14 @@ function parseWarningsHeader(raw) {
   return items;
 }
 
-// Compress tokens (compress.py::target_notes, ORIGINAL_KEPT) → a localized
-// note, or null.
+// Compress tokens (compress.py::target_notes, ORIGINAL_KEPT) and pages=first
+// (a multi-page TIFF as a picture format, app/converters/image.py) → a
+// localized note, or null. Single file and batch.
 function targetNoteLabel(key, value) {
   const i18n = window.FM_I18N || {};
+  if (key === 'pages' && value === 'first') {
+    return i18n.warningPagesFirst || 'Only the first page of this TIFF was converted. Convert it to PDF to keep every page.';
+  }
   if (key === 'original' && value === 'kept') {
     return i18n.warningOriginalKept || 'At this setting the file would not have got smaller. You get your original back, without location and camera data.';
   }
@@ -1557,6 +1561,8 @@ async function submitForm() {
           msg = i18n.errorVideoTooComplex || data.detail;
         } else if (errCode === 'no_audio_track') {
           msg = i18n.errorNoAudioTrack || data.detail;
+        } else if (errCode === 'tiff_too_large') {
+          msg = i18n.errorTiffTooLarge || data.detail;
         } else if (errCode === 'decompression_bomb') {
           // The same text as the PDF tools for the same code.
           msg = i18n.pdfImageTooLarge || data.detail;

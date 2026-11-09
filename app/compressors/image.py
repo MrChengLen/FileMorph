@@ -6,7 +6,7 @@ from pathlib import Path
 
 from PIL import Image
 
-from app.converters._metadata import icc_for, strip_metadata
+from app.converters._metadata import icc_for, strip_metadata, strip_pages
 from app.core.image_hardening import open_image
 
 # Register pillow-avif-plugin if available. Importing it registers AVIF
@@ -66,8 +66,9 @@ def compress_image(input_path: Path, output_path: Path, quality: int = 85) -> Pa
     quality: 1 (worst) – 100 (best), for JPEG, WebP and AVIF. PNG and TIFF
     are lossless and come out the same whatever the quality: PNG packed at
     zlib's highest level (``optimize=True`` overrides ``compress_level``),
-    TIFF with Deflate (see the TIFF branch). The web UI hides the slider for
-    them (``LOSSLESS_COMPRESS_TYPES`` in ``app/static/js/app.js``).
+    TIFF with Deflate and all its pages (``save_tiff``). The web UI hides
+    the slider for them (``LOSSLESS_COMPRESS_TYPES`` in
+    ``app/static/js/app.js``).
 
     NEU-C.2: PII-bearing metadata (EXIF GPS, camera serial, XMP/IPTC
     creator) is stripped from the output by default — see
@@ -80,14 +81,21 @@ def compress_image(input_path: Path, output_path: Path, quality: int = 85) -> Pa
     ext = input_path.suffix.lstrip(".").lower()
     pil_fmt = _PIL_FORMAT.get(ext, "JPEG")
 
-    # The upload is closed however the block ends (see _open_image in
-    # app/converters/image.py); strip_metadata hands back a copy in memory.
+    # The upload is closed however the block ends (see _ImageConverter in
+    # app/converters/image.py); strip_metadata and strip_pages hand back
+    # copies in memory.
     with closing(open_image(input_path)) as img:
-        if pil_fmt == "JPEG" and img.mode in ("RGBA", "LA", "P"):
-            img = img.convert("RGB")
-        img = strip_metadata(img)
+        if pil_fmt == "TIFF":
+            # Every page of a TIFF; another file named .tif is one picture.
+            pages = strip_pages(img) if img.format == "TIFF" else [strip_metadata(img)]
+        else:
+            if pil_fmt == "JPEG" and img.mode in ("RGBA", "LA", "P"):
+                img = img.convert("RGB")
+            img = strip_metadata(img)
 
-    if pil_fmt == "JPEG":
+    if pil_fmt == "TIFF":
+        save_tiff(pages, output_path)
+    elif pil_fmt == "JPEG":
         img.save(
             output_path,
             format="JPEG",
@@ -111,24 +119,41 @@ def compress_image(input_path: Path, output_path: Path, quality: int = 85) -> Pa
         img.save(
             output_path, format="AVIF", quality=quality, speed=6, icc_profile=icc_for(img, "AVIF")
         )
-    elif pil_fmt == "TIFF" and img.mode == "1":
-        # TIFF in black and white: the smaller of Group 4 (scanned text packs
-        # best so) and Deflate (dithered pictures do).
+
+    return output_path
+
+
+def save_tiff(pages: list[Image.Image], output_path: Path) -> None:
+    """A TIFF with all its pages (``strip_pages``), packed losslessly.
+
+    In black and white throughout: the smaller of Group 4 (scanned text packs
+    best so) and Deflate (dithered pictures do). Otherwise Deflate — saved
+    without a compression it was raw pixels, larger than an LZW or Deflate
+    original — with the horizontal predictor that photo TIFFs from Photoshop,
+    GIMP or libvips use, unless a page is a palette image (the predictor
+    makes it larger) or black and white (it takes none).
+    """
+    first, rest = pages[0], pages[1:]
+    if all(page.mode == "1" for page in pages):
         packed = []
         for compression in ("group4", "tiff_adobe_deflate"):
             buf = io.BytesIO()
-            img.save(buf, format=pil_fmt, compression=compression)
+            first.save(
+                buf, format="TIFF", compression=compression, save_all=True, append_images=rest
+            )
             packed.append(buf.getvalue())
         output_path.write_bytes(min(packed, key=len))
-    else:
-        # TIFF. Saved without a compression it was raw pixels, larger than an
-        # LZW or Deflate original. Deflate, with the horizontal predictor that
-        # photo TIFFs from Photoshop, GIMP or libvips use — not for palette
-        # images, which it makes larger.
-        options = {} if img.mode == "P" else {"tiffinfo": {317: 2}}  # 317: Predictor
-        img.save(output_path, format=pil_fmt, compression="tiff_adobe_deflate", **options)
-
-    return output_path
+        return
+    plain = any(page.mode in ("P", "1") for page in pages)
+    options = {} if plain else {"tiffinfo": {317: 2}}  # 317: Predictor
+    first.save(
+        output_path,
+        format="TIFF",
+        compression="tiff_adobe_deflate",
+        save_all=True,
+        append_images=rest,
+        **options,
+    )
 
 
 def _encode_to_bytes(img: Image.Image, pil_fmt: str, quality: int) -> bytes:

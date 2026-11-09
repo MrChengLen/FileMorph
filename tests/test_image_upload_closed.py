@@ -39,7 +39,7 @@ _RUNS = {
 # Compressing to a size takes lossy formats only and refuses the others first.
 _CASES = [
     (run, kind)
-    for kind in ("jpeg", "cut-off jpeg", "animated gif", "grey bmp")
+    for kind in ("jpeg", "cut-off jpeg", "animated gif", "grey bmp", "multi-page tiff")
     for run in _RUNS
     if kind in ("jpeg", "cut-off jpeg") or run != "compress to a size"
 ]
@@ -56,6 +56,10 @@ def _upload(tmp_path, kind):
         path = tmp_path / "in.gif"
         frames = [Image.new("P", (32, 32), shade) for shade in (10, 80, 160)]
         frames[0].save(path, save_all=True, append_images=frames[1:])
+    elif kind == "multi-page tiff":  # every page read: strip_pages
+        path = tmp_path / "in.tif"
+        pages = [Image.new("L", (32, 32), shade) for shade in (10, 80)]
+        pages[0].save(path, save_all=True, append_images=pages[1:])
     else:  # an uncompressed grey BMP, which Pillow maps into memory
         path = tmp_path / "in.bmp"
         Image.new("L", (64, 64), 128).save(path, format="BMP")

@@ -22,9 +22,9 @@ page to a destination name the PDF uses as well is dropped: it would lead
 into the PDF. Where the PDF's destination tree has /Kids at its root, the
 inserted file's names go and with them all named links on its pages.
 
-An image page gets the size of its neighbour — the page before it, or the
-first page when it goes at the start — turned to the image's orientation,
-with the image fitted and centred.
+An image page — or a page for each page of a multi-page TIFF — gets the size
+of its neighbour — the page before it, or the first page when it goes at the
+start — turned to the image's orientation, with the image fitted and centred.
 """
 
 from __future__ import annotations
@@ -67,8 +67,9 @@ class WordNotConvertedError(InvalidInputError):
 
 
 def image_to_pdf(input_path: Path, output_path: Path) -> None:
-    """Write the one-page PDF of an image the way image → PDF does — metadata
-    stripped, turned upright, alpha flattened. Past the format check Pillow
+    """Write the PDF of an image the way image → PDF does — a page, or a page
+    for each page of a multi-page TIFF; metadata stripped, turned upright,
+    alpha flattened. Past the format check Pillow
     can still fail on a damaged image (a truncated JPEG raises ``OSError``):
     that is the file's fault, so it becomes an ``InvalidInputError``. An
     image over the size limit keeps its own error (``DECOMPRESSION_BOMB``)."""
@@ -207,9 +208,9 @@ def insert_pages(
     max_output_bytes: int,
 ) -> dict:
     """Write ``base_path`` with the pages of ``insert_path`` (a PDF; for
-    ``kind`` ``docx`` LibreOffice's, for ``image`` Pillow's one page, fitted to
-    its neighbour) after its page ``after_page`` — 0 for the start, ``None``
-    for the end.
+    ``kind`` ``docx`` LibreOffice's, for ``image`` Pillow's — one page, or a
+    multi-page TIFF's each — fitted to its neighbour) after its page
+    ``after_page`` — 0 for the start, ``None`` for the end.
 
     Runs in the child process (step ``pdf-insert``). Returns
     ``{"inserted_pages": …, "page_count": …}``, or ``_refused`` data for an
@@ -271,8 +272,10 @@ def insert_pages(
         kids_root = dests is not None and "/Kids" in dests and "/Names" not in dests
         if kind == "image":
             size = _display_size(writer.pages[max(index - 1, 0)])
-            writer.insert_page(insert.pages[0], index)
-            _fit_image_page(writer.pages[index], *size)  # in the writer: pypdf 7 wants it there
+            for offset, page in enumerate(insert.pages):  # a multi-page TIFF: a page each
+                writer.insert_page(page, index + offset)
+                # In the writer: pypdf 7 wants it there.
+                _fit_image_page(writer.pages[index + offset], *size)
         else:
             writer.merge(index, insert, import_outline=False)
         added = len(writer.pages) - base_count

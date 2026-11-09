@@ -415,12 +415,12 @@ named links on the inserted pages are dropped.
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `file` | file | Yes | The PDF to insert into (must be a `.pdf`) |
-| `insert_file` | file | Yes | What to insert: a `.pdf` (all its pages), a `.docx` (converted with LibreOffice) or an image (`jpg`, `png`, `webp`, `avif`, `heic`, `tiff`, `gif`, `bmp`, `ico`; one page, metadata stripped and turned upright) |
+| `insert_file` | file | Yes | What to insert: a `.pdf` (all its pages), a `.docx` (converted with LibreOffice) or an image (`jpg`, `png`, `webp`, `avif`, `heic`, `tiff`, `gif`, `bmp`, `ico`; one page — a multi-page TIFF a page each — metadata stripped and turned upright) |
 | `after_page` | integer | No | Insert after this page, counted from the PDF's first page (not its printed page numbers); `0` inserts at the start. Leave it out to append at the end. |
 
-An image page gets the size of the page before it (the first page when it goes
-at the start), turned to the image's orientation, with the image fitted and
-centred. PDF and Word pages keep their own size.
+An image page — each page of a multi-page TIFF — gets the size of the page
+before it (the first page when it goes at the start), turned to the image's
+orientation, with the image fitted and centred. PDF and Word pages keep their own size.
 
 **Response**: `200 OK` (`application/pdf`) — the combined PDF as a download
 (`_inserted.pdf` suffix), plus:
@@ -599,11 +599,11 @@ Every successful conversion / compression carries integrity and classification m
 | `X-FileMorph-Converged` | `true` if the output is at most the target size, else `false` | on `/compress` calls with `target_size_kb`, and on `/pdf/compress` |
 | `X-FileMorph-Batch-Total`, `X-FileMorph-Batch-Succeeded`, `X-FileMorph-Batch-Failed` | File counts of the batch | every `200` from `/convert/batch` and `/compress/batch` |
 | `X-FileMorph-Batch-Failures` | The failed files and why (see [Batch headers](#batch-headers)) | batch `200` responses in which at least one file failed |
-| `X-FileMorph-Batch-Notes` | The files with notes, e.g. scaled down to fit (see [Batch headers](#batch-headers)) | `/compress/batch` `200` responses in which at least one file has notes |
+| `X-FileMorph-Batch-Notes` | The files with notes, e.g. scaled down to fit (see [Batch headers](#batch-headers)) | `/compress/batch` and `/convert/batch` `200` responses in which at least one file has notes |
 | `X-FileMorph-Error-Code` | A fixed code for the reason of an error (see [Error codes](#error-codes)) | the error responses listed there |
 | `X-FileMorph-Error-Field` | The form field an error is about: `file`, `insert_file` or `after_page` | `/pdf/insert` errors about one of its inputs |
 | `X-FileMorph-Inserted-Pages`, `X-FileMorph-Page-Count` | Pages inserted, and the result's page count | every `200` from `/pdf/insert`; `X-FileMorph-Page-Count` also carries the PDF's page count on `invalid_position` |
-| `X-FileMorph-Warnings` | Comma-separated `key=value` tokens (see [Conversion warnings](#conversion-warnings) and [Target-size notes](#target-size-notes)) | `/convert` DOCX → PDF, when the layout had to be simplified; `/compress`, when the original came back (`original=kept`), and with `target_size_kb` when the image was scaled down or the target can't be reached; `/pdf/compress`, when the images were scaled down |
+| `X-FileMorph-Warnings` | Comma-separated `key=value` tokens (see [Conversion warnings](#conversion-warnings) and [Target-size notes](#target-size-notes)) | `/convert` DOCX → PDF, when the layout had to be simplified, and a multi-page TIFF converted to a picture format (`pages=first`); `/compress`, when the original came back (`original=kept`), and with `target_size_kb` when the image was scaled down or the target can't be reached; `/pdf/compress`, when the images were scaled down |
 | `Retry-After` | Seconds the client should wait before retrying | on `503 Service Unavailable` (global concurrency cap) and on every `429` except the rate limiter's (slowapi, see Rate Limiting) — e.g. the per-tier concurrency cap and the monthly call quota |
 
 The `X-Data-Classification` value is also written to the audit-log entry for the request, so a downstream auditor can answer "what classification of data was processed in this call" from the database alone (see `app/core/audit.py`).
@@ -621,7 +621,8 @@ returns the `422` JSON body instead, without these headers.
 
 `X-FileMorph-Batch-Notes` lists, in the same form, each file that has notes,
 within what the failures leave of the same 4 KB; the value is its comma-joined
-[target-size notes](#target-size-notes), for example
+[target-size notes](#target-size-notes) (`/convert/batch`: `pages=first`, see
+[Conversion warnings](#conversion-warnings)), for example
 `photo_compressed.jpg|resized%3D2400x1600`. The ZIP then contains
 `manifest.json` too, with each file's `notes`.
 
@@ -651,6 +652,7 @@ can branch on (the `detail` text may change):
 | `pdf_too_complex` | `400` | `/pdf/compress`: the PDF is too large or complex to compress within the memory, time and file size limits. Extract fewer pages with `/pdf/extract` and compress them in parts. `/pdf/insert`: the files are too large or complex to combine within those limits |
 | `pdf_too_many_pages` | `400` | Over the 10 000-page cap: `/pdf/split` for a PDF with more pages, `/pdf/extract` for a selection that covers more, `/pdf/insert` for both files together. Extract in parts of up to 10 000 pages; for `/pdf/split`, then split each part |
 | `server_busy` | `503` | The server is at its global concurrency cap (`MAX_GLOBAL_CONCURRENCY`) and did not process the request; retry after `Retry-After` seconds |
+| `tiff_too_large` | `400` | `/compress`, `/convert` to PDF or TIFF, `/pdf/insert` (field `insert_file`): a multi-page TIFF with more than 1 000 pages, or whose pages together take more memory than one colour image at the size limit (`FILEMORPH_IMAGE_MAX_MEGAPIXELS`, 89 by default; a black-and-white or grey page takes a quarter of a colour one), or whose pages take longer than 15 seconds to read — its pages are decoded at once. Split it into smaller files |
 | `unsupported_format` | `415` | `/pdf/insert`: the file to insert is not a PDF, a `.docx` or a supported image |
 | `video_too_complex` | `400` | `/convert` video → GIF: the video has more than 4096 × 2160 pixels, or can't be turned into a GIF within 85 seconds. Use a shorter clip or a lower resolution |
 | `video_too_long` | `400` | `/convert` video → GIF: the video is longer than 30 seconds. It is refused, not cut short; shorten it first, or convert it to MP4 or WebM |
@@ -665,8 +667,9 @@ tools' `500`s — are identified by status and `detail`.
 ### Conversion warnings
 
 `/convert` sets `X-FileMorph-Warnings` when a DOCX → PDF conversion ran on the
-pure-Python engine and its layout had to be simplified. The PDF is still
-returned (`200`). The tokens, comma-separated:
+pure-Python engine and its layout had to be simplified, or when a multi-page
+TIFF became a picture format. The result is still returned (`200`). The
+tokens, comma-separated:
 
 - `engine=mammoth_fallback` — the document needed LibreOffice, but the
   pure-Python engine ran; `reason=soffice_unavailable` (LibreOffice is not
@@ -676,6 +679,9 @@ returned (`200`). The tokens, comma-separated:
   flattened: `footnotes`, `endnotes`, `headers`, `footers`, `ole_objects`,
   `multi_section_layout`, `equations`, `multilevel_lists`.
 - `fidelity=reduced` — the pure-Python engine reported other simplifications.
+- `pages=first` — a multi-page TIFF converted to a picture format: the result
+  is its first page. Convert it to PDF for a page each. `/convert/batch` lists
+  it per file in `X-FileMorph-Batch-Notes` and `manifest.json`.
 
 For example `engine=mammoth_fallback,reason=soffice_unavailable,simplified=footnotes`.
 The engine routing is described in [`formats.md`](formats.md#notes-on-docx--pdf).
