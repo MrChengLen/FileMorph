@@ -689,8 +689,9 @@ async def _do_insert(
             # before the child reads the PDF and checks the position, so a
             # mistyped page costs a Word file its LibreOffice run: the price
             # of reading no PDF here.
-            # One image page is metadata-stripped and turned upright like
-            # every image conversion; insert_pages fits it to its neighbour.
+            # An image page (a multi-page TIFF: a page each) is metadata-stripped
+            # and turned upright like every image conversion; insert_pages fits
+            # it to its neighbour.
             if kind == "image":
                 await asyncio.to_thread(image_to_pdf, insert_path, insert_pdf)
             elif kind == "docx":

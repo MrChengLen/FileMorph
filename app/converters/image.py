@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-from collections.abc import Iterator
-from contextlib import closing, contextmanager
+from contextlib import closing
 from pathlib import Path
 
 from PIL import Image
 
-from app.converters._metadata import icc_for, strip_metadata
+from app.compressors.image import save_tiff
+from app.converters._metadata import icc_for, own_page_profile, strip_metadata, strip_pages
 from app.converters.base import BaseConverter
 from app.converters.registry import register
 from app.core.image_hardening import open_image
@@ -53,19 +53,25 @@ if _heif_available:
     _IMAGE_FORMATS = ["heic", "heif"] + _IMAGE_FORMATS
 
 
-@contextmanager
-def _open_image(path: Path) -> Iterator[Image.Image]:
-    """The image at ``path`` in a mode the encoders take. The image is closed
-    when the block ends, however it ends: an exception would otherwise hold
-    its file open until the request is over, and Windows cannot delete an open
-    file. Closing the image, not just leaving ``with`` on it, also releases a
-    file Pillow mapped into memory instead of reading (an uncompressed BMP)."""
-    with closing(open_image(path)) as img:
-        # Ensure we have a usable mode for saving
-        if img.mode in ("RGBA", "LA", "P"):
-            yield img
-        else:
-            yield img.convert("RGB") if img.mode != "RGB" else img
+def _usable(img: Image.Image) -> Image.Image:
+    # Ensure we have a usable mode for saving
+    if img.mode in ("RGBA", "LA", "P"):
+        return img
+    return img.convert("RGB") if img.mode != "RGB" else img
+
+
+def _several_pages(img: Image.Image) -> bool:
+    """Whether a TIFF has a second page; seeking to it reads only its header.
+    One that can't be read counts as none: the first page converts as before."""
+    try:
+        img.seek(1)
+    except Exception:
+        several = False
+    else:
+        several = True
+    img.seek(0)
+    own_page_profile(img)  # not the second page's
+    return several
 
 
 class _ImageConverter(BaseConverter):
@@ -74,29 +80,48 @@ class _ImageConverter(BaseConverter):
     def __init__(self, tgt_fmt: str, quality: int = 85):
         self._tgt_fmt = tgt_fmt
         self._default_quality = quality
+        # X-FileMorph-Warnings tokens (convert.py reads them after convert).
+        self.warnings: list[str] = []
 
     def convert(self, input_path: Path, output_path: Path, **kwargs) -> Path:
         quality = int(kwargs.get("quality", self._default_quality))
         pil_fmt = _PIL_FORMAT.get(self._tgt_fmt, self._tgt_fmt.upper())
 
-        with _open_image(input_path) as img:
-            # NEU-C.2: strip PII-bearing metadata (EXIF GPS / camera serial /
-            # XMP creator / IPTC byline) before any save path. Default-on
-            # for every image conversion — see app/converters/_metadata.py.
-            # JPEG requires RGB (no alpha); do the mode coercion before the
-            # strip so we don't paste from a soon-to-be-discarded mode.
-            if pil_fmt == "JPEG" and img.mode in ("RGBA", "LA", "P"):
-                img = img.convert("RGB")
-            elif (
-                pil_fmt == "GIF"
-                and isinstance(img.info.get("transparency"), bytes)
-                and len(img.info["transparency"]) <= 256
-            ):
-                # GIF has one transparent index, not a PNG's alpha table. (A
-                # longer, malformed table is dropped by strip_metadata instead.)
-                img = img.convert("RGBA")
-            # A copy in memory: the saves below need no open file.
-            img = strip_metadata(img)
+        # The upload is closed however the block ends: an exception would
+        # otherwise hold its file open until the request is over, and Windows
+        # cannot delete an open file. Closing the image, not just leaving
+        # ``with`` on it, also releases a file Pillow mapped into memory
+        # instead of reading (an uncompressed BMP). What leaves the block are
+        # copies in memory: the saves below need no open file.
+        pages: list[Image.Image] | None = None
+        with closing(open_image(input_path)) as src:
+            if src.format == "TIFF" and pil_fmt == "TIFF":
+                # TIF ↔ TIFF: the target holds every page — packed as compressing does.
+                pages = strip_pages(src)
+            else:
+                if src.format == "TIFF" and _several_pages(src):
+                    # A picture format holds one page: the first. PDF holds them all.
+                    self.warnings.append("pages=first")
+                img = _usable(src)
+                # NEU-C.2: strip PII-bearing metadata (EXIF GPS / camera serial /
+                # XMP creator / IPTC byline) before any save path. Default-on
+                # for every image conversion — see app/converters/_metadata.py.
+                # JPEG requires RGB (no alpha); do the mode coercion before the
+                # strip so we don't paste from a soon-to-be-discarded mode.
+                if pil_fmt == "JPEG" and img.mode in ("RGBA", "LA", "P"):
+                    img = img.convert("RGB")
+                elif (
+                    pil_fmt == "GIF"
+                    and isinstance(img.info.get("transparency"), bytes)
+                    and len(img.info["transparency"]) <= 256
+                ):
+                    # GIF has one transparent index, not a PNG's alpha table. (A
+                    # longer, malformed table is dropped by strip_metadata instead.)
+                    img = img.convert("RGBA")
+                img = strip_metadata(img)
+        if pages is not None:
+            save_tiff(pages, output_path)
+            return output_path
 
         # PNG and BMP are lossless — quality param is ignored
         if pil_fmt == "PNG":
@@ -142,28 +167,39 @@ for _src in _sources:
 
 
 # ---------------------------------------------------------------------------
-# Image → PDF  (each image becomes a single-page PDF)
+# Image → PDF  (an image becomes a page, a multi-page TIFF a page each)
 # ---------------------------------------------------------------------------
 # Asymmetric (many image formats → one PDF target), so it can't ride the
 # image↔image loop above. Strip metadata first like every other image
 # conversion — that also turns a photo upright, from the EXIF the flattening
-# below drops. Pillow writes PDF natively, but the PDF encoder has no alpha
-# channel — flatten RGBA/LA/P onto white (same spirit as the JPEG path).
+# below drops.
 class _ImageToPdfConverter(BaseConverter):
     def convert(self, input_path: Path, output_path: Path, **kwargs) -> Path:
-        with _open_image(input_path) as img:
-            img = strip_metadata(img)
-        if img.mode in ("RGBA", "LA", "P"):
-            rgba = img.convert("RGBA")
-            background = Image.new("RGB", rgba.size, (255, 255, 255))
-            background.paste(rgba, mask=rgba.split()[-1])
-            img = background
-        elif img.mode != "RGB":
-            img = img.convert("RGB")
-        # resolution=150 DPI controls the physical page size Pillow assigns the
-        # single image page — a sensible default for typical phone photos/scans.
-        img.save(output_path, format="PDF", resolution=150.0)
+        # Closed however the block ends (see _ImageConverter.convert).
+        with closing(open_image(input_path)) as src:
+            if src.format == "TIFF":
+                pages = [_pdf_page(page) for page in strip_pages(src)]
+            else:
+                pages = [_pdf_page(strip_metadata(_usable(src)))]
+        # resolution=150 DPI controls the physical page size Pillow assigns
+        # each image page — a sensible default for typical phone photos/scans.
+        pages[0].save(
+            output_path, format="PDF", resolution=150.0, save_all=True, append_images=pages[1:]
+        )
         return output_path
+
+
+def _pdf_page(img: Image.Image) -> Image.Image:
+    """A page as Pillow's PDF encoder takes it. It has no alpha channel:
+    transparency goes onto white (same spirit as the JPEG path). A TIFF page
+    in black and white or grey stays so — as RGB, a scanned letter's page
+    takes ten times the bytes."""
+    if img.mode in ("RGBA", "LA", "P", "PA"):
+        rgba = img.convert("RGBA")
+        background = Image.new("RGB", rgba.size, (255, 255, 255))
+        background.paste(rgba, mask=rgba.split()[-1])
+        return background
+    return img if img.mode in ("1", "L", "RGB") else img.convert("RGB")
 
 
 # Register image→pdf for every supported image source (heic/heif only when

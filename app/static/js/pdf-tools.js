@@ -98,7 +98,8 @@
   // 400 carries X-FileMorph-Error-Code (invalid_page_selection / invalid_pdf /
   // pdf_encrypted / pdf_encryption_unsupported / pdf_too_many_pages /
   // pdf_too_complex; /pdf/insert also invalid_position / word_not_converted /
-  // decompression_bomb / invalid_input, and 415 unsupported_format); every
+  // decompression_bomb / tiff_too_large / invalid_input, and 415
+  // unsupported_format); every
   // route also file_type_not_permitted (400), request_too_large (413) and
   // server_busy (503); 429 = rate limit / monthly quota. Anything else falls
   // back to the server's own (already caller-safe) detail message.
@@ -148,6 +149,9 @@
     }
     if (code === 'decompression_bomb') {
       return t('pdfImageTooLarge', 'The image is too large to process safely. Make it smaller and try again.');
+    }
+    if (code === 'tiff_too_large') {
+      return t('errorTiffTooLarge', 'This TIFF has more pages or pixels than one file may have. Split it into smaller files (a few pages each) and try again.');
     }
     if (code === 'invalid_input' && TOOL === 'insert') {
       return t('pdfInsertUnreadable', "The image couldn't be read. Save it as PNG or JPG and try again.");

@@ -121,12 +121,14 @@ _APP_JS_KEYS = [
     ("request_too_large", "errorRequestTooLargeBatch"),
     ("request_too_large", "errorRequestTooLarge"),
     ("server_busy", "errorServerBusy"),
+    ("tiff_too_large", "errorTiffTooLarge"),
 ]
 _PDF_TOOLS_KEYS = [
     ("decompression_bomb", "pdfImageTooLarge"),
     ("file_type_not_permitted", "errorFileTypeNotPermitted"),
     ("request_too_large", "errorRequestTooLarge"),
     ("server_busy", "errorServerBusy"),
+    ("tiff_too_large", "errorTiffTooLarge"),
 ]
 
 

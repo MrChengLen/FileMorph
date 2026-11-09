@@ -41,7 +41,12 @@ prevent.
 
 from __future__ import annotations
 
+import struct
+import time
+
 from PIL import ExifTags, Image
+
+from app.converters.base import InvalidInputError, TiffTooLargeError
 
 # EXIF orientation → the turn that shows the image the way viewers do; the
 # table ImageOps.exif_transpose uses.
@@ -182,3 +187,86 @@ def strip_metadata(img: Image.Image) -> Image.Image:
     if transparency is not None and _transparency_fits(clean.mode, transparency):
         clean.info["transparency"] = transparency
     return clean
+
+
+# Pages of one TIFF at most: a page costs a little time however small it is.
+MAX_PAGES = 1000
+# Seconds for reading a TIFF's pages. A scanned document takes a few at most
+# (ten colour A4 pages at 300 dpi: 0.7 s); a crafted one can make each page's
+# header cost a fifth of a second to read (65 000 entries in a 2 MB file),
+# which no page or pixel count catches.
+PAGES_SECONDS = 15
+# The TIFF tag of a page's own colour profile.
+_ICC_TAG = 34675
+_DAMAGED_PAGE = (
+    "A page of this TIFF is damaged and can't be read. Save the file again (for example "
+    "in your scanning app or an image editor) and try again."
+)
+
+
+def own_page_profile(img: Image.Image) -> None:
+    """Pillow keeps a TIFF page's colour profile in ``info`` for a later page
+    that has none; such a page loses it here (call after each seek)."""
+    tags = getattr(img, "tag_v2", None)
+    if tags is not None and _ICC_TAG not in tags:
+        img.info.pop("icc_profile", None)
+
+
+def strip_pages(img: Image.Image) -> list[Image.Image]:
+    """Every page of a multi-page TIFF, each stripped as ``strip_metadata``
+    strips one picture.
+
+    The pages are all in memory at once, and Pillow checks only the first
+    page's size on opening, so each later page is checked before it is decoded:
+    together they may take as many bytes as one colour picture at the size
+    limit (``Image.MAX_IMAGE_PIXELS`` at four bytes a pixel), counting
+    Pillow's pointer for each row. Pillow keeps a black-and-white or grey
+    page at a byte a pixel — a scanned letter of forty A4 pages at 300 dpi
+    fits; any other page counts four (a palette page becomes RGB on its way
+    to a PDF). Past that, past ``MAX_PAGES`` or past ``PAGES_SECONDS``,
+    ``TiffTooLargeError`` names the way out: smaller files.
+
+    Seeking from one page to the next reads only its header. A header that
+    can't be read past the end of the file is a scanner's stray pointer to a
+    page that isn't there: the file ends, as in libtiff's readers. Anywhere
+    else — or a page without width or height, or pixels that can't be read —
+    the page is damaged: ``InvalidInputError`` (400), never fewer pages
+    without a word or a server error.
+    """
+    pages: list[Image.Image] = []
+    held = 0
+    next_page = 0  # where the page before says the next one starts
+    deadline = time.monotonic() + PAGES_SECONDS
+    while True:
+        try:
+            img.seek(len(pages))
+        except EOFError:
+            return pages
+        except Exception as exc:
+            if next_page >= _file_size(img):
+                return pages
+            raise InvalidInputError(_DAMAGED_PAGE) from exc
+        next_page = getattr(img.tag_v2, "next", 0) if hasattr(img, "tag_v2") else 0
+        own_page_profile(img)
+        if not img.width or not img.height:
+            raise InvalidInputError(_DAMAGED_PAGE)
+        size = 1 if img.mode in ("1", "L") else 4
+        held += (img.width * size + 8) * img.height  # 8: Pillow's pointer to each row
+        limit = 4 * Image.MAX_IMAGE_PIXELS if Image.MAX_IMAGE_PIXELS else None
+        # The first page's size Pillow checked on opening, as for any image.
+        too_much = bool(pages) and limit is not None and held > limit
+        if len(pages) == MAX_PAGES or too_much or time.monotonic() > deadline:
+            raise TiffTooLargeError()
+        try:
+            pages.append(strip_metadata(img))
+        except (OSError, SyntaxError, ValueError, TypeError, struct.error) as exc:
+            raise InvalidInputError(_DAMAGED_PAGE) from exc
+
+
+def _file_size(img: Image.Image) -> int:
+    fp = img.fp
+    here = fp.tell()
+    try:
+        return fp.seek(0, 2)
+    finally:
+        fp.seek(here)

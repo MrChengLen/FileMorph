@@ -567,6 +567,7 @@ def test_docs_quote_the_batch_size_message(client, sample_jpg, accounts):
         ("file_type_not_permitted", 400),
         ("request_too_large", 413),
         ("server_busy", 503),
+        ("tiff_too_large", 400),
     ],
 )
 def test_api_reference_lists_the_codes_the_web_ui_words(code, status):

@@ -87,6 +87,23 @@ class VideoTooLongError(InvalidInputError):
         super().__init__(self.message)
 
 
+class TiffTooLargeError(InvalidInputError):
+    """A multi-page TIFF with more pages, or more image data across its
+    pages, than one file may have — or one taking longer to read than a
+    scanned document does — all its pages are decoded at once (``strip_pages``
+    in ``app/converters/_metadata.py``). The routes send ``error_code`` as
+    ``X-FileMorph-Error-Code``."""
+
+    error_code = "tiff_too_large"
+    message = (
+        "This TIFF has more pages or pixels than one file may have. Split it into "
+        "smaller files (a few pages each) and try again."
+    )
+
+    def __init__(self, *_args: object) -> None:
+        super().__init__(self.message)
+
+
 class VideoTooComplexError(InvalidInputError):
     """The video has too many pixels, or takes too long to decode, to become a
     GIF within the time budget (``GIF_MAX_SOURCE_PIXELS`` and

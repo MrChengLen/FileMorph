@@ -20,13 +20,15 @@ A complete reference of all supported input and output formats, with notes on qu
 | **WebP** | JPG, PNG, AVIF, BMP, TIFF, GIF, ICO, **PDF** | Modern web format, excellent quality/size ratio. |
 | **AVIF** | JPG, PNG, WebP, BMP, TIFF, GIF, ICO, **PDF** | AV1-based image format. Best-in-class compression; encode is more CPU-intensive than JPEG/WebP (see note below). |
 | **BMP** | JPG, PNG, WebP, AVIF, TIFF, GIF, ICO, **PDF** | Uncompressed, large files. Rarely needed today. |
-| **TIFF / TIF** | JPG, PNG, WebP, AVIF, BMP, GIF, ICO, **PDF** | Used in print and archiving. |
+| **TIFF / TIF** | JPG, PNG, WebP, AVIF, BMP, GIF, ICO, **PDF** | Used in print and archiving. A multi-page TIFF becomes a PDF with a page each; as a picture format, its first page (the result says so). |
 | **GIF** | JPG, PNG, WebP, AVIF, BMP, TIFF, ICO, **PDF** | Animated GIFs: only the first frame is converted. |
 | **ICO** | JPG, PNG, WebP, AVIF, BMP, TIFF, GIF, **PDF** | Windows icons and favicons. From a multi-size icon, the largest image is converted. |
 
 > **Image → PDF**: any supported image becomes a single-page PDF (handy for
-> turning scans/photos into uniform documents). Transparency is flattened onto a
-> white background since PDF has no alpha channel; EXIF/GPS metadata is stripped.
+> turning scans/photos into uniform documents), a multi-page TIFF a PDF with a
+> page each — a black-and-white page stays black and white (CCITT Group 4 —
+> about a tenth of its size as a colour page). Transparency is flattened onto a white
+> background since PDF has no alpha channel; EXIF/GPS metadata is stripped.
 
 > **Orientation**: phones store a photo as the sensor saw it and note the turn
 > in its EXIF data. Every image conversion and compression applies that turn
@@ -67,7 +69,7 @@ Re-encode an image at a lower quality to reduce file size without changing forma
 | PNG | Lossless (zlib, highest level) | Always lossless, and `quality` changes nothing: the file is repacked as tightly as zlib allows. Saves little on an already optimised PNG — as WebP or JPG it gets much smaller. |
 | WebP | Lossy (quality 1–100) | Excellent compression. Comparable to JPEG but 25–35% smaller. |
 | AVIF | Lossy (quality 1–100) | Best compression ratio of the lossy formats; **target-size** supported (binary search on quality). Encode is more CPU-intensive than JPEG/WebP. |
-| TIFF | Lossless (Deflate with the horizontal predictor; black and white: Group 4 or Deflate, whichever is smaller) | `quality` changes nothing. A TIFF holding JPEG data can come out larger. Only the first page of a multi-page TIFF is kept. |
+| TIFF | Lossless (Deflate with the horizontal predictor; black and white: Group 4 or Deflate, whichever is smaller) | `quality` changes nothing. A TIFF holding JPEG data can come out larger. A multi-page TIFF keeps all its pages — up to 1 000, taking together as much memory as one colour image at the size limit (about forty black-and-white A4 pages at 300 dpi). |
 
 > **Never larger than the original**: a photo from the web or a messenger is
 > often compressed harder already than the chosen quality. When compressing
@@ -213,7 +215,7 @@ needs LibreOffice.
 | **Page extract** | `POST /api/v1/pdf/extract` | PDF → PDF | Keep a 1-based page selection, e.g. `pages=1-3,5`. Text, fonts and vector content are copied byte-for-byte. |
 | **Split** | `POST /api/v1/pdf/split` | PDF → ZIP | One single-page PDF per page (`page_1.pdf`, …, zero-padded to the page count's width), bundled as a ZIP. |
 | **Compress to target** | `POST /api/v1/pdf/compress` | PDF → PDF | Shrink to at most a `target_kb` budget by recompressing embedded raster images, scaling them down if needed. Page count, layout and every glyph are preserved. |
-| **Insert pages** | `POST /api/v1/pdf/insert` | PDF + PDF / DOCX / image → PDF | Put a whole second file into the PDF — at the start, after page N (`after_page`) or at the end. An image becomes one page in its neighbour's size; a `.docx` is converted with LibreOffice. The PDF keeps its bookmarks, links and form fields. |
+| **Insert pages** | `POST /api/v1/pdf/insert` | PDF + PDF / DOCX / image → PDF | Put a whole second file into the PDF — at the start, after page N (`after_page`) or at the end. An image becomes one page in its neighbour's size (a multi-page TIFF a page each); a `.docx` is converted with LibreOffice. The PDF keeps its bookmarks, links and form fields. |
 
 **Web UI:** each operation also has a dedicated, bilingual (DE/EN) page —
 `/pdf/split`, `/pdf/extract`, `/pdf/compress`, `/pdf/insert` — ungated, same

@@ -353,7 +353,21 @@ reject the result. `app/core/image_hardening.py` flips the
 in the codebase fails fast. The /convert and /compress route handlers
 catch the error specifically and return HTTP 400 with
 `X-FileMorph-Error-Code: decompression_bomb`, distinct from the
-generic 500 the catch-all handler would otherwise emit. The per-tier
+generic 500 the catch-all handler would otherwise emit. Pillow checks
+only the first page of a multi-page TIFF on opening; the pages of one
+are all decoded for compressing it, converting it to PDF or TIFF or
+inserting it into a PDF, so
+`strip_pages` (`app/converters/_metadata.py`) checks each page's size
+before decoding it and refuses a TIFF whose pages together take more
+memory than one colour image at the same limit (a black-and-white or
+grey page a quarter of a colour one; a page without width or height is
+damaged), that has more than 1 000
+pages, or whose pages take longer than 15 seconds to read — a crafted
+file can make every page header slow to parse, which no page or pixel
+count catches (`400`, `tiff_too_large`). A page whose header or pixels
+can't be read is a `400` (`invalid_input`) — not a server error, and not
+fewer pages without a word; only a pointer to a next page past the end
+of the file (a scanner's stray pointer) ends it quietly. The per-tier
 output cap (see "Output Bandwidth Guards") remains in place as a
 defence-in-depth second layer for any pathological input that passes
 the pixel check but produces an oversized output.
