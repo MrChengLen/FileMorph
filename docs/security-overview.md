@@ -419,9 +419,12 @@ itself the first process the kernel stops when the host runs short of memory.
 Then it starts ffmpeg or ffprobe, which keeps all of that. ffmpeg's decoders,
 encoders and filters use 2 threads each, so the memory a conversion takes
 doesn't grow with the host's CPU count. Like the other child processes, both
-get the environment without application secrets and read no stdin.
-`tests/test_media_limits.py` pins the limits, the environment and how each
-way a run stops comes back to the caller.
+get the environment without application secrets and read no stdin. The error
+output the app reads back from them is bounded — the start and the end are
+kept (they carry the message the caller needs) and the middle is dropped — so
+a file that makes the tools log a great deal does not grow the app's own
+memory. `tests/test_media_limits.py` pins the limits, the environment and how
+each way a run stops comes back to the caller.
 
 ### Historical findings addressed in this area
 

@@ -196,7 +196,7 @@ def _fake_ffprobe(monkeypatch, payload: dict, *, returncode=0, stderr=b"") -> li
         return _Result()
 
     monkeypatch.setattr(ffmpeg_mod.shutil, "which", lambda _: "ffprobe")
-    monkeypatch.setattr(ffmpeg_mod.subprocess, "run", fake_run)
+    monkeypatch.setattr(ffmpeg_mod, "_exec", fake_run)
     return calls
 
 

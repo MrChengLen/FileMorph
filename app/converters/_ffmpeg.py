@@ -44,6 +44,7 @@ import shutil
 import signal
 import subprocess
 import sys
+import threading
 import time
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -450,6 +451,104 @@ def run_ffmpeg(
     _raise_on_failure("ffmpeg", result)
 
 
+# How much of a child's output is read into the app process. ffmpeg logs at
+# least one line per corrupt packet, so a file that makes it log a great deal
+# could otherwise grow the app's memory inside the time limit. _raise_on_failure
+# keys off the return code and a few stderr markers, which ffmpeg writes either
+# when it opens the input ("not on whitelist" → in the head) or just before it
+# aborts (out of memory / over the pixel limit → in the tail), plus the last 500
+# characters it shows only with APP_DEBUG; keeping the head and the tail covers
+# all of them, so the middle is dropped. ffprobe writes the small JSON we asked
+# for to stdout; ffmpeg writes its result to a file, not stdout.
+_STDERR_HEAD_BYTES = 64 * 1024
+_STDERR_TAIL_BYTES = 64 * 1024
+_STDOUT_MAX_BYTES = 8 * 1024 * 1024
+
+
+def _read_capped(stream, keep_head: int, keep_tail: int) -> bytes:
+    """Drain ``stream`` to EOF, keeping at most ``keep_head`` bytes from the
+    start and ``keep_tail`` from the end.
+
+    The middle is still read — so the child never blocks on a full pipe — but
+    dropped, so the amount held in memory is bounded however much the child
+    writes. A gap marker is inserted only when bytes were actually dropped, so
+    output that fits comes back whole.
+    """
+    head = bytearray()
+    tail = bytearray()
+    dropped = False
+    for chunk in iter(lambda: stream.read(65536), b""):
+        if len(head) < keep_head:
+            take = keep_head - len(head)
+            head += chunk[:take]
+            chunk = chunk[take:]
+        if not chunk:
+            continue
+        if keep_tail <= 0:
+            dropped = True
+            continue
+        tail += chunk
+        if len(tail) > keep_tail:
+            dropped = True
+            del tail[: len(tail) - keep_tail]
+    if dropped and tail:
+        return bytes(head) + b"\n[... output truncated ...]\n" + bytes(tail)
+    return bytes(head) + bytes(tail)
+
+
+def _exec(cmd: list[str], *, timeout: float, env: dict[str, str]) -> subprocess.CompletedProcess:
+    """Run ``cmd`` with no stdin, capturing a bounded amount of its output
+    within ``timeout`` (:func:`_read_capped`).
+
+    The two pipes are drained in their own threads, so the child never blocks
+    on a full pipe while ``wait`` counts down. Raises
+    :class:`subprocess.TimeoutExpired`, after killing the process, when the time
+    is up — :func:`_run` turns that into the caller-facing error.
+    """
+    captured: dict[str, bytes] = {}
+
+    def pump(name: str, stream, keep_head: int, keep_tail: int) -> None:
+        try:
+            captured[name] = _read_capped(stream, keep_head, keep_tail)
+        except (ValueError, OSError):
+            # The stream was closed from under the reader (a reader that
+            # outlived its join on the kill path); the caller falls back to b"".
+            pass
+
+    with subprocess.Popen(  # noqa: S603 — the program from PATH, our own arguments, no shell
+        cmd,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        env=env,
+    ) as proc:
+        readers = [
+            threading.Thread(
+                target=pump, args=("stdout", proc.stdout, _STDOUT_MAX_BYTES, 0), daemon=True
+            ),
+            threading.Thread(
+                target=pump,
+                args=("stderr", proc.stderr, _STDERR_HEAD_BYTES, _STDERR_TAIL_BYTES),
+                daemon=True,
+            ),
+        ]
+        for reader in readers:
+            reader.start()
+        try:
+            proc.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait()
+            for reader in readers:
+                reader.join(timeout=5)
+            raise
+        for reader in readers:
+            reader.join(timeout=5)
+    return subprocess.CompletedProcess(
+        cmd, proc.returncode, captured.get("stdout", b""), captured.get("stderr", b"")
+    )
+
+
 def _run(
     tool: str, args: list[str], *, timeout: float | None, max_output_bytes: int | None = None
 ) -> subprocess.CompletedProcess:
@@ -493,14 +592,7 @@ def _run(
     env["MALLOC_ARENA_MAX"] = "2"
     env[PARENT_PID_ENV] = str(os.getpid())  # the process the program ends with
     try:
-        return subprocess.run(  # noqa: S603 — the program from PATH, our own arguments, no shell
-            cmd,
-            stdin=subprocess.DEVNULL,
-            capture_output=True,
-            timeout=timeout,
-            check=False,
-            env=env,
-        )
+        return _exec(cmd, timeout=timeout, env=env)
     except subprocess.TimeoutExpired:
         logger.info("%s: stopped after %.0f s", tool, timeout)
         # Less than four fifths of the request's time were left when it

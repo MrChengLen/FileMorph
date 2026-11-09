@@ -442,7 +442,8 @@ def test_tool_errors_quote_stderr_only_with_app_debug(monkeypatch, tmp_path, deb
     from app.converters import _ffmpeg, _ghostscript, document
 
     monkeypatch.setattr(settings, "app_debug", debug)
-    monkeypatch.setattr(subprocess, "run", _failed_run)
+    monkeypatch.setattr(subprocess, "run", _failed_run)  # ghostscript's path
+    monkeypatch.setattr(_ffmpeg, "_exec", _failed_run)  # ffmpeg's bounded-capture seam
     monkeypatch.setattr(document, "_run_soffice", _failed_run)
     monkeypatch.setattr(shutil, "which", lambda name: f"/usr/bin/{name}")
     monkeypatch.setattr(_ghostscript, "_GS_BINARY", "gs")

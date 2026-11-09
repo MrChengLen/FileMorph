@@ -12,12 +12,14 @@ ffmpeg on PATH; CI has both.
 
 from __future__ import annotations
 
+import io
 import os
 import re
 import select
 import signal
 import subprocess
 import sys
+import time
 from unittest.mock import MagicMock
 
 import ffmpeg
@@ -83,7 +85,7 @@ def test_on_linux_ffmpeg_starts_with_its_limits_and_without_secrets(
     monkeypatch.setattr(_ffmpeg.os, "cpu_count", lambda: 4)
     monkeypatch.setenv("JWT_SECRET", "not-for-ffmpeg")
     seen: dict = {}
-    monkeypatch.setattr(_ffmpeg.subprocess, "run", _fake_run(seen=seen))
+    monkeypatch.setattr(_ffmpeg, "_exec", _fake_run(seen=seen))
     _ffmpeg.run_ffmpeg(_stream(), max_output_bytes=cap)
     cmd = seen["cmd"]
     file_bytes = _ffmpeg._FILE_LIMIT_BYTES if cap is None else cap
@@ -99,7 +101,6 @@ def test_on_linux_ffmpeg_starts_with_its_limits_and_without_secrets(
     assert "JWT_SECRET" not in seen["env"]
     assert seen["env"]["MALLOC_ARENA_MAX"] == "2"
     assert seen["env"][PARENT_PID_ENV] == str(os.getpid())
-    assert seen["stdin"] is subprocess.DEVNULL
     assert seen["timeout"] == 85
 
 
@@ -107,7 +108,7 @@ def test_elsewhere_ffmpeg_starts_directly_and_without_secrets(monkeypatch, ffmpe
     monkeypatch.setattr(_ffmpeg.sys, "platform", "win32")
     monkeypatch.setenv("JWT_SECRET", "not-for-ffmpeg")
     seen: dict = {}
-    monkeypatch.setattr(_ffmpeg.subprocess, "run", _fake_run(seen=seen))
+    monkeypatch.setattr(_ffmpeg, "_exec", _fake_run(seen=seen))
     _ffmpeg.run_ffmpeg(_stream())
     assert seen["cmd"][0] == "/usr/bin/ffmpeg"
     assert "JWT_SECRET" not in seen["env"]
@@ -115,7 +116,7 @@ def test_elsewhere_ffmpeg_starts_directly_and_without_secrets(monkeypatch, ffmpe
 
 def test_the_runs_of_a_request_share_its_time_limit(monkeypatch, ffmpeg_on_path, clock):
     seen: dict = {}
-    monkeypatch.setattr(_ffmpeg.subprocess, "run", _fake_run(seen=seen))
+    monkeypatch.setattr(_ffmpeg, "_exec", _fake_run(seen=seen))
     with _ffmpeg.media_time_limit():
         clock.now += 30
         _ffmpeg.run_ffmpeg(_stream())
@@ -142,7 +143,7 @@ def test_a_run_out_of_time_names_the_next_step(monkeypatch, ffmpeg_on_path, cloc
     def time_out(cmd, **kwargs):
         raise subprocess.TimeoutExpired(cmd, kwargs["timeout"])
 
-    monkeypatch.setattr(_ffmpeg.subprocess, "run", time_out)
+    monkeypatch.setattr(_ffmpeg, "_exec", time_out)
     with _ffmpeg.media_time_limit():
         clock.now += used
         with pytest.raises(InvalidInputError, match=message):
@@ -189,7 +190,7 @@ _LONG_REFUSAL = (
 def test_each_way_ffmpeg_stops_comes_back_as_its_error(
     monkeypatch, ffmpeg_on_path, clock, returncode, stderr, error, message
 ):
-    monkeypatch.setattr(_ffmpeg.subprocess, "run", _fake_run(returncode, stderr))
+    monkeypatch.setattr(_ffmpeg, "_exec", _fake_run(returncode, stderr))
     with pytest.raises(error) as excinfo:
         _ffmpeg.run_ffmpeg(_stream())
     assert type(excinfo.value) is error
@@ -225,7 +226,7 @@ def test_the_files_of_a_batch_share_its_time_limit(
         clock.now += 85
         raise subprocess.TimeoutExpired(cmd, kwargs["timeout"])
 
-    monkeypatch.setattr(_ffmpeg.subprocess, "run", run_out_of_time)
+    monkeypatch.setattr(_ffmpeg, "_exec", run_out_of_time)
     files = [("files", (name, b"\x00" * 64, "application/octet-stream")) for name in names]
     res = client.post(route, headers=auth_headers, files=files, data=data)
     assert res.status_code == 422, res.text  # no file converted
@@ -248,7 +249,7 @@ def test_a_file_out_of_time_gets_a_400_with_the_next_step(
     def time_out(cmd, **kwargs):
         raise subprocess.TimeoutExpired(cmd, kwargs["timeout"])
 
-    monkeypatch.setattr(_ffmpeg.subprocess, "run", time_out)
+    monkeypatch.setattr(_ffmpeg, "_exec", time_out)
     files = {"file": (name, b"\x00" * 64, "application/octet-stream")}
     res = client.post(route, headers=auth_headers, files=files, data=data)
     assert res.status_code == 400
@@ -261,7 +262,7 @@ def test_a_compressed_video_past_the_output_cap_is_a_413(
     client, auth_headers, monkeypatch, ffmpeg_on_path, clock, free_user
 ):
     seen: dict = {}
-    monkeypatch.setattr(_ffmpeg.subprocess, "run", _fake_run(-25, seen=seen))  # SIGXFSZ
+    monkeypatch.setattr(_ffmpeg, "_exec", _fake_run(-25, seen=seen))  # SIGXFSZ
     monkeypatch.setattr(_ffmpeg.sys, "platform", "linux")
     upload = ("a.mp4", b"\x00" * 64, "video/mp4")
     res = client.post("/api/v1/compress", headers=auth_headers, files={"file": upload})
@@ -503,3 +504,66 @@ def test_cover_art_over_the_pixel_limit_does_not_hide_the_output_cap(tmp_path):
         get_converter("mp3", "wav").convert(
             source, tmp_path / "out.wav", quality=85, max_output_bytes=100_000
         )
+
+
+# ── bounded capture of a child's output (app/converters/_ffmpeg.py) ──────────
+# ffmpeg logs one error line per corrupt packet, so a crafted file could make
+# stderr grow without bound inside the time limit; _read_capped/_exec keep only
+# the head and the tail, so the app process's memory stays bounded. These need
+# no ffmpeg: _read_capped is pure, _exec runs a short Python child.
+
+
+def test_read_capped_returns_small_output_whole():
+    assert _ffmpeg._read_capped(io.BytesIO(b"short stderr"), 64, 64) == b"short stderr"
+    # Head and tail together still cover it: no gap, no marker.
+    assert _ffmpeg._read_capped(io.BytesIO(b"a" * 120), 64, 64) == b"a" * 120
+
+
+def test_read_capped_keeps_head_and_tail_and_bounds_the_middle():
+    data = b"HEAD" + b"x" * (5 * 1024 * 1024) + b"TAIL"
+    out = _ffmpeg._read_capped(io.BytesIO(data), 1024, 1024)
+    assert out.startswith(b"HEAD")
+    assert out.endswith(b"TAIL")
+    assert b"[... output truncated ...]" in out
+    assert len(out) < 4096  # bounded, not the 5 MB it was handed
+
+
+def test_read_capped_head_only_drops_the_rest():
+    out = _ffmpeg._read_capped(io.BytesIO(b"K" * (1024 * 1024)), 1000, 0)
+    assert out == b"K" * 1000  # only the head, no tail, no marker
+
+
+def _python_child(code: str) -> list[str]:
+    return [sys.executable, "-I", "-c", code]
+
+
+def test_exec_bounds_a_flood_of_stderr():
+    # Far more stderr than _raise_on_failure needs: only the head and tail reach
+    # the app process, bounded by the caps whatever the child writes.
+    code = (
+        "import sys;"
+        "sys.stderr.buffer.write(b'HEAD_MARK' + b'E' * (5 * 1024 * 1024) + b'TAIL_MARK');"
+        "sys.exit(3)"
+    )
+    result = _ffmpeg._exec(_python_child(code), timeout=30, env=os.environ.copy())
+    assert result.returncode == 3
+    assert result.stderr.startswith(b"HEAD_MARK")
+    assert result.stderr.endswith(b"TAIL_MARK")
+    assert b"[... output truncated ...]" in result.stderr
+    assert len(result.stderr) < _ffmpeg._STDERR_HEAD_BYTES + _ffmpeg._STDERR_TAIL_BYTES + 1024
+
+
+def test_exec_captures_stdout_and_gives_the_child_no_stdin():
+    code = "import sys; sys.stdout.write('STDIN[' + sys.stdin.read() + ']')"
+    result = _ffmpeg._exec(_python_child(code), timeout=30, env=os.environ.copy())
+    assert result.returncode == 0
+    assert result.stdout == b"STDIN[]"  # stdin is DEVNULL, so read() sees EOF
+
+
+def test_exec_kills_a_child_that_overruns_its_timeout():
+    started = time.monotonic()
+    with pytest.raises(subprocess.TimeoutExpired):
+        _ffmpeg._exec(
+            _python_child("import time; time.sleep(60)"), timeout=1, env=os.environ.copy()
+        )
+    assert time.monotonic() - started < 20  # killed, not waited out
