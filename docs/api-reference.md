@@ -538,7 +538,7 @@ source format, and only seven of them are shown here.
     "docx": ["pdf", "txt"],
     "txt": ["pdf"],
     "csv": ["xlsx", "json"],
-    "mp4": ["avi", "mov", "mkv", "webm", "flv", "wmv", "gif", "mp3", "m4a", "wav", "flac", "ogg", "aac"],
+    "mp4": ["avi", "mov", "mkv", "webm", "flv", "wmv", "gif", "mp3", "m4a", "wav", "flac", "ogg", "aac", "opus", "wma"],
     "mp3": ["wav", "flac", "ogg", "m4a", "aac", "wma", "opus"]
   },
   "compression": {

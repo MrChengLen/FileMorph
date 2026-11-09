@@ -165,7 +165,7 @@ async def llms_txt() -> str:
         "CSV, JSON), audio (MP3, WAV, FLAC, OGG, M4A, AAC, WMA, Opus) and video (MP4, "
         "MOV, AVI, MKV, WebM, FLV, WMV). "
         "It turns short video clips (up to 30 seconds) into animated GIFs, and "
-        "saves the sound of a video as MP3, M4A, WAV, FLAC, OGG or AAC. "
+        "saves the sound of a video as MP3, M4A, WAV and other audio formats. "
         "It can compress JPEG, WebP and AVIF images to at most a target size: it "
         "searches for the best quality that fits and scales an image down if even "
         "the lowest quality is too big. Files are processed server-side and "
