@@ -228,6 +228,8 @@ Reduce a file's size by re-encoding at a lower quality, keeping the same format.
 
 **Response**: `200 OK` — the compressed file as a download (same format, `_compressed` suffix in filename).
 
+Never larger than the original: when the result of a JPEG, PNG or WebP is not smaller than the upload (a photo compressed harder already), the response is the original instead, with its metadata cut out and `X-FileMorph-Warnings: original=kept`. The file is put together anew from the parts of the picture: the coded image data is copied unchanged (not re-encoded), EXIF, XMP, IPTC, comments, thumbnails and other parts are left out (a file with a part that can't be judged keeps the re-encode); the colour profile and a JPEG's orientation stay. With `target_size_kb` that happens only if the original fits the target; then `X-FileMorph-Achieved-Bytes` is its size and `X-FileMorph-Final-Quality` is absent. A PNG or WebP that is turned (EXIF orientation) or animated, TIFF, AVIF and video keep the re-encode.
+
 When `target_size_kb` is set, the response also carries:
 
 | Header | Description |
@@ -235,9 +237,9 @@ When `target_size_kb` is set, the response also carries:
 | `X-FileMorph-Achieved-Bytes` | Actual output size in bytes |
 | `X-FileMorph-Final-Quality` | Quality value the search settled on (1–100) |
 | `X-FileMorph-Converged` | `true` if the output is at most the target, else `false` |
-| `X-FileMorph-Warnings` | Only when the image was scaled down or the target can't be reached — see [Target-size notes](#target-size-notes) |
+| `X-FileMorph-Warnings` | Only when the image was scaled down, the target can't be reached, or the original came back (`original=kept`) — see [Target-size notes](#target-size-notes) |
 
-The target is an upper bound: the result is the best quality whose output is at most `target_size_kb`, never above it (an image that already fits at quality 95 is returned at 95). If even quality `1` is too big, the image is scaled down — to where a good quality fits — and searched again; `X-FileMorph-Warnings: resized=<w>x<h>` names the new pixel size. Only an image whose smallest size — short edge 16 px, quality `1` — still doesn't fit (one carrying a large colour profile, say) stays above the target: then it comes back unscaled at quality `1`, with `X-FileMorph-Converged: false` and `target=missed`.
+The target is an upper bound: the result is the best quality whose output is at most `target_size_kb`, never above it (an image that already fits at quality 95 is returned at 95 — or as the original, if that is smaller: `original=kept`). If even quality `1` is too big, the image is scaled down — to where a good quality fits — and searched again; `X-FileMorph-Warnings: resized=<w>x<h>` names the new pixel size. The image's colour profile (ICC) stays in the result and counts toward the target; one that would take more than a quarter of the target is dropped instead. Only an image whose smallest size — short edge 16 px, quality `1` — still doesn't fit stays above the target: then it comes back unscaled at quality `1`, with `X-FileMorph-Converged: false` and `target=missed`.
 
 **Example — Compress a JPG to 70% quality**
 ```bash
@@ -536,7 +538,7 @@ source format, and only seven of them are shown here.
     "docx": ["pdf", "txt"],
     "txt": ["pdf"],
     "csv": ["xlsx", "json"],
-    "mp4": ["avi", "mov", "mkv", "webm", "flv", "wmv", "gif", "mp3", "m4a", "wav", "flac", "ogg", "aac"],
+    "mp4": ["avi", "mov", "mkv", "webm", "flv", "wmv", "gif", "mp3", "m4a", "wav", "flac", "ogg", "aac", "opus", "wma"],
     "mp3": ["wav", "flac", "ogg", "m4a", "aac", "wma", "opus"]
   },
   "compression": {
@@ -601,7 +603,7 @@ Every successful conversion / compression carries integrity and classification m
 | `X-FileMorph-Error-Code` | A fixed code for the reason of an error (see [Error codes](#error-codes)) | the error responses listed there |
 | `X-FileMorph-Error-Field` | The form field an error is about: `file`, `insert_file` or `after_page` | `/pdf/insert` errors about one of its inputs |
 | `X-FileMorph-Inserted-Pages`, `X-FileMorph-Page-Count` | Pages inserted, and the result's page count | every `200` from `/pdf/insert`; `X-FileMorph-Page-Count` also carries the PDF's page count on `invalid_position` |
-| `X-FileMorph-Warnings` | Comma-separated `key=value` tokens (see [Conversion warnings](#conversion-warnings) and [Target-size notes](#target-size-notes)) | `/convert` DOCX → PDF, when the layout had to be simplified; `/compress` with `target_size_kb`, when the image was scaled down or the target can't be reached; `/pdf/compress`, when the images were scaled down |
+| `X-FileMorph-Warnings` | Comma-separated `key=value` tokens (see [Conversion warnings](#conversion-warnings) and [Target-size notes](#target-size-notes)) | `/convert` DOCX → PDF, when the layout had to be simplified; `/compress`, when the original came back (`original=kept`), and with `target_size_kb` when the image was scaled down or the target can't be reached; `/pdf/compress`, when the images were scaled down |
 | `Retry-After` | Seconds the client should wait before retrying | on `503 Service Unavailable` (global concurrency cap) and on every `429` except the rate limiter's (slowapi, see Rate Limiting) — e.g. the per-tier concurrency cap and the monthly call quota |
 
 The `X-Data-Classification` value is also written to the audit-log entry for the request, so a downstream auditor can answer "what classification of data was processed in this call" from the database alone (see `app/core/audit.py`).
@@ -680,15 +682,18 @@ The engine routing is described in [`formats.md`](formats.md#notes-on-docx--pdf)
 
 ### Target-size notes
 
-`/compress` (with `target_size_kb`) and `/pdf/compress` add these tokens to
+`/compress` and `/pdf/compress` add these tokens to
 `X-FileMorph-Warnings`; `/compress/batch` lists them per file in
 `X-FileMorph-Batch-Notes` and in `manifest.json`:
 
-- `resized=<w>x<h>` — `/compress`: not even quality 1 fit, so the image was
-  scaled down to `<w>` × `<h>` pixels.
-- `target=missed` — `/compress`: not even the smallest size (short edge
-  16 px, quality 1) fits, so the image comes back unscaled at quality 1,
-  still larger than the target.
+- `original=kept` — `/compress`, with or without `target_size_kb`: the
+  result would not have been smaller than the upload, so the original came
+  back with its metadata cut out (JPEG, PNG, WebP).
+- `resized=<w>x<h>` — `/compress` with `target_size_kb`: not even quality 1
+  fit, so the image was scaled down to `<w>` × `<h>` pixels.
+- `target=missed` — `/compress` with `target_size_kb`: not even the smallest
+  size (short edge 16 px, quality 1) fits, so the image comes back unscaled
+  at quality 1, still larger than the target.
 - `scaled=<percent>` — `/pdf/compress`: not even the lowest quality fit, so the
   embedded images were scaled down to `<percent>` % of their resolution. They
   keep their place and size on the page.

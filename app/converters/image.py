@@ -5,7 +5,7 @@ from pathlib import Path
 
 from PIL import Image
 
-from app.converters._metadata import strip_metadata
+from app.converters._metadata import icc_for, strip_metadata
 from app.converters.base import BaseConverter
 from app.converters.registry import register
 from app.core.image_hardening import open_image
@@ -107,7 +107,11 @@ class _ImageConverter(BaseConverter):
         elif pil_fmt in ("BMP", "GIF", "ICO", "TIFF"):
             img.save(output_path, format=pil_fmt)
         else:
-            img.save(output_path, format=pil_fmt, quality=quality, optimize=True)
+            # JPEG, WebP, AVIF. JPEG and WebP write the colour profile that
+            # strip_metadata kept only when passed it; without it an iPhone
+            # photo (Display P3) turns dull.
+            icc = icc_for(img, pil_fmt)
+            img.save(output_path, format=pil_fmt, quality=quality, optimize=True, icc_profile=icc)
 
         return output_path
 

@@ -24,7 +24,7 @@ import pytest
 from PIL import Image, ImageCms, ImageDraw
 
 from app.compressors.image import _PIL_FORMAT, _encode_to_bytes, compress_image
-from app.converters._metadata import strip_metadata
+from app.converters._metadata import ICC_MAX_BYTES, strip_metadata
 from app.core.image_hardening import open_image
 
 APP_JS = (Path(__file__).resolve().parent.parent / "app" / "static" / "js" / "app.js").read_text(
@@ -64,12 +64,21 @@ def probe_pixels(size: int) -> bytes:
 
 
 def jpeg_info(data: bytes) -> dict | None:
-    """What jpegInfo should say: the APPn bytes up to the scan and the frame
-    header's fields — or None when no frame and scan follow, or the frame
-    header comes twice or misshapen."""
+    """What jpegInfo should say: the APPn bytes up to the scan, the frame
+    header's fields and the colour profile as Pillow reads it — or None when
+    no frame and scan follow, or the frame header comes twice or misshapen."""
     if data[:2] != b"\xff\xd8":
         return None
-    info = {"appBytes": 0, "precision": 0, "width": 0, "height": 0, "components": 0}
+    info = {
+        "appBytes": 0,
+        "precision": 0,
+        "width": 0,
+        "height": 0,
+        "components": 0,
+        "iccBytes": 0,
+        "iccSpace": "",
+    }
+    icc = []
     frame = False
     pos = 2
     while pos + 4 <= len(data):
@@ -77,6 +86,8 @@ def jpeg_info(data: bytes) -> dict | None:
         length = int.from_bytes(data[pos + 2 : pos + 4], "big")
         if 0xE0 <= marker <= 0xEF:
             info["appBytes"] += length + 2
+        if marker == 0xE2 and not frame and data[pos + 4 : pos + 16] == b"ICC_PROFILE\x00":
+            icc.append((data[pos + 16], data[pos + 17], pos + 18, length - 16))
         if 0xC0 <= marker <= 0xCF and marker not in (0xC4, 0xC8, 0xCC):
             if frame or length != 8 + 3 * data[pos + 9]:
                 return None
@@ -86,9 +97,34 @@ def jpeg_info(data: bytes) -> dict | None:
             info["width"] = int.from_bytes(data[pos + 7 : pos + 9], "big")
             info["components"] = data[pos + 9]
         if marker == 0xDA:
-            return info if frame else None
+            if not frame:
+                return None
+            icc.sort(key=lambda part: (part[0], part[1]))
+            if icc and icc[0][1] == len(icc):
+                info["iccBytes"] = sum(part[3] for part in icc)
+                if icc[0][3] >= 20 and icc[0][2] + 20 <= len(data):
+                    info["iccSpace"] = data[icc[0][2] + 16 : icc[0][2] + 20].decode("latin-1")
+            return info
         pos += length + 2
     return None
+
+
+def pillow_icc_bytes(icc_len: int) -> int:
+    """APP2 bytes the server writes for a profile: 18 per piece of 65 519 —
+    none for one over ICC_MAX_BYTES, which strip_metadata drops."""
+    if not icc_len or icc_len > ICC_MAX_BYTES:
+        return 0
+    return icc_len + 18 * -(-icc_len // 65519)
+
+
+def _profile(space: bytes = b"RGB ", size: int = 0) -> bytes:
+    """A real sRGB profile, or a stand-in of ``size`` bytes for another
+    colour space (only the header's colour space matters here)."""
+    if space == b"RGB " and not size:
+        return ImageCms.ImageCmsProfile(ImageCms.createProfile("sRGB")).tobytes()
+    raw = bytearray((bytes(range(256)) * (size // 256 + 1))[:size])
+    raw[16:20] = space
+    return bytes(raw)
 
 
 def _photo(width: int = 160, height: int = 120) -> Image.Image:
@@ -227,7 +263,11 @@ def test_only_a_proven_encoder_gets_a_number():
     assert body.index("estimateProbeMatches(quality)") < body.index("decodeForEstimate(")
     assert "if (!matches) { showSizeEstimate('browser'); return; }" in body
     assert "blob.type === 'image/jpeg'" in body
-    assert "blob.size - out.appBytes + ESTIMATE_PILLOW_APP_BYTES" in body
+    assert (
+        "const after = blob.size - out.appBytes + ESTIMATE_PILLOW_APP_BYTES + "
+        "estimateSource.iccBytes;"
+    ) in body
+    assert "estimateSource = { file, canvas, iccBytes: pillowIccBytes(info) };" in body
     probe = _function("estimateProbeMatches")
     assert "blob.type !== 'image/jpeg'" in probe, "Safari answers an unknown type with a PNG"
     assert "blob.size - info.appBytes === ESTIMATE_PROBE_BYTES[quality - 1]" in probe
@@ -292,22 +332,28 @@ def test_compress_image_writes_the_probes_bytes(tmp_path):
         assert out.read_bytes() == expected
 
 
-def test_the_server_keeps_only_its_jfif_header(tmp_path):
-    """ESTIMATE_PILLOW_APP_BYTES: whatever APPn segments the original has —
-    EXIF, a colour profile — the compressed JPEG keeps only the 18-byte JFIF
-    header. Should the server start keeping the colour profile, the estimate
-    must add its bytes."""
-    icc = ImageCms.ImageCmsProfile(ImageCms.createProfile("sRGB")).tobytes()
+@pytest.mark.parametrize(
+    "icc",
+    [None, _profile(), _profile(b"RGB ", 70_144), _profile(b"GRAY", 600)],
+    ids=["none", "srgb", "two-pieces", "grey-profile"],
+)
+def test_the_server_keeps_its_jfif_header_and_the_colour_profile(tmp_path, icc):
+    """ESTIMATE_PILLOW_APP_BYTES + pillowIccBytes: of the original's APPn
+    segments — EXIF, a colour profile — the compressed JPEG keeps the 18-byte
+    JFIF header and an RGB colour profile in pieces of 65 519 bytes. A profile
+    for other pixels (here greyscale on RGB) goes (strip_metadata)."""
     exif = Image.Exif()
     exif[0x0112] = 6  # orientation: turned
     src = tmp_path / "src.jpg"
-    _photo().save(src, format="JPEG", quality=90, icc_profile=icc, exif=exif)
-    assert jpeg_info(src.read_bytes())["appBytes"] > 18 + len(icc)
+    options = {"icc_profile": icc} if icc else {}
+    _photo().save(src, format="JPEG", quality=90, exif=exif, **options)
     out = tmp_path / "out.jpg"
     compress_image(src, out, quality=70)
-    assert (
-        jpeg_info(out.read_bytes())["appBytes"] == 18 == _js_constant("ESTIMATE_PILLOW_APP_BYTES")
-    )
+    kept = icc if icc and icc[16:20] == b"RGB " else None
+    expected = _js_constant("ESTIMATE_PILLOW_APP_BYTES") + pillow_icc_bytes(len(kept or b""))
+    assert jpeg_info(out.read_bytes())["appBytes"] == expected
+    with Image.open(out) as result:
+        assert result.info.get("icc_profile") == kept
 
 
 def _sample_jpegs(tmp_path: Path) -> dict[str, Path]:
@@ -318,7 +364,8 @@ def _sample_jpegs(tmp_path: Path) -> dict[str, Path]:
     samples = {
         "plain": (photo, {}),
         "icc": (photo, {"icc_profile": icc}),
-        "icc_two_chunks": (photo, {"icc_profile": bytes(range(256)) * 274}),
+        "icc_two_chunks": (photo, {"icc_profile": _profile(b"RGB ", 70_144)}),
+        "icc_grey_profile": (photo, {"icc_profile": _profile(b"GRAY", 600)}),
         "exif": (photo, {"exif": exif}),
         "progressive": (photo, {"progressive": True}),
         "grey": (photo.convert("L"), {}),
@@ -344,6 +391,14 @@ def _sample_jpegs(tmp_path: Path) -> dict[str, Path]:
     for name, data in broken.items():
         (tmp_path / f"{name}.jpg").write_bytes(data)
         paths[name] = tmp_path / f"{name}.jpg"
+    # The colour profile's segment moved behind the frame header: Pillow puts
+    # the profile together at the frame header, so this one doesn't count.
+    with_icc = paths["icc"].read_bytes()
+    app2 = _segment_offset(with_icc, 0xE2)
+    segment = with_icc[app2 : app2 + 2 + int.from_bytes(with_icc[app2 + 2 : app2 + 4], "big")]
+    sof_end = sof + 2 + int.from_bytes(whole[sof + 2 : sof + 4], "big")
+    (tmp_path / "icc_after_sof.jpg").write_bytes(whole[:sof_end] + segment + whole[sof_end:])
+    paths["icc_after_sof"] = tmp_path / "icc_after_sof.jpg"
     return paths
 
 
@@ -362,7 +417,8 @@ _RUNNER = """
 const files = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
 const out = { probe: Buffer.from(estimateProbePixels(64)).toString('hex') };
 for (const [name, path] of Object.entries(files)) {
-  out[name] = jpegInfo(new Uint8Array(fs.readFileSync(path)));
+  const info = jpegInfo(new Uint8Array(fs.readFileSync(path)));
+  out[name] = { info, icc: info ? pillowIccBytes(info) : null };
 }
 process.stdout.write(JSON.stringify(out));
 """
@@ -377,10 +433,19 @@ def test_the_js_helpers_match_python(tmp_path):
     assert NODE, "CI must run the JS helpers; Node is on the runners"
     paths = _sample_jpegs(tmp_path)
     script = tmp_path / "run.js"
+    icc_mark = re.search(r"^const ICC_MARK = \[[^\]]*\];", APP_JS, re.MULTILINE)
+    assert icc_mark, "const ICC_MARK missing from app.js"
+    icc_max = re.search(r"^const ICC_MAX_BYTES = 1 << (\d+);", APP_JS, re.MULTILINE)
+    assert icc_max and 1 << int(icc_max.group(1)) == ICC_MAX_BYTES, "mirror ICC_MAX_BYTES"
     script.write_text(
         "const fs = require('fs');\n"
+        + icc_mark.group(0)
+        + "\n"
+        + icc_max.group(0)
+        + "\n"
         + _function("estimateProbePixels")
         + _function("jpegInfo")
+        + _function("pillowIccBytes")
         + _RUNNER,
         encoding="utf-8",
         newline="\n",
@@ -404,20 +469,29 @@ def test_the_js_helpers_match_python(tmp_path):
     assert set(rgba[3::4]) == {255}
 
     for name in BROKEN:
-        assert result[name] is None, name
+        assert result[name]["info"] is None, name
         assert jpeg_info(paths[name].read_bytes()) is None, name
     components = {"RGB": 3, "L": 1, "CMYK": 4}
     for name, path in paths.items():
         if name in BROKEN:
             continue
-        data = path.read_bytes()
-        assert result[name] == jpeg_info(data), name
+        info = result[name]["info"]
+        assert info == jpeg_info(path.read_bytes()), name
         with Image.open(path) as img:
-            assert (result[name]["width"], result[name]["height"]) == img.size, name
-            assert result[name]["components"] == components[img.mode], name
-            assert result[name]["precision"] == 8, name
-    assert result["icc_two_chunks"]["appBytes"] > 70_000
-    assert result["icc"]["appBytes"] > result["plain"]["appBytes"]
+            assert (info["width"], info["height"]) == img.size, name
+            assert info["components"] == components[img.mode], name
+            assert info["precision"] == 8, name
+            assert info["iccBytes"] == len(img.info.get("icc_profile") or b""), name
+        if info["components"] == 3:
+            # The profile bytes the estimate adds are the ones the server writes.
+            out = tmp_path / f"server-{name}.jpg"
+            compress_image(path, out, quality=70)
+            server_app = jpeg_info(out.read_bytes())["appBytes"]
+            assert result[name]["icc"] == server_app - 18, name
+    assert result["icc_after_sof"]["icc"] == 0
+    assert result["icc_two_chunks"]["icc"] == 70_144 + 2 * 18
+    assert result["icc_grey_profile"]["icc"] == 0
+    assert result["icc"]["icc"] > 0
 
 
 # ── Lossless formats ─────────────────────────────────────────────────────────

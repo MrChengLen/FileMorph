@@ -46,7 +46,7 @@ VIDEO_AUDIO_CONTENT: dict[str, dict] = {
             (
                 "Choose your video",
                 "MP4, MOV, AVI, MKV, WebM, FLV or WMV. MP3 is pre-set; M4A, WAV, FLAC, "
-                "OGG and AAC are in the list.",
+                "OGG, AAC, Opus and WMA are in the list.",
             ),
             (
                 "Server saves the sound",
@@ -71,7 +71,9 @@ VIDEO_AUDIO_CONTENT: dict[str, dict] = {
                 "MP3 plays everywhere. M4A (AAC) sounds better at the same size and is "
                 "Apple's default. WAV and FLAC add no further loss, for editing — both "
                 "are several times the size of an MP3 (WAV uncompressed, FLAC "
-                "compressed without loss). OGG is an open format.",
+                "compressed without loss). OGG and Opus are open formats; WMA is a "
+                "legacy Windows format. Surround sound becomes stereo for MP3, Opus "
+                "and WMA, and stays for the others.",
             ),
             (
                 "Why was my video refused?",
@@ -113,7 +115,7 @@ VIDEO_AUDIO_CONTENT: dict[str, dict] = {
             (
                 "Video wählen",
                 "MP4, MOV, AVI, MKV, WebM, FLV oder WMV. MP3 ist voreingestellt; M4A, "
-                "WAV, FLAC, OGG und AAC stehen in der Liste.",
+                "WAV, FLAC, OGG, AAC, Opus und WMA stehen in der Liste.",
             ),
             (
                 "Der Server speichert den Ton",
@@ -138,7 +140,9 @@ VIDEO_AUDIO_CONTENT: dict[str, dict] = {
                 "MP3 läuft überall. M4A (AAC) klingt bei gleicher Größe besser und ist "
                 "Apples Standard. WAV und FLAC verlieren nichts weiter, zum Bearbeiten – "
                 "beide sind ein Vielfaches einer MP3 (WAV unkomprimiert, FLAC "
-                "verlustfrei komprimiert). OGG ist ein offenes Format.",
+                "verlustfrei komprimiert). OGG und Opus sind offene Formate; WMA ist "
+                "ein altes Windows-Format. Raumklang wird bei MP3, Opus und WMA zu "
+                "Stereo, bei den anderen bleibt er erhalten.",
             ),
             (
                 "Warum wurde mein Video abgelehnt?",

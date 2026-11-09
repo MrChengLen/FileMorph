@@ -413,6 +413,16 @@ msgstr ""
 msgid "At the start"
 msgstr ""
 
+msgid "At this quality the file would not get smaller"
+msgstr "At this quality the file would not get smaller"
+
+msgid ""
+"At this setting the file would not have got smaller. You get your "
+"original back, without location and camera data."
+msgstr ""
+"At this setting the file would not have got smaller. You get your "
+"original back, without location and camera data."
+
 msgid "Attempt to circumvent rate limits or security controls"
 msgstr ""
 
@@ -905,6 +915,13 @@ msgstr ""
 
 msgid "Download redacted file"
 msgstr ""
+
+msgid "Download the original without metadata"
+msgstr "Download the original without metadata"
+
+#, python-brace-format
+msgid "Download the original without metadata ({size} MB)"
+msgstr "Download the original without metadata ({size} MB)"
 
 msgid "Download unchanged file"
 msgstr ""
@@ -3525,6 +3542,13 @@ msgid ""
 msgstr ""
 
 msgid ""
+"You then get your original back, without location and camera data. Choose"
+" a lower quality for a smaller file."
+msgstr ""
+"You then get your original back, without location and camera data. Choose"
+" a lower quality for a smaller file."
+
+msgid ""
 "You'll receive a confirmation email shortly. You can re-register at any "
 "time — a new registration creates a fresh account with no link to this "
 "one."
@@ -3607,6 +3631,9 @@ msgstr ""
 
 msgid "Your name"
 msgstr ""
+
+msgid "Your original, without metadata"
+msgstr "Your original, without metadata"
 
 msgid "Your password has been updated."
 msgstr ""

@@ -768,9 +768,13 @@ function parseWarningsHeader(raw) {
   return items;
 }
 
-// Target-size tokens (compress.py::target_notes) → a localized note, or null.
+// Compress tokens (compress.py::target_notes, ORIGINAL_KEPT) → a localized
+// note, or null.
 function targetNoteLabel(key, value) {
   const i18n = window.FM_I18N || {};
+  if (key === 'original' && value === 'kept') {
+    return i18n.warningOriginalKept || 'At this setting the file would not have got smaller. You get your original back, without location and camera data.';
+  }
   if (key === 'resized') {
     const [width, height] = value.split('x').map(n => Number(n).toLocaleString(document.documentElement.lang || undefined));
     return (i18n.warningTargetResized || "Scaled down to {width} × {height} pixels — the lowest quality alone wasn't enough for the target size.")
@@ -795,9 +799,14 @@ function showConversionWarnings(rawHeader) {
     return;
   }
   const i18n = window.FM_I18N || {};
-  titleEl.textContent = currentMode === 'compress'
-    ? (i18n.compressionWarningTitle || 'Compressed — with a note')
-    : (i18n.conversionWarningTitle || 'Conversion completed with notes');
+  let title = i18n.conversionWarningTitle || 'Conversion completed with notes';
+  if (currentMode === 'compress') {
+    // Not "compressed" when the original came back (compress.py::keep_original).
+    title = rawHeader.split(',').includes('original=kept')
+      ? (i18n.compressionOriginalTitle || 'Your original, without metadata')
+      : (i18n.compressionWarningTitle || 'Compressed — with a note');
+  }
+  titleEl.textContent = title;
   list.innerHTML = '';
   for (const item of items) {
     const li = document.createElement('li');
@@ -820,8 +829,9 @@ function hideConversionWarnings() {
 //   X-FileMorph-Batch-Failures   — semicolon-joined URL-encoded
 //                                  "<name>|<reason>" pairs; absent on
 //                                  all-success runs
-//   X-FileMorph-Batch-Notes      — the same for files with target-size
-//                                  notes ("<name>|resized=2400x1600")
+//   X-FileMorph-Batch-Notes      — the same for files with notes
+//                                  ("<name>|resized=2400x1600",
+//                                  "<name>|original=kept")
 // (See app/core/batch.py::batch_summary_headers for the producer.)
 
 function parseBatchFailures(rawHeader) {
@@ -850,7 +860,8 @@ function parseBatchFailures(rawHeader) {
 }
 
 // X-FileMorph-Batch-Notes: the same "<name>|<value>" list as the failures,
-// the value being comma-joined note tokens (``resized=2400x1600``).
+// the value being comma-joined note tokens (``resized=2400x1600``,
+// ``original=kept``).
 function parseBatchNotes(rawHeader) {
   return parseBatchFailures(rawHeader).map(({ name, reason }) => {
     const labels = reason.split(',').map(token => {
@@ -1124,9 +1135,10 @@ function showLosslessNote(visible) {
 // for it. The server (compress_image in app/compressors/image.py) re-encodes
 // the decoded pixels with libjpeg-turbo: the chosen quality, optimised
 // Huffman tables, 4:2:0, the EXIF orientation applied, the colour values as
-// stored, and of the APPn segments only its 18-byte JFIF header.
-// Chromium's canvas encoder is the same libjpeg-turbo, its file differs only
-// in its own APPn segments: result = browser file − its APPn bytes + 18.
+// stored, and of the APPn segments its 18-byte JFIF header and the colour
+// profile (pillowIccBytes). Chromium's canvas encoder is the same
+// libjpeg-turbo, its file differs only in its own APPn segments:
+// result = browser file − its APPn bytes + 18 + the profile's bytes.
 // Other engines encode differently, so a probe picture proves the match at
 // the chosen quality first; without that proof, or for a picture over
 // ESTIMATE_MAX_PIXELS (decoding takes 4 bytes a pixel, iOS canvases end at
@@ -1155,7 +1167,7 @@ const ESTIMATE_PROBE_BYTES = [
 ];
 let estimateRun = 0;
 let estimateTimer = null;
-let estimateSource = null; // { file, canvas }: the chosen JPEG, decoded once
+let estimateSource = null; // { file, canvas, iccBytes }: the chosen JPEG, decoded once
 let estimateFailed = null; // the file whose decode failed: not tried again on every slider move
 let estimateQueue = Promise.resolve();
 const estimateProbes = new Map(); // quality → Promise<boolean>
@@ -1179,13 +1191,18 @@ function estimateProbePixels(size) {
   return data;
 }
 
-// A JPEG's segments up to its scan: the bytes its APPn segments take, and the
-// frame header's bit depth, size and component count. null for data that is
-// no JPEG, ends before the scan, or has a second or misshapen frame header
-// (which the pixel check would otherwise read wrongly).
+// A JPEG's segments up to its scan: the bytes its APPn segments take, the
+// frame header's bit depth, size and component count, and the colour profile
+// as Pillow reads it — its bytes (iccBytes) and colour space (iccSpace, e.g.
+// "RGB "). null for data that is no JPEG, ends before the scan, or has a
+// second or misshapen frame header (which the pixel check would otherwise
+// read wrongly).
+const ICC_MARK = [0x49, 0x43, 0x43, 0x5f, 0x50, 0x52, 0x4f, 0x46, 0x49, 0x4c, 0x45, 0x00]; // ICC_PROFILE\0
+
 function jpegInfo(bytes) {
   if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) return null;
-  const info = { appBytes: 0, precision: 0, width: 0, height: 0, components: 0 };
+  const info = { appBytes: 0, precision: 0, width: 0, height: 0, components: 0, iccBytes: 0, iccSpace: '' };
+  const icc = [];
   let frame = false;
   let pos = 2;
   while (pos + 4 <= bytes.length) {
@@ -1196,6 +1213,11 @@ function jpegInfo(bytes) {
     const length = (bytes[pos + 2] << 8) | bytes[pos + 3];
     if (length < 2) return null;
     if (marker >= 0xe0 && marker <= 0xef) info.appBytes += length + 2;
+    // Pillow puts the profile together at the frame header: pieces after it don't count.
+    if (marker === 0xe2 && !frame && length >= 16 && pos + 18 <= bytes.length
+        && ICC_MARK.every((b, i) => bytes[pos + 4 + i] === b)) {
+      icc.push({ seq: bytes[pos + 16], count: bytes[pos + 17], start: pos + 18, size: length - 16 });
+    }
     if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
       if (pos + 10 > bytes.length) return null;
       if (frame || length !== 8 + 3 * bytes[pos + 9]) return null;
@@ -1205,10 +1227,33 @@ function jpegInfo(bytes) {
       info.width = (bytes[pos + 7] << 8) | bytes[pos + 8];
       info.components = bytes[pos + 9];
     }
-    if (marker === 0xda) return frame ? info : null;
+    if (marker === 0xda) {
+      if (!frame) return null;
+      // Pillow keeps the profile only when the first piece (by number) names
+      // as many pieces as there are; its colour space sits in its header.
+      icc.sort((a, b) => (a.seq - b.seq) || (a.count - b.count));
+      if (icc.length && icc[0].count === icc.length) {
+        info.iccBytes = icc.reduce((sum, part) => sum + part.size, 0);
+        const head = icc[0].start + 16;
+        if (icc[0].size >= 20 && head + 4 <= bytes.length) {
+          info.iccSpace = String.fromCharCode(...bytes.subarray(head, head + 4));
+        }
+      }
+      return info;
+    }
     pos += length + 2;
   }
   return null;
+}
+
+// The bytes the server's APP2 segments take for the colour profile it keeps —
+// strip_metadata keeps only one for RGB pixels and of at most ICC_MAX_BYTES:
+// 18 bytes of header for each piece of at most 65 519 profile bytes.
+const ICC_MAX_BYTES = 1 << 22; // ICC_MAX_BYTES in app/converters/_metadata.py
+
+function pillowIccBytes(info) {
+  if (!info.iccBytes || info.iccBytes > ICC_MAX_BYTES || info.iccSpace !== 'RGB ') return 0;
+  return info.iccBytes + 18 * Math.ceil(info.iccBytes / 65519);
 }
 
 async function jpegHead(blob) {
@@ -1327,7 +1372,7 @@ async function runSizeEstimate(run) {
       return;
     }
     if (!canvas) { estimateFailed = file; showSizeEstimate('none'); return; }
-    estimateSource = { file, canvas };
+    estimateSource = { file, canvas, iccBytes: pillowIccBytes(info) };
     if (run !== estimateRun) return;
   }
   const blob = await jpegBlob(estimateSource.canvas, quality / 100);
@@ -1335,7 +1380,8 @@ async function runSizeEstimate(run) {
   const out = blob && blob.type === 'image/jpeg' ? jpegInfo(await jpegHead(blob)) : null;
   if (run !== estimateRun) return;
   if (!out) { showSizeEstimate('none'); return; }
-  showSizeEstimate('value', { before: file.size, after: blob.size - out.appBytes + ESTIMATE_PILLOW_APP_BYTES });
+  const after = blob.size - out.appBytes + ESTIMATE_PILLOW_APP_BYTES + estimateSource.iccBytes;
+  showSizeEstimate('value', { before: file.size, after });
 }
 
 function releaseEstimateSource() {
@@ -1356,6 +1402,12 @@ function showSizeEstimate(state, sizes) {
   let larger = false;
   if (state === 'pending') {
     text = i18nText('sizeEstimatePending', 'Working out the size…');
+  } else if (state === 'value' && sizes.after >= sizes.before) {
+    // No smaller: the server then hands back the original without its
+    // metadata (compress.py::keep_original), so no size of a re-encode shows.
+    text = i18nText('sizeEstimateOriginal', 'At this quality the file would not get smaller');
+    note = i18nText('sizeEstimateOriginalNote', 'You then get your original back, without location and camera data. Choose a lower quality for a smaller file.');
+    larger = true;
   } else if (state === 'value') {
     text = i18nText('sizeEstimate', 'Estimated size: about {size}', { size: formatBytes(sizes.after) });
     const change = resultChangeText(sizes.before, sizes.after);
@@ -1613,9 +1665,17 @@ async function submitForm() {
     const label = document.getElementById('download-link-label');
     if (label) {
       const achieved = res.headers.get('X-FileMorph-Achieved-Bytes');
-      if (!isBatch && useTargetSize && achieved) {
-        // Decimal MB, as the target was entered.
-        const mb = formatDecimal(parseInt(achieved, 10) / 1e6, 2);
+      // Decimal MB, as the target was entered.
+      const mb = achieved ? formatDecimal(parseInt(achieved, 10) / 1e6, 2) : '';
+      // Compressing didn't make it smaller: the original comes back without
+      // its metadata (compress.py::keep_original), and the button says so.
+      const keptOriginal = !isBatch
+        && (res.headers.get('X-FileMorph-Warnings') || '').split(',').includes('original=kept');
+      if (keptOriginal) {
+        label.textContent = useTargetSize && achieved
+          ? i18nText('downloadOriginalSize', 'Download the original without metadata ({size} MB)', { size: mb })
+          : i18nText('downloadOriginal', 'Download the original without metadata');
+      } else if (!isBatch && useTargetSize && achieved) {
         label.textContent = i18nText('downloadResultSize', 'Download Result ({size} MB)', { size: mb });
       } else {
         label.textContent = isBatch

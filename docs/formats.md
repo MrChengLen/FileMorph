@@ -33,6 +33,16 @@ A complete reference of all supported input and output formats, with notes on qu
 > to the pixels before the metadata is stripped, so a portrait photo comes back
 > (and lands on a PDF page) upright.
 
+> **Colour profile**: the ICC profile is the one piece of metadata that stays —
+> it says which colours the pixel values mean (an iPhone photo's Display P3,
+> Adobe RGB). Image conversions and compressions write it into JPEG, WebP,
+> AVIF, PNG and TIFF results; BMP, GIF, ICO and PDF results never carry one.
+> It goes when it no longer fits the pixels as written (a CMYK profile after
+> the conversion to RGB, a greyscale one in a WebP, which is always colour),
+> when it is over 4 MB (RGB profiles take a few KB, print profiles up to about
+> 2 MB), and in target-size
+> compression when it alone would take more than a quarter of the target.
+
 > **Note**: HEIC/HEIF input needs only the `pillow-heif` Python package, which
 > `requirements.txt` installs; its binary wheels bundle libheif, so no ffmpeg and
 > no system package is needed. There are wheels for 64-bit x86 and ARM on Linux,
@@ -58,6 +68,14 @@ Re-encode an image at a lower quality to reduce file size without changing forma
 | WebP | Lossy (quality 1–100) | Excellent compression. Comparable to JPEG but 25–35% smaller. |
 | AVIF | Lossy (quality 1–100) | Best compression ratio of the lossy formats; **target-size** supported (binary search on quality). Encode is more CPU-intensive than JPEG/WebP. |
 | TIFF | Lossless (Deflate with the horizontal predictor; black and white: Group 4 or Deflate, whichever is smaller) | `quality` changes nothing. A TIFF holding JPEG data can come out larger. Only the first page of a multi-page TIFF is kept. |
+
+> **Never larger than the original**: a photo from the web or a messenger is
+> often compressed harder already than the chosen quality. When compressing
+> would not make a JPEG, PNG or WebP smaller, you get your original back with
+> its metadata cut out (location, camera, names, comments, thumbnails — the
+> image data is not touched; colour profile and orientation stay), and the
+> download says so. A PNG or WebP that is turned or animated, TIFF, AVIF and
+> video keep the re-encode; the result then says how much larger it is.
 
 > **Target-size compression** (`target_size_kb`) is supported for **JPEG, WebP and
 > AVIF** — the lossy formats where quality controls output size. PNG/TIFF are
@@ -282,7 +300,9 @@ An audio output keeps the source's music tags — title, artist and album
 artist, album, track number, genre, and the year of its date — and nothing
 else: other tags (such as the recording time, the device or comments),
 embedded cover art and chapters are dropped. An AAC (ADTS) output carries
-no tags, a WAV output no album artist.
+no tags, a WAV output no album artist. Surround (5.1) sound is mixed down to
+stereo for MP3, Opus and WMA (whose encoders take it as stereo) and kept for
+AAC, Vorbis, FLAC and WAV.
 
 ### Conversions
 
@@ -321,7 +341,9 @@ A video output — converted or compressed — carries no metadata from the
 source: none of its tags (such as where, when and with which device a clip
 was filmed) and none of its chapters, the same default as the metadata
 strip for images. Portrait clips stay upright: their rotation is applied to
-the frames.
+the frames. Surround (5.1) sound is kept where the container's audio codec
+takes it (MP4, MOV, MKV, FLV — AAC) and mixed down to stereo otherwise
+(WebM, WMV, AVI).
 
 ### Conversions
 
@@ -385,21 +407,19 @@ incomplete or fail. Save it again at one size first, then convert it.
 
 | From | To | Notes |
 |------|----|-------|
-| MP4 / MOV / AVI / MKV / WebM / FLV / WMV | MP3, M4A, WAV, FLAC, OGG, AAC | The sound of the video: its first audio track, without the picture |
+| MP4 / MOV / AVI / MKV / WebM / FLV / WMV | MP3, M4A, WAV, FLAC, OGG, AAC, Opus, WMA | The sound of the video: its first audio track, without the picture |
 
 Saves the sound of a video — a talk, a lecture, a voice note recorded as a
-video — as an audio file. Only the first audio track is kept (a video with
-one track per language gives its first); the picture, further tracks,
-subtitles, chapters and cover art are left out, and so is every tag of the
-video: where, when and with which device it was filmed, and also a title or
-artist, which audio → audio keeps as music tags. The codecs and the
-`quality` mapping are those of the audio conversions above; 5.1 sound is
-mixed down to stereo for MP3, the other formats keep all six channels. A
-video whose picture or subtitles are in a codec FileMorph doesn't read
-still gives its sound, as long as the sound is in one it reads. WMA and
-Opus are not offered: their encoders fail on the 5.1 sound many videos
-carry (WMA takes at most two channels, Opus not the 5.1 layout of AC-3,
-E-AC-3 and DTS).
+video — as an audio file, in any of the audio formats above. Only the first
+audio track is kept (a video with one track per language gives its first);
+the picture, further tracks, subtitles, chapters and cover art are left out,
+and so is every tag of the video: where, when and with which device it was
+filmed, and also a title or artist, which audio → audio keeps as music tags.
+The codecs and the `quality` mapping are those of the audio conversions
+above; surround (5.1) sound is mixed down to stereo for MP3, Opus and WMA and
+kept for AAC, Vorbis, FLAC and WAV. A video whose picture or subtitles are in
+a codec FileMorph doesn't read still gives its sound, as long as the sound is
+in one it reads.
 
 **Web UI:** the dedicated, bilingual (DE/EN) page is `/convert/video-to-mp3` —
 ungated, the same embedded Convert/Compress tool as the homepage, pre-set to

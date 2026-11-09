@@ -25,8 +25,11 @@ The implementation pastes the pixel data into a fresh
 ``Image.new(...)`` so any unread auxiliary chunks Pillow may have
 buffered are not carried over either (a photo turned upright first is
 already such a fresh image, from ``transpose()``). We *do* keep the ICC colour
-profile — it is not PII, and dropping it can shift colours visibly
-on wide-gamut workflows.
+profile — dropping it can shift colours visibly on wide-gamut workflows.
+It says which colours the pixel values mean. A display profile (a macOS
+screenshot's, say) can name the monitor — make, model, and in Apple's
+``mmod`` tag its serial number — and carry a profile name its user chose;
+never the place or the time a photo was taken.
 
 If a future requirement adds an opt-in to keep metadata, the right
 shape is a route-level Form parameter that flows down into the
@@ -89,6 +92,50 @@ def _transparency_fits(mode: str, value: object) -> bool:
     return mode == "RGB" and isinstance(value, tuple) and len(value) == 3
 
 
+# The colour space an ICC profile describes (bytes 16-19 of its header) and
+# the modes whose pixels it can describe.
+_ICC_MODES = {
+    b"RGB ": ("RGB", "RGBA", "RGBX", "P", "PA"),
+    b"GRAY": ("1", "L", "LA", "I", "F"),
+    b"CMYK": ("CMYK",),
+    b"Lab ": ("LAB",),
+}
+
+
+# RGB profiles take a few KB (sRGB about 3 KB, Display P3 under 1 KB), print
+# profiles up to about 2 MB (ECI's ISO Coated v2). A larger one is no colour
+# space worth keeping: Pillow splits it for a JPEG in pure Python, in time
+# growing with the square of its size (4 MB: 50 ms per encode, 16 MB: 0.8 s,
+# and target-size compression encodes up to twenty times), and past 255
+# pieces it writes it broken.
+ICC_MAX_BYTES = 1 << 22
+
+
+def _icc_fits(mode: str, icc: bytes) -> bool:
+    """Whether ``icc`` describes pixels of ``mode``. A profile left over from
+    a mode conversion — a CMYK profile on pixels converted to RGB, say — would
+    make every viewer misread the colours, so it goes."""
+    if len(icc) < 20:
+        return False
+    space = icc[16:20]
+    if space == b"GRAY" and mode.startswith("I;16"):
+        return True
+    return mode in _ICC_MODES.get(space, ())
+
+
+def icc_for(img: Image.Image, pil_fmt: str) -> bytes | None:
+    """The colour profile to pass to the encoder for ``pil_fmt``: the one
+    ``strip_metadata`` kept, if it fits the pixels as that format writes them.
+    WebP writes colour whatever the mode, AVIF too except for greyscale, so a
+    greyscale profile would mislabel them; JPEG writes the mode it is given.
+    JPEG and WebP write a profile only when passed one."""
+    icc = img.info.get("icc_profile")
+    if not icc:
+        return None
+    written = {"WEBP": "RGB", "AVIF": "L" if img.mode == "L" else "RGB"}.get(pil_fmt, img.mode)
+    return icc if _icc_fits(written, icc) else None
+
+
 def strip_metadata(img: Image.Image) -> Image.Image:
     """Return a copy of ``img`` with EXIF / XMP / IPTC / MakerNote
     stripped, ICC colour profile preserved — turned upright first, since
@@ -108,9 +155,12 @@ def strip_metadata(img: Image.Image) -> Image.Image:
     comes out one colour.
 
     The ICC profile is the one piece of metadata we re-attach because
-    losing it can desaturate or shift colours on wide-gamut images
-    and is not PII — it describes the *colour space*, not who took
-    the photo or where.
+    losing it can desaturate or shift colours on wide-gamut images — it
+    describes the *colour space*, not where or when the photo was taken (a
+    display profile can name the monitor and a profile name its user chose;
+    see the module docstring). Only one that fits the
+    mode (``_icc_fits``) and is at most ``ICC_MAX_BYTES``; the callers pass
+    it on with ``icc_for`` to the encoders that need it passed.
     """
     turned = _upright(img)
     icc = turned.info.get("icc_profile")
@@ -127,7 +177,7 @@ def strip_metadata(img: Image.Image) -> Image.Image:
         # most (the caller's copy and this one), not three times.
         clean = turned
         clean.info = {}
-    if icc:
+    if icc and len(icc) <= ICC_MAX_BYTES and _icc_fits(clean.mode, icc):
         clean.info["icc_profile"] = icc
     if transparency is not None and _transparency_fits(clean.mode, transparency):
         clean.info["transparency"] = transparency
