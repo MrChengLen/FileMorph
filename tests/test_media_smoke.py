@@ -267,7 +267,7 @@ def test_a_refused_container_is_a_400_not_a_500(monkeypatch):
         returncode = 1
         stderr = b"Format au not on whitelist 'mp3,wav'\nin.wav: Invalid argument"
 
-    monkeypatch.setattr(mod.subprocess, "run", lambda cmd, **kw: _Result())
+    monkeypatch.setattr(mod, "_exec", lambda cmd, **kw: _Result())
     with pytest.raises(InvalidInputError):
         run_ffmpeg(_fake_stream(), timeout=5)
 
@@ -315,7 +315,7 @@ def test_run_ffmpeg_timeout_translated(monkeypatch):
     def fake_run(cmd, **kwargs):
         raise subprocess.TimeoutExpired(cmd, kwargs.get("timeout"))
 
-    monkeypatch.setattr(mod.subprocess, "run", fake_run)
+    monkeypatch.setattr(mod, "_exec", fake_run)
     with pytest.raises(InvalidInputError, match="takes longer to convert"):
         run_ffmpeg(_fake_stream(), timeout=1)
 
@@ -329,7 +329,7 @@ def test_run_ffmpeg_failure_translated(monkeypatch):
         returncode = 1
         stderr = b"boom: invalid argument"
 
-    monkeypatch.setattr(mod.subprocess, "run", lambda cmd, **kw: _Result())
+    monkeypatch.setattr(mod, "_exec", lambda cmd, **kw: _Result())
     with pytest.raises(FFmpegError, match="exit 1"):
         run_ffmpeg(_fake_stream(), timeout=5)
 

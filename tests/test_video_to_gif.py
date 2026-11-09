@@ -310,7 +310,7 @@ def _fake_ffprobe(monkeypatch, payload: dict, *, returncode=0, stderr=b"") -> li
         return _Result()
 
     monkeypatch.setattr(ffmpeg_mod.shutil, "which", lambda _: "ffprobe")
-    monkeypatch.setattr(ffmpeg_mod.subprocess, "run", fake_run)
+    monkeypatch.setattr(ffmpeg_mod, "_exec", fake_run)
     return calls
 
 
@@ -373,7 +373,7 @@ def _timing_out(monkeypatch, program: str) -> None:
     def fake_run(cmd, **kwargs):
         raise subprocess.TimeoutExpired(cmd, kwargs.get("timeout"))
 
-    monkeypatch.setattr(ffmpeg_mod.subprocess, "run", fake_run)
+    monkeypatch.setattr(ffmpeg_mod, "_exec", fake_run)
 
 
 def test_timeouts_are_ffmpeg_timeout_errors(tmp_path, monkeypatch):
