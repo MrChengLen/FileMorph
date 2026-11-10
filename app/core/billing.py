@@ -31,12 +31,12 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 # The Stripe SDK checks TLS certificates against a CA file it ships itself
-# (``stripe/data/ca-certificates.crt``). No dependency audit covers that file,
-# and it still trusts the emSign ECC Root CA - G3, whose intermediate CAs had
-# their keys compromised (GHSA-6q48-6c7w-9gw2). certifi's bundle is the one
-# pip-audit watches and requirements.txt keeps past that advisory. The SDK
-# reads this setting on every request, and every module that calls Stripe
-# imports this one. Pinned by tests/test_stripe_ca_bundle.py.
+# (``stripe/data/ca-certificates.crt``). No dependency audit covers that file:
+# up to stripe 15.6.1 it trusted the emSign ECC Root CA - G3, whose intermediate
+# CAs had their keys compromised (GHSA-6q48-6c7w-9gw2), and no gate noticed.
+# certifi's bundle is the one pip-audit watches and requirements.txt keeps past
+# that advisory. The SDK reads this setting on every request, and every module
+# that calls Stripe imports this one. Pinned by tests/test_stripe_ca_bundle.py.
 stripe.ca_bundle_path = certifi.where()
 
 # Subscriptions a customer is still being billed for — the ones a

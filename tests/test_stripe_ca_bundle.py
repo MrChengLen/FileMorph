@@ -3,7 +3,7 @@
 does not trust the emSign ECC Root CA - G3 (GHSA-6q48-6c7w-9gw2).
 
 The SDK ships a CA file of its own (``stripe/data/ca-certificates.crt``) that
-no dependency audit covers and that still holds this root.
+no dependency audit covers; up to stripe 15.6.1 it held this root.
 ``app/core/billing.py`` points the SDK at certifi's bundle instead, which
 pip-audit watches and requirements.txt keeps past the advisory. These tests pin
 what the SDK hands to ``requests`` on a real call, not just the setting, so an
