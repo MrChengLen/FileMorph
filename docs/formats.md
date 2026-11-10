@@ -29,13 +29,20 @@ A complete reference of all supported input and output formats, with notes on qu
 > page each — a black-and-white page stays black and white (CCITT Group 4 —
 > about a tenth of its size as a colour page). Transparency is flattened onto a white
 > background since PDF has no alpha channel; EXIF/GPS metadata is stripped.
+> The page size comes from the resolution: an image becomes a page at 150 dpi
+> (a camera's 72 dpi is a default, not a size), a TIFF page — a scan, a fax —
+> gets the size its own resolution gives it, each page its own. A fax in
+> normal mode (204 × 98 dpi, its pixels twice as tall as wide) comes out as
+> the letter page it was, not a squat page on its side. A page that would be
+> larger than 200 inches a side (what Acrobat shows) is made smaller, keeping
+> its proportions.
 
 > **Orientation**: phones store a photo as the sensor saw it and note the turn
 > in its EXIF data. Every image conversion and compression applies that turn
 > to the pixels before the metadata is stripped, so a portrait photo comes back
 > (and lands on a PDF page) upright.
 
-> **Colour profile**: the ICC profile is the one piece of metadata that stays —
+> **Colour profile**: the ICC profile stays —
 > it says which colours the pixel values mean (an iPhone photo's Display P3,
 > Adobe RGB). Image conversions and compressions write it into JPEG, WebP,
 > AVIF, PNG and TIFF results; BMP, GIF, ICO and PDF results never carry one.
@@ -44,6 +51,17 @@ A complete reference of all supported input and output formats, with notes on qu
 > when it is over 4 MB (RGB profiles take a few KB, print profiles up to about
 > 2 MB), and in target-size
 > compression when it alone would take more than a quarter of the target.
+
+> **Resolution**: the resolution (dpi) stays too — how large the picture is
+> on paper, not who took it or where. PNG, JPEG, TIFF and BMP results keep
+> it, compressed or converted — every page of a multi-page TIFF its own, a
+> fax's 204 × 98 dpi included; WebP, AVIF, GIF and ICO have no place for it.
+> It is swapped when the picture is turned by a quarter, and drops with the
+> pixels when target-size compression scales an image down, so the page
+> keeps its size. A value below 10 or above 10 000 dpi is no measurement
+> (a TIFF without one reads as 1 dpi) and is dropped. When compressing hands
+> back the original instead (see below), a JPEG keeps the resolution in its
+> JFIF header; one held only in its EXIF block goes with the block.
 
 > **Note**: HEIC/HEIF input needs only the `pillow-heif` Python package, which
 > `requirements.txt` installs; its binary wheels bundle libheif, so no ffmpeg and

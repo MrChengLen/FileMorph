@@ -29,7 +29,9 @@ profile — dropping it can shift colours visibly on wide-gamut workflows.
 It says which colours the pixel values mean. A display profile (a macOS
 screenshot's, say) can name the monitor — make, model, and in Apple's
 ``mmod`` tag its serial number — and carry a profile name its user chose;
-never the place or the time a photo was taken.
+never the place or the time a photo was taken. We keep the resolution
+(dpi) as well: it says how large the picture is on paper — for a fax in
+normal mode (204 × 98 dpi), that its pixels are twice as tall as wide.
 
 If a future requirement adds an opt-in to keep metadata, the right
 shape is a route-level Form parameter that flows down into the
@@ -45,6 +47,7 @@ import struct
 import time
 
 from PIL import ExifTags, Image
+from PIL.TiffImagePlugin import RESOLUTION_UNIT, X_RESOLUTION, Y_RESOLUTION
 
 from app.converters.base import InvalidInputError, TiffTooLargeError
 
@@ -59,6 +62,52 @@ _UPRIGHT = {
     7: Image.Transpose.TRANSVERSE,
     8: Image.Transpose.ROTATE_90,
 }
+# The orientations turned by a quarter: width and height trade places, and
+# with them the horizontal and the vertical resolution.
+_QUARTER_TURNS = (5, 6, 7, 8)
+
+# A resolution is kept between these, in dpi each way: a fax's 98 lines per
+# inch, a film scanner's few thousand. Outside them it is no measurement —
+# Pillow reads a TIFF without one as 1 × 1 dpi, which would make a fax page
+# 1 728 inches wide.
+_DPI_RANGE = (10, 10_000)
+
+
+def _dpi(value: object) -> tuple[float, float] | None:
+    """``value`` — an ``info["dpi"]`` — as two numbers in ``_DPI_RANGE``,
+    rounded to a hundredth, or ``None``. It comes from the file: a malformed
+    tag can make it anything."""
+    try:
+        x, y = (round(float(v), 2) for v in value)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    low, high = _DPI_RANGE
+    return (x, y) if low <= x <= high and low <= y <= high else None
+
+
+def _turn_dpi(info: dict) -> None:
+    """The resolution in ``info`` after a quarter turn: x and y swapped."""
+    dpi = _dpi(info.get("dpi"))
+    if dpi:
+        info["dpi"] = (dpi[1], dpi[0])
+
+
+def load_upright(img: Image.Image) -> None:
+    """Load ``img``. Pillow turns a TIFF page by its orientation — as its
+    EXIF view gives it: the tag, or an XMP packet without one — as it loads
+    it, and drops it, but leaves the resolution as stored; across a quarter
+    turn that swaps here too. Call it before anything converts the page
+    (``convert()`` loads it): once it is loaded, the orientation is gone."""
+    try:
+        orientation = (
+            img.getexif().get(ExifTags.Base.Orientation) if hasattr(img, "tag_v2") else None
+        )
+    except Exception:
+        # An unreadable EXIF view (untrusted input): Pillow can't turn by it either.
+        orientation = None
+    img.load()
+    if orientation in _QUARTER_TURNS:
+        _turn_dpi(img.info)
 
 
 def _upright(img: Image.Image) -> Image.Image:
@@ -68,19 +117,26 @@ def _upright(img: Image.Image) -> Image.Image:
     EXIF orientation tag (or in XMP); every viewer applies it. Stripping the
     tag without applying it hands back a sideways photo, so the turn goes
     into the pixels first, exactly once: Pillow turns a TIFF while loading
-    it and drops the tag (hence the load first), and pillow-heif resets a
-    HEIC's orientation to 1 as it opens it, libheif having done the turn.
+    it and drops the tag (hence the load first — ``load_upright``), and
+    pillow-heif resets a HEIC's orientation to 1 as it opens it, libheif
+    having done the turn. A quarter turn swaps the resolution as well.
     Not ``ImageOps.exif_transpose``: it also writes the EXIF block back,
     which we drop anyway, and that write raises on malformed blocks.
     """
-    img.load()
+    load_upright(img)
     try:
-        method = _UPRIGHT.get(img.getexif().get(ExifTags.Base.Orientation))
+        orientation = img.getexif().get(ExifTags.Base.Orientation)
+        method = _UPRIGHT.get(orientation)
     except Exception:
         # An unreadable EXIF block (SyntaxError, struct.error, … — it is
         # untrusted input) has no turn to apply; it goes with the rest.
         return img
-    return img if method is None else img.transpose(method)
+    if method is None:
+        return img
+    turned = img.transpose(method)  # with a copy of img.info
+    if orientation in _QUARTER_TURNS:
+        _turn_dpi(turned.info)
+    return turned
 
 
 def _transparency_fits(mode: str, value: object) -> bool:
@@ -141,6 +197,20 @@ def icc_for(img: Image.Image, pil_fmt: str) -> bytes | None:
     return icc if _icc_fits(written, icc) else None
 
 
+# The encoders that write a resolution: PNG (pHYs), JPEG (JFIF density),
+# TIFF and BMP. WebP, AVIF and GIF have no place for one; an icon needs none.
+_DPI_FORMATS = ("PNG", "JPEG", "TIFF", "BMP")
+
+
+def dpi_for(img: Image.Image, pil_fmt: str) -> dict[str, tuple[float, float]]:
+    """The resolution ``strip_metadata`` kept, as the ``dpi`` keyword for an
+    encoder of ``pil_fmt`` that writes one. Empty without one, and each
+    encoder writes what it always did: BMP 96 dpi, the others none (JPEG and
+    BMP fail on ``dpi=None``)."""
+    dpi = img.info.get("dpi")
+    return {"dpi": dpi} if dpi and pil_fmt in _DPI_FORMATS else {}
+
+
 def strip_metadata(img: Image.Image) -> Image.Image:
     """Return a copy of ``img`` with EXIF / XMP / IPTC / MakerNote
     stripped, ICC colour profile preserved — turned upright first, since
@@ -159,17 +229,21 @@ def strip_metadata(img: Image.Image) -> Image.Image:
     Both are pixel data, not metadata; without the palette every pixel
     comes out one colour.
 
-    The ICC profile is the one piece of metadata we re-attach because
+    We re-attach the ICC profile because
     losing it can desaturate or shift colours on wide-gamut images — it
     describes the *colour space*, not where or when the photo was taken (a
     display profile can name the monitor and a profile name its user chose;
     see the module docstring). Only one that fits the
     mode (``_icc_fits``) and is at most ``ICC_MAX_BYTES``; the callers pass
-    it on with ``icc_for`` to the encoders that need it passed.
+    it on with ``icc_for`` to the encoders that need it passed. The
+    resolution too, as ``info["dpi"]`` — the size on paper, turned with the
+    picture — if it is a measurement (``_DPI_RANGE``); the encoders take it
+    only when passed it (``dpi_for``).
     """
     turned = _upright(img)
     icc = turned.info.get("icc_profile")
     transparency = turned.info.get("transparency")
+    dpi = _dpi(turned.info.get("dpi"))
     if turned is img:
         clean = Image.new(img.mode, img.size)
         if img.mode in ("P", "PA") and img.palette is not None:
@@ -186,6 +260,8 @@ def strip_metadata(img: Image.Image) -> Image.Image:
         clean.info["icc_profile"] = icc
     if transparency is not None and _transparency_fits(clean.mode, transparency):
         clean.info["transparency"] = transparency
+    if dpi:
+        clean.info["dpi"] = dpi
     return clean
 
 
@@ -205,11 +281,18 @@ _DAMAGED_PAGE = (
 
 
 def own_page_profile(img: Image.Image) -> None:
-    """Pillow keeps a TIFF page's colour profile in ``info`` for a later page
-    that has none; such a page loses it here (call after each seek)."""
+    """Pillow keeps a TIFF page's colour profile and resolution in ``info``
+    for a later page that has none of its own; such a page loses them here
+    (call after each seek). Pillow sets a page's resolution only for one in
+    inches, centimetres or no unit given (inches), and only a non-zero one."""
     tags = getattr(img, "tag_v2", None)
-    if tags is not None and _ICC_TAG not in tags:
+    if tags is None:
+        return
+    if _ICC_TAG not in tags:
         img.info.pop("icc_profile", None)
+    resolution = tags.get(X_RESOLUTION, 1) and tags.get(Y_RESOLUTION, 1)
+    if not resolution or tags.get(RESOLUTION_UNIT) not in (None, 2, 3):
+        img.info.pop("dpi", None)
 
 
 def strip_pages(img: Image.Image) -> list[Image.Image]:
