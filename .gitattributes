@@ -10,6 +10,7 @@
 # output and never agree. fba1b02 had to renormalize requirements.lock once already.
 requirements.lock text eol=lf
 requirements-sbom.lock text eol=lf
+requirements-browser.lock text eol=lf
 *.yaml text eol=lf
 *.md text eol=lf
 *.html text eol=lf

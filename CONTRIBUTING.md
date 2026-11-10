@@ -73,9 +73,9 @@ your change touches before you push:
   git-ignored. CI runs `python scripts/i18n.py drift-check`.
 - **Dependency audit** — `pip-audit -r requirements.lock`, then again with
   `-s osv` (CI adds the `--ignore-vuln` flags listed in `ci.yml`). CI asks
-  both advisory sources, PyPI's feed and OSV, about the two lockfiles it
-  installs its own tools from too: `requirements-uv.lock` and
-  `requirements-sbom.lock`.
+  both advisory sources, PyPI's feed and OSV, about the three lockfiles it
+  installs its own tools from too: `requirements-uv.lock`,
+  `requirements-sbom.lock` and `requirements-browser.lock`.
 - **Vendored browser code audit** — `python scripts/check_vendor_advisories.py`
   asks the OSV database about every package in
   `app/static/vendor/manifest.json`, plus the libraries a file's `bundles`
@@ -110,7 +110,11 @@ repository; `smoke-test (base)` and `smoke-test (office)`
 without pushing them and smoke-test each one. `lockfile-drift`
 (`requirements.lock` must match `requirements.txt` — see
 [docs/development.md](docs/development.md)) runs on pull requests too, without
-blocking the merge.
+blocking the merge. So does `browser-test`
+([`browser.yml`](.github/workflows/browser.yml)): in Chromium and WebKit it
+checks that a page under the `local` CSP profile opens no data connection and
+posts no form (see "Browser tests" in [docs/development.md](docs/development.md)).
+It is a workflow of its own, so it holds no deploy back either.
 
 After the merge, `ci.yml` and [`docker.yml`](.github/workflows/docker.yml) run
 on `main` (`docker.yml` does not run on pull requests; `docker-pr.yml` does).

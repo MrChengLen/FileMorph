@@ -268,8 +268,9 @@ physical assets of its own.
   database, and a finding passes only if waived by an
   `--ignore-vuln` entry justified in a comment —
   `.github/workflows/ci.yml` (weekly also in `deps-latest.yml`, and the
-  same way for `requirements-uv.lock` and `requirements-sbom.lock`, the
-  two lockfiles CI installs its own tools from); regression guard for
+  same way for `requirements-uv.lock`, `requirements-sbom.lock` and
+  `requirements-browser.lock`, the three lockfiles CI installs its own
+  tools from); regression guard for
   the audit targets: `tests/test_supply_chain_hygiene.py`.
 - `scripts/check_vendor_advisories.py` is the matching gate for the
   browser code vendored under `app/static/vendor/`, which pip-audit does

@@ -2,8 +2,9 @@
 # Dependabot — automated dependency-update PRs (PR-S, supply-chain hygiene).
 #
 # Three ecosystems:
-#  - pip:            requirements.txt, requirements-dev.txt and
-#                    requirements-sbom.txt (the SBOM generator's) — every
+#  - pip:            requirements.txt, requirements-dev.txt,
+#                    requirements-sbom.txt (the SBOM generator's) and
+#                    requirements-browser.txt (the browser tests') — every
 #                    update in one PR per week; capped majors are ignored
 #  - github-actions: every `uses:` in .github/workflows/* — keeps the
 #                    SHA-pinned actions current (Dependabot tracks the
@@ -23,7 +24,13 @@
 # on the PR branch, or take the lockfile that `lockfile-drift` uploads as an
 # artifact. Those red gates are deliberate — when keeping the lockfile current
 # was invisible manual work, it fell four packages behind. The same goes for
-# requirements-sbom.txt and requirements-sbom.lock.
+# requirements-sbom.txt and requirements-sbom.lock, and for
+# requirements-browser.txt and requirements-browser.lock. A Playwright bump in
+# requirements-browser.txt also needs the Playwright image of that release in
+# browser.yml, which Dependabot does not track (it is a workflow container, like
+# ci.yml's images): `lint-and-test` stays red until the image follows — the
+# comment on the image in browser.yml says how. So Playwright comes as a pull
+# request of its own, outside the weekly group, which it would hold back.
 #
 # So does the uv pin in requirements-dev.txt: the lockfile jobs install that
 # uv hash-checked, from requirements-uv.lock, which Dependabot does not edit
@@ -59,6 +66,9 @@ updates:
       python-all:
         patterns:
           - "*"
+        # Moves with its image in browser.yml (see the header).
+        exclude-patterns:
+          - "playwright"
     # Caps that need a deliberate change, not the weekly batch. They go by
     # version range: the requirements carry no update type that an
     # `update-types` rule could match. A held-back major is not proposed at
