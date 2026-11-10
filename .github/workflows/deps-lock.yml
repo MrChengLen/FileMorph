@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #
-# deps-lock — regenerate requirements.lock and requirements-sbom.lock and commit
-# them to the current branch.
+# deps-lock — regenerate requirements.lock, requirements-sbom.lock and
+# requirements-browser.lock and commit them to the current branch.
 #
 # The lockfile is what the image installs (Dockerfile: `pip install
 # --require-hashes -r requirements.lock`), so every requirements.txt change
@@ -10,13 +10,15 @@
 # the one-click alternative so the fix does not depend on someone downloading
 # an artifact by hand. requirements-sbom.lock, the lockfile sbom.yml and
 # release.yml install the SBOM generator from, follows requirements-sbom.txt
-# the same way.
+# the same way, and requirements-browser.lock (Playwright and pytest for the
+# browser tests, browser.yml) follows requirements-browser.txt.
 #
 # You can also just run it locally — `uv pip compile --python-version` resolves
 # for the shipped interpreter without needing it installed:
 #
 #     uv pip compile --generate-hashes --python-version 3.14 --python-platform x86_64-unknown-linux-gnu --output-file requirements.lock requirements.txt
 #     uv pip compile --generate-hashes --python-version 3.14 --python-platform x86_64-unknown-linux-gnu --output-file requirements-sbom.lock requirements-sbom.txt
+#     uv pip compile --generate-hashes --python-version 3.14 --python-platform x86_64-unknown-linux-gnu --constraint requirements.lock --output-file requirements-browser.lock requirements-browser.txt
 #
 # Why that matters: before these gates existed, Dependabot pushed 32 commits to
 # requirements.txt in six months while the lockfile received 4 (one of them only
@@ -25,10 +27,10 @@
 # manual work nobody is reminded of.
 #
 # Two jobs, so that nothing it installs runs next to the write token. `compile`
-# installs uv, recompiles both lockfiles, hands them over as an artifact and
+# installs uv, recompiles the lockfiles, hands them over as an artifact and
 # test-installs them, with read-only access and a checkout that keeps no
 # credentials. `commit` holds `contents: write`, installs nothing, and commits
-# the two files it takes out of the artifact by name. uv is still installed
+# the three files it takes out of the artifact by name. uv is still installed
 # hash-checked, from requirements-uv.lock: a tampered uv in `compile` could not
 # push, but it could write the lockfiles that `commit` pushes.
 #
@@ -91,6 +93,7 @@ jobs:
         run: |
           uv pip compile --generate-hashes --python-version 3.14 --python-platform x86_64-unknown-linux-gnu --output-file requirements.lock requirements.txt
           uv pip compile --generate-hashes --python-version 3.14 --python-platform x86_64-unknown-linux-gnu --output-file requirements-sbom.lock requirements-sbom.txt
+          uv pip compile --generate-hashes --python-version 3.14 --python-platform x86_64-unknown-linux-gnu --constraint requirements.lock --output-file requirements-browser.lock requirements-browser.txt
 
       # Handed over before the test installs. If a pin ever has to be built
       # from source there, pip runs build code that no hash covers; that code
@@ -104,6 +107,7 @@ jobs:
           path: |
             requirements.lock
             requirements-sbom.lock
+            requirements-browser.lock
           if-no-files-found: error
           retention-days: 1  # committed, or already in sync, by then
 
@@ -111,13 +115,15 @@ jobs:
         # A lockfile that resolves but cannot install is worse than none, since
         # the failure would surface in the image build instead — or, for the
         # SBOM generator, in the release. Installing into throwaway venvs with
-        # --require-hashes reproduces exactly what the Dockerfile and the SBOM
-        # workflows do.
+        # --require-hashes reproduces exactly what the Dockerfile, the SBOM
+        # workflows and browser.yml do.
         run: |
           python -m venv /tmp/lockcheck
           /tmp/lockcheck/bin/pip install --require-hashes -r requirements.lock
           python -m venv /tmp/sbomcheck
           /tmp/sbomcheck/bin/pip install --require-hashes --only-binary :all: -r requirements-sbom.lock
+          # browser.yml installs the browser lockfile on top of the app's.
+          /tmp/lockcheck/bin/pip install --require-hashes --only-binary :all: -r requirements-browser.lock
 
   commit:
     needs: compile
@@ -139,26 +145,26 @@ jobs:
           name: lockfiles
           path: ${{ runner.temp }}/lockfiles
 
-      # Takes over the two lockfiles by name and fails if git sees any other
+      # Takes over the three lockfiles by name and fails if git sees any other
       # change in the checkout. The branch name reaches the script as
       # $GITHUB_REF_NAME, not as `${{ }}` text: git allows `$(`, backticks and
       # `;` in branch names.
       - name: Commit if changed
         run: |
-          cp -- "$RUNNER_TEMP/lockfiles/requirements.lock" "$RUNNER_TEMP/lockfiles/requirements-sbom.lock" .
+          cp -- "$RUNNER_TEMP/lockfiles/requirements.lock" "$RUNNER_TEMP/lockfiles/requirements-sbom.lock" "$RUNNER_TEMP/lockfiles/requirements-browser.lock" .
           changes="$(git status --porcelain --untracked-files=all --ignored)"
           if [ -z "$changes" ]; then
-            echo "requirements.lock and requirements-sbom.lock already in sync — nothing to commit."
+            echo "requirements.lock, requirements-sbom.lock and requirements-browser.lock already in sync — nothing to commit."
             exit 0
           fi
-          if printf '%s\n' "$changes" | grep -vxE ' M requirements(-sbom)?\.lock'; then
-            echo "::error::Only requirements.lock and requirements-sbom.lock may change, not the paths listed above."
+          if printf '%s\n' "$changes" | grep -vxE ' M requirements(-sbom|-browser)?\.lock'; then
+            echo "::error::Only requirements.lock, requirements-sbom.lock and requirements-browser.lock may change, not the paths listed above."
             exit 1
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add requirements.lock requirements-sbom.lock
+          git add requirements.lock requirements-sbom.lock requirements-browser.lock
           git commit -m "deps: recompile the lockfiles" \
-                     -m "Regenerated by the deps-lock workflow from requirements.txt and requirements-sbom.txt."
+                     -m "Regenerated by the deps-lock workflow from requirements.txt, requirements-sbom.txt and requirements-browser.txt."
           git push origin "HEAD:${GITHUB_REF_NAME}"
           echo "Pushed. Re-run CI on this branch — a GITHUB_TOKEN push raises no events."

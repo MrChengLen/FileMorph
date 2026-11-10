@@ -714,8 +714,9 @@ onto a fixed `vX.Y` line plus offline-update tooling — see
   bumping the dependency or explicitly ignored via `--ignore-vuln`
   with a named, justified comment.
 - The audit asks two advisory sources, PyPI's feed and OSV, and covers
-  the two lockfiles CI installs its own tools from (uv, the SBOM
-  generator) as well; the `deps-latest` workflow repeats it weekly.
+  the three lockfiles CI installs its own tools from (uv, the SBOM
+  generator, the browser tests' Playwright and pytest) as well; the
+  `deps-latest` workflow repeats it weekly.
 - `requirements.txt` states version ranges; `requirements.lock`
   pins every direct and transitive dependency to an exact version
   plus hash, and the image installs from it with

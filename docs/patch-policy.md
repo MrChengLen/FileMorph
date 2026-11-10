@@ -72,9 +72,11 @@ the fix ships follows the severity table above. The lockfile is audited
 rather than the manifest because the lockfile is what the image
 installs. The audit asks two advisory sources, PyPI's feed and
 [OSV](https://osv.dev), since either can lack an entry the other has,
-and it covers the two lockfiles CI installs its own tools from as well:
-`requirements-uv.lock` (uv, which compiles the lockfiles) and
-`requirements-sbom.lock` (the SBOM generator). `deps-latest` repeats it
+and it covers the three lockfiles CI installs its own tools from as well:
+`requirements-uv.lock` (uv, which compiles the lockfiles),
+`requirements-sbom.lock` (the SBOM generator) and
+`requirements-browser.lock` (Playwright and pytest for the browser
+tests). `deps-latest` repeats it
 weekly, so an advisory published in a week without pushes is noticed
 too.
 

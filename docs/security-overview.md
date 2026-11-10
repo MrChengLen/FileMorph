@@ -507,15 +507,25 @@ profile, and each route picks its profile (`app/core/csp.py`):
   profile). The browser refuses fetch, XHR, WebSocket, EventSource,
   beacons and form posts (`connect-src 'none'`,
   `form-action 'none'`), plugins and frames. It does not stop
-  navigation, pop-up windows (they load under their own profile) or
-  WebRTC, and the page may still request images, scripts and styles
-  from this origin: `local` keeps the app's own code from uploading,
-  it does not contain a hostile script.
+  navigation, pop-up windows or workers started from a script outside
+  the engine mount (they run under their own profile) or WebRTC, and
+  the page may still request images, scripts and styles from this
+  origin: `local` keeps the app's own code from uploading, it does not
+  contain a hostile script. The browser tests (`tests/browser/`, run by
+  `.github/workflows/browser.yml` in Chromium and WebKit) try fetch,
+  XHR, `sendBeacon`, WebSocket, EventSource and a form post on a
+  `local` page and check that no request reaches the server, while the
+  same probes on a `default` page do. `tests/test_engine_code.py` looks
+  for those and the other channels in the engine's own code: a lint
+  against slips, not a containment.
 
 `script-src` allows the whole origin (`'self'`), not `/static/`
 only: a path needs the origin written out, and behind some proxies
 the app cannot know the origin the browser sees. Regression guards:
-`tests/test_csp_profiles.py`. Highlights of `default`:
+`tests/test_csp_profiles.py`. Every response carries its route's
+profile, a 500 included: Starlette sends that from outside the
+security-headers middleware, so the error handler sets the headers
+itself. Highlights of `default`:
 
 - `default-src 'self'` — no third-party content by default.
 - `script-src 'self' 'sha256-…'` — all executable JavaScript ships
@@ -552,8 +562,10 @@ JavaScript and downloads silently lose their filename.
 
 ### Defensive headers
 
-All headers below are set by the `security_headers` middleware in
-`app/main.py`, with one caveat for HSTS — see below the table.
+All headers below are set by `_apply_security_headers` in `app/main.py`
+— from the `security_headers` middleware, and from the 500 handler,
+which Starlette runs outside every middleware — with one caveat for
+HSTS — see below the table.
 Regression guards live in `tests/test_security_headers.py`.
 
 | Header | Value | Purpose |
@@ -760,9 +772,10 @@ to be effective. The following list is grouped by importance.
    The lockfile is audited rather than `requirements.txt` because it
    is what the image installs: every direct and transitive Python
    dependency, pinned to an exact version and hash. It is checked
-   against PyPI's advisory feed and against OSV, and the two lockfiles
+   against PyPI's advisory feed and against OSV, and the three lockfiles
    CI installs its own tools from (`requirements-uv.lock`,
-   `requirements-sbom.lock`) are audited the same way.
+   `requirements-sbom.lock`, `requirements-browser.lock`) are audited
+   the same way.
    Every CI run fails the build on any finding it cannot ignore. If
    an upstream advisory is genuinely unfixable, add the ID to
    `--ignore-vuln` in `.github/workflows/ci.yml` with a comment
@@ -1035,9 +1048,10 @@ For readers who want to jump directly to the code:
 | ffmpeg's time, memory, CPU-time and file size limits | `app/converters/_ffmpeg.py` (`media_time_limit`, `run_ffmpeg`), `app/converters/_limited_exec.py` |
 | WeasyPrint SSRF hardening | `app/converters/document.py` (search `_deny_url_fetcher`) |
 | Office image: hardened LibreOffice subprocess env | `app/converters/document.py` (search `_soffice_child_env`) |
-| Security-headers middleware (HSTS, Permissions-Policy, CSP, etc.) | `app/main.py::security_headers` |
+| Security headers (HSTS, Permissions-Policy, CSP, etc.) | `app/main.py::_apply_security_headers`, called by the `security_headers` middleware and `server_error_handler` |
 | CSP and CORS middleware | `app/main.py::_build_csp_header`, profiles in `app/core/csp.py` |
 | Browser-engine delivery (tree hash, MIME type, `local` CSP) | `app/core/engine.py` |
+| `local` CSP in real browsers (Chromium, WebKit) | `tests/browser/`, `.github/workflows/browser.yml` |
 | Per-tier quotas and output cap | `app/core/quotas.py` |
 | Filename sanitisation | `app/core/utils.py::safe_download_name` |
 | Auth resolution (Bearer + API key) | `app/api/routes/auth.py::get_optional_user` |

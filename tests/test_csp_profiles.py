@@ -16,6 +16,7 @@ from pathlib import Path
 import pytest
 from fastapi import Request
 from fastapi.responses import HTMLResponse
+from fastapi.testclient import TestClient
 
 from app.api.routes import pages
 from app.core.config import settings
@@ -184,6 +185,50 @@ def test_a_route_picks_its_profile(client, profile_route, profile):
 def test_the_choice_ends_with_its_request(client, profile_route):
     client.get("/csp-profile-test/local")
     assert client.get("/tools").headers["content-security-policy"] == _CSP_HEADERS["default"]
+
+
+@pytest.fixture
+def failing_routes():
+    """Throwaway routes, a page and an API one, that pick the profile named in
+    their path and then fail."""
+
+    async def endpoint(request: Request, profile: str):
+        use_csp_profile(request.scope, profile)
+        raise RuntimeError("fails on purpose")
+
+    added = []
+    for path in ("/csp-profile-error/{profile}", "/api/v1/csp-profile-error/{profile}"):
+        app.add_api_route(path, endpoint, include_in_schema=False)
+        added.append(app.router.routes[-1])
+    try:
+        yield
+    finally:
+        for route in added:
+            app.router.routes.remove(route)
+
+
+@pytest.mark.parametrize("prefix", ["", "/api/v1"])
+@pytest.mark.parametrize("profile", CSP_PROFILES)
+def test_a_server_error_keeps_its_profile_and_the_security_headers(failing_routes, profile, prefix):
+    """Starlette answers a 500 from ServerErrorMiddleware, outside every
+    middleware the app adds, so server_error_handler sets the headers itself:
+    an error on a page that chose ``local`` must not come back without a CSP."""
+    with TestClient(app, raise_server_exceptions=False) as c:
+        r = c.get(f"{prefix}/csp-profile-error/{profile}")
+    assert r.status_code == 500
+    assert "fails on purpose" not in r.text  # no exception detail for the client
+    assert r.headers["content-security-policy"] == _CSP_HEADERS[profile]
+    assert r.headers["x-content-type-options"] == "nosniff"
+    assert r.headers["x-frame-options"] == "DENY"
+    assert r.headers["referrer-policy"] == "strict-origin-when-cross-origin"
+    assert r.headers["permissions-policy"]
+    # HSTS only over HTTPS, as for every other response.
+    assert "strict-transport-security" not in r.headers
+    with TestClient(app, base_url="https://testserver", raise_server_exceptions=False) as c:
+        secure = c.get(f"{prefix}/csp-profile-error/{profile}")
+    assert secure.status_code == 500
+    assert secure.headers["strict-transport-security"] == "max-age=31536000; includeSubDomains"
+    assert secure.headers["content-security-policy"] == _CSP_HEADERS[profile]
 
 
 @pytest.mark.parametrize("enabled", [False, True])

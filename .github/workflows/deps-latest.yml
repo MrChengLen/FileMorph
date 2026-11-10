@@ -152,3 +152,5 @@ jobs:
           pip-audit -r requirements-uv.lock --disable-pip --strict -s osv
           pip-audit -r requirements-sbom.lock --disable-pip --strict
           pip-audit -r requirements-sbom.lock --disable-pip --strict -s osv
+          pip-audit -r requirements-browser.lock --disable-pip --strict
+          pip-audit -r requirements-browser.lock --disable-pip --strict -s osv
