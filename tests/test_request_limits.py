@@ -155,8 +155,13 @@ def test_upload_prefixes_cover_exactly_the_routes_that_take_files():
 # ── Form charset ─────────────────────────────────────────────────────────────
 
 
+# Starlette reads a form whatever the letter case of its media type (since
+# python-multipart 0.0.33), so the charset check has to ignore the case too.
+@pytest.mark.parametrize("media_type", ["multipart/form-data", "Multipart/Form-Data"])
 @pytest.mark.parametrize("charset", ["iso-8859-1", "utf-16", "windows-1252"])
-def test_form_in_another_charset_gets_415(client, auth_headers, sample_jpg, monkeypatch, charset):
+def test_form_in_another_charset_gets_415(
+    client, auth_headers, sample_jpg, monkeypatch, charset, media_type
+):
     def _parse(self):
         raise AssertionError("the form was parsed")
 
@@ -166,7 +171,7 @@ def test_form_in_another_charset_gets_415(client, auth_headers, sample_jpg, monk
         "/api/v1/convert",
         headers={
             **auth_headers,
-            "content-type": f"multipart/form-data; boundary={_BOUNDARY}; charset={charset}",
+            "content-type": f"{media_type}; boundary={_BOUNDARY}; charset={charset}",
         },
         content=body,
     )
@@ -186,6 +191,20 @@ def test_form_declared_as_utf8_is_accepted(client, auth_headers, sample_jpg, cha
         content=body,
     )
     assert res.status_code == 200
+
+
+def test_form_media_type_is_read_in_any_letter_case(client, auth_headers, sample_jpg):
+    # Media types ignore letter case. Up to python-multipart 0.0.32, Starlette
+    # took "Multipart/Form-Data; boundary=…" for no form at all: the upload
+    # arrived empty and failed with a 422.
+    body = _multipart({"target_format": "png"}, "sample.jpg", sample_jpg.read_bytes(), "image/jpeg")
+    res = client.post(
+        "/api/v1/convert",
+        headers={**auth_headers, "content-type": f"Multipart/Form-Data; boundary={_BOUNDARY}"},
+        content=body,
+    )
+    assert res.status_code == 200
+    assert res.content.startswith(b"\x89PNG")
 
 
 def test_urlencoded_form_in_another_charset_gets_415(client):
