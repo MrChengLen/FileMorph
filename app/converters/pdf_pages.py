@@ -223,12 +223,17 @@ def _reading_pdf() -> Iterator[None]:
     the empty password on open and raises ``FileNotDecryptedError`` on the
     first object it then reads. That becomes :class:`EncryptedPdfError`,
     whose message tells the user to remove the password.
+
+    An RC4 ``/Encrypt /Length`` that leaves no key bytes is a ``ValueError``
+    from ``cryptography``. Where OpenSSL has no RC4, pypdf switches to its own
+    RC4 once OpenSSL has refused RC4 in this process, and that one raises
+    ``ZeroDivisionError`` instead: the same file, so the same answer.
     """
     from pypdf.errors import FileNotDecryptedError, PyPdfError
 
     try:
         yield
-    except (PyPdfError, ValueError) as exc:
+    except (PyPdfError, ValueError, ZeroDivisionError) as exc:
         logger.info("unreadable PDF: %s", type(exc).__name__)
         if isinstance(exc, FileNotDecryptedError):
             raise EncryptedPdfError() from exc
