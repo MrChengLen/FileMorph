@@ -3,10 +3,19 @@ from contextlib import closing
 from pathlib import Path
 
 from PIL import Image
+from pypdf import PdfWriter, Transformation, apply_configuration, get_configuration
 
 from app.compressors.image import save_tiff
-from app.converters._metadata import icc_for, own_page_profile, strip_metadata, strip_pages
-from app.converters.base import BaseConverter
+from app.converters._metadata import (
+    _DPI_RANGE,
+    dpi_for,
+    icc_for,
+    load_upright,
+    own_page_profile,
+    strip_metadata,
+    strip_pages,
+)
+from app.converters.base import BaseConverter, OutputTooLargeError
 from app.converters.registry import register
 from app.core.image_hardening import open_image
 
@@ -99,9 +108,13 @@ class _ImageConverter(BaseConverter):
                 # TIF ↔ TIFF: the target holds every page — packed as compressing does.
                 pages = strip_pages(src)
             else:
-                if src.format == "TIFF" and _several_pages(src):
-                    # A picture format holds one page: the first. PDF holds them all.
-                    self.warnings.append("pages=first")
+                if src.format == "TIFF":
+                    if _several_pages(src):
+                        # A picture format holds one page: the first. PDF holds them all.
+                        self.warnings.append("pages=first")
+                    # Pillow turns the page as it loads it; load_upright turns
+                    # its resolution along — before _usable converts it.
+                    load_upright(src)
                 img = _usable(src)
                 # NEU-C.2: strip PII-bearing metadata (EXIF GPS / camera serial /
                 # XMP creator / IPTC byline) before any save path. Default-on
@@ -123,20 +136,29 @@ class _ImageConverter(BaseConverter):
             save_tiff(pages, output_path)
             return output_path
 
-        # PNG and BMP are lossless — quality param is ignored
+        # PNG and BMP are lossless — quality param is ignored. The resolution
+        # goes where the format has a place for it (dpi_for).
+        dpi = dpi_for(img, pil_fmt)
         if pil_fmt == "PNG":
             # compress_level=9 = maximum zlib deflate effort; optimize=True
             # runs an extra pass for smaller filter/palette choices. Together
             # they shave 20-40 % off the default PNG encoder output.
-            img.save(output_path, format="PNG", optimize=True, compress_level=9)
+            img.save(output_path, format="PNG", optimize=True, compress_level=9, **dpi)
         elif pil_fmt in ("BMP", "GIF", "ICO", "TIFF"):
-            img.save(output_path, format=pil_fmt)
+            img.save(output_path, format=pil_fmt, **dpi)
         else:
             # JPEG, WebP, AVIF. JPEG and WebP write the colour profile that
             # strip_metadata kept only when passed it; without it an iPhone
             # photo (Display P3) turns dull.
             icc = icc_for(img, pil_fmt)
-            img.save(output_path, format=pil_fmt, quality=quality, optimize=True, icc_profile=icc)
+            img.save(
+                output_path,
+                format=pil_fmt,
+                quality=quality,
+                optimize=True,
+                icc_profile=icc,
+                **dpi,
+            )
 
         return output_path
 
@@ -173,20 +195,73 @@ for _src in _sources:
 # image↔image loop above. Strip metadata first like every other image
 # conversion — that also turns a photo upright, from the EXIF the flattening
 # below drops.
+#
+# The resolution sets the page size: a picture becomes a page at 150 dpi — a
+# photo's 72 dpi is a camera's default, not a size. A TIFF page has its own
+# where it has one (strip_metadata keeps it): a scanner or fax machine
+# records the one it scanned at, so a fax in normal mode (204 × 98 dpi, its
+# pixels twice as tall as wide) is the letter it was, not a squat page.
+_PDF_DPI = (150.0, 150.0)
+# Acrobat shows a page of at most 200 inches a side (14 400 points, ISO
+# 32000-1 Annex C); Pillow writes no UserUnit to go past that.
+_PDF_MAX_INCHES = 200
+
+
 class _ImageToPdfConverter(BaseConverter):
     def convert(self, input_path: Path, output_path: Path, **kwargs) -> Path:
         # Closed however the block ends (see _ImageConverter.convert).
         with closing(open_image(input_path)) as src:
             if src.format == "TIFF":
-                pages = [_pdf_page(page) for page in strip_pages(src)]
+                pages = strip_pages(src)
+                dpis = [_page_dpi(page, page.info.get("dpi", _PDF_DPI)) for page in pages]
+                pages = [_pdf_page(page) for page in pages]
             else:
-                pages = [_pdf_page(strip_metadata(_usable(src)))]
-        # resolution=150 DPI controls the physical page size Pillow assigns
-        # each image page — a sensible default for typical phone photos/scans.
+                page = _pdf_page(strip_metadata(_usable(src)))
+                pages, dpis = [page], [_page_dpi(page, _PDF_DPI)]
         pages[0].save(
-            output_path, format="PDF", resolution=150.0, save_all=True, append_images=pages[1:]
+            output_path, format="PDF", dpi=dpis[0], save_all=True, append_images=pages[1:]
         )
+        # Written: the pixels go now. Pillow's writer gave each page a
+        # reference to the list of them, which would keep them all alive.
+        for page in pages:
+            page.close()
+        if len(set(dpis)) > 1:
+            limit = kwargs.get("max_output_bytes")
+            if limit is not None and output_path.stat().st_size > limit:
+                raise OutputTooLargeError  # no resizing for a file that is refused anyway
+            _size_pages(output_path, dpis)
         return output_path
+
+
+def _page_dpi(img: Image.Image, dpi: tuple[float, float]) -> tuple[float, float]:
+    """``dpi``, raised where the page would be larger than ``_PDF_MAX_INCHES``
+    — across and down alike, so it keeps its proportions — but to no more
+    than a measured resolution (``_DPI_RANGE``): past that, a side of a
+    crafted page gets too thin for Pillow to write as a plain number."""
+    x, y = dpi
+    over = max(img.width / x, img.height / y) / _PDF_MAX_INCHES
+    over = min(over, _DPI_RANGE[1] / max(x, y))
+    return (x * over, y * over) if over > 1 else dpi
+
+
+def _size_pages(path: Path, dpis: list[tuple[float, float]]) -> None:
+    """Pillow's PDF writer sizes every page by the first page's resolution; a
+    page with another one — a fax can mix normal and fine pages — is scaled
+    to its own size here, its image with it. Not with ``page.scale()``: that
+    also writes crop, bleed, trim and art boxes, which inserting the page
+    into a PDF (``_fit_image_page``) would leave at this size. The PDF is the
+    one Pillow just wrote, so pypdf's limit on a stream's declared length —
+    against crafted files — gives way to its size."""
+    longest = max(get_configuration().maximum_declared_stream_length, path.stat().st_size)
+    with apply_configuration(maximum_declared_stream_length=longest):
+        writer = PdfWriter(clone_from=path)
+        first_x, first_y = dpis[0]
+        for page, (x, y) in zip(writer.pages, dpis, strict=True):
+            if (x, y) != (first_x, first_y):
+                sx, sy = first_x / x, first_y / y
+                page.add_transformation(Transformation().scale(sx, sy))
+                page.mediabox = page.mediabox.scale(sx, sy)
+        writer.write(path)
 
 
 def _pdf_page(img: Image.Image) -> Image.Image:
