@@ -8,7 +8,9 @@ file can be a PDF, a Word document (``.docx``, rendered by LibreOffice:
 process, like ``/convert``. ``insert_pages`` then reads both PDFs, checks the
 position and assembles the result in a child process with memory and time
 limits (``app/converters/_isolated.py``), like ``/pdf/compress``: all PDF
-work stays within those limits, none runs in the app process. A problem
+work stays within those limits, none runs in the app process — but for the
+PDF Pillow writes for a TIFF whose pages differ in resolution, which
+``image_to_pdf`` reads back to give each page its size. A problem
 the user can fix comes back as data (``{"refused": …}``) naming the form
 field, so the route can say which input it is about.
 
