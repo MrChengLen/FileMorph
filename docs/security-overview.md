@@ -630,7 +630,9 @@ mechanically.
   number — and carry a profile name its user chose; never the
   place or the capture time. One over 4 MB is dropped (print
   profiles stay under about 2 MB; a larger one would only cost
-  encode time). There is no per-request opt-out: a caller who
+  encode time). The resolution (dpi) stays as well: it is the
+  size on paper — a fax's non-square pixels — not personal data.
+  There is no per-request opt-out: a caller who
   needs metadata kept holds the original. When compressing would
   not make a JPEG, PNG or WebP smaller, the original comes back
   instead (`original=kept`), put together anew from the parts of

@@ -713,7 +713,7 @@ async def _do_insert(
         try:
             # pypdf reads both PDFs, checks the position and merges the pages
             # in a child process with memory and time limits, waited for off
-            # the event loop: no PDF is read in the app process.
+            # the event loop: no uploaded PDF is read in the app process.
             result = await asyncio.to_thread(
                 run_isolated,
                 "pdf-insert",

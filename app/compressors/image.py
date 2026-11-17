@@ -6,7 +6,7 @@ from pathlib import Path
 
 from PIL import Image
 
-from app.converters._metadata import icc_for, strip_metadata, strip_pages
+from app.converters._metadata import dpi_for, icc_for, load_upright, strip_metadata, strip_pages
 from app.core.image_hardening import open_image
 
 # Register pillow-avif-plugin if available. Importing it registers AVIF
@@ -75,7 +75,10 @@ def compress_image(input_path: Path, output_path: Path, quality: int = 85) -> Pa
     ``app/converters/_metadata.py``. The ICC colour profile stays: PNG, TIFF
     and AVIF write it on their own, JPEG and WebP only when passed
     ``icc_profile``. The size estimate in ``app.js`` adds its bytes for a JPEG
-    (``pillowIccBytes``).
+    (``pillowIccBytes``). The resolution stays where the format has a place
+    for it (``dpi_for``): PNG, JPEG, TIFF. A JPEG holds it in its 18-byte
+    JFIF header, which an RGB or grey JPEG gets either way, so the estimate
+    is unchanged (it leaves CMYK out).
     """
     quality = max(1, min(100, quality))
     ext = input_path.suffix.lstrip(".").lower()
@@ -89,6 +92,7 @@ def compress_image(input_path: Path, output_path: Path, quality: int = 85) -> Pa
             # Every page of a TIFF; another file named .tif is one picture.
             pages = strip_pages(img) if img.format == "TIFF" else [strip_metadata(img)]
         else:
+            load_upright(img)  # before convert() loads it: the upload may be a TIFF
             if pil_fmt == "JPEG" and img.mode in ("RGBA", "LA", "P"):
                 img = img.convert("RGB")
             img = strip_metadata(img)
@@ -102,12 +106,19 @@ def compress_image(input_path: Path, output_path: Path, quality: int = 85) -> Pa
             quality=quality,
             optimize=True,
             icc_profile=icc_for(img, "JPEG"),
+            **dpi_for(img, "JPEG"),
         )
     elif pil_fmt == "PNG":
         # PNG compress_level 0-9: map quality 100→0, quality 1→9. optimize=True
         # packs at level 9 regardless, so the quality changes nothing here.
         compress_level = max(0, min(9, 9 - round(quality / 100 * 9)))
-        img.save(output_path, format="PNG", compress_level=compress_level, optimize=True)
+        img.save(
+            output_path,
+            format="PNG",
+            compress_level=compress_level,
+            optimize=True,
+            **dpi_for(img, "PNG"),
+        )
     elif pil_fmt == "WEBP":
         img.save(
             output_path, format="WEBP", quality=quality, method=6, icc_profile=icc_for(img, "WEBP")
@@ -132,20 +143,32 @@ def save_tiff(pages: list[Image.Image], output_path: Path) -> None:
     original — with the horizontal predictor that photo TIFFs from Photoshop,
     GIMP or libvips use, unless a page is a palette image (the predictor
     makes it larger) or black and white (it takes none).
+
+    Each page keeps its own resolution — a fax can mix normal and fine
+    pages. Pillow takes a later page's options from its ``encoderinfo``,
+    the rest from the first page's; ``None`` writes none, not the first's.
     """
     first, rest = pages[0], pages[1:]
+    for page in rest:
+        page.encoderinfo = {"dpi": page.info.get("dpi")}
+    options = dpi_for(first, "TIFF")
     if all(page.mode == "1" for page in pages):
         packed = []
         for compression in ("group4", "tiff_adobe_deflate"):
             buf = io.BytesIO()
             first.save(
-                buf, format="TIFF", compression=compression, save_all=True, append_images=rest
+                buf,
+                format="TIFF",
+                compression=compression,
+                save_all=True,
+                append_images=rest,
+                **options,
             )
             packed.append(buf.getvalue())
         output_path.write_bytes(min(packed, key=len))
         return
-    plain = any(page.mode in ("P", "1") for page in pages)
-    options = {} if plain else {"tiffinfo": {317: 2}}  # 317: Predictor
+    if not any(page.mode in ("P", "1") for page in pages):
+        options["tiffinfo"] = {317: 2}  # 317: Predictor
     first.save(
         output_path,
         format="TIFF",
@@ -160,7 +183,12 @@ def _encode_to_bytes(img: Image.Image, pil_fmt: str, quality: int) -> bytes:
     buf = io.BytesIO()
     if pil_fmt == "JPEG":
         img.save(
-            buf, format="JPEG", quality=quality, optimize=True, icc_profile=icc_for(img, "JPEG")
+            buf,
+            format="JPEG",
+            quality=quality,
+            optimize=True,
+            icc_profile=icc_for(img, "JPEG"),
+            **dpi_for(img, "JPEG"),
         )
     elif pil_fmt == "AVIF":
         img.save(buf, format="AVIF", quality=quality, speed=6, icc_profile=icc_for(img, "AVIF"))
@@ -213,7 +241,8 @@ def _best_fit(
 
 def _scaled(img: Image.Image, pil_fmt: str, factor: float) -> Image.Image:
     """``img`` scaled by ``factor`` (< 1), keeping a short edge of at least
-    ``_MIN_EDGE_PX``."""
+    ``_MIN_EDGE_PX`` — and its size on paper: the resolution drops with the
+    pixels."""
     if img.mode in ("P", "PA", "1") or img.mode.startswith("I;16"):
         # Palette and bilevel images resample only with NEAREST, and reduce()
         # has no 16-bit modes; JPEG takes no alpha.
@@ -223,7 +252,11 @@ def _scaled(img: Image.Image, pil_fmt: str, factor: float) -> Image.Image:
         max(_MIN_EDGE_PX, round(img.width * factor)),
         max(_MIN_EDGE_PX, round(img.height * factor)),
     )
-    return img.resize(size, Image.Resampling.LANCZOS, reducing_gap=2.0)
+    scaled = img.resize(size, Image.Resampling.LANCZOS, reducing_gap=2.0)
+    if "dpi" in img.info:
+        x, y = img.info["dpi"]
+        scaled.info["dpi"] = (x * size[0] / img.width, y * size[1] / img.height)
+    return scaled
 
 
 def compress_image_to_target(
@@ -260,6 +293,7 @@ def compress_image_to_target(
     pil_fmt = _PIL_FORMAT[ext]
 
     with closing(open_image(input_path)) as img:
+        load_upright(img)  # before convert() loads it: the upload may be a TIFF
         if pil_fmt == "JPEG" and img.mode in ("RGBA", "LA", "P"):
             img = img.convert("RGB")
         # NEU-C.2: strip PII before any encode pass — applies to every probe
