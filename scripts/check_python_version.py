@@ -14,6 +14,10 @@ This script is that gate. The **Dockerfile is the single source of truth** —
 it is what actually ships — and everything else must agree with it:
 
 * every ``python-version:`` in ``.github/workflows/*.yml``
+* the version a workflow that runs a job in a container image (browser.yml)
+  asserts for that image's Python, ``sys.version_info[:2] == (X, Y)``: such a
+  job has no ``python-version:`` to compare. Checked per workflow file: a file
+  with a ``container:`` job must hold the assertion
 * the ``--python-version X.Y`` recorded in ``requirements.lock``'s uv header
 * ``requires-python`` in ``pyproject.toml`` must *permit* the shipped version
 
@@ -48,6 +52,12 @@ DOCKERFILE_RE = re.compile(r"^FROM\s+python:(\d+\.\d+)-slim@sha256:", re.MULTILI
 # ``python-version: "3.14"`` in setup-python steps. Quotes optional in YAML.
 WORKFLOW_RE = re.compile(r'^\s*python-version:\s*["\']?(\d+\.\d+)["\']?\s*$', re.MULTILINE)
 
+# ``sys.version_info[:2] == (3, 14)`` — a container job's check of its image's Python.
+CONTAINER_RE = re.compile(r"sys\.version_info\[:2\]\s*==\s*\((\d+),\s*(\d+)\)")
+
+# ``container:`` as a job's key (four spaces in): the job runs in that image.
+JOB_CONTAINER_RE = re.compile(r"^ {4}container:", re.MULTILINE)
+
 # uv records the *target* version it resolved for in its header command line:
 # ``#    uv pip compile --generate-hashes --python-version 3.14 ...``
 LOCK_RE = re.compile(r"--python-version[= ](\d+\.\d+)")
@@ -73,12 +83,28 @@ def main() -> int:
 
     # --- workflows -------------------------------------------------------
     for wf in sorted((ROOT / ".github/workflows").glob("*.yml")):
-        for version in WORKFLOW_RE.findall(wf.read_text(encoding="utf-8")):
+        text = wf.read_text(encoding="utf-8")
+        for version in WORKFLOW_RE.findall(text):
             if version != shipped:
                 problems.append(
                     f"{wf.relative_to(ROOT).as_posix()}: python-version {version} "
                     f"!= shipped {shipped}"
                 )
+        asserted = CONTAINER_RE.findall(text)
+        for major, minor in asserted:
+            if f"{major}.{minor}" != shipped:
+                problems.append(
+                    f"{wf.relative_to(ROOT).as_posix()}: asserts its image's Python is "
+                    f"{major}.{minor} != shipped {shipped} — move the container image to one "
+                    f"that ships {shipped}"
+                )
+        # A job that runs in a container image (`container:` under a job) has
+        # no python-version: it must assert its image's Python instead.
+        if JOB_CONTAINER_RE.search(text) and not asserted:
+            problems.append(
+                f"{wf.relative_to(ROOT).as_posix()}: a job runs in a container image but no step "
+                f"asserts its Python (`sys.version_info[:2] == ({shipped.replace('.', ', ')})`)"
+            )
 
     # --- lockfile --------------------------------------------------------
     lock = ROOT / "requirements.lock"

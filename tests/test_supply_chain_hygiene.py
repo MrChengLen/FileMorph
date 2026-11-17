@@ -79,6 +79,18 @@ _DEPENDABOT = _REPO_ROOT / ".github" / "dependabot.yml"
 _LOCKFILE = _REPO_ROOT / "requirements.lock"
 _SBOM_MANIFEST = _REPO_ROOT / "requirements-sbom.txt"
 _SBOM_LOCKFILE = _REPO_ROOT / "requirements-sbom.lock"
+_BROWSER_MANIFEST = _REPO_ROOT / "requirements-browser.txt"
+_BROWSER_LOCKFILE = _REPO_ROOT / "requirements-browser.lock"
+# browser.yml's container: the Playwright image of one release, by digest.
+_BROWSER_IMAGE_RE = re.compile(
+    r"^\s*image:\s*mcr\.microsoft\.com/playwright/python:v(?P<version>\d+\.\d+\.\d+)-resolute"
+    r"@sha256:[0-9a-f]{64}\s*$",
+    re.MULTILINE,
+)
+_BROWSER_INSTALLS = [
+    "pip install --require-hashes -r requirements.lock",
+    "pip install --require-hashes --only-binary :all: -r requirements-browser.lock",
+]
 _REQUIREMENTS_DEV = _REPO_ROOT / "requirements-dev.txt"
 _UV_LOCKFILE = _REPO_ROOT / "requirements-uv.lock"
 # The `Install uv` step of every job that compiles a lockfile: the uv that
@@ -386,8 +398,9 @@ def test_every_lockfile_is_audited_against_pypi_and_osv(workflow: str, job: str)
     ``>=`` constraints resolve to the newest releases at audit time, so a CVE
     in an older version the image still carries would go unreported. Each
     lockfile holds code that runs, though: requirements.lock in production,
-    requirements-uv.lock the uv that writes the lockfiles, and
-    requirements-sbom.lock the SBOM generator of every release. Only the first
+    requirements-uv.lock the uv that writes the lockfiles,
+    requirements-sbom.lock the SBOM generator of every release, and
+    requirements-browser.lock the browser tests' Playwright. Only the first
     was audited until 2026-10, and uv 0.12.23 sat on main although its CA
     store trusted a root with compromised intermediates (GHSA-hq85-5cpj-mr62).
     Either source can lack an advisory the other lists: PyPI's feed lacked
@@ -722,7 +735,118 @@ def test_sbom_generator_lockfile_is_hash_pinned() -> None:
     )
 
 
-@pytest.mark.parametrize("lockfile", [_LOCKFILE, _SBOM_LOCKFILE], ids=lambda p: p.name)
+def test_browser_test_lockfile_is_hash_pinned() -> None:
+    """requirements-browser.lock pins every package with a hash, satisfies
+    requirements-browser.txt, targets the shipped Python, and agrees with
+    requirements.lock on every package both hold.
+
+    browser.yml installs requirements.lock (the app) and then this lockfile
+    (Playwright, pytest) into one interpreter, the image's Python 3.14. A
+    package both need at two versions would leave the app tested on one it
+    does not ship with; compiling this lockfile with requirements.lock as
+    constraints keeps them equal, until requirements.lock changes such a
+    package on its own — then both get recompiled (deps-lock workflow).
+    """
+    assert _BROWSER_LOCKFILE.is_file(), (
+        "requirements-browser.lock missing, but browser.yml installs from it — recompile it "
+        "with the command in requirements-browser.txt, or run the deps-lock workflow"
+    )
+    for entry in _lock_entries(_BROWSER_LOCKFILE):
+        assert re.fullmatch(r"[A-Za-z0-9._-]+==[^\s;]+( --hash=sha256:[0-9a-f]{64})+", entry), (
+            f"requirements-browser.lock: `{entry.split()[0]}` is not an exact, hashed pin"
+        )
+    pins = _lock_pins(_BROWSER_LOCKFILE)
+    for line in _BROWSER_MANIFEST.read_text(encoding="utf-8").splitlines():
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        wanted = Requirement(line)
+        pinned = pins.get(canonicalize_name(wanted.name))
+        assert pinned and wanted.specifier.contains(pinned, prereleases=True), (
+            f"requirements-browser.lock pins {wanted.name} {pinned}, but "
+            f"requirements-browser.txt asks for {wanted.specifier} — recompile the lockfile "
+            f"(deps-lock workflow)"
+        )
+    assert _lock_python_version(_BROWSER_LOCKFILE) == _lock_python_version(_LOCKFILE), (
+        "requirements-browser.lock is compiled for a different Python than requirements.lock "
+        "— recompile both for the shipped version (deps-lock workflow)"
+    )
+    shipped = _lock_pins(_LOCKFILE)
+    differ = {
+        name: (pins[name], shipped[name])
+        for name in pins.keys() & shipped.keys()
+        if pins[name] != shipped[name]
+    }
+    assert not differ, (
+        f"requirements-browser.lock and requirements.lock disagree on {differ} "
+        f"(browser, shipped): recompile requirements-browser.lock (deps-lock workflow)"
+    )
+
+
+def test_browser_image_is_the_locked_playwright_release() -> None:
+    """browser.yml runs in the Playwright image of the release the lockfile
+    pins, pinned by digest.
+
+    The image brings the browsers, built for one Playwright release, and the
+    job installs Playwright from requirements-browser.lock. Were they two
+    releases, Playwright would look for browser builds the image does not
+    have. By digest like ci.yml's images, so the browsers cannot change
+    between two runs of one commit.
+    """
+    versions = _BROWSER_IMAGE_RE.findall(_workflow_code("browser.yml"))
+    assert len(versions) == 1, (
+        "browser.yml: expected one `image: mcr.microsoft.com/playwright/python:v<version>-"
+        "resolute@sha256:<digest>` — the browsers come from that image, pinned by digest"
+    )
+    manifest = {
+        canonicalize_name(Requirement(line).name): Requirement(line)
+        for line in _BROWSER_MANIFEST.read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    }
+    assert str(manifest["playwright"].specifier) == f"=={versions[0]}", (
+        f"requirements-browser.txt must pin playwright=={versions[0]}, the release of "
+        f"browser.yml's image, exactly — or move the image with it (comment in browser.yml)"
+    )
+    assert _lock_pins(_BROWSER_LOCKFILE).get("playwright") == versions[0], (
+        "requirements-browser.lock does not pin the image's Playwright release — recompile it"
+    )
+
+
+def test_no_workflow_downloads_a_browser() -> None:
+    """The browsers come from the Playwright image only, and browser.yml
+    installs nothing but the two hashed lockfiles.
+
+    ``playwright install`` would fetch browser builds that no hash in this
+    repository covers.
+    """
+    for path in _workflow_files():
+        code = "\n".join(
+            line
+            for line in path.read_text(encoding="utf-8").splitlines()
+            if not line.lstrip().startswith("#")
+        )
+        assert not re.search(r"\bplaywright\s+install\b", code), (
+            f"{path.name} runs `playwright install`: browsers come from the Playwright image"
+        )
+    installs = [
+        command
+        for job in _workflow(_WORKFLOW_DIR / "browser.yml")["jobs"].values()
+        for step in _steps(job)
+        for command in _script_commands(step.get("run") or "")
+        if _INSTALLS_RE.search(command)
+    ]
+    assert installs == _BROWSER_INSTALLS, (
+        f"browser.yml installs {installs}; it installs the app and the test tools from "
+        f"their hashed lockfiles and nothing else: {_BROWSER_INSTALLS}"
+    )
+    # Nor a system package: the image brings the browsers' libraries.
+    assert not re.search(r"\bapt(?:-get)?\s+install\b", _workflow_code("browser.yml")), (
+        "browser.yml installs a system package; the Playwright image brings what the browsers need"
+    )
+
+
+@pytest.mark.parametrize(
+    "lockfile", [_LOCKFILE, _SBOM_LOCKFILE, _BROWSER_LOCKFILE], ids=lambda p: p.name
+)
 def test_lockfile_jobs_run_the_recorded_compile_command(lockfile: Path) -> None:
     """lockfile-drift and deps-lock run the command in the lockfile's header.
 
@@ -823,7 +947,7 @@ def test_deps_lock_pushes_from_a_job_that_installs_nothing() -> None:
     cache or stored credentials, and hands the lockfiles over as an artifact.
     ``commit`` runs no package manager or download, uses only the actions in
     ``_DEPS_LOCK_WRITE_ACTIONS``, unpacks the artifact outside its checkout
-    and takes the two lockfiles out of it by name — a ``cp -r`` of the whole
+    and takes the three lockfiles out of it by name — a ``cp -r`` of the whole
     artifact could bring a ``.git/config`` whose next ``git`` call runs code
     next to the token.
     """
@@ -882,9 +1006,13 @@ def test_deps_lock_pushes_from_a_job_that_installs_nothing() -> None:
     folder = str(received["path"]).removeprefix("${{ runner.temp }}/")
     script = "\n".join(step.get("run") or "" for step in _steps(commit_job))
     taken = re.findall(r'RUNNER_TEMP\}?"?/' + re.escape(folder) + r'/?([^\s"\']*)', script)
-    assert sorted(taken) == ["requirements-sbom.lock", "requirements.lock"], (
-        f"deps-lock.yml: `commit` must take requirements.lock and requirements-sbom.lock out "
-        f"of the artifact by name, and nothing else — found {taken}"
+    assert sorted(taken) == [
+        "requirements-browser.lock",
+        "requirements-sbom.lock",
+        "requirements.lock",
+    ], (
+        f"deps-lock.yml: `commit` must take requirements.lock, requirements-sbom.lock and "
+        f"requirements-browser.lock out of the artifact by name, and nothing else — found {taken}"
     )
 
 

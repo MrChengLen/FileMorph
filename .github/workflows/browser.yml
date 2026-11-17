@@ -1,0 +1,71 @@
+name: Browser tests
+
+# The local engine (app/static/engine/, app/core/engine.py) is the code that
+# will process files in the browser. pytest checks the headers the app sends;
+# this job checks, in Chromium and in WebKit (the engine of Safari on the
+# iPhone), that a page under the `local` CSP profile opens no data connection
+# and posts no form: fetch, XHR, sendBeacon, WebSocket, EventSource and form
+# posts never reach the server, while the same probes on a `default` page do
+# (tests/browser/).
+#
+# A workflow of its own rather than a job in ci.yml: notify-ops.yml deploys
+# once CI and Docker have passed, and a browser test that flakes must not hold
+# a deploy back. It is not a required check (yet).
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+# As in ci.yml: a newer push on a pull request cancels its older runs; on main
+# every commit runs to the end.
+concurrency:
+  group: browser-${{ github.workflow }}-${{ github.ref == 'refs/heads/main' && github.sha || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+
+jobs:
+  browser-test:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    container:
+      # The browsers and the libraries they need come from this image, built
+      # for one Playwright release: nothing in this job downloads a browser,
+      # and Playwright itself comes from requirements-browser.lock, hashed.
+      # Pinned by digest like ci.yml's images; the tag names the release, and
+      # requirements-browser.txt pins the same Playwright
+      # (tests/test_supply_chain_hygiene.py checks). "resolute" is Ubuntu
+      # 26.04, whose python3 is 3.14: the app runs on the version it ships on.
+      # To move it, change the pin in requirements-browser.txt, recompile its
+      # lockfile and take the new digest from
+      #   docker buildx imagetools inspect mcr.microsoft.com/playwright/python:v<version>-resolute
+      image: mcr.microsoft.com/playwright/python:v1.64.1-resolute@sha256:e0006b47eb8c8eb548acebc35ece5968a331051c8f33ae5cd45e9cafd65fdc83
+      # Chromium needs more shared memory than Docker's 64 MB default.
+      options: --ipc=host
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The app is only ever tested on the Python it ships on (the
+      # Dockerfile's). A container job has no `python-version:` for
+      # scripts/check_python_version.py to compare, so it compares this.
+      - name: Check the image's Python
+        run: python -c "import sys; assert sys.version_info[:2] == (3, 14), sys.version"
+
+      # The app as the image ships it (the Dockerfile installs the same
+      # lockfile), then Playwright and pytest. requirements-browser.lock is
+      # compiled against requirements.lock, so the second install changes
+      # nothing the first one put there.
+      - name: Install the app and the test tools
+        run: |
+          pip install --require-hashes -r requirements.lock
+          pip install --require-hashes --only-binary :all: -r requirements-browser.lock
+
+      # tests/browser/pytest.ini makes tests/browser/ the rootdir: the main
+      # suite's tests/conftest.py needs the dev requirements, which this job
+      # does not install.
+      - name: Browser tests (Chromium, WebKit)
+        run: python -m pytest -c tests/browser/pytest.ini tests/browser -ra --tb=short

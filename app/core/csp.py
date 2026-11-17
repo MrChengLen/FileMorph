@@ -14,10 +14,10 @@ middleware answers each request with the profile the route chose:
 - ``local`` — strict pages and the engine files: the browser refuses fetch,
   XHR, WebSocket, EventSource and beacons (``connect-src 'none'``), form posts
   (``form-action 'none'``), plugins and frames. It does not stop navigation,
-  pop-up windows (they load under their own profile) or WebRTC, nor requests
-  for images, scripts and styles from this origin (the page needs them): it
-  keeps the app's own code from uploading, it does not contain a hostile
-  script.
+  pop-up windows or workers started from a script outside the engine mount
+  (they run under their own profile), WebRTC, nor requests for images,
+  scripts and styles from this origin (the page needs them): it keeps the
+  app's own code from uploading, it does not contain a hostile script.
 
 A route that wants another profile than ``default`` calls
 :func:`use_csp_profile`. Everything under ``/static/engine/`` gets ``local``

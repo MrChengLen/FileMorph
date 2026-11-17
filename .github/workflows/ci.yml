@@ -216,10 +216,12 @@ jobs:
       # only file whose contents actually reach production. The lockfile-drift
       # job below guarantees it still corresponds to requirements.txt.
       #
-      # The other two lockfiles hold tools CI runs: requirements-uv.lock the uv
-      # that writes the lockfiles (lockfile-drift below, deps-lock.yml), and
+      # The other three lockfiles hold tools CI runs: requirements-uv.lock the
+      # uv that writes the lockfiles (lockfile-drift below, deps-lock.yml),
       # requirements-sbom.lock the SBOM generator (sbom.yml, release.yml,
-      # docker.yml). Neither was audited until 2026-10, and uv 0.12.23 sat on
+      # docker.yml), and requirements-browser.lock Playwright and pytest for
+      # the browser tests (browser.yml). The first two were not audited
+      # until 2026-10, and uv 0.12.23 sat on
       # main unnoticed although its bundled CA store trusted a root whose
       # intermediate keys were compromised (GHSA-hq85-5cpj-mr62).
       #
@@ -260,6 +262,14 @@ jobs:
       - name: "Dependency vulnerability scan: requirements-sbom.lock (OSV)"
         id: audit-sbom-osv
         run: pip-audit -r requirements-sbom.lock --disable-pip --strict -s osv
+
+      - name: "Dependency vulnerability scan: requirements-browser.lock (PyPI)"
+        id: audit-browser-pypi
+        run: pip-audit -r requirements-browser.lock --disable-pip --strict
+
+      - name: "Dependency vulnerability scan: requirements-browser.lock (OSV)"
+        id: audit-browser-osv
+        run: pip-audit -r requirements-browser.lock --disable-pip --strict -s osv
 
       # The vendored browser code in app/static/vendor/ (listed in its
       # manifest.json, plus the libraries a file's "bundles" field names) is
@@ -409,7 +419,10 @@ jobs:
   #
   # requirements-sbom.lock, the SBOM generator's lockfile, is checked the same
   # way against requirements-sbom.txt. Dependabot only edits that .txt, so
-  # without this a generator bump would merge green and change nothing.
+  # without this a generator bump would merge green and change nothing. So
+  # is requirements-browser.lock against requirements-browser.txt, compiled
+  # with requirements.lock as constraints: a change there to a package both
+  # hold turns this red until the browser lockfile follows.
   lockfile-drift:
     runs-on: ubuntu-26.04
     timeout-minutes: 15
@@ -460,6 +473,8 @@ jobs:
           uv pip compile --generate-hashes --python-version 3.14 --python-platform x86_64-unknown-linux-gnu --output-file requirements.lock requirements.txt
           cp requirements-sbom.lock requirements-sbom.lock.committed
           uv pip compile --generate-hashes --python-version 3.14 --python-platform x86_64-unknown-linux-gnu --output-file requirements-sbom.lock requirements-sbom.txt
+          cp requirements-browser.lock requirements-browser.lock.committed
+          uv pip compile --generate-hashes --python-version 3.14 --python-platform x86_64-unknown-linux-gnu --constraint requirements.lock --output-file requirements-browser.lock requirements-browser.txt
 
       - name: Compare
         id: compare
@@ -467,8 +482,9 @@ jobs:
           drifted=""
           diff -u requirements.lock.committed requirements.lock || drifted="$drifted requirements.lock"
           diff -u requirements-sbom.lock.committed requirements-sbom.lock || drifted="$drifted requirements-sbom.lock"
+          diff -u requirements-browser.lock.committed requirements-browser.lock || drifted="$drifted requirements-browser.lock"
           if [ -z "$drifted" ]; then
-            echo "requirements.lock and requirements-sbom.lock are in sync with their .txt files"
+            echo "requirements.lock, requirements-sbom.lock and requirements-browser.lock are in sync with their .txt files"
           else
             echo "::error::Out of sync with its .txt file:$drifted. Download the 'requirements-lock-recompiled' artifact and commit the file(s) named here, or run the deps-lock workflow."
             exit 1
@@ -482,6 +498,7 @@ jobs:
           path: |
             requirements.lock
             requirements-sbom.lock
+            requirements-browser.lock
           retention-days: 7
 
   secret-scan:

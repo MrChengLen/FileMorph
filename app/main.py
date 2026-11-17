@@ -15,7 +15,7 @@ from fastapi import FastAPI, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -407,9 +407,15 @@ async def locale_resolver(request: Request, call_next):
     return await call_next(request)
 
 
-@app.middleware("http")
-async def security_headers(request: Request, call_next):
-    response = await call_next(request)
+def _apply_security_headers(request: Request, response: Response) -> None:
+    """Set the security headers, the route's CSP profile among them.
+
+    The middleware below calls it for every response a route or an exception
+    handler returns. A 500 is the exception: Starlette answers it from
+    ServerErrorMiddleware, outside every middleware added here, so
+    ``server_error_handler`` calls it itself. Otherwise an error on a page
+    that chose the ``local`` profile would come back with no CSP at all.
+    """
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
@@ -424,6 +430,12 @@ async def security_headers(request: Request, call_next):
     if request.url.scheme == "https":
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     response.headers["Permissions-Policy"] = _PERMISSIONS_POLICY
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    _apply_security_headers(request, response)
     return response
 
 
@@ -507,10 +519,15 @@ async def not_found_handler(request: Request, exc):
 async def server_error_handler(request: Request, exc):
     logger.exception("Unhandled server error")
     if request.url.path.startswith("/api/"):
-        return JSONResponse({"detail": "Internal server error."}, status_code=500)
-    return templates.TemplateResponse(
-        request, "500.html", context=localized_context(request), status_code=500
-    )
+        response = JSONResponse({"detail": "Internal server error."}, status_code=500)
+    else:
+        response = templates.TemplateResponse(
+            request, "500.html", context=localized_context(request), status_code=500
+        )
+    # This handler runs outside the security-headers middleware (see
+    # _apply_security_headers), so the 500 gets its headers here.
+    _apply_security_headers(request, response)
+    return response
 
 
 @app.exception_handler(RequestValidationError)

@@ -1,0 +1,20 @@
+# The browser test job (.github/workflows/browser.yml): Playwright and pytest
+# for tests/browser/. CI tooling only: it is not part of the image.
+#
+# The job installs requirements-browser.lock, compiled from this file with
+# hashes, and never this file: with --require-hashes pip refuses anything
+# unpinned or unhashed. The lockfile is compiled against requirements.lock,
+# which the job installs as well, so a package both need (greenlet,
+# typing-extensions, …) has one version. After editing this file, or after
+# requirements.lock changed such a package, recompile it — or run the
+# deps-lock workflow; tests/test_supply_chain_hygiene.py fails until the
+# lockfile satisfies this file, and ci.yml's lockfile-drift until they agree:
+#   uv pip compile --generate-hashes --python-version 3.14 --python-platform x86_64-unknown-linux-gnu --constraint requirements.lock --output-file requirements-browser.lock requirements-browser.txt
+#
+# Playwright stays pinned exactly: the browsers come from the Playwright image
+# browser.yml runs in, never from `playwright install`, and that image is
+# built for one Playwright release. Its tag in browser.yml names the same
+# version (tests/test_supply_chain_hygiene.py checks), so a bump here has to
+# move the image too — see the comment on the image in browser.yml.
+playwright==1.64.1
+pytest>=9.1.1

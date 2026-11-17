@@ -31,6 +31,10 @@ from fastapi.testclient import TestClient
 from app.core import security as sec_module
 from app.main import app
 
+# The browser tests need browsers and run in .github/workflows/browser.yml,
+# with tests/browser/pytest.ini as their own rootdir; this suite has none.
+collect_ignore = ["browser"]
+
 TEST_KEY = "test-api-key-filemorph-ci"
 
 

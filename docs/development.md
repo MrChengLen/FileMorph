@@ -113,6 +113,12 @@ uvicorn app.main:app --reload
 With `--reload`, uvicorn watches the project directory for file changes and
 restarts the server process automatically. No manual restart needed when editing Python files.
 
+The local engine (`app/static/engine/`, served only with `LOCAL_TOOLS_ENABLED=true`)
+is the exception: `--reload` watches `*.py` files only, and the server computes the
+engine's URL hash once per process. After editing an engine file, restart the server
+by hand — otherwise the browser keeps the old file, which it caches for good under
+the old hash.
+
 ---
 
 ## Running tests
@@ -131,6 +137,30 @@ install it separately: `pip install pytest-cov`):
 ```bash
 pytest tests/ --cov=app --cov-report=term-missing
 ```
+
+### Browser tests
+
+`tests/browser/` checks in real browsers what the suite above can only check as
+headers: that a page under the `local` CSP profile opens no data connection and
+posts no form — no fetch, XHR, beacon, WebSocket, EventSource or form post
+reaches the server — while the same probes on a `default` page do. Navigation,
+pop-up windows, workers started from outside the engine, WebRTC and requests for
+images and scripts from the same origin are outside what the profile blocks
+(`app/core/csp.py`). Each test runs in Chromium and in WebKit (Safari's engine). They need browsers, so `pytest tests/` leaves them out; the
+`Browser tests` workflow (`.github/workflows/browser.yml`) runs them on every pull
+request, in the Playwright image of the release `requirements-browser.txt` pins.
+
+To run them on your machine, install Playwright from its lockfile and let it fetch
+its browsers once:
+```bash
+pip install --require-hashes -r requirements-browser.lock
+python -m playwright install chromium webkit
+python -m pytest -c tests/browser/pytest.ini tests/browser
+```
+`-c tests/browser/pytest.ini` makes `tests/browser/` the rootdir, so the suite's
+`tests/conftest.py` is not loaded. On Windows, pip asks for `colorama` as well
+(pytest needs it there, the Linux lockfile does not list it): add `--no-deps` and
+keep the development environment's own copy.
 
 ---
 
