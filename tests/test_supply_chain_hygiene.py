@@ -69,6 +69,7 @@ from pathlib import Path
 import pytest
 import yaml
 from packaging.requirements import Requirement
+from packaging.specifiers import SpecifierSet
 from packaging.utils import canonicalize_name
 from packaging.version import Version
 
@@ -1726,4 +1727,31 @@ def test_dependabot_ignores_sit_on_live_caps() -> None:
             assert cap in caps.get(canonicalize_name(entry["dependency-name"]), set()), (
                 f"dependabot.yml ignores {entry['dependency-name']} {version_range}, but no "
                 f"requirements*.txt caps it {cap}: drop the ignore together with the cap"
+            )
+
+
+def test_dependabot_python_hold_lies_above_the_shipped_version() -> None:
+    """Every docker ``ignore`` range for ``python`` excludes the Python the image ships.
+
+    Holding back a Python version (``versions: [">=3.15"]``) is only right while
+    the Dockerfile ships an older one. Left behind after the upgrade, the ignore
+    would hold back every later version silently: no pull request, no red CI.
+    """
+    docker = next(
+        update
+        for update in yaml.safe_load(_DEPENDABOT.read_text(encoding="utf-8"))["updates"]
+        if update["package-ecosystem"] == "docker"
+    )
+    shipped = _FROM_DIGEST_RE.search(_DOCKERFILE.read_text(encoding="utf-8"))
+    assert shipped, "Dockerfile has no digest-pinned FROM line"
+    version = re.search(r"python:(\d+\.\d+)-slim", shipped.group(0))
+    assert version, "could not read the Python version from the Dockerfile FROM line"
+    for entry in docker.get("ignore", []):
+        if entry["dependency-name"] != "python":
+            continue
+        for version_range in entry.get("versions", []):
+            assert Version(version.group(1)) not in SpecifierSet(version_range), (
+                f"dependabot.yml ignores python {version_range}, which includes the "
+                f"{version.group(1)} the Dockerfile ships: drop the ignore together with "
+                f"the upgrade"
             )

@@ -120,3 +120,13 @@ updates:
       - "docker"
     commit-message:
       prefix: "docker(deps)"
+    # Python stays on 3.14 (decided 2026-11-17 on #332; look again on 2027-04-01):
+    # pillow-avif-plugin has no 3.15 wheel, and its source build needs libavif
+    # headers the builder stage lacks. 3.14 gets bug fixes until October 2027.
+    # The move is one PR with the workflows, the browser job's image and the
+    # lockfiles (see the python-version note at the top), and it drops this
+    # entry. Only tags are held: new 3.14-slim digests (Debian fixes, 3.14.x
+    # releases) keep coming.
+    ignore:
+      - dependency-name: "python"
+        versions: [">=3.15"]
