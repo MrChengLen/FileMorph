@@ -95,6 +95,29 @@ def engine_tree_hash() -> str:
     return git_tree_id(ENGINE_DIR)
 
 
+def engine_url() -> str:
+    """Where the engine is served: ``/static/engine/<tree-hash>``, no slash at the end."""
+    return f"{ENGINE_URL_PREFIX}/{engine_tree_hash()}"
+
+
+@cache
+def engine_modules() -> tuple[str, ...]:
+    """Every file of the engine, relative to ENGINE_DIR in POSIX spelling, sorted.
+
+    A page that runs the engine preloads all of them (``<link
+    rel="modulepreload">``), so that nothing is left to fetch once it has
+    loaded: the device check goes on in airplane mode. Computed once per
+    process, like the tree hash.
+    """
+    return tuple(
+        sorted(
+            path.relative_to(ENGINE_DIR).as_posix()
+            for path in ENGINE_DIR.rglob("*")
+            if path.is_file() and path.suffix.lower() in ENGINE_MEDIA_TYPES
+        )
+    )
+
+
 class EngineFiles(StaticFiles):
     """Serves ``ENGINE_DIR`` under ``/static/engine/<tree-hash>/…`` (module
     docstring)."""

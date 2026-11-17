@@ -58,6 +58,7 @@ _NOT_LISTED = {
     "/account-deleted",
     "/cockpit",
     "/cancel",  # § 312k BGB entry point, not landing content
+    "/device-check",  # the local engine's test page, behind LOCAL_TOOLS_ENABLED
 }
 
 _TITLE_RE = re.compile(r"<title[^>]*>([^<]+)</title>", re.IGNORECASE)

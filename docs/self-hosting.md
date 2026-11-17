@@ -925,12 +925,37 @@ posture: [`pii-redaction.md`](pii-redaction.md).
 
 FileMorph is getting an engine that processes files in the browser instead of
 uploading them. It is part of the AGPL engine and ships switched off:
-with `LOCAL_TOOLS_ENABLED` unset, every engine URL returns `404` and no page
-loads the engine. For now it holds only a placeholder module.
+with `LOCAL_TOOLS_ENABLED` unset, every engine URL returns `404`, so does the
+device check below, and no page loads the engine. So far it holds the first
+modules — reading an image's format, size and orientation from its header,
+and compressing a photo to JPEG in the browser — and no tool page uses them
+yet.
 
 | Env var | Default | Gates |
 |---|---|---|
-| `LOCAL_TOOLS_ENABLED` | `false` | serving the engine under `/static/engine/<tree-hash>/` |
+| `LOCAL_TOOLS_ENABLED` | `false` | serving the engine under `/static/engine/<tree-hash>/`, and the device check at `/device-check` |
+
+### Device check
+
+With the switch on, `/device-check` (also `/de/…` and `/en/…`) measures
+whether a phone or computer compresses a large photo in its browser quickly
+enough. It makes its own 24- and 48-megapixel test photos, compresses the
+24-megapixel one to 2 MB three times, once in a background worker and once
+without a target, decodes the 48-megapixel one as a memory test, and shows
+each check with its time; **Copy result** gives the whole record as text. A
+photo of your own, or one from the camera, can be tried too. The page runs
+under the strict CSP profile `local`, so the browser refuses its data
+connections and form posts (what `local` does not stop is listed in
+[security-overview.md](security-overview.md#content-security-policy)); it
+needs no network, and asks for airplane mode before the run. Its state lives
+in the address after `#`, which no request carries, so a reload after a
+crashed tab still knows what ran, without cookies or local storage (like any
+address, it stays in the browser's history); a link with a state the page
+could not have written is ignored. **Copy result** holds the model typed in
+and the one the browser reports, the browser and system with the user agent,
+cores, memory and screen size, the date and time of copying, and each
+check's sizes and times — no photo, file name or location. It answers with
+`X-Robots-Tag: noindex` and is linked from nowhere.
 
 The engine is plain JavaScript modules in `app/static/engine/`, with no build
 step: what the repository holds is what the browser runs. The app serves them

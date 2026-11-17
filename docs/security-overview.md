@@ -501,7 +501,8 @@ profile, and each route picks its profile (`app/core/csp.py`):
   browser holds: ones it processed itself, or a converted result. The
   pages with the converter (home, `/compress`, `/convert/…`) use it,
   so the result card can show a picture of an image result.
-- **`local`** — for strict pages; also sent with every file of the
+- **`local`** — for strict pages (so far the device check at
+  `/device-check`, served only with `LOCAL_TOOLS_ENABLED`); also sent with every file of the
   browser engine under `/static/engine/` (it governs a file that runs
   as a worker; a module a page imports runs under that page's
   profile). The browser refuses fetch, XHR, WebSocket, EventSource,

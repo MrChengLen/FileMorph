@@ -50,7 +50,9 @@ def _open(page: Page, server, profile: str) -> None:
     response = page.goto(f"{server.base_url}/__bt/page/{profile}")
     assert response is not None and response.status == 200
     assert response.headers["content-security-policy"] == _CSP_HEADERS[profile]
-    page.wait_for_function("window.fmProbe !== undefined")
+    # A selector, not wait_for_function: that one polls with eval, which a
+    # page under `local` refuses.
+    page.wait_for_selector("html[data-probe=ready]", state="attached")
 
 
 def _hit(channel: str, tag: str) -> str:

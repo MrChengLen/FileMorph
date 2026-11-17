@@ -33,6 +33,15 @@ from app.core.engine import ENGINE_DIR, ENGINE_MEDIA_TYPES
 # network: the server adapter alone.
 _SERVER_ADAPTER: frozenset[str] = frozenset()
 
+# Engine files that try one request on purpose, and why: the request must be
+# refused, and the user sees that it was.
+_REFUSED_ON_PURPOSE = {
+    "check/upload-lock.js": (
+        "the device check's self-test of its upload lock: one GET of /robots.txt, "
+        "which the page's CSP must refuse"
+    ),
+}
+
 # A relative module path as a plain string literal: no query, fragment,
 # template part or concatenation that could carry data to the server.
 _RELATIVE = r"""\s*(?:"\.{1,2}/[^"?#$+`]*"|'\.{1,2}/[^'?#$+`]*')\s*"""
@@ -110,14 +119,25 @@ def test_the_scan_has_files_to_check():
 
 
 def test_the_server_adapter_list_names_real_files():
-    stale = _SERVER_ADAPTER - set(_engine_files())
-    assert not stale, f"_SERVER_ADAPTER names files that do not exist: {sorted(stale)}"
+    stale = (_SERVER_ADAPTER | _REFUSED_ON_PURPOSE.keys()) - set(_engine_files())
+    assert not stale, f"the exceptions name files that do not exist: {sorted(stale)}"
+
+
+def test_the_lock_self_test_tries_one_request_and_nothing_else():
+    """check/upload-lock.js may call fetch, once, for a public file — and no
+    other network API."""
+    code = _code((ENGINE_DIR / "check" / "upload-lock.js").read_text(encoding="utf-8"))
+    found = [match.group(0).strip() for match in _NETWORK.finditer(code)]
+    assert found == ["fetch"], found
+    assert re.search(r"""\bfetch\(\s*["']/robots\.txt["']""", code)
 
 
 @pytest.mark.parametrize("name", _engine_files())
 def test_no_network_api_outside_the_server_adapter(name):
     if name in _SERVER_ADAPTER:
         pytest.skip("the server adapter is the one engine file allowed to upload")
+    if name in _REFUSED_ON_PURPOSE:
+        pytest.skip(_REFUSED_ON_PURPOSE[name])
     code = _code((ENGINE_DIR / name).read_text(encoding="utf-8"))
     found = sorted({match.group(0).strip() for match in _NETWORK.finditer(code)})
     assert not found, (

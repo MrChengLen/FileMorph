@@ -39,6 +39,8 @@ from app.core.convert_pairs import (
     related_pairs,
 )
 from app.core.csp import use_csp_profile
+from app.core.device_check_content import get_device_check_content
+from app.core.engine import engine_modules, engine_url
 from app.core.i18n import localized_context, normalize_locale
 from app.core.pdf_tools_content import get_pdf_tool_content
 from app.core.redact_content import get_redact_content
@@ -342,6 +344,30 @@ async def tools_page(request: Request):
         content=get_tools_content(locale),
         sections=_tool_sections(locale),
     )
+
+
+@router.get("/device-check")
+async def device_check_page(request: Request):
+    # The local engine's test page: does a device compress a large photo in
+    # its browser fast enough? Served only with LOCAL_TOOLS_ENABLED, like the
+    # engine itself, under the strict CSP profile, and listed nowhere: not in
+    # the page catalogue (so neither in the sitemap nor llms.txt,
+    # tests/test_catalog.py _NOT_LISTED), and with noindex in its header.
+    if not settings.local_tools_enabled:
+        return templates.TemplateResponse(
+            request, "404.html", context=localized_context(request), status_code=404
+        )
+    use_csp_profile(request.scope, "local")
+    locale = normalize_locale(getattr(request.state, "locale", settings.lang_default))
+    response = _render(
+        request,
+        "device_check.html",
+        content=get_device_check_content(locale),
+        engine_url=engine_url(),
+        engine_modules=engine_modules(),
+    )
+    response.headers["X-Robots-Tag"] = "noindex, nofollow"
+    return response
 
 
 @router.get("/compress")

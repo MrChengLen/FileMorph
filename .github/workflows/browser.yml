@@ -5,8 +5,9 @@ name: Browser tests
 # this job checks, in Chromium and in WebKit (the engine of Safari on the
 # iPhone), that a page under the `local` CSP profile opens no data connection
 # and posts no form: fetch, XHR, sendBeacon, WebSocket, EventSource and form
-# posts never reach the server, while the same probes on a `default` page do
-# (tests/browser/).
+# posts never reach the server, while the same probes on a `default` page do.
+# It also runs the device check (/device-check) end to end with the network
+# cut (tests/browser/).
 #
 # A workflow of its own rather than a job in ci.yml: notify-ops.yml deploys
 # once CI and Docker have passed, and a browser test that flakes must not hold
