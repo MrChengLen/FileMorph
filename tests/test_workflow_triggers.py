@@ -166,11 +166,15 @@ def _gate_and_dispatch_steps(notify: dict) -> tuple[dict, dict]:
     return gates[0], holding[0]
 
 
-# The dispatch event's body: the event type the deploy side listens for, and the
-# commit, built with jq so that nothing in it needs quoting by hand.
+# The dispatch's body: the branch of the ops repository whose deploy workflow
+# runs, and the commit as that workflow's input, built with jq so that nothing in
+# it needs quoting by hand.
 _DISPATCH_BODY = (
     """body=$(jq -n --arg sha "$SHA" """
-    """'{event_type:"filemorph-published",client_payload:{sha:$sha}}')"""
+    """'{ref:"main",inputs:{sha:$sha}}')"""
+)
+_DISPATCH_URL = (
+    "https://api.github.com/repos/MrChengLen/filemorph-ops/actions/workflows/deploy.yml/dispatches"
 )
 
 
@@ -284,10 +288,11 @@ fi
 if [ -n "$STUB_TIP" ]; then printf '%s\trefs/heads/main\n' "$STUB_TIP"; fi
 """
 
-# `curl` as the dispatch step calls it: keeps the request body, writes the
-# response file it is told to, the response headers to the `-D` file (with the
-# token expiry $STUB_EXPIRY names, as GitHub sends it, if set) and answers the
-# status code `-w` asks for.
+# `curl` as the dispatch step calls it: keeps the request body and the URL,
+# writes the response file it is told to ($STUB_BODY, or `{}`), the response
+# headers to the `-D` file (with the token expiry $STUB_EXPIRY names, as GitHub
+# sends it, if set) and answers the status code `-w` asks for ($STUB_STATUS, or
+# 204).
 _CURL_STUB = r"""#!/usr/bin/env bash
 out=
 headers=
@@ -297,10 +302,13 @@ while [ $# -gt 0 ]; do
     -D) headers="$2"; shift ;;
     -d) printf '%s' "$2" > "$STUB_DIR/body.json"; shift ;;
     -X|-H|-w|--max-time|--retry|--retry-delay) shift ;;
+    https://*) printf '%s' "$1" > "$STUB_DIR/url" ;;
   esac
   shift
 done
-if [ -n "$out" ]; then echo '{}' > "$out"; fi
+if [ -n "$out" ]; then
+  if [ -n "${STUB_BODY:-}" ]; then printf '%s' "$STUB_BODY" > "$out"; else echo '{}' > "$out"; fi
+fi
 if [ -n "$headers" ]; then
   : > "$headers"
   if [ -n "${STUB_EXPIRY:-}" ]; then
@@ -308,7 +316,7 @@ if [ -n "$headers" ]; then
       "$(date -u -d "$STUB_EXPIRY" '+%Y-%m-%d %H:%M:%S UTC')" > "$headers"
   fi
 fi
-printf 204
+printf '%s' "${STUB_STATUS:-204}"
 """
 
 _SLEEP_STUB = '#!/usr/bin/env bash\necho "$*" >> "$STUB_DIR/sleeps"\n'
@@ -664,9 +672,11 @@ def test_notify_ops_gate_lets_exactly_one_of_the_two_runs_dispatch(
 
 
 def test_notify_ops_dispatch_names_the_commit(tmp_path: Path) -> None:
-    """The dispatch's body carries the event type the deploy side listens for and
-    the commit the checks passed for, as JSON that jq builds, so that a deploy
-    can pin to the commit."""
+    """The dispatch starts the ops repository's deploy workflow on its main
+    branch, with the commit the checks passed for as the workflow's input, as
+    JSON that jq builds, so that a deploy can pin to the commit. Starting a
+    workflow takes only the token's Actions permission there; the
+    repository_dispatch event sent before needed one that may push."""
     bash, _ = _need("bash"), _need("jq")
     _, dispatch = _gate_and_dispatch_steps(_notify_ops())
     folder = tmp_path / "dispatch"
@@ -681,7 +691,57 @@ def test_notify_ops_dispatch_names_the_commit(tmp_path: Path) -> None:
     )
     assert done.returncode == 0, f"the dispatch step failed:\n{done.stdout}\n{done.stderr}"
     body = json.loads((folder / "body.json").read_text(encoding="utf-8"))
-    assert body == {"event_type": "filemorph-published", "client_payload": {"sha": _SHA}}, body
+    assert body == {"ref": "main", "inputs": {"sha": _SHA}}, body
+    url = (folder / "url").read_text(encoding="utf-8")
+    assert url == _DISPATCH_URL, f"the dispatch went to {url}, not {_DISPATCH_URL}"
+
+
+@pytest.mark.parametrize(
+    ("status", "accepted"),
+    [
+        ("204", True),
+        ("200", True),
+        ("201", False),
+        ("401", False),
+        ("403", False),
+        ("404", False),
+        ("422", False),
+        ("500", False),
+    ],
+)
+def test_notify_ops_dispatch_fails_unless_github_accepted_it(
+    tmp_path: Path, status: str, accepted: bool
+) -> None:
+    """GitHub accepts a dispatch with 204 under the API version the step asks
+    for (newer versions answer 200, with the new run). Any other answer, another
+    2xx or a 500 that outlasted curl's retries too, fails the step with an error
+    line of its own and then GitHub's message, which says why: an expired token
+    (401), one without the Actions permission (403), one that cannot see the
+    repository or a renamed workflow (404), or a workflow that does not take the
+    commit as its input (422). An accepted dispatch shows no answer: the run it
+    names is in the private repository, and this log is public."""
+    bash, _ = _need("bash"), _need("jq")
+    _, dispatch = _gate_and_dispatch_steps(_notify_ops())
+    folder = tmp_path / "dispatch"
+    _install(folder, curl=_CURL_STUB)
+    answer = '{"message": "the answer from GitHub"}'
+    env = _step_environment(folder, PAT="placeholder", STUB_STATUS=status, STUB_BODY=answer)
+    done = subprocess.run(
+        [bash, "-e", "-o", "pipefail", "-c", dispatch["run"]],
+        env=env,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
+    if accepted:
+        assert done.returncode == 0, f"the dispatch step failed:\n{done.stdout}\n{done.stderr}"
+        assert "::notice::Deploy dispatched" in done.stdout, done.stdout
+        assert "the answer from GitHub" not in done.stdout, done.stdout
+    else:
+        assert done.returncode != 0, f"HTTP {status} passed as a dispatch:\n{done.stdout}"
+        error = f"::error::dispatch failed: GitHub answered HTTP {status}"
+        assert error in done.stdout.splitlines(), f"no line {error!r}:\n{done.stdout}"
+        assert "the answer from GitHub" in done.stdout, done.stdout
 
 
 @pytest.mark.parametrize(("expiry", "warns"), [("+5 days", True), ("+40 days", False), ("", False)])
