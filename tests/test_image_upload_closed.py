@@ -2,9 +2,10 @@
 """Image and Word conversions release the uploaded file, however they end.
 
 Pillow keeps an image's file open until the image is closed (a multi-frame GIF
-keeps it after loading too, and an uncompressed BMP is mapped into memory
-instead of read). When decoding fails (a cut-off JPEG), the exception holds
-the image until the request is over, and Windows cannot delete an open file:
+keeps it after loading too, and an uncompressed BMP was mapped into memory
+until ``open_image`` kept Pillow from mapping). When decoding fails (a
+cut-off JPEG), the exception holds the image until the request is over, and
+Windows cannot delete an open file:
 the request's temporary folder stayed behind. A spy records every image these
 paths open and checks that each one is closed afterwards, file included, on
 every platform; python-docx is checked the same way for DOCX to TXT.
@@ -60,7 +61,7 @@ def _upload(tmp_path, kind):
         path = tmp_path / "in.tif"
         pages = [Image.new("L", (32, 32), shade) for shade in (10, 80)]
         pages[0].save(path, save_all=True, append_images=pages[1:])
-    else:  # an uncompressed grey BMP, which Pillow maps into memory
+    else:  # an uncompressed grey BMP, which Pillow would map into memory
         path = tmp_path / "in.bmp"
         Image.new("L", (64, 64), 128).save(path, format="BMP")
     return path
@@ -104,7 +105,7 @@ def test_the_upload_is_closed_however_the_conversion_ends(monkeypatch, tmp_path,
         _RUNS[run](src, tmp_path)
 
     assert opened, "the path opened no image"
-    # The image, not just its file: close() also lets go of a mapped file.
+    # The image, not just its file: close() also frees its pixels.
     assert all(entry["closed"] for entry in opened), "an opened image was not closed"
     assert all(entry["file"].closed for entry in opened), "an upload is still open"
     src.unlink()  # on Windows this fails while the file is open

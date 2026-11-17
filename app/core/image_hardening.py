@@ -37,7 +37,8 @@ encoding; this one rejects *before* decoding.
 
 Code that opens an uploaded image uses ``open_image`` rather than
 ``Image.open``: Pillow then tries only the readers for the formats FileMorph
-supports (``IMAGE_INPUT_FORMATS``). A file none of them recognises becomes an
+supports (``IMAGE_INPUT_FORMATS``), and reads the pixels instead of mapping
+the file into memory. A file none of them recognises becomes an
 ``InvalidInputError`` with a fixed message, which the routes answer with
 HTTP 400 and ``X-FileMorph-Error-Code: invalid_input``.
 
@@ -139,6 +140,16 @@ def open_image(fp: str | os.PathLike[str] | IO[bytes]) -> ImageFile.ImageFile:
     Raises ``InvalidInputError`` with a fixed message when none of these
     readers recognises the file: not an image, too damaged to be recognised,
     or another format.
+
+    The image forgets the file's name. Pillow memory-maps an uncompressed
+    image it has a name for instead of reading it, and Pillow 13.0 maps a
+    TIFF page turned by a quarter (orientation 5–8) at its turned size, not
+    its stored one: the pixels came out scrambled (python-pillow/Pillow#10220,
+    fixed after 13.0). Without the name Pillow reads them; the name is used
+    for nothing else here (the image itself is never saved), and the file
+    stays the image's to close. Keep it after Pillow's fix: a loaded picture
+    holds no mapping of the upload's file (#320), and Pillow checks the size
+    of every TIFF page it reads — a mapped later page skipped that check.
     """
     # Pillow imports its plugins lazily; load them all so the filter below
     # sees every reader. A no-op after the first call.
@@ -146,9 +157,11 @@ def open_image(fp: str | os.PathLike[str] | IO[bytes]) -> ImageFile.ImageFile:
     # Image.ID lists the registered readers in Pillow's own detection order.
     formats = [fmt for fmt in Image.ID if fmt in IMAGE_INPUT_FORMATS]
     try:
-        return Image.open(fp, formats=formats)
+        img = Image.open(fp, formats=formats)
     except UnidentifiedImageError as exc:
         raise InvalidInputError(_UNREADABLE_IMAGE) from exc
+    img.filename = ""
+    return img
 
 
 # Fire once at import so a single ``import app.core.image_hardening``
