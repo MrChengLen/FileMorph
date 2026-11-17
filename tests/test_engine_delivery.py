@@ -54,7 +54,7 @@ def _git(*args: str, cwd: Path = _ROOT) -> str:
     ).stdout.strip()
 
 
-def _url(name: str = "placeholder.js") -> str:
+def _url(name: str = "core/plan.js") -> str:
     return f"/static/engine/{engine_tree_hash()}/{name}"
 
 
@@ -128,7 +128,7 @@ def test_engine_files_have_a_media_type():
 def test_engine_file_is_served_under_its_tree_hash(client, engine_on):
     r = client.get(_url())
     assert r.status_code == 200
-    assert r.content == (ENGINE_DIR / "placeholder.js").read_bytes()
+    assert r.content == (ENGINE_DIR / "core" / "plan.js").read_bytes()
     assert r.headers["content-type"] == _JS
     assert r.headers["cache-control"] == _IMMUTABLE
     again = client.get(_url(), headers={"If-None-Match": r.headers["etag"]})
@@ -168,15 +168,15 @@ def test_header_changes_change_every_engine_url(client, engine_on):
 @pytest.mark.parametrize(
     "path",
     [
-        "/static/engine/{zero}/placeholder.js",  # wrong hash
-        "/static/engine/{short}/placeholder.js",  # abbreviated hash
-        "/static/engine/{upper}/placeholder.js",
-        "/static/engine/placeholder.js",  # no hash
+        "/static/engine/{zero}/core/plan.js",  # wrong hash
+        "/static/engine/{short}/core/plan.js",  # abbreviated hash
+        "/static/engine/{upper}/core/plan.js",
+        "/static/engine/core/plan.js",  # no hash
         "/static/engine/{tree}/",
         "/static/engine/{tree}/missing.js",
         "/static/engine/%2e%2e/js/app.js",  # out of the engine mount
-        "/static/js/%2e%2e/engine/placeholder.js",  # into it through /static
-        "/static/js%2f..%2fengine/placeholder.js",  # the same as a browser can send it
+        "/static/js/%2e%2e/engine/core/plan.js",  # into it through /static
+        "/static/js%2f..%2fengine/core/plan.js",  # the same as a browser can send it
     ],
 )
 def test_anything_but_the_tree_hash_is_404(client, engine_on, path):
@@ -190,7 +190,7 @@ def test_engine_404s_are_plain_and_never_cached(client, monkeypatch, enabled):
     # The next release's tree hash is public before its deploy: no cache may
     # keep a 404 for it.
     monkeypatch.setattr(settings, "local_tools_enabled", enabled)
-    r = client.get(f"/static/engine/{'0' * 40}/placeholder.js")
+    r = client.get(f"/static/engine/{'0' * 40}/core/plan.js")
     assert r.status_code == 404
     assert r.headers["cache-control"] == "no-store"
     assert r.headers["content-type"].startswith("text/plain")

@@ -37,6 +37,10 @@ _ROUTE_PROFILES: dict[str, str] = {
         "/convert/jpg-to-pdf",
     )
     for prefix in ("", "/de", "/en")
+} | {
+    # The local engine's test page: strict.
+    prefix + "/device-check": "local"
+    for prefix in ("", "/de", "/en")
 }
 
 _TEMPLATES = Path(__file__).resolve().parent.parent / "app" / "templates"
@@ -236,9 +240,9 @@ def test_engine_files_always_get_local(client, monkeypatch, enabled):
     monkeypatch.setattr(settings, "local_tools_enabled", enabled)
     tree = engine_tree_hash()
     for path in (
-        f"/static/engine/{tree}/placeholder.js",  # 200 when enabled
-        f"/static/engine/{'0' * 40}/placeholder.js",
-        "/static/engine/placeholder.js",
+        f"/static/engine/{tree}/core/plan.js",  # 200 when enabled
+        f"/static/engine/{'0' * 40}/core/plan.js",
+        "/static/engine/core/plan.js",
     ):
         r = client.get(path)
         assert r.headers["content-security-policy"] == _CSP_HEADERS["local"], path

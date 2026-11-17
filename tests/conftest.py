@@ -140,13 +140,14 @@ def redact_enabled():
 
 @pytest.fixture
 def every_page_on(monkeypatch, redact_enabled, accounts_on):
-    """Open every gated page as well: /pricing, /enterprise, /cancel, /redact and
-    the account pages (/login, /dashboard …, via ``accounts_on``). Same two
-    surfaces as ``redact_enabled``: ``settings`` for the route's 404 gate, the
-    Jinja globals for the template."""
+    """Open every gated page as well: /pricing, /enterprise, /cancel, /redact,
+    /device-check and the account pages (/login, /dashboard …, via
+    ``accounts_on``). Same two surfaces as ``redact_enabled``: ``settings`` for
+    the route's 404 gate, the Jinja globals for the template."""
     from app.core.config import settings
     from app.core.templates import templates
 
+    monkeypatch.setattr(settings, "local_tools_enabled", True)
     monkeypatch.setattr(settings, "pricing_page_enabled", True)
     monkeypatch.setitem(templates.env.globals, "pricing_enabled", True)
     monkeypatch.setattr(settings, "stripe_secret_key", "configured-for-this-test")

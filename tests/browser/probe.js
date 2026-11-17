@@ -102,4 +102,5 @@
       return Object.keys(module);
     },
   };
+  document.documentElement.dataset.probe = "ready";
 })();

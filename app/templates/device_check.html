@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% import "_components/button.html" as ub %}
+{% import "_components/card.html" as uc %}
+{% import "_components/text_input.html" as ui %}
+{# /device-check: the local engine's test page (app/api/routes/pages.py).
+   Served only with LOCAL_TOOLS_ENABLED, under the `local` CSP profile, with
+   `noindex` in its response header, and listed nowhere. The page's script is
+   an engine module (app/static/engine/check/device-check.js): the engine
+   mount serves it under the engine's tree hash, and every engine module is
+   preloaded here, so the test runs on in airplane mode. The page text comes
+   from app/core/device_check_content.py; `content.js` holds the strings the
+   script shows. #}
+{% block title %}{{ content.title }} | FileMorph{% endblock %}
+{% block meta_description %}{{ content.intro }}{% endblock %}
+{% block content %}
+<main id="device-check" data-engine="{{ engine_url }}" class="max-w-2xl mx-auto px-6 py-12 space-y-8 text-gray-300 text-sm leading-relaxed">
+
+  <div class="space-y-3">
+    <h1 class="text-2xl font-bold text-white">{{ content.h1 }}</h1>
+    <p class="text-gray-400">{{ content.intro }}</p>
+    <p class="text-gray-400">{{ content.privacy }}</p>
+  </div>
+
+  {% call uc.card() %}
+  <div class="space-y-5">
+    {{ ui.text_input('model', label=content.model_label, placeholder=content.model_placeholder, id='check-model', autocomplete='off') }}
+    <p id="check-device" class="text-xs text-ink-faint"></p>
+    <ol class="list-decimal pl-5 space-y-1 text-gray-400">
+      {% for step in content.steps %}<li>{{ step }}</li>{% endfor %}
+    </ol>
+    <div class="flex flex-wrap gap-3">
+      {{ ub.button(content.prepare, id='check-prepare') }}
+      {{ ub.button(content.start, id='check-start') }}
+      {{ ub.button(content.resume, id='check-resume', variant='secondary') }}
+    </div>
+    <div class="flex flex-wrap gap-3">
+      {{ ub.button(content.own, id='check-own', variant='secondary', size='sm') }}
+      {{ ub.button(content.camera, id='check-camera', variant='secondary', size='sm') }}
+      <input id="check-own-input" type="file" accept="image/*" class="hidden">
+      <input id="check-camera-input" type="file" accept="image/*" capture="environment" class="hidden">
+    </div>
+    <p id="check-status" class="text-white" role="status" aria-live="polite"></p>
+    <p id="check-lock" class="text-xs text-ink-faint"></p>
+  </div>
+  {% endcall %}
+
+  <section class="space-y-3" aria-labelledby="check-results-heading">
+    <h2 id="check-results-heading" class="text-base font-semibold text-white">{{ content.results }}</h2>
+    <p id="check-verdict" class="text-white font-semibold"></p>
+    <ul id="check-results" class="space-y-2"></ul>
+    <template id="check-row"><li class="flex flex-wrap gap-x-3"><span data-part="label" class="text-ink"></span><span data-part="state" class="font-semibold text-white"></span><span data-part="numbers" class="text-ink-faint"></span></li></template>
+    <div class="flex flex-wrap gap-3">
+      {{ ub.button(content.copy_result, id='check-copy', variant='secondary') }}
+    </div>
+    <textarea id="check-report" class="hidden w-full font-mono text-xs bg-surface-sunken border border-hairline rounded-control p-3 text-ink" rows="12" readonly></textarea>
+    <figure class="space-y-1">
+      <img id="check-preview" class="hidden w-full rounded-card" alt="{{ content.preview }}">
+      <figcaption class="text-xs text-ink-faint">{{ content.preview }}</figcaption>
+    </figure>
+  </section>
+
+  <p class="text-xs text-ink-faint">{{ content.fallback }}</p>
+  <p><a href="{{ localized_url('/tools', current_prefix) }}" class="text-brand-light hover:underline">{{ content.back }}</a></p>
+</main>
+{# A data block: the browser does not run it (type="application/json"). #}
+<script id="fm-check-strings" type="application/json">{{ content.js | tojson }}</script>
+{% endblock %}
+{# Neither auth.js nor app.js: the page makes no request, and app.js would
+   ask for /api/v1/formats on every page. #}
+{% block core_scripts %}{% endblock %}
+{% block scripts %}
+{% for module in engine_modules %}
+<link rel="modulepreload" href="{{ engine_url }}/{{ module }}">
+{% endfor %}
+<script type="module" src="{{ engine_url }}/check/device-check.js"></script>
+{% endblock %}

@@ -589,6 +589,48 @@ jobs:
           print(f"ok: worker {mid} (pid, parent pid, group, state) gone after the time limit")
           PY
 
+      # The local engine ships switched off, and every check above runs with it
+      # off. Its own path, in the image as built: a second container with
+      # LOCAL_TOOLS_ENABLED=true must serve the engine under the tree hash git
+      # computes for this checkout — the image computes it from the files it
+      # holds, so one it left out or changed would show here as a 404 — with
+      # the JavaScript type, the immutable cache and the `local` CSP, and the
+      # device check under `local`, with noindex and its engine module.
+      - name: Check the local engine with the switch on
+        run: |
+          hash="$(git rev-parse HEAD:app/static/engine)"
+          docker run --detach --name filemorph-local --publish 8001:8000 \
+            --cap-drop ALL --security-opt no-new-privileges \
+            --pids-limit 4096 --ulimit core=0 -e LOCAL_TOOLS_ENABLED=true "$IMAGE"
+          for _ in $(seq 30); do
+            curl -fsS --max-time 5 -o /dev/null http://localhost:8001/api/v1/health && break
+            sleep 2
+          done
+          status=0
+          if ! engine="$(curl -fsS --max-time 5 -D - -o /dev/null "http://localhost:8001/static/engine/$hash/check/device-check.js")"; then
+            echo "::error::the image does not serve the engine under git's tree hash $hash"
+            status=1
+          fi
+          for header in 'content-type: text/javascript; charset=utf-8' 'cache-control: public, max-age=31536000, immutable' "connect-src 'none'"; do
+            if ! grep -qiF "$header" <<< "$engine"; then
+              echo "::error::the engine file lacks \`$header\`"
+              status=1
+            fi
+          done
+          if ! page="$(curl -fsS --max-time 5 -D - http://localhost:8001/en/device-check)"; then
+            echo "::error::/en/device-check does not answer with the switch on"
+            status=1
+          fi
+          for needle in 'x-robots-tag: noindex' "connect-src 'none'" "/static/engine/$hash/check/device-check.js"; do
+            if ! grep -qiF "$needle" <<< "$page"; then
+              echo "::error::/en/device-check lacks \`$needle\`"
+              status=1
+            fi
+          done
+          if [ "$status" != 0 ]; then docker logs filemorph-local 2>&1 | tail -n 30; fi
+          docker rm -f filemorph-local > /dev/null
+          exit "$status"
+
       # docker stop sends SIGTERM to PID 1: tini passes it on to uvicorn, which
       # shuts down, and the container ends with exit code 0. Without the
       # signal, docker stop would kill it after 30 seconds: exit code 137.

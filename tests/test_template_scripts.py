@@ -19,6 +19,7 @@ import pytest
 from starlette.requests import Request
 
 from app.core.assets import static_url
+from app.core.engine import engine_url
 from app.core.i18n import localized_context
 from app.core.templates import templates
 
@@ -69,10 +70,14 @@ _PAGES: dict[str, tuple[str | None, list[str]]] = {
     ),
     "404.html": ("/no-such-page", []),
     "500.html": (None, []),
+    # Strict (CSP profile local): no core scripts, and its own script is an
+    # engine module, under the engine's tree hash instead of a version.
+    "device_check.html": ("/device-check", [f"{engine_url()}/check/device-check.js"]),
     # Stand-alone (does not extend base.html).
     "api_docs.html": ("/docs", ["/static/vendor/swagger-ui-bundle.js", "/static/js/api-docs.js"]),
 }
 _STANDALONE = {"api_docs.html"}
+_STRICT = {"device_check.html"}
 
 
 def _versioned(paths: list[str]) -> list[str]:
@@ -112,8 +117,11 @@ def test_each_page_loads_its_scripts(client, every_page_on, name):
         r = client.get(path)
         assert r.status_code == (404 if name == "404.html" else 200)
         html = r.text
-    expected = own if name in _STANDALONE else _SHARED + _CORE + own
-    assert sorted(_SRC.findall(html)) == sorted(_versioned(expected))
+    if name in _STRICT:
+        expected = _versioned(_SHARED) + own
+    else:
+        expected = _versioned(own if name in _STANDALONE else _SHARED + _CORE + own)
+    assert sorted(_SRC.findall(html)) == sorted(expected)
 
 
 def test_base_loads_the_core_scripts_by_default():
