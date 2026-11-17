@@ -60,14 +60,24 @@ _STEPS: dict[str, tuple[str, str, int, float, int]] = {
     # together stay under the 100 s. 1 GiB per file: it writes only the
     # result, about both uploads together.
     "pdf-insert": ("app.converters.pdf_insert", "insert_pages", _GIB, 30, _GIB),
+    # pypdf reads the whole PDF into memory and holds every object of the
+    # pages it copies. 3 GiB: copying every page of a PDF the size of the
+    # largest upload (500 MB, app/core/quotas.py) took up to 1.9 GB (10,000
+    # pages with a font each; a scan that size 1.1 to 1.4 GB), and 25 s at
+    # most.
+    # 1 GiB per file: extract writes its result, split a file per page,
+    # together at most the output cap.
+    "pdf-extract": ("app.converters.pdf_pages", "extract_step", 3 * _GIB, 90, _GIB),
+    "pdf-split": ("app.converters.pdf_pages", "split_step", 3 * _GIB, 90, _GIB),
+    # PDF → PDF on /convert: the extraction above, of every page.
+    "pdf-to-pdf": ("app.converters._isolated", "_convert", 3 * _GIB, 90, _GIB),
 }
 
 
 class TooComplexError(InvalidInputError):
     """The child ran out of memory or time, or wrote a file past its limit;
-    the message is the caller's ``too_large``. ``/pdf/compress`` answers it
-    with ``pdf_too_complex``, ``/convert`` like any other
-    ``InvalidInputError``."""
+    the message is the caller's ``too_large``. The PDF routes answer it with
+    ``pdf_too_complex``, ``/convert`` like any other ``InvalidInputError``."""
 
 
 def limit_resources(memory_bytes: int, cpu_seconds: int, file_bytes: int) -> None:

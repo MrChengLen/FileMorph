@@ -235,7 +235,7 @@ attachment) through all four call sites and fails if any of them
 loads; CI fails if WeasyPrint cannot render on the test runner, so
 that test cannot skip there. Self-hosters should not disable this.
 
-### PDF → TXT, table conversions and PDF compression in a child process
+### PDF → TXT, table conversions and the PDF tools in a child process
 
 pypdf's text extraction runs in a child Python process
 (`app/converters/_pdf_text.py`), started by `PdfToTxtConverter` in
@@ -248,19 +248,25 @@ and it reports its outcome on stdout (for an unreadable PDF with the exception
 class). `tests/test_pdf_to_text_process.py` pins the page cap, the time limit,
 the environment and the memory, CPU and file size caps.
 
-The table conversions (XLSX → CSV, CSV → XLSX, CSV → JSON, JSON → CSV) and
-PDF compression run the same way, through `app/converters/_isolated.py`:
-stopped after 90 seconds, on Linux capped at 1 GiB of address space (PDF
-compression: 3 GiB), slightly more CPU time than the time limit and 2 GiB per
-file written (PDF compression: 1 GiB), where a write past the limit ends the
-child. On Linux all of these caps, and those of the PDF → TXT child, are
+The table conversions (XLSX → CSV, CSV → XLSX, CSV → JSON, JSON → CSV),
+PDF compression, page extraction (`/pdf/extract`), splitting (`/pdf/split`)
+and PDF → PDF run the same way, through `app/converters/_isolated.py`:
+stopped after 90 seconds, on Linux capped at 1 GiB of address space (the PDF
+ones: 3 GiB), slightly more CPU time than the time limit and 2 GiB per file
+written (the PDF ones: 1 GiB), where a write past the limit ends the child.
+On Linux all of these caps, and those of the PDF → TXT child, are
 hard limits, which a child cannot raise again without root privileges; no
 child writes a core dump or gains privileges through a setuid program, each
 ends when the app process that started it ends, and none starts processes or
 threads of its own unless the app runs as root. A file over these limits gets
-a `400` (`invalid_input`; PDF compression: `pdf_too_complex`) whose message
-names the next step. The child's temporary files go to the request's own temp
-folder, which the route removes.
+a `400` (`invalid_input`; PDF compression, extraction and splitting:
+`pdf_too_complex`) whose message names the next step. The child's temporary
+files go to the request's own temp folder, which the route removes. A split
+writes its pages there as files; the route reads them back under names it
+makes itself, taking only their number from the child, and only plain files,
+together at most the caller's output cap. A page selection or
+PDF the user can fix comes back from extract and split as data with the
+route's error code.
 Inserting pages into a PDF (`/pdf/insert`) reads, checks and combines the
 two files in such a child too: stopped after 30 seconds, capped at 1 GiB of
 address space and 1 GiB per file written, and a `400` with `pdf_too_complex`

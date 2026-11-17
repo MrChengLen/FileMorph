@@ -185,7 +185,7 @@ def test_split_pdf_raises_unreadable(tmp_path, build):
     src = tmp_path / "in.pdf"
     src.write_bytes(build())
     with pytest.raises(UnreadablePdfError, match=_UNREADABLE):
-        split_pdf(src, 10**9)
+        split_pdf(src, tmp_path, 10**9)
 
 
 # ── routes ───────────────────────────────────────────────────────────────────
@@ -241,8 +241,9 @@ def test_convert_batch_names_the_unreadable_pdf(client, auth_headers, build, tar
     assert r.json()["files"][0]["error_message"] == _UNREADABLE
 
 
-def test_log_names_the_error_class_not_its_message(client, auth_headers, caplog):
-    """pypdf's message can quote the file; the log keeps only the class."""
+def test_log_names_the_error_class_not_its_message(client, auth_headers, caplog, in_process_child):
+    """pypdf's message can quote the file; the log keeps only the class.
+    The split runs in the test process here: a real child logs nothing."""
     with caplog.at_level(logging.INFO):
         client.post(
             "/api/v1/pdf/split",

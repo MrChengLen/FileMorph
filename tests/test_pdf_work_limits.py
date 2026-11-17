@@ -112,14 +112,36 @@ def test_selection_over_the_length_limit_gets_400(client, auth_headers):
     assert res.headers["X-FileMorph-Error-Code"] == "invalid_page_selection"
 
 
+@pytest.mark.parametrize(
+    "spec",
+    [
+        pytest.param("1," * 20_000, id="longer-than-a-windows-command-line"),
+        # U+0661 ARABIC-INDIC DIGIT ONE is a 1 to int(); escaped in JSON it takes
+        # six characters, more than a Linux argument may hold in all.
+        pytest.param("\u0661," * 30_000, id="longer-than-a-linux-argument-escaped"),
+    ],
+)
+def test_a_selection_within_the_length_limit_reaches_the_child(client, auth_headers, spec):
+    """The extraction runs in a child process; the selection goes there in a
+    file, as any selection up to the limit may be longer than a command line."""
+    assert len(spec) <= pdf_pages._MAX_SELECTION_CHARS
+    res = _post(client, auth_headers, "/api/v1/pdf/extract", _raw_pdf([_TEXT]), {"pages": spec})
+    assert res.status_code == 200, res.text
+
+
 # ── Split ────────────────────────────────────────────────────────────────────
 
 
 def test_split_stops_at_the_cap_while_it_writes_pages(tmp_path, monkeypatch):
     src = tmp_path / "in.pdf"
     src.write_bytes(_raw_pdf([_TEXT] * 6))
-    outputs = pdf_pages.split_pdf(src, 10**9)
-    cap = len(outputs[0][1]) + len(outputs[1][1])  # two pages fit, a third does not
+    full, capped = tmp_path / "full", tmp_path / "capped"
+    full.mkdir()
+    capped.mkdir()
+    pdf_pages.split_pdf(src, full, 10**9)
+    first, second = pdf_pages.page_file_names(6)[:2]
+    # two pages fit, a third does not
+    cap = (full / first).stat().st_size + (full / second).stat().st_size
 
     writes = []
     real_write = PdfWriter.write
@@ -130,7 +152,7 @@ def test_split_stops_at_the_cap_while_it_writes_pages(tmp_path, monkeypatch):
 
     monkeypatch.setattr(PdfWriter, "write", counting_write)
     with pytest.raises(OutputTooLargeError):
-        pdf_pages.split_pdf(src, cap)
+        pdf_pages.split_pdf(src, capped, cap)
     assert len(writes) == 3
 
 

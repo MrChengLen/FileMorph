@@ -690,6 +690,17 @@ def _js_i18n_strings(_: gettext.GNUTranslations.gettext) -> dict[str, str]:
             "Extract fewer pages at a time with “Extract PDF pages”, "
             "then compress each part."
         ),
+        # The same code from /pdf/split (with the link to the extract tool)
+        # and /pdf/extract: pdf-tools.js picks the text by tool.
+        "pdfTooComplexSplit": _(
+            "This PDF is too large or complex to split in one go. "
+            "Extract fewer pages at a time with “Extract PDF pages”, "
+            "then split each part."
+        ),
+        "pdfTooComplexExtract": _(
+            "This PDF is too large or complex to extract these pages in one go. "
+            "Select fewer pages and extract them in several parts."
+        ),
         "pdfRateLimited": _("Too many requests. Please wait a moment and try again."),
         "pdfCompressAchieved": _("Compressed to {size} MB"),
         "pdfCompressNotConverged": _(

@@ -126,11 +126,18 @@
       }
       return t('pdfTooManyPagesExtract', 'You can extract at most 10,000 pages at once. Select fewer pages, or extract them in several parts.');
     }
-    // /pdf/compress past the child process's memory, time or file size
-    // limits; the compress page links on to the extract tool (#pdf-error-extract).
+    // Past the child process's memory, time or file size limits. The split,
+    // compress and insert pages link on to the extract tool
+    // (#pdf-error-extract); the extract page names a smaller selection.
     if (code === 'pdf_too_complex') {
       if (TOOL === 'insert') {
         return t('pdfTooComplexInsert', 'These files are too large or complex to combine in one go. Insert into a smaller part of the PDF (“Extract PDF pages”), or shrink the files first with “Compress PDF”.');
+      }
+      if (TOOL === 'split') {
+        return t('pdfTooComplexSplit', 'This PDF is too large or complex to split in one go. Extract fewer pages at a time with “Extract PDF pages”, then split each part.');
+      }
+      if (TOOL === 'extract') {
+        return t('pdfTooComplexExtract', 'This PDF is too large or complex to extract these pages in one go. Select fewer pages and extract them in several parts.');
       }
       return t('pdfTooComplex', 'This PDF is too large or complex to compress in one go. Extract fewer pages at a time with “Extract PDF pages”, then compress each part.');
     }

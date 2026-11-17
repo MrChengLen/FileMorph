@@ -2960,6 +2960,16 @@ msgid ""
 msgstr ""
 
 msgid ""
+"This PDF is too large or complex to extract these pages in one go. Select"
+" fewer pages and extract them in several parts."
+msgstr ""
+
+msgid ""
+"This PDF is too large or complex to split in one go. Extract fewer pages "
+"at a time with “Extract PDF pages”, then split each part."
+msgstr ""
+
+msgid ""
 "This TIFF has more pages or pixels than one file may have. Split it into "
 "smaller files (a few pages each) and try again."
 msgstr ""
