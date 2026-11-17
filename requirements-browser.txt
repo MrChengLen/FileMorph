@@ -16,5 +16,5 @@
 # built for one Playwright release. Its tag in browser.yml names the same
 # version (tests/test_supply_chain_hygiene.py checks), so a bump here has to
 # move the image too — see the comment on the image in browser.yml.
-playwright==1.64.1
+playwright==1.65.2
 pytest>=9.1.1
