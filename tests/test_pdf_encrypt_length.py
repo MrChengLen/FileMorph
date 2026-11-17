@@ -12,9 +12,10 @@ OpenSSL has RC4, as CI and the image do.
 Where OpenSSL has no RC4 (as with ``CRYPTOGRAPHY_OPENSSL_NO_LEGACY=1``), pypdf
 switches to its own RC4 once OpenSSL has refused RC4 in the process, and that
 code divides by the key length: a key of no bytes raises ``ZeroDivisionError``.
-The same file gets the same answer there. A stand-in refuses RC4 where and how
-such an OpenSSL does, when a cipher context is made (checked against
-``CRYPTOGRAPHY_OPENSSL_NO_LEGACY=1`` with cryptography 50).
+The same file gets the same answer there. For the engine, a stand-in refuses
+RC4 where and how such an OpenSSL does, when a cipher context is made (checked
+against ``CRYPTOGRAPHY_OPENSSL_NO_LEGACY=1`` with cryptography 50); the routes
+read the PDF in a child process, which runs with that variable instead.
 
 Fixtures: tiny PDFs from the byte-by-byte builder of
 ``test_pdf_unsupported_encryption.py``, and the owner-only RC4 PDF of
@@ -25,6 +26,9 @@ from __future__ import annotations
 
 import io
 import logging
+import os
+import subprocess
+import sys
 
 import pytest
 from pypdf import PdfReader
@@ -75,7 +79,7 @@ def test_pypdf_raises_value_error_for_a_key_length_cryptography_refuses(data):
 
 _ENGINES = [
     pytest.param(lambda src, out: pdf_pages.extract_pages(src, out, "1"), id="extract_pages"),
-    pytest.param(lambda src, out: pdf_pages.split_pdf(src, 10**9), id="split_pdf"),
+    pytest.param(lambda src, out: pdf_pages.split_pdf(src, out.parent, 10**9), id="split_pdf"),
     pytest.param(
         lambda src, out: pdf_pages.PdfPageExtractConverter().convert(src, out), id="pdf-to-pdf"
     ),
@@ -190,20 +194,51 @@ def test_insert_without_openssl_rc4_names_the_file_with_a_key_of_no_bytes(
     assert (refused["code"], refused["field"]) == ("invalid_pdf", "insert_file")
 
 
-# pdf → txt reads one PDF per child process, so the switch never carries over
-# from an earlier file there; the stand-in doesn't reach the child either.
-_IN_PROCESS_ROUTES = [route for route in _ROUTES if route.id != "convert-txt"]
+# The routes read their PDFs in a child process, which the stand-in doesn't
+# reach: there OpenSSL goes without RC4 for real, as the child inherits
+# CRYPTOGRAPHY_OPENSSL_NO_LEGACY=1. Extract, split and the conversions read
+# one PDF per child, so the switch never carries over from an earlier file
+# and a key of no bytes gets cryptography's ValueError, as pinned above;
+# /pdf/insert reads two, so the first one's switch applies to the second.
+_NO_LEGACY = "CRYPTOGRAPHY_OPENSSL_NO_LEGACY"
+_SWITCH_PROBE = (
+    "from pypdf._crypt_providers._cryptography import CryptRC4\n"
+    "CryptRC4(b'0123456789abcdef').encrypt(b'x')\n"
+    "print(CryptRC4._is_rc4_supported)\n"
+)
 
 
-@pytest.mark.parametrize(("path", "form", "code"), _IN_PROCESS_ROUTES)
-def test_route_without_openssl_rc4_answers_a_key_of_no_bytes_with_the_same_400(
-    client, auth_headers, caplog, openssl_without_rc4, path, form, code
+def test_a_child_without_openssl_rc4_switches_to_pypdfs_own():
+    """Guards the route test below: with the variable set, OpenSSL refuses RC4
+    in a new process and pypdf switches to its own."""
+    probe = subprocess.run(
+        [sys.executable, "-c", _SWITCH_PROBE],
+        env={**os.environ, _NO_LEGACY: "1"},
+        capture_output=True,
+        encoding="utf-8",
+        check=True,
+    )
+    assert probe.stdout.strip() == "False"
+
+
+def test_insert_route_without_openssl_rc4_names_the_file_with_a_key_of_no_bytes(
+    client, auth_headers, caplog, monkeypatch
 ):
-    first = _post(client, auth_headers, path, form, _READABLE_RC4)
-    assert first.status_code == 200, first.text
+    """The PDF reads first and switches pypdf to its own RC4 in the child; the
+    file to insert, with a key of no bytes, gets the same answer as where
+    OpenSSL has RC4."""
+    monkeypatch.setenv(_NO_LEGACY, "1")
     with caplog.at_level(logging.INFO):
-        r = _post(client, auth_headers, path, form, _NO_KEY)
+        r = client.post(
+            "/api/v1/pdf/insert",
+            headers=auth_headers,
+            files={
+                "file": ("report.pdf", _READABLE_RC4, _PDF_MIME),
+                "insert_file": ("insert.pdf", _NO_KEY, "application/octet-stream"),
+            },
+        )
     assert r.status_code == 400, r.text
-    assert r.headers.get("X-FileMorph-Error-Code") == code
+    assert r.headers.get("X-FileMorph-Error-Code") == "invalid_pdf"
+    assert r.headers.get("X-FileMorph-Error-Field") == "insert_file"
     assert r.json()["detail"] == _UNREADABLE
     assert [rec.getMessage() for rec in caplog.records if rec.exc_info] == []

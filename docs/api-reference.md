@@ -302,7 +302,10 @@ not a format conversion. Text, fonts and vector content are copied intact.
 selection, or one longer than 65 536 characters, is a `400`; a non-PDF input is
 a `422`. A selection may resolve to at
 most 10 000 pages; a larger one is a `400` with `pdf_too_many_pages` (see
-[Error codes](#error-codes)).
+[Error codes](#error-codes)). The pages are extracted in their own process
+with memory, time and file size limits; a PDF too large or complex for them
+is a `400` with `pdf_too_complex`, whose `detail` names the next step: select
+fewer pages and extract them in parts.
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/pdf/extract \
@@ -331,7 +334,10 @@ Split a PDF into one single-page PDF per page, bundled as a ZIP.
 entries sort correctly), `_pages.zip` suffix. A non-PDF input is a `422`; a
 document over **10 000 pages** is a `400` with `pdf_too_many_pages` (rejected
 before any work). The pages must also fit the tier output cap: the split
-stops with a `413` as soon as they pass it.
+stops with a `413` as soon as they pass it. The split runs in its own process
+with memory, time and file size limits; a PDF too large or complex for them
+is a `400` with `pdf_too_complex`, whose `detail` names the next step: extract
+fewer pages with `/api/v1/pdf/extract` and split them in parts.
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/pdf/split \
@@ -642,14 +648,14 @@ can branch on (the `detail` text may change):
 | `convert_failed` | `500` | `/convert`: the conversion failed for a reason the server names only in its log; the file may be damaged or not what its extension says |
 | `decompression_bomb` | `400` | The image's dimensions exceed the decoder's safety limit (`/convert`, `/compress`, an image for `/pdf/insert`) |
 | `file_type_not_permitted` | `400` | The file starts like a program or script (PE, ELF, shell, PHP), whatever its extension — refused on every upload route before any decoder runs. In a batch only that file fails, as a per-file error without the header |
-| `invalid_input` | `400` | A problem you can fix, named in `detail` — e.g. a Markdown, CSV or JSON file that isn't UTF-8, a PDF that can't be read, a PDF → PDF or PDF → TXT conversion of a document over 10 000 pages, a PDF too large or complex to extract its text within 30 seconds, or a table too large or complex to convert within the memory, time and file size limits, or a file without a video picture converted to GIF (`/convert`); an image that isn't in a supported format or is too damaged to be recognised (`/convert`, `/compress`, `/pdf/insert`) |
+| `invalid_input` | `400` | A problem you can fix, named in `detail` — e.g. a Markdown, CSV or JSON file that isn't UTF-8, a PDF that can't be read, a PDF → PDF or PDF → TXT conversion of a document over 10 000 pages, a PDF too large or complex to extract its text within 30 seconds, or a table or a PDF (PDF → PDF) too large or complex to convert within the memory, time and file size limits, or a file without a video picture converted to GIF (`/convert`); an image that isn't in a supported format or is too damaged to be recognised (`/convert`, `/compress`, `/pdf/insert`) |
 | `invalid_page_selection` | `400` | `/pdf/extract`: the `pages` selection is malformed, out of range or longer than 65 536 characters |
 | `invalid_pdf` | `400` | `/pdf/extract`, `/pdf/split`, `/pdf/compress`, `/pdf/insert`: the PDF can't be read; `/pdf/extract`, `/pdf/split` and `/pdf/insert` also for a PDF with no pages |
 | `invalid_position` | `400` | `/pdf/insert`: `after_page` is past the PDF's last page; `X-FileMorph-Page-Count` carries its page count |
 | `no_audio_track` | `400` | `/convert` video → audio (MP3, M4A, WAV, …): the video has no sound to save. Choose a video with sound |
 | `pdf_encrypted` | `400` | The PDF needs a password to open (`/pdf/extract`, `/pdf/split`, `/pdf/compress`, `/pdf/insert`, `/convert`); remove the password and upload it again |
 | `pdf_encryption_unsupported` | `400` | The PDF is encrypted with a certificate or a method FileMorph can't open, so no password would help (`/pdf/extract`, `/pdf/split`, `/pdf/compress`, `/pdf/insert`, `/convert`); remove the protection, e.g. by asking the sender for an unprotected copy |
-| `pdf_too_complex` | `400` | `/pdf/compress`: the PDF is too large or complex to compress within the memory, time and file size limits. Extract fewer pages with `/pdf/extract` and compress them in parts. `/pdf/insert`: the files are too large or complex to combine within those limits |
+| `pdf_too_complex` | `400` | `/pdf/compress`: the PDF is too large or complex to compress within the memory, time and file size limits. Extract fewer pages with `/pdf/extract` and compress them in parts. `/pdf/split`: the same for splitting — extract fewer pages, then split them in parts. `/pdf/extract`: the PDF is too large or complex to extract the selected pages within those limits; select fewer pages. `/pdf/insert`: the files are too large or complex to combine within those limits |
 | `pdf_too_many_pages` | `400` | Over the 10 000-page cap: `/pdf/split` for a PDF with more pages, `/pdf/extract` for a selection that covers more, `/pdf/insert` for both files together. Extract in parts of up to 10 000 pages; for `/pdf/split`, then split each part |
 | `server_busy` | `503` | The server is at its global concurrency cap (`MAX_GLOBAL_CONCURRENCY`) and did not process the request; retry after `Retry-After` seconds |
 | `tiff_too_large` | `400` | `/compress`, `/convert` to PDF or TIFF, `/pdf/insert` (field `insert_file`): a multi-page TIFF with more than 1 000 pages, or whose pages together take more memory than one colour image at the size limit (`FILEMORPH_IMAGE_MAX_MEGAPIXELS`, 89 by default; a black-and-white or grey page takes a quarter of a colour one), or whose pages take longer than 15 seconds to read — its pages are decoded at once. Split it into smaller files |

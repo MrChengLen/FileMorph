@@ -105,10 +105,11 @@ Every conversion or compression request follows the same path:
    (`app/converters/_pdf_text.py`) for the same reason: it is stopped after
    30 s, and on Linux its address space is capped at 1 GiB, its CPU time
    at 35 s and the file it writes at 1 GiB. The table conversions
-   (XLSX/CSV/JSON) and PDF compression run in a child process the same way
+   (XLSX/CSV/JSON), PDF compression, page extraction, splitting and
+   PDF → PDF run in a child process the same way
    (`app/converters/_isolated.py`): stopped after 90 s, on Linux capped at
-   1 GiB of address space (PDF compression: 3 GiB) and 2 GiB per file
-   written (PDF compression: 1 GiB), with their temporary files in the
+   1 GiB of address space (the PDF ones: 3 GiB) and 2 GiB per file
+   written (the PDF ones: 1 GiB), with their temporary files in the
    request's own temp folder.
 7. **Output stream + temp cleanup.** Converted bytes are returned via a
    streaming response. The upload is deleted as soon as the result exists,

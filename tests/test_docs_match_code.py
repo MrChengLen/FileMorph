@@ -241,28 +241,31 @@ def test_docs_quote_the_pdf_to_text_file_limit(doc, sentence):
         (
             "architecture.md",
             "stopped after {seconds} s, on Linux capped at {convert_gib} GiB of address "
-            "space (PDF compression: {compress_gib} GiB) and {convert_file_gib} GiB per "
-            "file written (PDF compression: {compress_file_gib} GiB)",
+            "space (the PDF ones: {pdf_gib} GiB) and {convert_file_gib} GiB per "
+            "file written (the PDF ones: {pdf_file_gib} GiB)",
         ),
         (
             "security-overview.md",
             "stopped after {seconds} seconds, on Linux capped at {convert_gib} GiB of "
-            "address space (PDF compression: {compress_gib} GiB), slightly more CPU time "
-            "than the time limit and {convert_file_gib} GiB per file written (PDF "
-            "compression: {compress_file_gib} GiB)",
+            "address space (the PDF ones: {pdf_gib} GiB), slightly more CPU time "
+            "than the time limit and {convert_file_gib} GiB per file written (the PDF "
+            "ones: {pdf_file_gib} GiB)",
         ),
     ],
 )
 def test_docs_quote_the_isolated_conversion_limits(doc, sentence):
     _, _, convert_memory, convert_s, convert_file = _isolated._STEPS["convert"]
-    _, _, compress_memory, compress_s, compress_file = _isolated._STEPS["pdf-compress"]
-    assert convert_s == compress_s, "the docs quote one time limit for both steps"
+    pdf_steps = ("pdf-compress", "pdf-extract", "pdf-split", "pdf-to-pdf")
+    pdf_limits = {_isolated._STEPS[step][2:] for step in pdf_steps}
+    assert len(pdf_limits) == 1, "the docs quote one set of limits for the PDF steps"
+    [(pdf_memory, pdf_s, pdf_file)] = pdf_limits
+    assert convert_s == pdf_s, "the docs quote one time limit for all these steps"
     expected = sentence.format(
         seconds=convert_s,
         convert_gib=convert_memory // _isolated._GIB,
-        compress_gib=compress_memory // _isolated._GIB,
+        pdf_gib=pdf_memory // _isolated._GIB,
         convert_file_gib=convert_file // _isolated._GIB,
-        compress_file_gib=compress_file // _isolated._GIB,
+        pdf_file_gib=pdf_file // _isolated._GIB,
     )
     assert expected in " ".join(_text(doc).split())
 
