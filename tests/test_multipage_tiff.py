@@ -233,8 +233,9 @@ def test_a_stray_pointer_to_a_next_page_ends_the_file(tmp_path, client, auth_hea
     assert len(PdfReader(BytesIO(r.content)).pages) == 1
 
 
-def test_each_page_is_turned_by_its_own_orientation(tmp_path):
-    upright, turned = _page(1), _page(2)
+@pytest.mark.parametrize("mode", ["RGB", "L"])  # L: a page Pillow 13.0 maps (#10220)
+def test_each_page_is_turned_by_its_own_orientation(tmp_path, mode):
+    upright, turned = _page(1, mode), _page(2, mode)
     turned.encoderinfo = {"tiffinfo": {274: 6}}  # this page only: turned 90° clockwise
     result = _read(_compress(tmp_path, _tiff([upright, turned])))
     shown = turned.transpose(Image.Transpose.ROTATE_270)

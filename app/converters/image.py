@@ -99,9 +99,9 @@ class _ImageConverter(BaseConverter):
         # The upload is closed however the block ends: an exception would
         # otherwise hold its file open until the request is over, and Windows
         # cannot delete an open file. Closing the image, not just leaving
-        # ``with`` on it, also releases a file Pillow mapped into memory
-        # instead of reading (an uncompressed BMP). What leaves the block are
-        # copies in memory: the saves below need no open file.
+        # ``with`` on it, would also release a file Pillow had mapped into
+        # memory (``open_image`` keeps it from mapping). What leaves the
+        # block are copies in memory: the saves below need no open file.
         pages: list[Image.Image] | None = None
         with closing(open_image(input_path)) as src:
             if src.format == "TIFF" and pil_fmt == "TIFF":
