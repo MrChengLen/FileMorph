@@ -38,9 +38,11 @@ encoding; this one rejects *before* decoding.
 Code that opens an uploaded image uses ``open_image`` rather than
 ``Image.open``: Pillow then tries only the readers for the formats FileMorph
 supports (``IMAGE_INPUT_FORMATS``), and reads the pixels instead of mapping
-the file into memory. A file none of them recognises becomes an
+the file into memory — an uncompressed picture half a row at a time at least
+(``read_in_rows``). A file none of them recognises becomes an
 ``InvalidInputError`` with a fixed message, which the routes answer with
-HTTP 400 and ``X-FileMorph-Error-Code: invalid_input``.
+HTTP 400 and ``X-FileMorph-Error-Code: invalid_input``; so does an icon
+whose BMP picture is wider than an icon can be.
 
 Pillow reads EPS by running Ghostscript, an external PostScript
 interpreter. FileMorph converts no EPS, so Pillow never needs it:
@@ -60,6 +62,7 @@ from __future__ import annotations
 
 import os
 import warnings
+import weakref
 from typing import IO
 
 from PIL import EpsImagePlugin, Image, ImageFile, UnidentifiedImageError
@@ -85,6 +88,13 @@ _UNREADABLE_IMAGE = (
     "Could not read the image: it is damaged or not in a supported image format. "
     "Save it as PNG or JPEG (e.g. in an image editor) and try again."
 )
+
+# An icon's pictures are at most 256 pixels a side: its directory has a byte
+# for each, 0 standing for 256.
+_ICON_MAX_SIDE = 256
+# The BMP headers whose width Pillow reads as four bytes (the 12-byte OS/2
+# header has two). An icon's PNG picture starts with PNG's signature instead.
+_BMP_HEADERS = (40, 52, 56, 64, 108, 124)
 
 
 def _resolve_max_pixels() -> int:
@@ -150,18 +160,118 @@ def open_image(fp: str | os.PathLike[str] | IO[bytes]) -> ImageFile.ImageFile:
     stays the image's to close. Keep it after Pillow's fix: a loaded picture
     holds no mapping of the upload's file (#320), and Pillow checks the size
     of every TIFF page it reads — a mapped later page skipped that check.
+
+    Pillow reads the pixels half a row at a time at least (``read_in_rows``)
+    — an icon's picture excepted, which it reads while opening the file: an
+    icon whose BMP picture is wider than an icon can be gets the same
+    ``InvalidInputError`` before Pillow opens it.
     """
     # Pillow imports its plugins lazily; load them all so the filter below
     # sees every reader. A no-op after the first call.
     Image.init()
     # Image.ID lists the registered readers in Pillow's own detection order.
     formats = [fmt for fmt in Image.ID if fmt in IMAGE_INPUT_FORMATS]
+    if _wide_icon(fp):
+        raise InvalidInputError(_UNREADABLE_IMAGE)
     try:
         img = Image.open(fp, formats=formats)
     except UnidentifiedImageError as exc:
         raise InvalidInputError(_UNREADABLE_IMAGE) from exc
     img.filename = ""
+    try:
+        read_in_rows(img)
+    except BaseException:
+        img.close()  # and with it the upload (#320)
+        raise
     return img
+
+
+def read_in_rows(img: ImageFile.ImageFile) -> None:
+    """Have Pillow read the uncompressed pixels of ``img`` half a row at a
+    time at least. ``open_image`` does it for an upload's first page; after
+    seeking to another page, call it again (``strip_pages`` does): pages
+    differ.
+
+    Pillow reads uncompressed pixels (a TIFF page, a BMP) in blocks and joins
+    them until a row is whole, so a very wide row took many blocks. With
+    this hook every read brings at least a row as the file stores it, or the
+    widest strip's or tile's width in the bytes a pixel takes in memory
+    (one, two or four, as Pillow holds them; at least half of what a TIFF
+    stores for one, eight bytes at most), but never more than the file
+    holds: a row takes a read or two. Pillow's own block size
+    (``decodermaxblock``) does not reach every read.
+
+    A TIFF tile may run past the right edge of its page: its rows in the
+    file are as long as it is wide. Rows over 64 KB and more than twice the
+    page's are refused, as a damaged file's (``InvalidInputError``); tiles
+    are commonly 256 to 1 024 pixels wide.
+
+    The hook reads from the image's file as it is at the time: an AVIF hands
+    Pillow its decoded pixels as a file of their own when it loads.
+    """
+    vars(img).pop("load_read", None)  # one set for another page
+    pixel = 1 if img.mode in ("1", "L", "P") else 2 if img.mode.startswith("I;16") else 4
+    widths, strides = [], []
+    for name, extents, _, args in img.tile:
+        if name == "raw":
+            left, _, right, _ = extents or (0, 0, img.width, img.height)  # none: all of it
+            widths.append((right - left) * pixel)
+            # The arguments: the raw mode, then the length of a row in the
+            # file where Pillow knows it (a BMP's; a TIFF tile past its page).
+            strides.append(args[1] if isinstance(args, tuple) and len(args) > 1 else 0)
+    if not widths:
+        return
+    row, stride = max(widths), max(strides)
+    if stride > max(2 * row, ImageFile.MAXBLOCK):
+        raise InvalidInputError(_UNREADABLE_IMAGE)
+    block = min(max(row, stride), file_size(img))
+    image = weakref.ref(img)  # the image holds the hook: no cycle
+
+    def load_read(size: int) -> bytes:  # Pillow's hook for reading pixels
+        return image().fp.read(max(size, block))
+
+    img.load_read = load_read
+
+
+def file_size(img: Image.Image) -> int:
+    """The size of the file ``img`` reads from; it goes on reading where it was."""
+    fp = img.fp
+    here = fp.tell()
+    try:
+        return fp.seek(0, 2)
+    finally:
+        fp.seek(here)
+
+
+def _wide_icon(fp: str | os.PathLike[str] | IO[bytes]) -> bool:
+    """Whether ``fp`` is an icon (ICO) with a BMP picture wider than an icon
+    can be (``_ICON_MAX_SIDE``). A file is left where it was."""
+    if isinstance(fp, (str, os.PathLike)):
+        with open(fp, "rb") as f:
+            return _wide_icon(f)
+    here = fp.tell()
+    try:
+        head = fp.read(6)
+        if head[:4] != b"\0\0\1\0":  # an icon's signature
+            return False
+        directory = fp.read(16 * int.from_bytes(head[4:6], "little"))
+        # Each picture's 16-byte entry ends with where the picture starts; in
+        # the order of the file, the reads run forward through it.
+        starts = {
+            int.from_bytes(directory[end - 4 : end], "little")
+            for end in range(16, len(directory) + 1, 16)
+        }
+        for start in sorted(starts):
+            fp.seek(start)
+            header = fp.read(8)  # a BMP picture's header size and width
+            if (
+                int.from_bytes(header[:4], "little") in _BMP_HEADERS
+                and int.from_bytes(header[4:8], "little") > _ICON_MAX_SIDE
+            ):
+                return True
+        return False
+    finally:
+        fp.seek(here)
 
 
 # Fire once at import so a single ``import app.core.image_hardening``

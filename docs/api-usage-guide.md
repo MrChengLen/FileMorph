@@ -544,7 +544,9 @@ Common per-file `error_message` values:
 - `"Could not read the image: it is damaged or not in a supported image
   format. …"` — an image upload that isn't JPEG, PNG, WebP, GIF, BMP,
   TIFF, ICO, HEIC/HEIF or AVIF, or is too damaged to identify (also a
-  file that isn't an image at all). Single-file `/convert` and
+  file that isn't an image at all, a TIFF whose tiles are far wider than
+  its page, and an icon whose BMP picture is wider than an icon can be: 256
+  pixels). Single-file `/convert` and
   `/compress` return the same message as a `400` with
   `X-FileMorph-Error-Code: invalid_input`.
 - `"Conversion failed. Verify the file is valid."` (compress:
