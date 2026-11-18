@@ -89,9 +89,9 @@ def test_objection_stands_apart_in_a_highlighted_box(client, locale):
     assert box.startswith(OBJECTION_HEADING[locale])
     # It covers every lit. f processing the notice names, and says how to object.
     for word in (
-        ["Server-Protokolle", "Audit-Log", "Cloudflare", "privacy@filemorph.io"]
+        ["Server-Protokolle", "Audit-Log", "Cloudflare", "Statusseite", "privacy@filemorph.io"]
         if locale == "de"
-        else ["server logs", "audit log", "Cloudflare", "privacy@filemorph.io"]
+        else ["server logs", "audit log", "Cloudflare", "status page", "privacy@filemorph.io"]
     ):
         assert word in box, word
 

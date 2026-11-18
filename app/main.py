@@ -115,6 +115,8 @@ templates.env.globals["security_contact_email"] = settings.security_contact_emai
 # flags so the plans can show while the paid ones are not bookable.
 templates.env.globals["pricing_enabled"] = bool(settings.pricing_page_enabled)
 templates.env.globals["stripe_enabled"] = bool(settings.stripe_secret_key)
+# Status page link (footer): empty for self-hosters, set per deployment.
+templates.env.globals["status_page_url"] = settings.status_page_url
 # Accounts: the function itself, called per render like the limit messages and
 # the account-page routes, so one switch (app/db/base.py) decides all three.
 # Without accounts (Community Edition) the navigation and the developer teaser

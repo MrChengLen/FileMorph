@@ -805,11 +805,13 @@ is in force.
 
 ### 9.3 Status page / customer notification
 
-A status page is not currently published. Material incidents are
+A public status page is published at
+<https://mrchenglen.github.io/filemorph-status/> (Upptime on GitHub
+Pages): GitHub Actions checks the website and the API about every
+five minutes, the page keeps the uptime history, and an outage opens
+an issue in its public repository. Material incidents are
 communicated by email to the named contacts on the affected
 contracts and via GitHub Security Advisories where appropriate.
-A formal status page (filemorph.io/status) is on the roadmap before
-the first KRITIS-tier engagement.
 
 **See also:** [`docs/incident-response.md`](./incident-response.md),
 [`docs/dpa-template.md`](./dpa-template.md) §9.
@@ -1147,12 +1149,11 @@ trigger:
 - **SSO / SAML / OIDC** — build-on-demand for the Enterprise tier.
 - **Built-in MFA** — build-on-demand; reverse-proxy MFA is the
   current path.
-- **Public status page** — before the first KRITIS-tier engagement.
 - **Redis-backed multi-instance rate limiting** — when a customer
   deployment requires more than one instance.
 
 ---
 
-*Last revised: 2026-09-28.* This document is reviewed at least annually
+*Last revised: 2026-11-18.* This document is reviewed at least annually
 and on any material change to the application, the sub-processor list,
 or the contract chain.
