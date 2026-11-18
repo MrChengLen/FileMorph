@@ -380,14 +380,17 @@ def test_receipt_prints_dark_on_white(client, stripe_on):
     soup = _soup(client.get("/en/cancel").text)
     assert "print:bg-white" in soup.find("body")["class"]
     main = soup.find("main")
-    assert "print:text-black" in main["class"]
+    # <main> is the shared page frame (_components/page.html); the page's own content
+    # wrapper inside its column carries the print colour that the receipt text inherits.
+    content = main.find("div", recursive=False).find("div", recursive=False)
+    assert "print:text-black" in content["class"]
     assert "print:text-black" in main.find("h1")["class"]
     receipt = main.find(id="cancel-receipt")
     assert "print:bg-white" in receipt["class"], "dark card would print dark with graphics on"
     assert "print:text-black" in receipt.find(id="cancel-receipt-title")["class"]
     labels = receipt.find_all("dt")
     assert labels and all("print:text-gray-700" in dt["class"] for dt in labels)
-    # The paragraphs and values set no colour of their own, so they inherit main's black.
+    # The paragraphs and values set no colour of their own, so they inherit the content's black.
     for el in receipt.find_all(["p", "dd"]):
         colours = [
             c
@@ -408,7 +411,7 @@ def test_footer_links_cancel_page_last_in_legal_group_when_stripe_on(client, str
     assert last["href"] == "/en/cancel"
     assert last.get_text(strip=True) == "Cancel contracts here"
     # A notch brighter than its text-ink-faint neighbours — the law requires legibility.
-    assert "text-gray-400" in last["class"] and "text-ink-faint" not in last["class"]
+    assert "text-ink-muted" in last["class"] and "text-ink-faint" not in last["class"]
 
 
 @pytest.mark.parametrize(

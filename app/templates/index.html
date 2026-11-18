@@ -1,13 +1,13 @@
 {% extends "base.html" %}
+{% import "_components/page.html" as up %}
 {% block title %}{{ _('Free Online File Converter & Compressor') }} | FileMorph{% endblock %}
 {% block meta_description %}{{ _('Convert & compress files online free — HEIC, JPG, PNG, WebP, PDF, DOCX, MP4 & more. Shrink images to a target size. No account, open source.') }}{% endblock %}
 {% block content %}
 
-<div class="min-h-full flex flex-col">
 
   <!-- Main -->
-  <main class="flex-1 flex items-center justify-center p-4 sm:p-6">
-    <div class="w-full max-w-2xl space-y-6">
+  {% call up.page(max_w='prose-narrow') %}
+    <div class="space-y-6">
 
       <!-- Title -->
       <div class="text-center space-y-2">
@@ -209,8 +209,7 @@
       </section>
 
     </div>
-  </main>
+  {% endcall %}
 
-</div>
 
 {% endblock %}

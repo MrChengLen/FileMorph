@@ -1,5 +1,19 @@
 /* FileMorph custom styles — minimal overrides on top of TailwindCSS */
 
+/* The site is dark: native controls (select lists, scrollbars, date pickers)
+   follow it instead of drawing light boxes on the dark page. */
+:root {
+  color-scheme: dark;
+}
+
+/* Paper is light: with "Background graphics" on, a dark colour scheme would
+   paint the whole sheet dark around a printed page (the /cancel receipt). */
+@media print {
+  :root {
+    color-scheme: light;
+  }
+}
+
 * {
   box-sizing: border-box;
 }

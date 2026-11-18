@@ -1,10 +1,12 @@
 {% extends "base.html" %}
 {% import "_components/card.html" as uc %}
 {% import "partials/tool_sections.html" as ts with context %}
+{% import "_components/page.html" as up %}
 {% block title %}{{ content.title }} | FileMorph{% endblock %}
 {% block meta_description %}{{ content.meta }}{% endblock %}
 {% block content %}
-<main class="max-w-4xl mx-auto px-6 py-12 space-y-10 text-gray-300 text-sm leading-relaxed">
+{% call up.page(max_w='wide') %}
+<div class="space-y-10 text-gray-300 text-sm leading-relaxed">
 
   <div>
     <a href="{{ localized_url('/', current_prefix) }}" class="text-sm text-ink-faint hover:text-gray-300 transition-colors">{{ _('← Back to converter') }}</a>
@@ -57,5 +59,6 @@
     <a href="{{ localized_url('/formats', current_prefix) }}" class="text-brand-light hover:underline">{{ _('conversion matrix →') }}</a>
   </p>
 
-</main>
+</div>
+{% endcall %}
 {% endblock %}

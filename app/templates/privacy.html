@@ -1,7 +1,9 @@
 {% extends "base.html" %}
+{% import "_components/page.html" as up %}
 {% block title %}{{ _('Privacy Policy') }} — FileMorph{% endblock %}
 {% block content %}
-<main class="max-w-2xl mx-auto px-6 py-12 space-y-8 text-gray-300 text-sm leading-relaxed">
+{% call up.page(max_w='prose-narrow') %}
+<div class="space-y-8 text-gray-300 text-sm leading-relaxed">
 
   <div>
     <a href="{{ localized_url('/', current_prefix) }}" class="text-sm text-ink-faint hover:text-gray-300 transition-colors">{{ _('← Back') }}</a>
@@ -113,5 +115,6 @@
     {{ _('This English translation is provided for accessibility. The German version is the authoritative legal text in case of conflict.') }}
   </p>
 
-</main>
+</div>
+{% endcall %}
 {% endblock %}

@@ -2,6 +2,7 @@
 {% import "_components/button.html" as ub %}
 {% import "_components/card.html" as uc %}
 {% import "_components/text_input.html" as ui %}
+{% import "_components/page.html" as up %}
 {# /device-check: the local engine's test page (app/api/routes/pages.py).
    Served only with LOCAL_TOOLS_ENABLED, under the `local` CSP profile, with
    `noindex` in its response header, and listed nowhere. The page's script is
@@ -13,7 +14,8 @@
 {% block title %}{{ content.title }} | FileMorph{% endblock %}
 {% block meta_description %}{{ content.intro }}{% endblock %}
 {% block content %}
-<main id="device-check" data-engine="{{ engine_url }}" class="max-w-2xl mx-auto px-6 py-12 space-y-8 text-gray-300 text-sm leading-relaxed">
+{% call up.page(max_w='prose-narrow') %}
+<div id="device-check" data-engine="{{ engine_url }}" class="space-y-8 text-gray-300 text-sm leading-relaxed">
 
   <div class="space-y-3">
     <h1 class="text-2xl font-bold text-white">{{ content.h1 }}</h1>
@@ -61,7 +63,8 @@
 
   <p class="text-xs text-ink-faint">{{ content.fallback }}</p>
   <p><a href="{{ localized_url('/tools', current_prefix) }}" class="text-brand-light hover:underline">{{ content.back }}</a></p>
-</main>
+</div>
+{% endcall %}
 {# A data block: the browser does not run it (type="application/json"). #}
 <script id="fm-check-strings" type="application/json">{{ content.js | tojson }}</script>
 {% endblock %}

@@ -42,7 +42,9 @@ def _render(env: Environment, source: str) -> BeautifulSoup:
 # ── page ───────────────────────────────────────────────────────────────────────
 
 
-def test_page_renders_main_with_max_w_and_section_y(env: Environment) -> None:
+def test_page_renders_main_as_the_page_frame(env: Environment) -> None:
+    """<main> is the page frame: the width and gutters of the header and footer
+    (base.html), growing to fill the screen, never centred vertically."""
     soup = _render(
         env,
         '{% import "_components/page.html" as page %}'
@@ -52,24 +54,42 @@ def test_page_renders_main_with_max_w_and_section_y(env: Environment) -> None:
     assert main is not None
     assert main["data-component"] == "page"
     classes = main["class"]
-    assert "max-w-page" in classes
-    assert "space-y-section-y" in classes
-    h1 = soup.find("h1")
+    for token in ("max-w-page", "mx-auto", "w-full", "flex-1", "px-4", "sm:px-6", "lg:px-8"):
+        assert token in classes, token
+    assert "items-center" not in classes and "justify-center" not in classes
+    column = main.find("div", recursive=False)
+    assert "space-y-section-y" in column["class"]
+    h1 = column.find("h1")
     assert h1 is not None
     assert "text-h-page" in h1["class"]
     assert h1.get_text(strip=True) == "Hello"
-    assert soup.find("p", string="body") is not None
+    assert column.find("p", string="body") is not None
 
 
-def test_page_prose_narrow_uses_narrow_max_width(env: Environment) -> None:
+@pytest.mark.parametrize(
+    ("max_w", "token"),
+    [("wide", "max-w-wide"), ("prose-narrow", "max-w-prose-narrow"), ("form", "max-w-form")],
+)
+def test_page_column_takes_its_width_inside_the_frame(env: Environment, max_w, token) -> None:
     soup = _render(
         env,
         '{% import "_components/page.html" as page %}'
-        "{% call page.page(max_w='prose-narrow') %}body{% endcall %}",
+        "{% call page.page(max_w='" + max_w + "') %}body{% endcall %}",
     )
     main = soup.find("main")
-    assert "max-w-prose-narrow" in main["class"]
-    assert "max-w-page" not in main["class"]
+    assert "max-w-page" in main["class"], "the frame stays the same on every page"
+    column = main.find("div", recursive=False)
+    assert token in column["class"]
+    assert "mx-auto" in column["class"]
+
+
+def test_page_default_column_fills_the_frame(env: Environment) -> None:
+    soup = _render(
+        env,
+        '{% import "_components/page.html" as page %}{% call page.page() %}body{% endcall %}',
+    )
+    column = soup.find("main").find("div", recursive=False)
+    assert not [c for c in column["class"] if c.startswith("max-w-")]
 
 
 # ── section ────────────────────────────────────────────────────────────────────
