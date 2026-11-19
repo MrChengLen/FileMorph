@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_components/page.html" as up %}
 {% block title %}{{ _('Supported file formats & conversions') }} | FileMorph{% endblock %}
 {% block scripts %}<script src="{{ static_url('js/format-filter.js') }}"></script>{% endblock %}
 {% block meta_description %}{{ _('Every conversion FileMorph supports — images, documents, spreadsheets, audio and video, plus compression to a target size. Free, open source.') }}{% endblock %}
@@ -11,7 +12,8 @@
   'video': _('Video'),
   'other': _('Other'),
 } %}
-<main class="max-w-4xl mx-auto px-6 py-12 space-y-10 text-gray-300 text-sm leading-relaxed">
+{% call up.page(max_w='wide') %}
+<div class="space-y-10 text-gray-300 text-sm leading-relaxed">
 
   <div>
     <a href="{{ localized_url('/', current_prefix) }}" class="text-sm text-ink-faint hover:text-gray-300 transition-colors">{{ _('← Back to converter') }}</a>
@@ -113,5 +115,6 @@
     </p>
   </section>
 
-</main>
+</div>
+{% endcall %}
 {% endblock %}

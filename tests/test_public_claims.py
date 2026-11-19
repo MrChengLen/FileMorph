@@ -728,7 +728,12 @@ def _text_colour(classes: str) -> str:
 def test_location_hint_meets_wcag_aa_contrast():
     """The hint sits under each processing button, inside the tool card: it has
     to read at WCAG AA on the card surface and on the page background."""
-    assert 'class="h-full bg-gray-950' in (TEMPLATES / "base.html").read_text(encoding="utf-8")
+    body = re.search(
+        r'<body class="([^"]*)"', (TEMPLATES / "base.html").read_text(encoding="utf-8")
+    )
+    assert body and "bg-surface-page" in body.group(1).split(), (
+        "the page background is no longer surface-page"
+    )
     card = (TEMPLATES / "_components" / "card.html").read_text(encoding="utf-8")
     assert "bg-surface-raised" in card, "the tool card no longer uses the raised surface"
     source = (TEMPLATES / "partials" / "location_hint.html").read_text(encoding="utf-8")
@@ -736,7 +741,8 @@ def test_location_hint_meets_wcag_aa_contrast():
     assert hint, "location hint not found"
     config = (ROOT / "tailwind.config.js").read_text(encoding="utf-8")
     raised = re.search(r"raised:\s*'(#[0-9a-fA-F]{6})'", config).group(1)
-    for background in (_TAILWIND_DEFAULTS["gray-950"], raised):
+    page = re.search(r"page:\s*'(#[0-9a-fA-F]{6})'", config).group(1)
+    for background in (page, raised):
         ratio = _contrast(_text_colour(hint.group(1)), background)
         assert ratio >= 4.5, f"{hint.group(1)!r}: {ratio:.2f} : 1 on {background} (AA: 4.5 : 1)"
 
@@ -760,11 +766,11 @@ def test_text_tokens_meet_wcag_aa_on_every_dark_surface():
     (cards up to gray-800); white text reaches it on the filled brand buttons;
     the brand colour itself (logo, icons, focus ring) keeps 3 : 1 on a card."""
     t = _colour_tokens()
-    surfaces = [t["surface"], t["surface-raised"], t["surface-sunken"]]
+    surfaces = [t["surface"], t["surface-raised"], t["surface-sunken"], t["surface-page"]]
     surfaces += [_TAILWIND_DEFAULTS[k] for k in ("gray-950", "gray-900", "gray-800")]
     low = [
         f"{name} on {bg}: {_contrast(t[name], bg):.2f}"
-        for name in ("ink", "ink-muted", "ink-faint", "brand-light")
+        for name in ("ink-strong", "ink-soft", "ink", "ink-muted", "ink-faint", "brand-light")
         for bg in surfaces
         if _contrast(t[name], bg) < 4.5
     ]

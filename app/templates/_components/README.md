@@ -16,8 +16,6 @@ At the top of any page template:
 {% import "_components/eyebrow.html" as eyebrow %}
 ```
 
-(Or grab them all via the re-export — see `_components/ui.html`.)
-
 Wrapping macros use Jinja's `{% call %}` / `{% endcall %}` form so the
 caller's body is yielded by `{{ caller() }}` inside the macro. Simple
 macros are just function-like calls.
@@ -28,31 +26,21 @@ macros are just function-like calls.
 
 | Macro | File | Wrap | Notes |
 |---|---|---|---|
-| `page.page(title, max_w='page', center=False)` | `page.html` | `{% call %}` | Wraps `<main>` with max-width, center, and section-y rhythm |
+| `page.page(title=None, max_w='page', center=False)` | `page.html` | `{% call %}` | The one `<main>` of every page (CI-gated, `tests/test_layout_standards.py`). `<main>` is the page frame — `max-w-page` and the 16 / 24 / 32 px gutters, the same as the header and footer in `base.html` — and fills the screen so the footer sits at the bottom. `max_w` picks the content column inside it: `page` (whole frame), `wide` (56rem), `prose-narrow` (42rem), `form` (28rem). Never centred vertically |
 | `section.section(title=None, eyebrow=None, padded=True)` | `section.html` | `{% call %}` | Semantic `<section>` with optional eyebrow + h2; body via `{{ caller() }}` |
 | `card.card(border='default', padded='md', shadow=True, id=None, hidden=False, interactive=False)` | `card.html` | `{% call %}` | Surface card with hairline border + radius-card + padding. `interactive=True`: the whole card is one link (a stretched `<a>` in its heading) |
-| `button.button(label, href=None, variant='primary', size='md', disabled=False, type='button', id=None)` | `button.html` | simple | Variants: primary / secondary / ghost. Sizes: sm / md / lg |
+| `button.button(label, href=None, variant='primary', size='md', disabled=False, type='button', id=None, full_width=False)` | `button.html` | simple | Variants: primary / secondary / ghost / danger. Sizes: sm / md / lg. `full_width` stretches it to its container |
 | `eyebrow.eyebrow(text, color='gray')` | `eyebrow.html` | simple | Small all-caps tracking-wide label above headings |
-| `text_input.text_input(name, type='text', label=None, placeholder='', autocomplete=None, required=False, value='', id=None)` | `text_input.html` | simple | Form input with optional label. Used in auth + cockpit + index |
+| `text_input.text_input(name, type='text', label=None, placeholder='', autocomplete=None, required=False, value='', id=None, help=None)` | `text_input.html` | simple | Form input with optional label and help text. Used in auth + cockpit + index |
+| `textarea.textarea(name, label=None, placeholder='', autocomplete=None, required=False, rows=6, id=None, help=None)` | `textarea.html` | simple | Multi-line sibling of `text_input`, same recipe. Used on /contact and /cancel |
 | `icon.icon(name)` | `icon.html` | simple | Quick-action icon; `name` is one of `catalog.ICONS` (app/core/catalog.py) |
 
-### Tier 2 — Repeated patterns (≥3 sites)
+### Not built (yet)
 
-| Macro | File | Notes |
-|---|---|---|
-| `check_list.check_list(items)` | `check_list.html` | items = `[{text, included=True, em=False}]`. ✓ for included, ✗ for not |
-| `tier_card.tier_card(name, price, period, blurb, features, cta_label, cta_href, highlighted=False, disabled=False, badge=None)` | `tier_card.html` | The pricing-tier card |
-
-### Tier 3 — Admin family (cockpit + future admin pages)
-
-| Macro | File | Notes |
-|---|---|---|
-| `metric_card.metric_card(id, label, with_sparkline=False, with_extra=False)` | `admin/metric_card.html` | Single-stat dashboard tile |
-| `skeleton_card.skeleton_card(rows=3)` | `admin/skeleton_card.html` | Loading-state placeholder |
-| `data_table.data_table(id, columns, with_pagination=True)` | `admin/data_table.html` | Wrapping macro — body via `{{ caller() }}` for `<tbody>` |
-| `filter_bar.filter_bar(search_id, selects=[…])` | `admin/filter_bar.html` | Search input + dropdowns row |
-| `pagination.pagination(prev_id, next_id, range_id)` | `admin/pagination.html` | Prev / range / next pager |
-| `modal.modal(id, title, size='md')` | `admin/modal.html` | Wrapping macro — body via `{{ caller() }}` |
+Earlier versions of this file listed Tier 2 macros (`check_list`, `tier_card`)
+and an admin family (`metric_card`, `data_table`, `modal`, …). None of those
+files exist: the pricing and cockpit pages carry their own markup. A shared
+macro gets built where it replaces real duplicates.
 
 ## The dynamic-class rule (CI-gated)
 

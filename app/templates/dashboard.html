@@ -2,9 +2,11 @@
 {% import "_components/card.html" as uc %}
 {% import "_components/button.html" as ub %}
 {% import "_components/text_input.html" as ut %}
+{% import "_components/page.html" as up %}
 {% block title %}{{ _('Dashboard') }} — FileMorph{% endblock %}
 {% block content %}
-<main class="flex-1 max-w-3xl mx-auto w-full px-4 sm:px-6 py-8 space-y-6">
+{% call up.page(max_w='wide') %}
+<div class="space-y-6">
 
   <h1 class="text-h-sect text-ink">{{ _('Dashboard') }}</h1>
 
@@ -130,6 +132,7 @@
   </div>
   {% endcall %}
 
-</main>
+</div>
+{% endcall %}
 <script src="{{ static_url('js/dashboard.js') }}"></script>
 {% endblock %}
