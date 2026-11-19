@@ -90,6 +90,29 @@ def accounts(request):
 
 
 @pytest.fixture
+def in_process_child(monkeypatch):
+    """Run the child steps of ``app/converters/_isolated.py`` in the test
+    process, so what a test patches here (a lower page cap, say) reaches the
+    step. The parent's side stays as it is — the one JSON line the child
+    prints, the errors ``run_isolated`` makes of it; only the process and its
+    limits are gone."""
+    import subprocess
+
+    from app.converters import _isolated
+
+    real_spawn = _isolated.spawn
+
+    def spawn(args, *, timeout, tmp_dir):
+        if args[0] != _isolated.__name__:  # another child, e.g. PDF → TXT's
+            return real_spawn(args, timeout=timeout, tmp_dir=tmp_dir)
+        outcome = json.dumps(_isolated._main(args[1:]))
+        return subprocess.CompletedProcess(args, 0, outcome + "\n", None)
+
+    monkeypatch.setattr(_isolated, "limit_resources", lambda *limits: None)
+    monkeypatch.setattr(_isolated, "spawn", spawn)
+
+
+@pytest.fixture
 def sample_jpg(tmp_path) -> Path:
     from PIL import Image
 

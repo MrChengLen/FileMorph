@@ -4,11 +4,14 @@
 The table conversions run in a child process with memory and time limits,
 and the child reports its result or error on stdout. PDF compression uses the
 same child; its route tests are in ``tests/test_pdf_compress.py`` and, with a
-stand-in child, ``tests/test_pdf_error_messages.py``.
+stand-in child, ``tests/test_pdf_error_messages.py``. So do extracting and
+splitting pages and PDF → PDF (``tests/test_pdf_split.py``), and inserting
+pages (``tests/test_pdf_insert.py``).
 """
 
 from __future__ import annotations
 
+import importlib
 import json
 import logging
 import os
@@ -26,6 +29,7 @@ from app.converters.base import (
     OutputTooLargeError,
     UnsupportedPdfEncryptionError,
 )
+from app.converters.pdf_pages import PdfPageExtractConverter
 from app.converters.spreadsheet import (
     CsvToJsonConverter,
     CsvToXlsxConverter,
@@ -117,6 +121,38 @@ def test_only_isolated_converters_run_in_the_child(tmp_path):
             tmp_path / "in.md",
             tmp_path / "out.html",
         )
+
+
+@pytest.mark.parametrize("step", sorted(_isolated._STEPS))
+def test_every_step_names_a_function_the_child_can_run(step):
+    module, function, *_ = _isolated._STEPS[step]
+    assert callable(getattr(importlib.import_module(module), function))
+
+
+def test_pdf_to_pdf_converts_in_a_child_with_the_limits_of_pdf_extract(tmp_path, monkeypatch):
+    """/convert's PDF → PDF copies every page, as /pdf/extract does: the same limits."""
+    seen: dict = {}
+    monkeypatch.setattr(subprocess, "run", _fake_child('{"result": null}', seen=seen))
+    out = tmp_path / "out.pdf"
+    assert PdfPageExtractConverter().run(tmp_path / "in.pdf", out) == out
+    limits = _isolated._STEPS["pdf-to-pdf"][2:]
+    assert limits == _isolated._STEPS["pdf-extract"][2:]
+    assert seen["command"][3:7] == ["pdf-to-pdf", *(str(limit) for limit in limits)]
+    kwargs = json.loads(seen["command"][7])
+    assert kwargs["converter"] == "app.converters.pdf_pages:PdfPageExtractConverter"
+
+
+def test_pdf_to_pdf_keeps_every_page_in_a_real_child(tmp_path):
+    from pypdf import PdfReader, PdfWriter
+
+    writer = PdfWriter()
+    for width in (200, 300, 400):
+        writer.add_blank_page(width=width, height=200)
+    src, out = tmp_path / "in.pdf", tmp_path / "out.pdf"
+    with src.open("wb") as f:
+        writer.write(f)
+    PdfPageExtractConverter().run(src, out)
+    assert [round(float(p.mediabox.width)) for p in PdfReader(out).pages] == [200, 300, 400]
 
 
 def test_the_child_hardens_pillow_and_caps_itself(tmp_path):

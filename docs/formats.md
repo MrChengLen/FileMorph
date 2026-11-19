@@ -269,6 +269,10 @@ formats page — it is plumbing, not a conversion a user picks.
 - **Extract** rejects an empty / reversed / out-of-range / non-numeric page
   selection with a `400`; a selection can resolve to at most 10 000 pages
   (a page selected twice counts once) and be at most 65 536 characters long.
+- **Extract, split and PDF → PDF** run in their own process with memory, time
+  and file size limits. A PDF too large or complex for them gets a `400` that
+  names the next step: `pdf_too_complex` for extract (select fewer pages) and
+  split (extract fewer pages, then split them), `invalid_input` for PDF → PDF.
 - **No password-protected PDFs.** FileMorph never asks for a password, so a
   PDF that needs one to open is rejected with a `400` and
   `X-FileMorph-Error-Code: pdf_encrypted` here and on PDF → TXT / PDF/A;

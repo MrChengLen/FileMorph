@@ -8,9 +8,8 @@ host including Windows local-dev):
   ``pages="1-3,5"``. Registered as the ``(pdf, pdf)`` converter so it is a
   first-class registry citizen and unit-testable in isolation; the route
   layer threads the ``pages`` kwarg through ``convert()``.
-* **Split** — write one single-page PDF per page. Returns a list of
-  ``(name, bytes)`` the route bundles into a ZIP via
-  ``app/core/batch.py``.
+* **Split** — write one single-page PDF per page into a folder; the route
+  bundles them into a ZIP via ``app/core/batch.py``.
 
 Page numbers are **1-based** in the user-facing API (matching how a person
 reads a PDF) and converted to 0-based indices internally.
@@ -25,18 +24,22 @@ A reversed range (``5-3``) and out-of-range pages are treated as client
 errors rather than silently coerced, so a user mistyping a range gets a
 clear 400 instead of a surprising empty/partial PDF.
 
-pypdf parsing of the *input* PDF still happens inside ``convert()`` /
-``split_pdf()``; the route invokes both through ``asyncio.to_thread`` so
-the (synchronous, C-accelerated) parse never blocks the event loop —
-identical to every other converter. A PDF pypdf cannot read, or one without
-pages, raises :class:`UnreadablePdfError`, a ``PageSelectionError`` that
-blames the file rather than the selection. One that needs a password raises
-:class:`~app.converters.base.EncryptedPdfError`. A selection, or a PDF to
-split, over the page cap raises :class:`TooManyPagesError`.
+The routes parse the *input* PDF in a child process with memory and time
+limits (``app/converters/_isolated.py``), waited for off the event loop:
+``/pdf/extract`` and ``/pdf/split`` through :func:`extract_step` and
+:func:`split_step`, PDF → PDF on ``/convert`` through ``convert()``. A PDF
+pypdf cannot read, or one without pages, raises :class:`UnreadablePdfError`,
+a ``PageSelectionError`` that blames the file rather than the selection. One
+that needs a password raises :class:`~app.converters.base.EncryptedPdfError`.
+A selection, or a PDF to split, over the page cap raises
+:class:`TooManyPagesError`. The child passes on the message of a
+``PageSelectionError`` but not its class, so the two steps hand the page
+routes their error code with it, as data (:func:`_refusal`).
 """
 
 from __future__ import annotations
 
+import json
 import logging
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -270,19 +273,22 @@ def extract_pages(input_path: Path, output_path: Path, pages_spec: str) -> Path:
     return output_path
 
 
-def split_pdf(input_path: Path, max_output_bytes: int) -> list[tuple[str, bytes]]:
-    """Split a PDF into one single-page PDF per page.
+def page_file_names(count: int) -> list[str]:
+    """The file names of a split's ``count`` pages: ``page_001.pdf`` …,
+    zero-padded to the count's width so they sort lexically in the ZIP."""
+    width = len(str(count))
+    return [f"page_{i:0{width}d}.pdf" for i in range(1, count + 1)]
 
-    Returns ``[(filename, pdf_bytes), ...]`` with ``page_001.pdf`` style
-    names (zero-padded to the page count's width so they sort lexically in
-    the ZIP). The route bundles these into a ZIP via
-    ``app/core/batch.py``. Each single-page PDF carries its own copy of
-    the resources it uses. Once they add up to more than
+
+def split_pdf(input_path: Path, pages_path: Path, max_output_bytes: int) -> int:
+    """Split a PDF into one single-page PDF per page and return the page count.
+
+    The pages go into the folder ``pages_path``, under the names
+    :func:`page_file_names` gives them. Each single-page PDF carries its own
+    copy of the resources it uses. Once they add up to more than
     ``max_output_bytes`` (the caller's output cap),
     :class:`~app.converters.base.OutputTooLargeError` stops the split.
     """
-    import io
-
     from pypdf import PdfWriter
 
     reader = _open_reader(input_path)
@@ -290,38 +296,72 @@ def split_pdf(input_path: Path, max_output_bytes: int) -> list[tuple[str, bytes]
     if total == 0:
         raise UnreadablePdfError("The PDF has no pages to split.")
     # Same defensive ceiling extract uses on a selection: a crafted PDF
-    # claiming an enormous page count would otherwise have us build (and
-    # hold in memory) that many single-page writers before the route's
-    # output-cap check ever runs. Bail with a clean, caller-safe 400 first.
+    # claiming an enormous page count would otherwise have us write that
+    # many single-page PDFs. Bail with a clean, caller-safe 400 first.
     if total > _MAX_SELECTION_PAGES:
         raise TooManyPagesError(_TOO_MANY_PAGES_TO_SPLIT)
 
-    width = len(str(total))
-    outputs: list[tuple[str, bytes]] = []
     total_bytes = 0
     with _reading_pdf():
-        for i, page in enumerate(reader.pages, start=1):
+        for name, page in zip(page_file_names(total), reader.pages, strict=True):
             writer = PdfWriter()
             writer.add_page(page)
-            buf = io.BytesIO()
-            writer.write(buf)
-            total_bytes += buf.tell()
+            with (pages_path / name).open("wb") as f:
+                writer.write(f)
+                total_bytes += f.tell()
             if total_bytes > max_output_bytes:
                 raise OutputTooLargeError
-            outputs.append((f"page_{i:0{width}d}.pdf", buf.getvalue()))
-    return outputs
+    return total
+
+
+def _refusal(exc: PageSelectionError) -> dict:
+    """What :func:`extract_step` and :func:`split_step` return for a PDF or a
+    selection the user can fix: the code the page routes answer it with,
+    and its message."""
+    if isinstance(exc, UnreadablePdfError):
+        code = "invalid_pdf"
+    elif isinstance(exc, TooManyPagesError):
+        code = "pdf_too_many_pages"
+    else:
+        code = "invalid_page_selection"
+    return {"refused": {"code": code, "message": str(exc)}}
+
+
+def extract_step(input_path: Path, output_path: Path, selection_path: Path) -> dict:
+    """:func:`extract_pages` for ``/pdf/extract``, in the child process (step
+    ``pdf-extract``): ``{}``, or :func:`_refusal` data. The page selection
+    comes as a JSON string in the file ``selection_path``: it can be longer
+    than a command line may be."""
+    pages_spec = json.loads(selection_path.read_text(encoding="ascii"))
+    try:
+        extract_pages(input_path, output_path, pages_spec)
+    except PageSelectionError as exc:
+        return _refusal(exc)
+    return {}
+
+
+def split_step(input_path: Path, pages_path: Path, max_output_bytes: int) -> dict:
+    """:func:`split_pdf` for ``/pdf/split``, in the child process (step
+    ``pdf-split``): ``{"pages": <page count>}``, or :func:`_refusal` data."""
+    try:
+        return {"pages": split_pdf(input_path, pages_path, max_output_bytes)}
+    except PageSelectionError as exc:
+        return _refusal(exc)
 
 
 @register(("pdf", "pdf"))
 class PdfPageExtractConverter(BaseConverter):
     """Extract a page range from a PDF (``pdf`` → ``pdf``).
 
-    Reachable through the dedicated ``/api/v1/pdf/extract`` route, which
-    passes the user's ``pages`` selection as the ``pages`` kwarg. Defaults
-    to the whole document when no selection is given so a bare
-    ``pdf`` → ``pdf`` is a (metadata-light) pass-through rather than an
-    error.
+    ``/convert`` and ``/convert/batch`` run it in a child process with the
+    limits of ``/pdf/extract`` (step ``pdf-to-pdf``), without a ``pages``
+    selection. It defaults to the whole document when no selection is given
+    so a bare ``pdf`` → ``pdf`` is a (metadata-light) pass-through rather
+    than an error.
     """
+
+    isolated = True
+    isolated_step = "pdf-to-pdf"
 
     def convert(self, input_path: Path, output_path: Path, **kwargs) -> Path:
         spec = kwargs.get("pages")

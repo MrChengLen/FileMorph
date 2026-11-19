@@ -51,7 +51,7 @@ from pypdf.constants import UserAccessPermissions as Perm
 from pypdf.errors import FileNotDecryptedError
 
 from app.api.routes import pdf_pages as pdf_routes
-from app.converters import pdf_pages
+from app.converters import base, pdf_pages
 from app.converters.base import EncryptedPdfError, InvalidInputError
 from app.converters.document import PdfToTxtConverter
 
@@ -123,7 +123,9 @@ _ROUTES = [
 
 
 @pytest.fixture
-def two_page_cap(monkeypatch):
+def two_page_cap(monkeypatch, in_process_child):
+    """The page routes' child steps run in the test process, so the lower cap
+    reaches them."""
     monkeypatch.setattr(pdf_pages, "_MAX_SELECTION_PAGES", 2)
 
 
@@ -151,7 +153,7 @@ def test_pageless_fixture_has_no_pages():
 
 _ENGINES = [
     pytest.param(lambda src, out: pdf_pages.extract_pages(src, out, "1"), id="extract_pages"),
-    pytest.param(lambda src, out: pdf_pages.split_pdf(src, 10**9), id="split_pdf"),
+    pytest.param(lambda src, out: pdf_pages.split_pdf(src, out.parent, 10**9), id="split_pdf"),
     pytest.param(
         lambda src, out: pdf_pages.PdfPageExtractConverter().convert(src, out), id="pdf-to-pdf"
     ),
@@ -491,7 +493,7 @@ def test_split_pdf_over_the_page_cap_raises_too_many_pages(tmp_path, two_page_ca
     src = tmp_path / "in.pdf"
     src.write_bytes(_pdf(3))
     with pytest.raises(pdf_pages.TooManyPagesError) as caught:
-        pdf_pages.split_pdf(src, 10**9)
+        pdf_pages.split_pdf(src, tmp_path, 10**9)
     assert str(caught.value) == pdf_pages._TOO_MANY_PAGES_TO_SPLIT
     # Both bases keep /convert and /convert/batch answering a 400.
     assert isinstance(caught.value, pdf_pages.PageSelectionError)
@@ -565,17 +567,17 @@ def _stand_in_child(monkeypatch, child):
     monkeypatch.setattr(subprocess, "run", run)
 
 
-@pytest.mark.parametrize(
-    "child",
-    [
-        pytest.param(subprocess.TimeoutExpired("python", 90), id="time"),
-        pytest.param(
-            subprocess.CompletedProcess("python", 0, '{"error": "out_of_memory"}', None),
-            id="memory",
-        ),
-        pytest.param(subprocess.CompletedProcess("python", -9, "", None), id="signal"),
-    ],
-)
+_PAST_THE_LIMITS = [
+    pytest.param(subprocess.TimeoutExpired("python", 90), id="time"),
+    pytest.param(
+        subprocess.CompletedProcess("python", 0, '{"error": "out_of_memory"}', None),
+        id="memory",
+    ),
+    pytest.param(subprocess.CompletedProcess("python", -9, "", None), id="signal"),
+]
+
+
+@pytest.mark.parametrize("child", _PAST_THE_LIMITS)
 def test_compress_past_the_childs_limits_answers_pdf_too_complex(
     client, auth_headers, monkeypatch, child
 ):
@@ -599,6 +601,57 @@ def test_compress_keeps_invalid_input_for_the_childs_own_message(client, auth_he
     assert r.status_code == 400, r.text
     assert r.headers.get("X-FileMorph-Error-Code") == "invalid_input"
     assert r.json()["detail"] == "Fix it."
+
+
+# ── extract, split and PDF -> PDF past the child's limits ────────────────────
+
+
+@pytest.mark.parametrize("child", _PAST_THE_LIMITS)
+@pytest.mark.parametrize(
+    ("path", "data", "message", "next_step"),
+    [
+        pytest.param(
+            "/api/v1/pdf/extract",
+            {"pages": "1"},
+            pdf_routes._TOO_COMPLEX_TO_EXTRACT,
+            "Select fewer pages",
+            id="extract",
+        ),
+        pytest.param(
+            "/api/v1/pdf/split",
+            {},
+            pdf_routes._TOO_COMPLEX_TO_SPLIT,
+            "/api/v1/pdf/extract",
+            id="split",
+        ),
+    ],
+)
+def test_extract_and_split_past_the_childs_limits_answer_pdf_too_complex(
+    client, auth_headers, caplog, monkeypatch, child, path, data, message, next_step
+):
+    """The PDF is readable, it just needs more memory or time than the child
+    may use: neither ``invalid_pdf`` nor a 500, and the message names the
+    next step."""
+    _stand_in_child(monkeypatch, child)
+    with caplog.at_level(logging.INFO):
+        r = _post(client, auth_headers, path, data, _pdf(1))
+    assert r.status_code == 400, r.text
+    assert r.headers.get("X-FileMorph-Error-Code") == "pdf_too_complex"
+    assert r.json()["detail"] == message
+    assert next_step in message
+    assert [rec.getMessage() for rec in caplog.records if rec.exc_info] == []
+
+
+@pytest.mark.parametrize("child", _PAST_THE_LIMITS)
+def test_pdf_to_pdf_past_the_childs_limits_names_the_next_step(
+    client, auth_headers, monkeypatch, child
+):
+    _stand_in_child(monkeypatch, child)
+    r = _post(client, auth_headers, "/api/v1/convert", {"target_format": "pdf"}, _pdf(1))
+    assert r.status_code == 400, r.text
+    assert r.headers.get("X-FileMorph-Error-Code") == "invalid_input"
+    assert r.json()["detail"] == base._TOO_LARGE_TO_CONVERT
+    assert "Split it into smaller files" in r.json()["detail"]
 
 
 # ── the UIs ──────────────────────────────────────────────────────────────────
@@ -702,6 +755,57 @@ def test_js_strings_carry_the_too_complex_message_in_each_language(client, lang,
     blob = _I18N_BLOB.search(page.text)
     assert blob, f"/{lang}/ has no FM_I18N script tag"
     assert json.loads(blob.group(1)).get("pdfTooComplex") == expected
+
+
+@pytest.mark.parametrize(
+    ("lang", "key", "expected"),
+    [
+        pytest.param(
+            "en",
+            "pdfTooComplexSplit",
+            "This PDF is too large or complex to split in one go. "
+            "Extract fewer pages at a time with “Extract PDF pages”, then split each part.",
+            id="en-split",
+        ),
+        pytest.param(
+            "en",
+            "pdfTooComplexExtract",
+            "This PDF is too large or complex to extract these pages in one go. "
+            "Select fewer pages and extract them in several parts.",
+            id="en-extract",
+        ),
+        pytest.param(
+            "de",
+            "pdfTooComplexSplit",
+            "Dieses PDF ist zu groß oder zu komplex, um es auf einmal aufzuteilen. "
+            "Extrahiere jeweils weniger Seiten mit „PDF-Seiten extrahieren“ "
+            "und teile dann jeden Teil auf.",
+            id="de-split",
+        ),
+        pytest.param(
+            "de",
+            "pdfTooComplexExtract",
+            "Dieses PDF ist zu groß oder zu komplex, um diese Seiten auf einmal zu "
+            "extrahieren. Wähle weniger Seiten aus und extrahiere sie in mehreren Teilen.",
+            id="de-extract",
+        ),
+    ],
+)
+def test_js_strings_carry_the_split_and_extract_too_complex_messages(client, lang, key, expected):
+    page = client.get(f"/{lang}/")
+    assert page.status_code == 200, page.text
+    blob = _I18N_BLOB.search(page.text)
+    assert blob, f"/{lang}/ has no FM_I18N script tag"
+    assert json.loads(blob.group(1)).get(key) == expected
+
+
+def test_pdf_tools_script_picks_the_too_complex_text_by_tool():
+    """One code from four pages; the next step differs by tool."""
+    js = (_STATIC_JS / "pdf-tools.js").read_text(encoding="utf-8")
+    branch = js[js.index("if (code === 'pdf_too_complex')") :]
+    branch = branch[: branch.index("\n    }\n")]
+    assert "TOOL === 'split'" in branch and "t('pdfTooComplexSplit'" in branch
+    assert "TOOL === 'extract'" in branch and "t('pdfTooComplexExtract'" in branch
 
 
 def test_pdf_tools_script_maps_the_page_cap_code_to_the_localized_texts():

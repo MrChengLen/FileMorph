@@ -29,14 +29,18 @@ slot, monthly quota, structured logging).
 
 The engine (``app/converters/pdf_pages.py``) is a registered ``(pdf, pdf)``
 converter, so the extract logic stays a registry citizen and is
-unit-testable in isolation.
+unit-testable in isolation. All four routes read the uploaded PDF in a child
+process with memory and time limits (``app/converters/_isolated.py``).
 """
 
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
+import os
 import shutil
+import stat
 import tempfile
 import time
 import uuid
@@ -51,13 +55,7 @@ from app.converters._isolated import TooComplexError, run_isolated
 from app.converters.base import EncryptedPdfError, InvalidInputError, OutputTooLargeError
 from app.converters.image import _IMAGE_FORMATS
 from app.converters.pdf_insert import image_to_pdf, word_to_pdf
-from app.converters.pdf_pages import (
-    PageSelectionError,
-    TooManyPagesError,
-    UnreadablePdfError,
-    extract_pages,
-    split_pdf,
-)
+from app.converters.pdf_pages import _MAX_SELECTION_PAGES, page_file_names
 from app.core.batch import BatchFileResult, build_batch_zip
 from app.core.concurrency import acquire_slot
 from app.core.image_hardening import DECOMPRESSION_BOMB
@@ -155,42 +153,45 @@ async def _do_extract(
         input_path = Path(tmp_dir) / f"{temp_stem}.pdf"
         output_path = Path(tmp_dir) / f"{temp_stem}.out.pdf"
         input_size_bytes = _write_upload_and_check_magic(file, input_path)
+        # The selection goes to the child in a file: it may be longer than a
+        # command line. JSON keeps any text as ASCII.
+        selection_path = Path(tmp_dir) / f"{temp_stem}.pages.json"
+        selection_path.write_text(json.dumps(pages), encoding="ascii")
 
         try:
-            # pypdf parse + write off the event loop (sync C-accelerated).
-            await asyncio.to_thread(extract_pages, input_path, output_path, pages)
-        except HTTPException:
-            raise
-        except (EncryptedPdfError, PageSelectionError) as exc:
-            # Caller-safe message already (no pypdf internals). 400 — the
-            # client's page selection or PDF was the problem, not the server.
-            # The code tells the UI which one, so it doesn't blame the
-            # selection for a file without pages or one pypdf can't read,
-            # can say so when a password is the reason, and names the page
-            # cap instead of the selection syntax for a selection over it.
-            logger.info("pdf extract rejected: %s", exc)
-            if isinstance(exc, EncryptedPdfError):
-                code = exc.error_code
-            elif isinstance(exc, UnreadablePdfError):
-                code = "invalid_pdf"
-            elif isinstance(exc, TooManyPagesError):
-                code = "pdf_too_many_pages"
-            else:
-                code = "invalid_page_selection"
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(exc),
-                headers={"X-FileMorph-Error-Code": code},
+            # pypdf reads the PDF and writes the pages in a child process with
+            # memory and time limits, waited for off the event loop.
+            refused = _checked_refusal(
+                await asyncio.to_thread(
+                    run_isolated,
+                    "pdf-extract",
+                    too_large=_TOO_COMPLEX_TO_EXTRACT,
+                    tmp_dir=Path(tmp_dir),
+                    input_path=input_path,
+                    output_path=output_path,
+                    selection_path=selection_path,
+                )
             )
+        except InvalidInputError as exc:
+            raise _child_error("extract", exc) from None
         except Exception:
             logger.exception("PDF extract error")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Page extraction failed. Verify your file is a valid PDF.",
             )
+        if refused is not None:
+            # Caller-safe message already (no pypdf internals). 400 — the
+            # client's page selection or PDF was the problem, not the server.
+            # The code tells the UI which one, so it doesn't blame the
+            # selection for a file without pages or one pypdf can't read,
+            # and names the page cap instead of the selection syntax for a
+            # selection over it.
+            raise _refusal_error("extract", refused)
 
         # Only the result is needed to answer; the upload goes now.
         input_path.unlink(missing_ok=True)
+        selection_path.unlink(missing_ok=True)
 
         output_disk_size = output_path.stat().st_size
         _enforce_output_cap(output_disk_size, quota, tier)
@@ -271,35 +272,45 @@ async def _do_split(
         temp_stem = uuid.uuid4().hex
         input_path = Path(tmp_dir) / f"{temp_stem}.pdf"
         input_size_bytes = _write_upload_and_check_magic(file, input_path)
+        pages_path = Path(tmp_dir) / f"{temp_stem}.pages"
+        pages_path.mkdir()
 
         try:
-            # Bandwidth-awareness: the split stops at the tier output cap.
-            outputs = await asyncio.to_thread(split_pdf, input_path, quota.output_cap_bytes)
-        except HTTPException:
-            raise
+            # pypdf reads the PDF and writes each page to a file in
+            # ``pages_path``, in a child process with memory and time limits,
+            # waited for off the event loop. Bandwidth-awareness: the split
+            # stops at the tier output cap.
+            result = await asyncio.to_thread(
+                run_isolated,
+                "pdf-split",
+                too_large=_TOO_COMPLEX_TO_SPLIT,
+                tmp_dir=Path(tmp_dir),
+                input_path=input_path,
+                pages_path=pages_path,
+                max_output_bytes=quota.output_cap_bytes,
+            )
+            refused = _checked_refusal(result)
+            if refused is None:
+                # Only the result is needed to answer; the upload goes now.
+                input_path.unlink(missing_ok=True)
+                # Up to the output cap: read off the event loop, too.
+                outputs = await asyncio.to_thread(
+                    _split_pages, pages_path, result["pages"], quota.output_cap_bytes
+                )
         except OutputTooLargeError:
             raise _output_cap_error(None, quota, tier) from None
-        except (EncryptedPdfError, PageSelectionError) as exc:
-            logger.info("pdf split rejected: %s", exc)
-            # A PDF over the page cap is valid; invalid_pdf would make the UI
-            # call it unreadable.
-            if isinstance(exc, EncryptedPdfError):
-                code = exc.error_code
-            elif isinstance(exc, TooManyPagesError):
-                code = "pdf_too_many_pages"
-            else:
-                code = "invalid_pdf"
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(exc),
-                headers={"X-FileMorph-Error-Code": code},
-            )
+        except InvalidInputError as exc:
+            raise _child_error("split", exc) from None
         except Exception:
             logger.exception("PDF split error")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Split failed. Verify your file is a valid PDF.",
             )
+        if refused is not None:
+            # A PDF over the page cap is valid: its own code, so the UI
+            # doesn't call it unreadable.
+            raise _refusal_error("split", refused)
 
         results = [
             BatchFileResult(
@@ -348,7 +359,7 @@ async def _do_split(
         shutil.rmtree(tmp_dir, ignore_errors=True)
         raise
 
-    # ZIP is fully built in memory; the temp dir only held the input PDF.
+    # ZIP is fully built in memory; the input PDF and its pages are gone by now.
     shutil.rmtree(tmp_dir, ignore_errors=True)
     download_name = safe_download_name(Path(file.filename or "result").stem, "_pages.zip")
     return Response(
@@ -383,6 +394,83 @@ def _output_cap_error(
         detail=f"{too_large} {hint}",
         headers={"X-FileMorph-Error-Code": "output_cap_exceeded"},
     )
+
+
+# Past the child's memory, time or file size limits: the next step, answered
+# with pdf_too_complex like /pdf/compress and /pdf/insert.
+_TOO_COMPLEX_TO_EXTRACT = (
+    "This PDF is too large or complex to extract these pages in one go. Select "
+    "fewer pages and extract them in several parts."
+)
+_TOO_COMPLEX_TO_SPLIT = (
+    "This PDF is too large or complex to split in one go. Extract fewer pages "
+    "with /api/v1/pdf/extract and split them in parts."
+)
+# What the extract and split steps refuse with (``_refusal`` in
+# app/converters/pdf_pages.py).
+_REFUSAL_CODES = frozenset({"invalid_pdf", "invalid_page_selection", "pdf_too_many_pages"})
+
+
+def _checked_refusal(result) -> dict | None:
+    """The refusal in an extract or split step's ``result``, or ``None``.
+    What the sandboxed child reports goes into a header and the answer: a
+    refusal without a known code and a text raises."""
+    refused = result.get("refused")
+    if refused is not None and (
+        refused.get("code") not in _REFUSAL_CODES or not isinstance(refused.get("message"), str)
+    ):
+        raise ValueError("unexpected refusal from the child")
+    return refused
+
+
+def _refusal_error(operation: str, refused: dict) -> HTTPException:
+    """The 400 for a PDF or page selection the extract or split step refused."""
+    logger.info("pdf %s rejected: %s", operation, refused["code"])
+    return HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail=refused["message"],
+        headers={"X-FileMorph-Error-Code": refused["code"]},
+    )
+
+
+def _child_error(operation: str, exc: InvalidInputError) -> HTTPException:
+    """The 400 for an error the extract or split child raised: a locked PDF
+    keeps its own code; past the child's limits it is ``pdf_too_complex``,
+    with a message that names the next step."""
+    if isinstance(exc, TooComplexError):
+        code = "pdf_too_complex"
+    else:
+        code = getattr(exc, "error_code", "invalid_pdf")
+    logger.info("pdf %s rejected: %s", operation, code)
+    return HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail=str(exc),
+        headers={"X-FileMorph-Error-Code": code},
+    )
+
+
+def _split_pages(pages_path: Path, count, max_bytes: int) -> list[tuple[str, bytes]]:
+    """The pages the split child wrote, read under the names ``split_pdf``
+    gives them — from the child only their number, checked against the page
+    cap, never a name — as plain files, together at most ``max_bytes``. The
+    folder goes once they are read."""
+    if type(count) is not int or not 1 <= count <= _MAX_SELECTION_PAGES:
+        raise ValueError("unexpected page count from the child")
+    # No link followed, and no waiting on anything but a file (Linux).
+    flags = os.O_RDONLY | getattr(os, "O_BINARY", 0)
+    flags |= getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
+    pages, total = [], 0
+    for name in page_file_names(count):
+        with open(os.open(pages_path / name, flags), "rb") as f:
+            info = os.fstat(f.fileno())
+            if not stat.S_ISREG(info.st_mode):
+                raise ValueError("a page from the child is not a file")
+            total += info.st_size
+            if total > max_bytes:
+                raise OutputTooLargeError
+            pages.append((name, f.read(info.st_size)))
+    shutil.rmtree(pages_path, ignore_errors=True)
+    return pages
 
 
 # Sanity ceiling on the requested target so a typo (``target_kb=99999999``)

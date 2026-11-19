@@ -234,6 +234,9 @@ class BaseConverter(ABC):
     # time limits (``run()``). The child passes back only the errors
     # ``run_isolated`` maps, so e.g. no ``DecompressionBombError``.
     isolated: bool = False
+    # The child step it runs in, and so its limits (``_STEPS`` in
+    # ``app/converters/_isolated.py``).
+    isolated_step: str = "convert"
 
     @abstractmethod
     def convert(self, input_path: Path, output_path: Path, **kwargs) -> Path:
@@ -249,7 +252,7 @@ class BaseConverter(ABC):
         from app.converters._isolated import run_isolated
 
         run_isolated(
-            "convert",
+            self.isolated_step,
             too_large=_TOO_LARGE_TO_CONVERT,
             tmp_dir=output_path.parent,
             converter=f"{type(self).__module__}:{type(self).__qualname__}",

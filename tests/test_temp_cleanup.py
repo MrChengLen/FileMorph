@@ -20,6 +20,7 @@ from starlette import formparsers
 from app.api.routes import compress as compress_route
 from app.api.routes import convert as convert_route
 from app.api.routes import pdf_pages as pdf_route
+from app.converters._isolated import TooComplexError
 from app.core import quotas as quotas_module
 from app.core.audit import AuditWriteError
 from app.core.quotas import QUOTAS
@@ -311,6 +312,65 @@ def test_a_download_cut_off_by_the_server_leaves_no_temp_dir(
     assert statuses == [200]
     leaked = _fm_dirs() - before
     assert not leaked, f"Leaked temp dirs after {endpoint}: {leaked}"
+
+
+# ── Extract and split: what their child process writes goes with the request ─
+
+
+@pytest.mark.parametrize(
+    ("endpoint", "data", "pdf", "status"),
+    [
+        pytest.param("/api/v1/pdf/split", {}, _pdf_bytes, 200, id="split"),
+        pytest.param(
+            "/api/v1/pdf/split", {}, lambda: b"%PDF-1.4 broken", 400, id="split-unreadable"
+        ),
+        pytest.param(
+            "/api/v1/pdf/extract",
+            {"pages": "1"},
+            lambda: b"%PDF-1.4 broken",
+            400,
+            id="extract-unreadable",
+        ),
+        pytest.param(
+            "/api/v1/pdf/extract", {"pages": "7"}, _pdf_bytes, 400, id="extract-bad-selection"
+        ),
+    ],
+)
+def test_extract_and_split_leave_no_temp_dir(client, auth_headers, endpoint, data, pdf, status):
+    """The split's pages and the extraction's selection are files in the
+    request's temp dir; they go with it, whatever the answer."""
+    before = _fm_dirs()
+    r = client.post(
+        endpoint,
+        headers=auth_headers,
+        files={"file": ("doc.pdf", pdf(), "application/pdf")},
+        data=data,
+    )
+    assert r.status_code == status, r.text
+    leaked = _fm_dirs() - before
+    assert not leaked, f"Leaked temp dirs after {endpoint}: {leaked}"
+
+
+@pytest.mark.parametrize("limit", ["output-cap", "child-limits"])
+def test_a_split_stopped_at_a_limit_leaves_no_temp_dir(client, auth_headers, monkeypatch, limit):
+    if limit == "output-cap":
+        shrunk = dataclasses.replace(QUOTAS["anonymous"], output_cap_bytes=100)
+        monkeypatch.setitem(quotas_module.QUOTAS, "anonymous", shrunk)
+    else:
+
+        def too_complex(*args, too_large, **kwargs):
+            raise TooComplexError(too_large)
+
+        monkeypatch.setattr(pdf_route, "run_isolated", too_complex)
+    before = _fm_dirs()
+    r = client.post(
+        "/api/v1/pdf/split",
+        headers=auth_headers,
+        files={"file": ("doc.pdf", _pdf_bytes(), "application/pdf")},
+    )
+    assert r.status_code == (413 if limit == "output-cap" else 400), r.text
+    leaked = _fm_dirs() - before
+    assert not leaked, f"Leaked temp dirs after a stopped split: {leaked}"
 
 
 def test_no_route_answers_with_a_bare_file_response():
