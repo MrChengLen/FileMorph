@@ -18,7 +18,18 @@ Tiny PDFs, built in-process, each fail at one stage:
 * a CID font whose ``/W`` range spans 100 000 glyphs (limit 65 536), during
   text extraction (``pdf`` → ``txt``);
 * a content stream that isn't valid ASCII85 (``ValueError``), during text
-  extraction.
+  extraction;
+* a page tree in an object stream whose filter pypdf doesn't decode, while
+  the pages are counted: an unknown filter (``NotImplementedError``), or the
+  short name ``/Fl``, which pypdf 7 refuses outside inline images
+  (``DeprecationError``; pypdf 6 decoded it);
+* a content stream under ``/Fl``, during text extraction.
+
+None of the last three errors derives from ``PyPdfError``. Nor do the
+errors of a JBIG2 stream, which needs the jbig2dec program and so depend on
+the host (``DependencyError`` without it, ``BlockingIOError`` with it in a
+child that may start no processes); they are checked against the guard
+directly.
 
 One more PDF pypdf *can* read: its font map yields an unpaired surrogate,
 which made writing the ``txt`` output fail with a 500.
@@ -28,12 +39,14 @@ from __future__ import annotations
 
 import io
 import logging
+import struct
+import zlib
 
 import pytest
 from pypdf import PdfReader, PdfWriter
-from pypdf.errors import LimitReachedError
+from pypdf.errors import DependencyError, DeprecationError, LimitReachedError
 
-from app.converters.pdf_pages import UnreadablePdfError, extract_pages, split_pdf
+from app.converters.pdf_pages import UnreadablePdfError, _reading_pdf, extract_pages, split_pdf
 
 _UNREADABLE = "Could not read the PDF. Verify the file is valid."
 _CATALOG = b"<< /Type /Catalog /Pages 2 0 R >>"
@@ -128,6 +141,52 @@ def _surrogate_font_map() -> bytes:
     )
 
 
+def _page_tree_in_object_stream(filter_name: bytes, encode=lambda data: data) -> bytes:
+    """Objects 2 (pages) and 3 (page) in object stream 4 under ``filter_name``,
+    listed by an unfiltered cross-reference stream (5); the catalog stays plain."""
+    header, body = b"", b""
+    for num, obj in enumerate([_ONE_PAGE, b"<< /Type /Page /Parent 2 0 R >>"], start=2):
+        header += b"%d %d " % (num, len(body))
+        body += obj + b" "
+    data = encode(header + body)
+    out = bytearray(b"%PDF-1.5\n")
+    catalog = len(out)
+    out += b"1 0 obj\n%s\nendobj\n" % _CATALOG
+    objstm = len(out)
+    out += b"4 0 obj\n<< /Type /ObjStm /N 2 /First %d /Length %d /Filter %s >>\n" % (
+        len(header),
+        len(data),
+        filter_name,
+    )
+    out += b"stream\n%s\nendstream\nendobj\n" % data
+    xref = len(out)
+    # Each entry: type, then offset (1) or object stream number (2), then
+    # generation (1) or index in the object stream (2).
+    entries = [(0, 0, 255), (1, catalog, 0), (2, 4, 0), (2, 4, 1), (1, objstm, 0), (1, xref, 0)]
+    table = b"".join(struct.pack(">BIB", *entry) for entry in entries)
+    out += b"5 0 obj\n<< /Type /XRef /Size 6 /W [1 4 1] /Root 1 0 R /Length %d >>\n" % len(table)
+    out += b"stream\n%s\nendstream\nendobj\nstartxref\n%d\n%%%%EOF\n" % (table, xref)
+    return bytes(out)
+
+
+def _unknown_filter_object_stream() -> bytes:
+    return _page_tree_in_object_stream(b"/NoSuchFilter")
+
+
+def _short_filter_name_object_stream() -> bytes:
+    return _page_tree_in_object_stream(b"/Fl", zlib.compress)
+
+
+def _short_filter_name_content() -> bytes:
+    return _pdf(
+        _CATALOG,
+        _ONE_PAGE,
+        _PAGE_WITH_FONT,
+        _stream(zlib.compress(b"BT /F1 12 Tf (A) Tj ET"), b" /Filter /Fl"),
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    )
+
+
 def _count_pages(data: bytes) -> None:
     len(PdfReader(io.BytesIO(data)).pages)
 
@@ -152,6 +211,9 @@ def _extract_text(data: bytes) -> None:
         (_untyped_page, _copy_pages, ValueError),
         (_huge_font_width_range, _extract_text, LimitReachedError),
         (_bad_ascii85_content, _extract_text, ValueError),
+        (_unknown_filter_object_stream, _count_pages, NotImplementedError),
+        (_short_filter_name_object_stream, _count_pages, DeprecationError),
+        (_short_filter_name_content, _extract_text, DeprecationError),
     ],
 )
 def test_each_fixture_trips_pypdf(build, stage, error):
@@ -161,6 +223,13 @@ def test_each_fixture_trips_pypdf(build, stage, error):
         stage(build())
 
 
+def test_object_stream_fixture_is_otherwise_readable():
+    """The object-stream builder itself is sound: with ``/FlateDecode`` spelled
+    out, pypdf finds the page, so the fixtures above fail on their filter."""
+    data = _page_tree_in_object_stream(b"/FlateDecode", zlib.compress)
+    assert len(PdfReader(io.BytesIO(data)).pages) == 1
+
+
 def test_surrogate_fixture_yields_an_unpaired_surrogate():
     assert "\ud800" in PdfReader(io.BytesIO(_surrogate_font_map())).pages[0].extract_text()
 
@@ -168,8 +237,28 @@ def test_surrogate_fixture_yields_an_unpaired_surrogate():
 # ── engine ───────────────────────────────────────────────────────────────────
 
 # PDFs the page tools (extract, split, pdf → pdf) can't read, and pdf → txt.
-_FOR_PAGES = [_deep_page_tree, _oversized_stream, _untyped_page]
-_FOR_TEXT = [_deep_page_tree, _huge_font_width_range, _bad_ascii85_content]
+_FOR_PAGES = [
+    _deep_page_tree,
+    _oversized_stream,
+    _untyped_page,
+    _unknown_filter_object_stream,
+    _short_filter_name_object_stream,
+]
+_FOR_TEXT = [
+    _deep_page_tree,
+    _huge_font_width_range,
+    _bad_ascii85_content,
+    _unknown_filter_object_stream,
+    _short_filter_name_content,
+]
+
+
+@pytest.mark.parametrize(
+    "error", [DependencyError, BlockingIOError, DeprecationError, NotImplementedError]
+)
+def test_reading_guard_answers_stream_filter_errors_as_unreadable(error):
+    with pytest.raises(UnreadablePdfError, match=_UNREADABLE), _reading_pdf():
+        raise error("a stream filter")
 
 
 @pytest.mark.parametrize("build", _FOR_PAGES)
