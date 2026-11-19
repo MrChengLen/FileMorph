@@ -231,6 +231,7 @@
               {% if pricing_enabled %}<a href="{{ localized_url('/enterprise', current_prefix) }}" class="block py-3 sm:py-0.5 text-ink-faint hover:text-ink-soft transition-colors">{{ _('For organizations') }}</a>{% endif %}
               <a href="/docs" target="_blank" class="block py-3 sm:py-0.5 text-ink-faint hover:text-ink-soft transition-colors">{{ _('API Docs') }}</a>
               <a href="https://github.com/MrChengLen/FileMorph" target="_blank" class="block py-3 sm:py-0.5 text-ink-faint hover:text-ink-soft transition-colors">GitHub ↗</a>
+              {% if status_page_url %}<a href="{{ status_page_url }}" target="_blank" rel="noopener noreferrer" class="block py-3 sm:py-0.5 text-ink-faint hover:text-ink-soft transition-colors">{{ _('Status page') }} ↗</a>{% endif %}
             </nav>
           </div>
           {% endif %}
