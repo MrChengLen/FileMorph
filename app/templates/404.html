@@ -1,8 +1,10 @@
 {% extends "base.html" %}
 {% import "_components/button.html" as ub %}
+{% import "_components/page.html" as up %}
 {% block title %}{{ _('404 – Not Found') }} | FileMorph{% endblock %}
 {% block content %}
-<div class="min-h-screen flex flex-col items-center justify-center px-6 text-center">
+{% call up.page(max_w='prose-narrow', center=True) %}
+<div class="flex flex-col items-center">
   <p class="text-8xl font-extrabold text-brand-light mb-4">404</p>
   <h1 class="text-h-page text-ink mb-3">{{ _('Page not found') }}</h1>
   <p class="text-ink-muted mb-8 max-w-md">
@@ -10,4 +12,5 @@
   </p>
   {{ ub.button(_('Back to Home'), href=localized_url('/', current_prefix)) }}
 </div>
+{% endcall %}
 {% endblock %}

@@ -17,10 +17,9 @@ document.addEventListener('DOMContentLoaded', function () {
   if (dismissed) return;
   const btn = document.getElementById('cookie-notice-dismiss');
   if (!btn) return; // never reveal a bar that could not be dismissed
+  // The bar is sticky (base.html puts it right before the footer), so it never
+  // covers the footer's legal links: Impressum stays reachable while it is up.
   notice.classList.remove('hidden');
-  // Reserve the bar's height so it never covers the footer's legal links
-  // (Impressum must stay reachable while the bar is up).
-  document.body.style.paddingBottom = notice.offsetHeight + 'px';
   btn.addEventListener('click', function () {
     try {
       localStorage.setItem(KEY, '1');
@@ -28,6 +27,5 @@ document.addEventListener('DOMContentLoaded', function () {
       // storage blocked — still hide for this page view
     }
     notice.classList.add('hidden');
-    document.body.style.paddingBottom = '';
   });
 });

@@ -1,8 +1,10 @@
 {% extends "base.html" %}
 {% import "_components/card.html" as uc %}
+{% import "_components/page.html" as up %}
 {% block title %}{{ _('Admin Cockpit') }} — FileMorph{% endblock %}
 {% block content %}
-<main class="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-8">
+{% call up.page(max_w='page') %}
+<div class="space-y-8">
 
   <div class="flex items-center justify-between">
     <div>
@@ -204,7 +206,8 @@
     </div>
   </div>
 
-</main>
+</div>
+{% endcall %}
 {% endblock %}
 {% block scripts %}
 <script src="{{ static_url('vendor/chart.umd.min.js') }}"></script>

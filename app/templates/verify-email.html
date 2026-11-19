@@ -1,9 +1,10 @@
 {% extends "base.html" %}
 {% import "_components/card.html" as uc %}
+{% import "_components/page.html" as up %}
 {% block title %}{{ _('Confirming email') }} — FileMorph{% endblock %}
 {% block content %}
-<main class="flex-1 flex items-center justify-center p-4 sm:p-6">
-  <div class="w-full max-w-md space-y-6">
+{% call up.page(max_w='form') %}
+  <div class="space-y-6">
 
     <div class="text-center space-y-1">
       <h1 class="text-h-sect text-ink">{{ _('Confirm your email') }}</h1>
@@ -36,6 +37,6 @@
     {% endcall %}
 
   </div>
-</main>
+{% endcall %}
 <script src="{{ static_url('js/verify-email.js') }}"></script>
 {% endblock %}

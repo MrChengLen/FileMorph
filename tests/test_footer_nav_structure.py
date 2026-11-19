@@ -190,9 +190,11 @@ def test_mobile_nav_language_switcher_immediately_before_auth_block(client, acco
     assert tools_pos < switcher_pos < auth_pos, (
         "mobile nav order must be: menu items, then language switcher, then auth"
     )
-    # "immediately": no further menu link renders between switcher and auth.
+    # "immediately": no further menu link (class "block py-3 …", base.html) renders
+    # between switcher and auth.
     between = r[switcher_pos:auth_pos]
-    assert "transition-colors py-2.5" not in between, (
+    assert 'class="block py-3' in r[menu_start:switcher_pos], "menu-link recipe changed"
+    assert 'class="block py-3' not in between, (
         "a menu item slipped between the language switcher and the auth block"
     )
 

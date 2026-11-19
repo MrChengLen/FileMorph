@@ -120,18 +120,18 @@
       group.addEventListener('mouseleave', () => panel.classList.remove('!invisible', '!opacity-0'));
       if (mobile) {
         mobile.innerHTML = `
-          <a href="${localePrefix}/dashboard" class="block text-gray-400 hover:text-white transition-colors py-2.5">${escapeHtml(lDashboard)}</a>
-          <button data-action="signout-mobile" class="block text-red-400 hover:text-white py-2.5 text-left">${escapeHtml(lSignOut)}</button>`;
+          <a href="${localePrefix}/dashboard" class="block py-3 text-ink-muted hover:text-ink-strong transition-colors">${escapeHtml(lDashboard)}</a>
+          <button type="button" data-action="signout-mobile" class="block py-3 text-left text-red-400 hover:text-ink-strong">${escapeHtml(lSignOut)}</button>`;
         mobile.querySelector('[data-action="signout-mobile"]').addEventListener('click', () => window.FM.logout());
       }
     } else {
       // Same markup as the server-rendered links in base.html (Sign In only;
       // registering is not in the main navigation).
       desktop.innerHTML = `
-        <a href="${localePrefix}/login" class="text-sm text-gray-300 hover:text-white transition-colors">${escapeHtml(lSignIn)}</a>`;
+        <a href="${localePrefix}/login" class="text-sm text-ink-soft hover:text-ink-strong transition-colors">${escapeHtml(lSignIn)}</a>`;
       if (mobile) {
         mobile.innerHTML = `
-          <a href="${localePrefix}/login" class="block text-gray-400 hover:text-white transition-colors py-2.5">${escapeHtml(lSignIn)}</a>`;
+          <a href="${localePrefix}/login" class="block py-3 text-ink-muted hover:text-ink-strong transition-colors">${escapeHtml(lSignIn)}</a>`;
       }
     }
   }

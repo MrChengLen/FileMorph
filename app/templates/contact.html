@@ -2,9 +2,11 @@
 {% import "_components/text_input.html" as ti %}
 {% import "_components/textarea.html" as ta %}
 {% import "_components/button.html" as ub %}
+{% import "_components/page.html" as up %}
 {% block title %}{{ _('Contact') }} — FileMorph{% endblock %}
 {% block content %}
-<main class="max-w-2xl mx-auto px-6 py-12 space-y-6 text-gray-300">
+{% call up.page(max_w='prose-narrow') %}
+<div class="space-y-6 text-gray-300">
 
   <div>
     <a href="{{ localized_url('/', current_prefix) }}" class="text-sm text-ink-faint hover:text-gray-300 transition-colors">{{ _('← Back') }}</a>
@@ -43,6 +45,7 @@
     </p>
   </form>
 
-</main>
+</div>
+{% endcall %}
 <script src="{{ static_url('js/contact.js') }}"></script>
 {% endblock %}

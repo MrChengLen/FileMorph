@@ -1,11 +1,11 @@
 {% extends "base.html" %}
+{% import "_components/page.html" as up %}
 {% block title %}{{ content.title }} | FileMorph{% endblock %}
 {% block meta_description %}{{ content.meta }}{% endblock %}
 {% block content %}
 
-<div class="min-h-full flex flex-col">
-  <main class="flex-1 flex items-center justify-center p-4 sm:p-6">
-    <div class="w-full max-w-2xl space-y-6">
+  {% call up.page(max_w='prose-narrow') %}
+    <div class="space-y-6">
 
       {% include "partials/breadcrumb.html" %}
 
@@ -68,8 +68,7 @@
       </section>
 
     </div>
-  </main>
-</div>
+  {% endcall %}
 
 {% endblock %}
 {% block scripts %}<script src="{{ static_url('js/redact.js') }}"></script>{% endblock %}

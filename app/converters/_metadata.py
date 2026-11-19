@@ -50,6 +50,7 @@ from PIL import ExifTags, Image
 from PIL.TiffImagePlugin import RESOLUTION_UNIT, X_RESOLUTION, Y_RESOLUTION
 
 from app.converters.base import InvalidInputError, TiffTooLargeError
+from app.core.image_hardening import file_size, read_in_rows
 
 # EXIF orientation → the turn that shows the image the way viewers do; the
 # table ImageOps.exif_transpose uses.
@@ -309,7 +310,8 @@ def strip_pages(img: Image.Image) -> list[Image.Image]:
     to a PDF). Past that, past ``MAX_PAGES`` or past ``PAGES_SECONDS``,
     ``TiffTooLargeError`` names the way out: smaller files.
 
-    Seeking from one page to the next reads only its header. A header that
+    Seeking from one page to the next reads only its header; each page's
+    pixels are then read by its own rows (``read_in_rows``). A header that
     can't be read past the end of the file is a scanner's stray pointer to a
     page that isn't there: the file ends, as in libtiff's readers. Anywhere
     else — or a page without width or height, or pixels that can't be read —
@@ -326,11 +328,15 @@ def strip_pages(img: Image.Image) -> list[Image.Image]:
         except EOFError:
             return pages
         except Exception as exc:
-            if next_page >= _file_size(img):
+            if next_page >= file_size(img):
                 return pages
             raise InvalidInputError(_DAMAGED_PAGE) from exc
         next_page = getattr(img.tag_v2, "next", 0) if hasattr(img, "tag_v2") else 0
         own_page_profile(img)
+        try:
+            read_in_rows(img)
+        except InvalidInputError as exc:
+            raise InvalidInputError(_DAMAGED_PAGE) from exc
         if not img.width or not img.height:
             raise InvalidInputError(_DAMAGED_PAGE)
         size = 1 if img.mode in ("1", "L") else 4
@@ -344,12 +350,3 @@ def strip_pages(img: Image.Image) -> list[Image.Image]:
             pages.append(strip_metadata(img))
         except (OSError, SyntaxError, ValueError, TypeError, struct.error) as exc:
             raise InvalidInputError(_DAMAGED_PAGE) from exc
-
-
-def _file_size(img: Image.Image) -> int:
-    fp = img.fp
-    here = fp.tell()
-    try:
-        return fp.seek(0, 2)
-    finally:
-        fp.seek(here)

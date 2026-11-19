@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% import "_components/card.html" as uc %}
+{% import "_components/page.html" as up %}
 {# Two variants behind one URL. With Stripe configured (STRIPE_SECRET_KEY) paid
    plans can be booked: plan cards, comparison table and checkout scripts
    render. Without Stripe — filemorph.io, where paid server plans are shelved —
@@ -9,7 +10,8 @@
 {% block title %}{% if stripe_enabled %}{{ _('Pricing — free converter, paid plans') }}{% else %}{{ _('Pricing — FileMorph is free') }}{% endif %} | FileMorph{% endblock %}
 {% block meta_description %}{% if stripe_enabled %}{{ _('FileMorph pricing: the open-source converter is free to self-host. Paid plans add volume, higher limits and larger API quotas.') }}{% else %}{{ _('FileMorph is free: our server converts your files with fair limits, or you self-host the open-source engine without feature gates.') }}{% endif %}{% endblock %}
 {% block content %}
-<main class="flex-1 max-w-5xl mx-auto w-full px-4 sm:px-6 py-12 space-y-10">
+{% call up.page(max_w='page') %}
+<div class="space-y-10">
 
   {% if stripe_enabled %}
   <div class="text-center space-y-3">
@@ -401,7 +403,8 @@
   </p>
   {% endif %}
 
-</main>
+</div>
+{% endcall %}
 {% if stripe_enabled %}
 <script src="{{ static_url('js/pricing.js') }}"></script>
 <script src="{{ static_url('js/pricing-segment.js') }}"></script>

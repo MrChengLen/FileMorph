@@ -5,13 +5,18 @@
    cookie-notice.js reveals it until dismissed (localStorage key
    fm_cookie_notice_dismissed — a cookie here would contradict the claim the
    notice makes). Lives in partials/ (not _components/) so babel picks up
-   the _() strings. #}
-<div id="cookie-notice" class="hidden fixed bottom-0 inset-x-0 z-50 border-t border-gray-800 bg-gray-900 px-6 py-4 print:hidden" role="region" aria-label="{{ _('Cookie notice') }}">
-  <div class="max-w-4xl mx-auto flex flex-col sm:flex-row sm:items-center gap-3">
-    <p class="text-sm text-gray-300 flex-1">
+   the _() strings.
+   base.html includes it right before the footer. It is sticky, not fixed: at
+   the bottom of the screen while the page scrolls, and in its own place above
+   the footer once the reader reaches the end, so it never covers the footer's
+   legal links. Its inner row is the page frame. #}
+{% import "_components/button.html" as ub %}
+<div id="cookie-notice" class="hidden sticky bottom-0 z-50 border-t border-hairline bg-surface-raised print:hidden" role="region" aria-label="{{ _('Cookie notice') }}">
+  <div class="mx-auto flex w-full max-w-page flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:px-6 lg:px-8">
+    <p class="text-sm text-ink-soft flex-1">
       {{ _('FileMorph sets no cookies and runs no tracking. In your browser we store only what is strictly necessary: your sign-in session, and a note that you closed this bar.') }}
       <a href="{{ localized_url('/privacy', current_prefix) }}#cookies" class="text-brand-light hover:underline whitespace-nowrap">{{ _('Details') }}</a>
     </p>
-    <button id="cookie-notice-dismiss" class="shrink-0 px-4 py-1.5 rounded-lg bg-brand-dark hover:bg-brand-deep text-white text-sm font-semibold transition-colors">{{ _('Got it') }}</button>
+    {{ ub.button(_('Got it'), id='cookie-notice-dismiss') }}
   </div>
 </div>
