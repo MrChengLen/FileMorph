@@ -1,7 +1,16 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Security regression tests — covers A-1, A-3, A-4, A-5, A-7 and v1.0.2 fixes."""
 
+import json
+import os
 import re
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+
+from app.core.config import Settings
 
 
 # ---------------------------------------------------------------------------
@@ -138,7 +147,11 @@ def test_valid_jpeg_not_blocked(client, auth_headers, sample_jpg):
 
 
 def test_exception_detail_not_leaked_on_corrupt_file(client, auth_headers, tmp_path):
-    """A corrupt file must return a generic error, not Python internals."""
+    """A corrupt file gets the fixed client message — never Pillow's own text,
+    a temp path or a traceback. Pinning the whole message (not a few banned
+    words) is what makes this fail when an exception's text reaches the client."""
+    from app.core.image_hardening import _UNREADABLE_IMAGE
+
     path = tmp_path / "corrupt.jpg"
     # Valid JPEG SOI marker but then garbage — triggers Pillow error
     path.write_bytes(b"\xff\xd8\xff\xe0" + b"\x00" * 20)
@@ -149,13 +162,8 @@ def test_exception_detail_not_leaked_on_corrupt_file(client, auth_headers, tmp_p
             files={"file": ("corrupt.jpg", f, "image/jpeg")},
             data={"target_format": "png"},
         )
-    assert res.status_code in (400, 422, 500)
-    body = res.json().get("detail", "")
-    # Must NOT leak internals
-    assert "Traceback" not in body
-    assert "/tmp/" not in body
-    assert "PIL" not in body
-    assert "OSError" not in body
+    assert res.status_code == 400
+    assert res.json()["detail"] == _UNREADABLE_IMAGE
 
 
 # ---------------------------------------------------------------------------
@@ -194,18 +202,79 @@ def test_download_filename_extension_matches_target(client, auth_headers, sample
 
 
 # ---------------------------------------------------------------------------
-# CORS: default restricts credentials
+# CORS: an allow-list, never "*" with credentials
 # ---------------------------------------------------------------------------
 
+_REPO_ROOT = Path(__file__).resolve().parent.parent
 
-def test_cors_no_wildcard_credentials(client):
-    """Default CORS must not allow credentials with wildcard origin."""
-    res = client.options(
+# Run in a fresh interpreter, so app.main reads CORS_ORIGINS at import.
+_CORS_PROBE = """
+import json
+from fastapi.testclient import TestClient
+from app.main import app
+
+res = TestClient(app).options(
+    "/api/v1/convert",
+    headers={"Origin": "https://evil.example", "Access-Control-Request-Method": "POST"},
+)
+print(json.dumps({k: v for k, v in res.headers.items() if k.startswith("access-control-")}))
+"""
+
+
+def _preflight(client, origin: str):
+    return client.options(
         "/api/v1/convert",
-        headers={"Origin": "https://evil.example.com", "Access-Control-Request-Method": "POST"},
+        headers={"Origin": origin, "Access-Control-Request-Method": "POST"},
     )
-    # Either no allow-origin header, or it must not be a wildcard
-    acao = res.headers.get("access-control-allow-origin", "")
-    acac = res.headers.get("access-control-allow-credentials", "false")
-    # Must not combine wildcard with credentials
-    assert not (acao == "*" and acac.lower() == "true")
+
+
+def test_cors_answers_only_the_listed_origin(client):
+    # The default list is http://localhost:8000. Any other origin gets no
+    # Access-Control-Allow-Origin, so its page can't read a response.
+    for res in (
+        _preflight(client, "https://evil.example"),
+        client.get("/api/v1/formats", headers={"Origin": "https://evil.example"}),
+    ):
+        assert "access-control-allow-origin" not in res.headers
+    # The listed origin is answered — shows the check above can see the header.
+    res = _preflight(client, "http://localhost:8000")
+    assert res.headers["access-control-allow-origin"] == "http://localhost:8000"
+
+
+@pytest.mark.parametrize(
+    ("origins", "credentials"),
+    [
+        ("http://localhost:8000", True),
+        ("https://a.example,https://b.example", True),
+        ("*", False),
+        ("*,https://app.example", False),
+        ("https://app.example, *", False),
+        # Every sandboxed iframe and data:/file: page sends Origin: null.
+        ("null", False),
+        ("https://app.example,null", False),
+    ],
+)
+def test_cors_credentials_only_for_an_explicit_origin_list(origins, credentials):
+    settings = Settings(_env_file=None, cors_origins=origins)
+    assert settings.cors_allow_credentials is credentials
+
+
+def test_a_wildcard_in_cors_origins_never_grants_credentials(tmp_path):
+    # The app's middleware must use that rule: with "*" in the list, an
+    # arbitrary origin is answered with "*" and without credentials — not
+    # with its own origin plus credentials.
+    env = {k: v for k, v in os.environ.items() if k not in ("DATABASE_URL", "JWT_SECRET")}
+    env["PYTHONPATH"] = os.pathsep.join(filter(None, [str(_REPO_ROOT), env.get("PYTHONPATH")]))
+    env["CORS_ORIGINS"] = "*,https://app.example"
+    probe = subprocess.run(
+        [sys.executable, "-c", _CORS_PROBE],
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        encoding="utf-8",
+        timeout=180,
+    )
+    assert probe.returncode == 0, probe.stderr
+    headers = json.loads(probe.stdout.strip().splitlines()[-1])
+    assert headers.get("access-control-allow-origin") == "*", headers
+    assert "access-control-allow-credentials" not in headers, headers

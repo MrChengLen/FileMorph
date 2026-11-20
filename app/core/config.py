@@ -287,6 +287,16 @@ class Settings(BaseSettings):
         return [o.strip() for o in self.cors_origins.split(",")]
 
     @property
+    def cors_allow_credentials(self) -> bool:
+        # Credentials only for an explicit origin list. A "*" anywhere in the
+        # list lets every origin in, and with credentials on Starlette answers
+        # each one with its own origin — "*,https://x" would hand credentials
+        # to any site. "null" is the origin of every sandboxed iframe and
+        # data:/file: page, so for credentials it is a wildcard too.
+        origins = self.cors_origins_list
+        return bool(origins) and not {"*", "null"} & set(origins)
+
+    @property
     def ai_eligible_tiers_list(self) -> list[str]:
         return [t.strip() for t in self.ai_eligible_tiers.split(",") if t.strip()]
 

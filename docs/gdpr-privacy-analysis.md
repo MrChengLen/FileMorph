@@ -21,7 +21,7 @@ historical reasoning trail.
 | Footer claim "files in memory only" was misleading | Fixed — footer copy and `/privacy` page describe disk-temp + cleanup honestly | `app/templates/privacy.html` §2a |
 | No startup sweep for stale `fm_*` temp dirs (A-8) | Closed — sweep deletes any `fm_*` dir &gt;10 minutes on app start | `app/main.py::lifespan` |
 | `tempfile.mkdtemp(prefix="filemorph_")` + original filename in temp path | Closed — UUID stems under `fm_`-prefixed dir | `app/api/routes/convert.py` |
-| `allow_origins=["*"]` with `allow_credentials=True` | Closed (PT-003) — strict allow-list, credentials only when origins set | `app/main.py` CORS middleware |
+| `allow_origins=["*"]` with `allow_credentials=True` | Closed (PT-003) — strict allow-list, credentials only for an explicit origin list (never with `*` or `null` in it) | `app/core/config.py::cors_allow_credentials`, `app/main.py` CORS middleware |
 | No privacy policy | Closed — `/privacy` route + `app/templates/privacy.html` (last revised 2026-04-23) | `app/main.py::privacy` |
 | No security headers | Closed — `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Content-Security-Policy`, `Permissions-Policy`, plus HSTS over HTTPS | `app/main.py::security_headers` |
 | No DPA / sub-processor list | Templates shipped — `docs/sub-processors.md`, `docs/dpa-template.md` with its TOM annex `docs/dpa-tom-annex.md`, and `docs/records-of-processing-template.md` | repo |

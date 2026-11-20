@@ -293,7 +293,7 @@ app.add_middleware(RequestLimitsMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
-    allow_credentials=(len(settings.cors_origins_list) > 0 and settings.cors_origins_list != ["*"]),
+    allow_credentials=settings.cors_allow_credentials,
     allow_methods=["GET", "POST"],
     allow_headers=["X-API-Key", "Content-Type", "Authorization"],
     expose_headers=[
