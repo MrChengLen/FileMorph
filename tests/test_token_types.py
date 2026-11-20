@@ -9,10 +9,11 @@ expected ``type`` — a refresh token, for example, must never be
 accepted on an access-only route, and a verification token must never
 double as a password-reset token.
 
-The existing tests cover individual cases (e.g.,
-``test_email_verification.py::test_token_rejects_wrong_type``). This
-module makes the matrix explicit and parametrised so a missing
-discriminator surfaces immediately.
+The tokens here carry every type's claims (``phv``, ``eat``, ``role``), so
+the ``type`` claim is all a decoder has to refuse them by. With real tokens
+half the matrix would pass without any type check: a verify token has no
+``phv`` and a reset token no ``eat``, so the missing-claim check refuses them
+first.
 
 Why direct decoder calls (no HTTP):
   - The discriminator lives in the decoder, not in the route. A unit
@@ -25,69 +26,48 @@ Why direct decoder calls (no HTTP):
 
 from __future__ import annotations
 
+import datetime as dt
+
+import jwt
 import pytest
 from fastapi import HTTPException
 
+from app.core.config import settings
 from app.core.tokens import (
-    create_access_token,
-    create_email_verify_token,
-    create_password_reset_token,
-    create_refresh_token,
+    ALGORITHM,
+    _encode_claims,
     decode_email_verify_token,
     decode_password_reset_token,
     decode_session_token,
-    password_hash_version,
 )
 
-
-# Each entry is (token-builder-name, decoder, decoder-arg-marshaller).
-# The decoder is the *correct* call for that token type; we then invoke
-# every other decoder with the same token and assert it raises.
-
-_TYPES: list[tuple[str, callable]] = [
-    ("access", lambda: create_access_token("user-id-1", phv="phv-1", role="user")),
-    ("refresh", lambda: create_refresh_token("user-id-1", phv="phv-1")),
-    (
-        "reset",
-        lambda: create_password_reset_token(
-            "user-id-1", password_hash_version("$2b$12$" + "a" * 22 + "...")
-        ),
-    ),
-    ("verify", lambda: create_email_verify_token("user-id-1", "user@example.com")),
-]
+_TOKEN_TYPES = ("access", "refresh", "reset", "verify")
 
 
-def _decode_as_access(token: str) -> None:
-    decode_session_token(token, expected_type="access")
+def _token(token_type: str) -> str:
+    """A signed, valid token of ``token_type`` that also carries every other
+    type's claims."""
+    claims = {
+        "sub": "user-id-1",
+        "exp": dt.datetime.now(dt.timezone.utc) + dt.timedelta(minutes=5),
+        "type": token_type,
+        "role": "user",
+        "phv": "phv-1",
+        "eat": "user@example.com",
+    }
+    return jwt.encode(_encode_claims(claims), settings.jwt_secret, algorithm=ALGORITHM)
 
 
-def _decode_as_refresh(token: str) -> None:
-    decode_session_token(token, expected_type="refresh")
-
-
-def _decode_as_reset(token: str) -> None:
-    decode_password_reset_token(token)
-
-
-def _decode_as_verify(token: str) -> None:
-    decode_email_verify_token(token)
-
-
-_DECODERS: dict[str, callable] = {
-    "access": _decode_as_access,
-    "refresh": _decode_as_refresh,
-    "reset": _decode_as_reset,
-    "verify": _decode_as_verify,
+_DECODERS = {
+    "access": lambda token: decode_session_token(token, expected_type="access"),
+    "refresh": lambda token: decode_session_token(token, expected_type="refresh"),
+    "reset": decode_password_reset_token,
+    "verify": decode_email_verify_token,
 }
 
-
-# Build the cross-pair matrix: every (issued_type, decoded_as_type)
-# combination where the two differ should fail.
+# Every (issued_type, decoded_as_type) combination where the two differ.
 _MISMATCH_PAIRS = [
-    (issued_type, decoded_type)
-    for issued_type, _ in _TYPES
-    for decoded_type in _DECODERS.keys()
-    if issued_type != decoded_type
+    (issued, decoded) for issued in _TOKEN_TYPES for decoded in _TOKEN_TYPES if issued != decoded
 ]
 
 
@@ -98,19 +78,13 @@ def test_decoder_rejects_wrong_token_type(issued_type: str, decoded_as_type: str
     e.g., a long-lived refresh token used to call a protected access
     route, or a still-valid verify token used to bypass the password
     reset flow."""
-    builder = dict(_TYPES)[issued_type]
-    decoder = _DECODERS[decoded_as_type]
-    token = builder()
     with pytest.raises(HTTPException):
-        decoder(token)
+        _DECODERS[decoded_as_type](_token(issued_type))
 
 
-@pytest.mark.parametrize("token_type", ["access", "refresh", "reset", "verify"])
-def test_decoder_accepts_matching_token_type(token_type: str) -> None:
-    """Sanity-check the parametrisation: each decoder *does* accept its
-    own type. Without this, a regression that broke every decoder would
-    pass the negative tests above by raising on every input."""
-    builder = dict(_TYPES)[token_type]
-    decoder = _DECODERS[token_type]
-    token = builder()
-    decoder(token)  # must not raise
+@pytest.mark.parametrize("token_type", _TOKEN_TYPES)
+def test_decoder_accepts_its_own_type_with_every_claim(token_type: str) -> None:
+    """The extra claims alone don't get a token refused, so every refusal
+    above comes from the type check — and a regression that broke every
+    decoder can't pass the matrix by raising on every input."""
+    _DECODERS[token_type](_token(token_type))  # must not raise

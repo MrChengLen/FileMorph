@@ -23,6 +23,7 @@ Pins six properties:
 
 from __future__ import annotations
 
+import ast
 import asyncio
 import errno
 import logging
@@ -289,11 +290,20 @@ def test_honeypot_log_has_no_ip(client, monkeypatch, caplog):
 def test_database_errors_hide_statement_values():
     # A failed INSERT would otherwise print its values — an email address,
     # a password hash — into the error the 500 handler logs. The engine is
-    # built at import only when DATABASE_URL is set, so pin the source.
-    source = (Path(__file__).resolve().parents[1] / "app" / "db" / "base.py").read_text(
-        encoding="utf-8"
-    )
-    assert "hide_parameters=True" in source
+    # built at import only when DATABASE_URL is set, so check the calls
+    # themselves: every create_async_engine(...) in app/ passes
+    # hide_parameters=True (a comment or another variable doesn't count).
+    calls = []
+    for path in (Path(__file__).resolve().parents[1] / "app").rglob("*.py"):
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            func = getattr(node, "func", None)
+            name = getattr(func, "id", None) or getattr(func, "attr", None)
+            if isinstance(node, ast.Call) and name == "create_async_engine":
+                calls.append((path.name, node))
+    assert calls, "no create_async_engine call found in app/"
+    for file, call in calls:
+        value = {kw.arg: kw.value for kw in call.keywords}.get("hide_parameters")
+        assert isinstance(value, ast.Constant) and value.value is True, f"{file}:{call.lineno}"
 
 
 # ── 6. Error texts from tools and libraries ──────────────────────────────────

@@ -14,6 +14,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 import pytest
+from fastapi.routing import APIRoute, iter_route_contexts
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
@@ -104,17 +105,35 @@ def _act_as(user: User) -> None:
 # ── Auth gating ────────────────────────────────────────────────────────────────
 
 
-def test_stats_unauthenticated_returns_401(client):
+# Every cockpit API route, read from the app — a new one is checked without
+# touching this list. Each declares its own Depends(require_admin).
+# `app.routes` holds unresolved `include_router` wrappers in this FastAPI
+# version; `iter_route_contexts` yields the prefixed routes (see
+# test_rate_limit_routes.py).
+_COCKPIT_ROUTES = sorted(
+    (method, ctx.path)
+    for ctx in iter_route_contexts(app.routes)
+    if isinstance(ctx.original_route, APIRoute) and ctx.path.startswith("/api/v1/cockpit")
+    for method in ctx.methods - {"HEAD", "OPTIONS"}
+)
+
+
+def test_the_cockpit_routes_are_found():
+    # Guards the parametrisation below against quietly checking nothing.
+    assert len(_COCKPIT_ROUTES) >= 6, _COCKPIT_ROUTES
+
+
+@pytest.mark.parametrize(
+    ("method", "path"), _COCKPIT_ROUTES, ids=[f"{m} {p}" for m, p in _COCKPIT_ROUTES]
+)
+def test_every_cockpit_route_turns_away_non_admins(client, method, path):
+    url = path.replace("{user_id}", str(uuid.uuid4()))
     # No override on get_current_user -> real dep runs -> no header -> 401.
-    res = client.get("/api/v1/cockpit/stats")
-    assert res.status_code == 401
-
-
-def test_stats_requires_admin_role(client):
-    regular = asyncio.run(_insert_user(email="u@x.test", role=RoleEnum.user))
-    _act_as(regular)
-    res = client.get("/api/v1/cockpit/stats")
-    assert res.status_code == 403
+    assert client.request(method, url, json={}).status_code == 401
+    # A signed-in regular user -> 403.
+    _act_as(asyncio.run(_insert_user(email="u@x.test", role=RoleEnum.user)))
+    res = client.request(method, url, json={})
+    assert res.status_code == 403, res.text
     assert "admin" in res.json()["detail"].lower()
 
 

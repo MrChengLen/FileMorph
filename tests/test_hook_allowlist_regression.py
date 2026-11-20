@@ -85,6 +85,23 @@ def test_pre_commit_and_pre_push_regexes_stay_in_sync(hooks):
         )
 
 
+@pytest.mark.parametrize(
+    ("hook_var", "workflow_var"),
+    [("FORBIDDEN_PATHS", "FORBIDDEN_RE"), ("INTERNAL_PATHS", "INTERNAL_RE")],
+)
+def test_hooks_and_the_scope_guard_workflow_block_the_same_paths(hooks, hook_var, workflow_var):
+    """The scope-guard workflow (a required check) is the backstop for a
+    commit that never ran the hooks — ``--no-verify``, or a commit made over
+    the API. Its path rules must be the hooks' rules, or a path one side
+    blocks slips through the other."""
+    workflow = (REPO / ".github" / "workflows" / "scope-guard.yml").read_text(encoding="utf-8")
+    m = re.search(rf"^\s*{workflow_var}='([^']+)'", workflow, re.MULTILINE)
+    assert m, f"could not find {workflow_var}= in scope-guard.yml"
+    assert hooks["pre-commit"][hook_var] == m.group(1), (
+        f"{hook_var} (hooks) and {workflow_var} (scope-guard.yml) drifted — keep them identical."
+    )
+
+
 # ── ALLOW_RE: paths that MUST be content-scanning-exempt ────────────────────
 
 

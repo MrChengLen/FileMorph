@@ -247,23 +247,22 @@ def test_increment_rejects_non_string_key():
 def test_increment_accepts_documented_key_shapes():
     """All keys the codebase actually writes must pass sanitization."""
 
+    keys = (
+        "page_views",
+        "registrations",
+        "convert.jpg-to-pdf",
+        "convert.heic-to-jpg",
+        "compress.jpg",
+        "failures.convert",
+        "failures.compress",
+    )
+
     async def _run():
         async with _TestSession() as s:
-            for key in (
-                "page_views",
-                "registrations",
-                "convert.jpg-to-pdf",
-                "convert.heic-to-jpg",
-                "compress.jpg",
-                "failures.convert",
-                "failures.compress",
-            ):
+            for key in keys:
                 await increment(key, db=s)
             rows = (await s.execute(select(DailyMetric))).scalars().all()
-            keys_seen = {r.metric_key for r in rows}
-            assert "page_views" in keys_seen
-            assert "failures.convert" in keys_seen
-            assert "failures.compress" in keys_seen
+            assert {r.metric_key for r in rows} == set(keys)
 
     asyncio.run(_run())
 
@@ -324,11 +323,6 @@ def test_increment_is_safe_under_concurrent_callers(tmp_path, caplog):
 
 
 # ── cockpit /usage-summary endpoint ──────────────────────────────────────────
-
-
-def test_usage_summary_requires_admin(client):
-    res = client.get("/api/v1/cockpit/usage-summary")
-    assert res.status_code == 401
 
 
 def test_usage_summary_zeroed_when_metrics_disabled(client, monkeypatch):
