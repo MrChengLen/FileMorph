@@ -74,6 +74,11 @@ class Settings(BaseSettings):
     price_compliance_standard_display: str = ""
     price_compliance_enterprise_display: str = ""
 
+    # Public status page (uptime and history), linked in the footer's Product
+    # group. Empty = no link: a self-hosted instance has no status page unless
+    # its operator runs one. filemorph.io sets its own in its deployment env.
+    status_page_url: str = ""
+
     # S10-lite analytics: per-day counter increments for page views,
     # conversions, registrations, failures. Default on — the counters are
     # aggregates only, no personal data, no cookie-banner implication.
