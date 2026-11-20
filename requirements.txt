@@ -4,7 +4,7 @@
 # so we are not actually vulnerable, but pip-audit correctly flags the version
 # and blocks every CI run. Re-allow once the maintainers ship a clean release
 # (drop the "!= 0.136.3" once 0.136.4+ is on PyPI without the bad dep).
-fastapi!=0.136.3,>=0.162.7
+fastapi!=0.136.3,>=0.163.1
 # FastAPI pulls in Starlette, which FileMorph imports directly as well: the
 # engine mount (app/core/engine.py), the request limits, the middlewares and
 # the routes' cleanup tasks. Listed here so that Dependabot proposes its
@@ -15,7 +15,7 @@ fastapi!=0.136.3,>=0.162.7
 # app/static/engine/delivery.js.
 starlette>=1.10.0
 uvicorn[standard]>=0.54.0
-python-multipart>=0.0.33
+python-multipart>=0.0.34
 jinja2>=3.1.6
 pydantic>=2.14.3
 pydantic-settings>=2.16.3
@@ -50,7 +50,7 @@ cryptography>=50.0.2
 # for PDF/A-2b output (NEU-C.1.a). Wheels bundle qpdf; no system
 # package required.
 # Lifting the cap also removes its ignore entry in .github/dependabot.yml.
-pikepdf>=10.18.1,<11
+pikepdf>=10.18.2,<11
 reportlab>=5.1.0
 # Capped below 71: the SSRF guard ``_deny_url_fetcher`` in
 # app/converters/document.py subclasses WeasyPrint's ``URLFetcher`` and
@@ -74,7 +74,7 @@ slowapi>=0.1.10
 Babel>=2.18.0
 
 # ── Auth / Database ───────────────────────────────────────────────
-sqlalchemy[asyncio]>=2.1.8
+sqlalchemy[asyncio]>=2.1.9
 alembic>=1.20.1
 # alembic pulls in Mako, which renders its migration template. Before 1.4.2 a
 # TemplateLookup URI with a Windows drive letter escapes the template directory
@@ -85,7 +85,7 @@ mako>=1.4.3
 asyncpg>=0.32.0
 PyJWT>=2.15.1
 bcrypt>=5.0.0
-email-validator>=2.3.0
+email-validator>=2.4.0
 # email-validator pulls in dnspython. Before 2.9.0 a crafted DNS message can
 # make its name decompression take excessive CPU (CVE-2026-114605 /
 # GHSA-45c3-73f7-pv4m, high). FileMorph never loads dnspython: Pydantic's
