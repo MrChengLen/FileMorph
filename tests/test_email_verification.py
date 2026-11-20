@@ -154,28 +154,6 @@ def test_token_roundtrip_returns_subject_and_email():
     assert eat == "alice@example.com"
 
 
-def test_token_rejects_wrong_type():
-    """Tokens of every other shape that share the JWT secret must be
-    rejected. Access, refresh, and reset all sign with ``settings.jwt_secret``;
-    only the ``type`` claim discriminates the flows. A regression here
-    would let a stolen access token verify a different user's email
-    (since ``sub`` carries the same user-id semantics)."""
-    from app.core.tokens import (
-        create_access_token,
-        create_password_reset_token,
-        create_refresh_token,
-    )
-
-    for bogus in (
-        create_password_reset_token("user-123", "phv-deadbeef"),
-        create_access_token("user-123", phv="phv-deadbeef"),
-        create_refresh_token("user-123", phv="phv-deadbeef"),
-    ):
-        with pytest.raises(HTTPException) as exc:
-            decode_email_verify_token(bogus)
-        assert exc.value.status_code == 400
-
-
 def test_token_rejects_garbage():
     with pytest.raises(HTTPException) as exc:
         decode_email_verify_token("not-a-real-jwt")

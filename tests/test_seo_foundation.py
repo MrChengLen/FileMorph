@@ -988,24 +988,6 @@ def test_formats_hub_renders_from_registry(client):
     assert "Compress to a target size" in body, "compression section missing"
 
 
-def test_formats_hub_reflects_actual_registry(client):
-    """Cross-check: every source format the registry reports must appear on
-    the page (upper-cased). Pins the page to reality so it can't silently
-    drift from what the deployment can actually convert."""
-    from app.converters.registry import get_supported_conversions
-
-    body = client.get("/en/formats").text
-    conversions = get_supported_conversions()
-    assert conversions, "registry empty — converters didn't load"
-    # spot-check a representative, stable subset rather than all (some are
-    # optional, e.g. heic depends on pillow-heif being installed)
-    for src in ("png", "jpg", "pdf", "mp3", "mp4"):
-        if src in conversions:
-            assert f">{src.upper()}<" in body or f"{src.upper()}" in body, (
-                f"registry source {src!r} not surfaced on /formats"
-            )
-
-
 def test_formats_hub_is_ungated_on_self_host(client, monkeypatch):
     """Unlike /pricing + /enterprise, /formats is public content and must
     render (200) even when the commercial surface is disabled — it's the

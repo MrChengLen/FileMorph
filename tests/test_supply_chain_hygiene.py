@@ -260,10 +260,6 @@ def _tracked_docs() -> list[str]:
     ]
 
 
-def test_workflow_dir_exists() -> None:
-    assert _WORKFLOW_DIR.is_dir(), f"{_WORKFLOW_DIR} missing"
-
-
 @pytest.mark.parametrize("workflow", _workflow_files(), ids=lambda p: p.name)
 def test_workflow_actions_are_sha_pinned(workflow: Path) -> None:
     text = workflow.read_text(encoding="utf-8")

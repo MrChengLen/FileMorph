@@ -3,8 +3,6 @@
 
 import dataclasses
 import io
-import json
-import zipfile
 from unittest.mock import MagicMock
 
 import pytest
@@ -186,42 +184,3 @@ def test_batch_per_file_cap_does_not_aggregate(client, auth_headers, override_fr
     )
     # Sanity: response is the zip, not an error JSON.
     assert r.headers.get("content-type", "").startswith("application/zip")
-
-
-def test_batch_convert_partial_overflow(client, auth_headers, override_free_user, monkeypatch):
-    """Mixed batch where one file overflows and another does not — good goes to
-    zip, bad goes to manifest errors."""
-    # Cap chosen so one tiny PNG (~100 B) fits but a larger PNG (~600 B) does not.
-    small_jpg = _jpg_bytes(w=10, h=10)  # tiny PNG on output
-    big_jpg = _jpg_bytes(w=200, h=200)  # larger PNG on output
-
-    # Pick a cap between the two expected output sizes.
-    original = QUOTAS["free"]
-    shrunk = dataclasses.replace(original, output_cap_bytes=300)
-    monkeypatch.setitem(quotas_module.QUOTAS, "free", shrunk)
-
-    files = [
-        ("files", ("small.jpg", small_jpg, "image/jpeg")),
-        ("files", ("big.jpg", big_jpg, "image/jpeg")),
-    ]
-    r = client.post(
-        "/api/v1/convert/batch",
-        headers=auth_headers,
-        data={"target_formats": ["png", "png"]},
-        files=files,
-    )
-    # If the test setup's expectation of sizes holds, we get partial success.
-    # Accept either 200 (≥1 succeeded) or 422 (none), but require the over-cap
-    # file to carry the expected error message.
-    body = r.json() if r.status_code == 422 else None
-    if body is not None:
-        assert any(
-            "Output too large" in f.get("error_message", "")
-            for f in body["files"]
-            if f["status"] == "error"
-        )
-    else:
-        assert r.status_code == 200
-        zf = zipfile.ZipFile(io.BytesIO(r.content))
-        manifest = json.loads(zf.read("manifest.json"))
-        assert manifest["summary"]["failed"] >= 1

@@ -18,6 +18,8 @@ Out of scope:
 
 from __future__ import annotations
 
+import re
+
 import pytest
 
 
@@ -39,11 +41,16 @@ import pytest
     ],
 )
 def test_public_legal_page_reachable(client, path: str, expected_marker: str) -> None:
-    """Each compliance/legal page returns 200 and contains its canonical marker."""
+    """Each compliance/legal page returns 200 and its own content carries its
+    canonical marker. Only <main> counts: the footer links the legal pages by
+    these very words on every page, so a search of the whole page would pass
+    for any page that renders."""
     res = client.get(path)
     assert res.status_code == 200, f"{path} returned {res.status_code}: {res.text[:200]}"
-    assert expected_marker in res.text, (
-        f"{path} reachable but missing canonical marker '{expected_marker}'"
+    main = re.search(r"<main\b.*?</main>", res.text, re.S)
+    assert main, f"{path} has no <main>"
+    assert expected_marker in main.group(0), (
+        f"{path} reachable but its content lacks the canonical marker '{expected_marker}'"
     )
 
 

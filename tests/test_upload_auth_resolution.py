@@ -182,14 +182,13 @@ def test_batch_resolves_bearer_jwt_to_user_tier(client, sample_jpg):
         headers={"Authorization": f"Bearer {token}"},
     )
 
-    # The tier-resolution assertion is the load-bearing one. The batch
-    # itself should succeed (ZIP back) or at worst return a per-file error
-    # envelope — but NOT the anonymous "tier limit of 1" wall.
+    # The tier check first, for the clearer message; then the explicit 200,
+    # as in the X-API-Key test below — a 401 or 500 body has no "tier limit".
     body = res.text
     assert "tier limit of 1" not in body, (
         f"Bearer JWT for business user did not lift tier — response: {body!r}"
     )
-    assert res.status_code != 400 or "tier limit" not in body
+    assert res.status_code == 200, body
 
 
 def test_batch_resolves_x_api_key_to_user_tier(client, sample_jpg):

@@ -14,9 +14,9 @@ The pricing page advertises 1 000/month (Free), 25 000 (Pro), 200 000
 * The gate counts CALENDAR-MONTH rows — last month's usage does not
   count against this month's quota.
 
-The end-to-end /convert route test wires the helper through a real
-TestClient so a regression that drops the ``await
-enforce_monthly_quota(user)`` line in convert.py / compress.py
+The end-to-end route tests wire the helper through a real TestClient on
+all eight upload routes (convert.py, compress.py, pdf_pages.py), so a
+regression that drops an ``await enforce_monthly_quota(user)`` line
 surfaces as a 200 where a 429 is expected.
 """
 
@@ -30,13 +30,14 @@ from unittest.mock import patch
 
 import pytest
 from fastapi import HTTPException
-from sqlalchemy import delete
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 from app.api.routes.auth import get_optional_user
 from app.core import usage as usage_module
 from app.core.auth import hash_password
+from app.core.quotas import get_quota
 from app.core.usage import (
     _month_start,
     _next_month_start,
@@ -191,19 +192,37 @@ def test_enforce_anonymous_is_noop():
     asyncio.run(enforce_monthly_quota(None))  # must not raise
 
 
+def _count_returning(used: int):
+    """A stand-in for ``monthly_call_count``: the gate is whatever it returns,
+    so this pins a boundary without materialising the rows."""
+
+    async def _fake_count(*args, **kwargs):
+        return used
+
+    return patch.object(usage_module, "monthly_call_count", _fake_count)
+
+
 def test_enforce_enterprise_is_noop():
-    """Enterprise tier (api_calls_per_month=None) is unlimited."""
+    """Enterprise tier (api_calls_per_month=None) is unlimited — even far past
+    every other tier's limit."""
     user = asyncio.run(_make_user(email="enterprise@example.com", tier=TierEnum.enterprise))
-    # Even with a million seeded rows, no 429.
-    asyncio.run(_seed_usage(user.id, 100))
-    asyncio.run(enforce_monthly_quota(user))
+    with _count_returning(10_000_000):
+        asyncio.run(enforce_monthly_quota(user))  # must not raise
 
 
-def test_enforce_below_limit_is_noop():
-    user = asyncio.run(_make_user(email="below@example.com", tier=TierEnum.free))
-    # Free = 1 000/month. 100 rows is well under.
-    asyncio.run(_seed_usage(user.id, 100))
-    asyncio.run(enforce_monthly_quota(user))  # must not raise
+@pytest.mark.parametrize("tier", [TierEnum.free, TierEnum.pro, TierEnum.business])
+def test_enforce_lets_the_last_call_through_and_stops_at_the_limit(tier):
+    """One call short of the tier's limit passes; at the limit it is a 429
+    naming the tier."""
+    user = asyncio.run(_make_user(email=f"{tier.value}@example.com", tier=tier))
+    limit = get_quota(tier.value).api_calls_per_month
+
+    with _count_returning(limit - 1):
+        asyncio.run(enforce_monthly_quota(user))  # must not raise
+    with _count_returning(limit), pytest.raises(HTTPException) as exc_info:
+        asyncio.run(enforce_monthly_quota(user))
+    assert exc_info.value.status_code == 429
+    assert f"tier '{tier.value}'" in exc_info.value.detail
 
 
 def test_enforce_at_limit_raises_429_with_retry_after():
@@ -222,40 +241,6 @@ def test_enforce_at_limit_raises_429_with_retry_after():
     assert 1 <= retry <= 32 * 24 * 3600
     assert "Monthly API call limit" in err.detail
     assert "tier 'free'" in err.detail
-
-
-def test_enforce_pro_tier_at_25k():
-    """Pro tier = 25 000/month. Patch the count so the test doesn't
-    materialise 25 000 rows — the gate is whatever ``monthly_call_count``
-    returns, mocking it pins the boundary precisely."""
-    user = asyncio.run(_make_user(email="pro@example.com", tier=TierEnum.pro))
-
-    async def _fake_count(*args, **kwargs):
-        return 25_000
-
-    with patch.object(usage_module, "monthly_call_count", _fake_count):
-        with pytest.raises(HTTPException) as exc_info:
-            asyncio.run(enforce_monthly_quota(user))
-    assert exc_info.value.status_code == 429
-    assert "tier 'pro'" in exc_info.value.detail
-
-
-def test_enforce_business_tier_at_200k():
-    """Business tier = 200 000/month. Use a Python-side patched count
-    so the test doesn't have to materialise 200 000 rows in SQLite —
-    the gate is whatever ``monthly_call_count`` returns, mocking that
-    pins the boundary precisely.
-    """
-    user = asyncio.run(_make_user(email="biz@example.com", tier=TierEnum.business))
-
-    async def _fake_count(*args, **kwargs):
-        return 200_000
-
-    with patch.object(usage_module, "monthly_call_count", _fake_count):
-        with pytest.raises(HTTPException) as exc_info:
-            asyncio.run(enforce_monthly_quota(user))
-    assert exc_info.value.status_code == 429
-    assert "tier 'business'" in exc_info.value.detail
 
 
 # ── record_usage: writer correctness ─────────────────────────────────────────
@@ -279,7 +264,9 @@ def test_record_usage_inserts_one_row():
 
 
 def test_record_usage_anonymous_is_noop():
-    """No user_id and no api_key_id → nothing to attribute the row to."""
+    """No user_id and no api_key_id → nothing to attribute the row to, so no
+    row is written. (record_usage swallows a failed write, so "it didn't
+    raise" alone would prove nothing.)"""
 
     async def _do():
         await record_usage(
@@ -289,12 +276,13 @@ def test_record_usage_anonymous_is_noop():
             file_size_bytes=1,
             duration_ms=1,
         )
-        # No user means no count to verify; just assert it didn't raise.
+        async with _TestSession() as s:
+            return (await s.execute(select(func.count()).select_from(UsageRecord))).scalar_one()
 
-    asyncio.run(_do())  # must not raise
+    assert asyncio.run(_do()) == 0
 
 
-# ── End-to-end via /convert route ────────────────────────────────────────────
+# ── End-to-end via the upload routes ─────────────────────────────────────────
 
 
 def _login(client, email: str, password: str = "pw-secure-1") -> str:
@@ -312,19 +300,55 @@ def _override_user(user: User):
     return _override
 
 
-def test_convert_route_returns_429_when_user_is_at_monthly_limit(client):
-    """End-to-end: a free-tier user with 1 000 rows already gets 429 on /convert."""
-    user = asyncio.run(_make_user(email="convert-blocked@example.com", tier=TierEnum.free))
-    asyncio.run(_seed_usage(user.id, 1_000))
+def _tiny_pdf_bytes() -> bytes:
+    from pypdf import PdfWriter
+
+    writer = PdfWriter()
+    writer.add_blank_page(width=72, height=72)
+    buf = io.BytesIO()
+    writer.write(buf)
+    return buf.getvalue()
+
+
+_UPLOADS = {
+    "png": lambda: ("a.png", io.BytesIO(_tiny_png_bytes()), "image/png"),
+    "pdf": lambda: ("a.pdf", io.BytesIO(_tiny_pdf_bytes()), "application/pdf"),
+}
+
+# Every route that calls enforce_monthly_quota (single and batch convert and
+# compress, and the four PDF tools).
+_GATED_ROUTES = [
+    pytest.param("/api/v1/convert", {"file": "png"}, {"target_format": "jpg"}, id="convert"),
+    pytest.param(
+        "/api/v1/convert/batch", {"files": "png"}, {"target_formats": "jpg"}, id="convert-batch"
+    ),
+    pytest.param("/api/v1/compress", {"file": "png"}, {"quality": "85"}, id="compress"),
+    pytest.param(
+        "/api/v1/compress/batch", {"files": "png"}, {"quality": "85"}, id="compress-batch"
+    ),
+    pytest.param("/api/v1/pdf/extract", {"file": "pdf"}, {"pages": "1"}, id="pdf-extract"),
+    pytest.param("/api/v1/pdf/split", {"file": "pdf"}, {}, id="pdf-split"),
+    pytest.param("/api/v1/pdf/compress", {"file": "pdf"}, {"target_kb": "100"}, id="pdf-compress"),
+    pytest.param("/api/v1/pdf/insert", {"file": "pdf", "insert_file": "pdf"}, {}, id="pdf-insert"),
+]
+
+
+@pytest.mark.parametrize(("endpoint", "uploads", "data"), _GATED_ROUTES)
+def test_every_upload_route_returns_429_at_the_monthly_limit(client, endpoint, uploads, data):
+    """End-to-end: a free-tier user at the limit gets 429 + Retry-After on
+    every upload route, not only on /convert."""
+    user = asyncio.run(
+        _make_user(email=f"blocked-{uuid.uuid4().hex}@example.com", tier=TierEnum.free)
+    )
     app.dependency_overrides[get_optional_user] = _override_user(user)
     try:
-        png_bytes = _tiny_png_bytes()  # Reused across both end-to-end tests.
-        res = client.post(
-            "/api/v1/convert",
-            headers={"X-API-Key": "test-api-key-filemorph-ci"},
-            files={"file": ("a.png", io.BytesIO(png_bytes), "image/png")},
-            data={"target_format": "jpg"},
-        )
+        with _count_returning(get_quota("free").api_calls_per_month):
+            res = client.post(
+                endpoint,
+                headers={"X-API-Key": "test-api-key-filemorph-ci"},
+                files=[(field, _UPLOADS[kind]()) for field, kind in uploads.items()],
+                data=data,
+            )
         assert res.status_code == 429, res.text
         assert "Retry-After" in res.headers
         assert "Monthly API call" in res.json()["detail"]
