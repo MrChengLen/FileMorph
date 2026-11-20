@@ -29,7 +29,7 @@ _FILE_LIMIT_BYTES = 1024 * 1024 * 1024
 
 def extract(input_path: Path, output_path: Path, max_pages: int) -> str:
     """Write the PDF's text to ``output_path``; return the outcome."""
-    from pypdf.errors import DependencyError, FileNotDecryptedError, PyPdfError
+    from pypdf.errors import DependencyError, DeprecationError, FileNotDecryptedError, PyPdfError
 
     from app.converters.base import UnsupportedPdfEncryptionError, open_pypdf
 
@@ -51,8 +51,18 @@ def extract(input_path: Path, output_path: Path, max_pages: int) -> str:
     # data in a stream, which pypdf decodes only with the jbig2dec program,
     # and the image doesn't ship it. BlockingIOError: where it is installed,
     # starting it fails, as this child starts no processes (limit_resources;
-    # root aside).
-    except (PyPdfError, DependencyError, ValueError, BlockingIOError) as exc:
+    # root aside). NotImplementedError: a stream filter pypdf doesn't know
+    # (open_pypdf turns it into UnsupportedPdfEncryptionError only while the
+    # file is opened, where it means the encryption). DeprecationError: since
+    # pypdf 7, the short filter names meant for inline images (/Fl, /AHx …).
+    except (
+        PyPdfError,
+        DeprecationError,
+        DependencyError,
+        NotImplementedError,
+        ValueError,
+        BlockingIOError,
+    ) as exc:
         return f"unreadable {type(exc).__name__}"
     except MemoryError:
         return "too_large"

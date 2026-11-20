@@ -4,7 +4,7 @@
 # so we are not actually vulnerable, but pip-audit correctly flags the version
 # and blocks every CI run. Re-allow once the maintainers ship a clean release
 # (drop the "!= 0.136.3" once 0.136.4+ is on PyPI without the bad dep).
-fastapi!=0.136.3,>=0.162.0
+fastapi!=0.136.3,>=0.162.7
 # FastAPI pulls in Starlette, which FileMorph imports directly as well: the
 # engine mount (app/core/engine.py), the request limits, the middlewares and
 # the routes' cleanup tasks. Listed here so that Dependabot proposes its
@@ -18,7 +18,7 @@ uvicorn[standard]>=0.54.0
 python-multipart>=0.0.33
 jinja2>=3.1.6
 pydantic>=2.14.3
-pydantic-settings>=2.16.2
+pydantic-settings>=2.16.3
 # 13.0.0 is the first release with the fixes for the nine advisories published
 # 2026-10-20, among them GHSA-8g5g-8vmr-9782 (critical, JPEG decoder) and
 # several in the TIFF and GIF decoders. Its EXIF parser also has limits that
@@ -36,8 +36,10 @@ mammoth>=1.13.0
 # GHSA-39mj-jf6j-2qj3, GHSA-cgf9-327m-v77c) and unvalidated JPEG image data
 # (GHSA-5hx5-vpf9-5wcv); 6.21.4 the first with the fixes for the seven published
 # 2026-10-30: infinite loops, long runtimes and large memory use on crafted
-# PDFs (among them GHSA-5849-834g-hvw5, GHSA-62m5-6wh8-28x7).
-pypdf>=6.21.4
+# PDFs (among them GHSA-5849-834g-hvw5, GHSA-62m5-6wh8-28x7); 7.0.1 the first
+# with the five fixes 7.0.0 and 7.0.1 list as security fixes (no advisories as
+# of 2026-11-17).
+pypdf>=7.1.0
 # pypdf opens AES-encrypted PDFs only with cryptography installed
 # (DependencyError without it, which tests/test_pdf_error_messages.py catches),
 # e.g. an owner-password PDF, which FileMorph processes. It came in through
@@ -48,7 +50,7 @@ cryptography>=50.0.2
 # for PDF/A-2b output (NEU-C.1.a). Wheels bundle qpdf; no system
 # package required.
 # Lifting the cap also removes its ignore entry in .github/dependabot.yml.
-pikepdf>=10.17.0,<11
+pikepdf>=10.18.1,<11
 reportlab>=5.1.0
 # Capped below 71: the SSRF guard ``_deny_url_fetcher`` in
 # app/converters/document.py subclasses WeasyPrint's ``URLFetcher`` and

@@ -218,9 +218,10 @@ def _reading_pdf() -> Iterator[None]:
     blocks executables; this catch turns a genuinely malformed PDF into a
     single caller-safe error instead of leaking pypdf internals.
 
-    ``OSError`` stays a server error: pypdf reads the whole file into
-    memory first, so one can only come from our own disk. Only the
-    exception's class is logged — pypdf's messages can quote the file.
+    ``OSError`` stays a server error (``BlockingIOError`` aside, see below):
+    pypdf reads the whole file into memory first, so one can only come from
+    our own disk. Only the exception's class is logged — pypdf's messages
+    can quote the file.
 
     A PDF with a user password is readable, just not by us: pypdf tries
     the empty password on open and raises ``FileNotDecryptedError`` on the
@@ -231,12 +232,29 @@ def _reading_pdf() -> Iterator[None]:
     from ``cryptography``. Where OpenSSL has no RC4, pypdf switches to its own
     RC4 once OpenSSL has refused RC4 in this process, and that one raises
     ``ZeroDivisionError`` instead: the same file, so the same answer.
+
+    A stream's filter adds four more, raised when pypdf decodes the stream
+    (an object stream holding the page tree, say): ``NotImplementedError``
+    for a filter it doesn't know; for JBIG2, which pypdf decodes only with
+    the jbig2dec program, ``DependencyError`` where that isn't installed (as
+    in the image) and ``BlockingIOError`` where it is, as the child processes
+    this runs in may start no processes (``limit_resources``); and, since
+    pypdf 7, ``DeprecationError`` for the short filter names meant for inline
+    images (``/Fl``, ``/AHx`` …), which pypdf 6 still decoded.
     """
-    from pypdf.errors import FileNotDecryptedError, PyPdfError
+    from pypdf.errors import DependencyError, DeprecationError, FileNotDecryptedError, PyPdfError
 
     try:
         yield
-    except (PyPdfError, ValueError, ZeroDivisionError) as exc:
+    except (
+        PyPdfError,
+        DeprecationError,
+        DependencyError,
+        NotImplementedError,
+        BlockingIOError,
+        ValueError,
+        ZeroDivisionError,
+    ) as exc:
         logger.info("unreadable PDF: %s", type(exc).__name__)
         if isinstance(exc, FileNotDecryptedError):
             raise EncryptedPdfError() from exc

@@ -147,7 +147,7 @@ def test_pages_go_where_asked(tmp_path, index, expected):
 def test_bookmarks_still_lead_to_their_pages(tmp_path):
     writer = _writer([200, 201, 202])
     for i in range(3):
-        writer.add_outline_item(f"Chapter {i + 1}", i)
+        writer.add_outline_item(title=f"Chapter {i + 1}", page_number=i)
     writer.add_metadata({"/Title": "Term paper"})
     base, insert, out = _files(tmp_path, _bytes(writer), _pdf([300, 301]))
 

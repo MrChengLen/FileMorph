@@ -436,6 +436,35 @@ def test_engine_re_encodes_lossless_images_and_jpegs_behind_a_filter(tmp_path, m
         assert pdf.pages[0].Resources.XObject.Im1.Filter == "/DCTDecode"
 
 
+def test_engine_re_encodes_a_jpeg_behind_a_filter_with_decode_parms(tmp_path):
+    """A ``/DecodeParms`` dictionary in front of ``/DCTDecode`` is applied, and
+    doesn't keep the JPEG from being re-encoded. Decoding the lossless filter
+    works on a copy in a second document, and pikepdf 10.18 refuses that
+    document the upload's own parameter dictionaries: taken from the upload,
+    they skipped the image. The JPEG is stored as PNG predictor rows, so it
+    only decodes when the parameters are applied."""
+    import pikepdf
+
+    from app.compressors.pdf import compress_pdf_to_target
+
+    jpeg = _entropy_jpeg_bytes(300, 98)
+    jpeg += bytes(-len(jpeg) % 64)  # whole rows; a JPEG decoder stops at its end marker
+    rows = b"".join(b"\x00" + jpeg[i : i + 64] for i in range(0, len(jpeg), 64))
+    src, out = tmp_path / "in.pdf", tmp_path / "out.pdf"
+    _two_image_pdf(
+        src,
+        zlib.compress(rows),
+        ["/FlateDecode", "/DCTDecode"],
+        DecodeParms=pikepdf.Array([pikepdf.Dictionary(Predictor=12, Columns=64), None]),
+    )
+
+    result = compress_pdf_to_target(src, out, target_bytes=10 * 1024 * 1024)
+
+    assert result["recompressible_images"] == 2
+    with pikepdf.open(str(out)) as pdf:
+        assert pdf.pages[0].Resources.XObject.Im1.Filter == "/DCTDecode"
+
+
 def test_engine_survives_a_jpeg_cut_short(tmp_path):
     """A damaged JPEG doesn't fail the request. (Whether its rest decodes as
     gray depends on the platform's JPEG library, so only that is checked.)"""

@@ -186,7 +186,10 @@ def _jpeg_data(obj: "pikepdf_mod.Object", pim) -> bytes:
     with pikepdf.Pdf.new() as tmp:
         copy = tmp.copy_foreign(obj)
         copy.Filter = pikepdf.Array([pikepdf.Name(str(f)) for f in pim.filters[:-1]])
-        copy.DecodeParms = pikepdf.Array(pim.decode_parms[: len(pim.filters) - 1])
+        # The copy's own parameters: obj's belong to the upload, and pikepdf
+        # 10.18 refuses objects of another Pdf (ForeignObjectError).
+        parms = pikepdf.PdfImage(copy).decode_parms
+        copy.DecodeParms = pikepdf.Array(parms[: len(pim.filters) - 1])
         return copy.read_bytes(pikepdf.StreamDecodeLevel.specialized)
 
 
