@@ -1,0 +1,18 @@
+{# chip(href, label=None, accent=False, external=False, block=False)
+
+   A small link button for a next step: the related tools under a tool page,
+   the homepage's quick actions. 44 px high (a thumb-sized target on a phone),
+   14 px text, a hairline outline that turns brand on hover. Called with
+   {% call %}, the body replaces `label` (an icon before the text).
+
+   accent   — brand-light text, for links to other pages (related tools);
+              plain chips (quick actions) are ink.
+   external — opens in a new tab (rel="noopener").
+   block    — fills its grid cell (the quick-action grid) instead of sizing
+              to its text.
+#}
+{% macro chip(href, label=None, accent=False, external=False, block=False) %}
+<a href="{{ href }}"{% if external %} target="_blank" rel="noopener"{% endif %}
+  class="{% if block %}flex h-full{% else %}inline-flex{% endif %} min-h-11 items-center gap-2 rounded-control border border-hairline-strong bg-surface px-3 py-2 text-sm font-medium transition-colors hover:border-brand hover:text-ink-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand {% if accent %}text-brand-light{% else %}text-ink{% endif %}"
+  data-component="chip">{% if caller is defined %}{{ caller() }}{% else %}{{ label or '' }}{% endif %}</a>
+{%- endmacro %}

@@ -6,14 +6,23 @@
     FAQ. Headings that differ per page type are blocks, so each type keeps the
     wording it ranks with (tests/golden/page_texts.json pins them).
 
+    Only the tool is a card; the reading sections below it have no box, a
+    hairline above each and 16 px text (section(divided=True)).
+
     Context: ``content`` (title, meta, h1, hero and the sections), ``crumb``
     (the tool's catalogue name) and ``related`` ([{label, path}, ...]). This
     folder has no leading underscore, so babel extracts its ``_()`` strings. -#}
 {% extends "base.html" %}
 {% import "_components/page.html" as up %}
+{% import "_components/section.html" as us %}
+{% import "_components/chip.html" as uchip %}
 {% block title %}{{ content.title }} | FileMorph{% endblock %}
 {% block meta_description %}{{ content.meta }}{% endblock %}
 {% block content %}
+  {#- The headings a page type may override. They are printed through
+      self.<block>() as section titles below; a block cannot be passed to a
+      macro directly, and this one never renders in place. -#}
+  {% if false %}{% block when_heading %}{{ _('When to use it') }}{% endblock %}{% block related_heading %}{{ _('Related tools') }}{% endblock %}{% endif %}
 
   {% call up.page(max_w='prose-narrow') %}
     <div class="space-y-6">
@@ -23,76 +32,73 @@
       <!-- Title -->
       <div class="text-center space-y-2">
         <h1 class="text-h-page text-ink">{{ content.h1 }}</h1>
-        <p class="text-ink-muted text-sm">{{ content.hero }}</p>
+        <p class="text-base text-ink-muted">{{ content.hero }}</p>
       </div>
 
       <!-- The real, working tool -->
       {% block tool %}{% endblock %}
 
-      {% if content.limits %}
-      <section class="border border-gray-800 rounded-xl px-5 py-4 space-y-2">
-        <h2 class="text-base font-semibold text-white">{{ _('Honest limits') }}</h2>
-        <p class="text-xs text-gray-400 leading-relaxed">{{ content.limits }}</p>
-      </section>
-      {% endif %}
+      <div class="space-y-8 pt-4">
 
-      {% if content.how_it_works %}
-      <section class="border border-gray-800 rounded-xl px-5 py-4 space-y-2">
-        <h2 class="text-base font-semibold text-white">{{ _('How it works') }}</h2>
-        <ol class="space-y-1 text-xs text-gray-400 leading-relaxed list-decimal list-inside">
+        {% if content.limits %}
+        {% call us.section(title=_('Honest limits'), divided=True) %}
+        <p class="max-w-prose">{{ content.limits }}</p>
+        {% endcall %}
+        {% endif %}
+
+        {% if content.how_it_works %}
+        {% call us.section(title=_('How it works'), divided=True) %}
+        <ol class="max-w-prose space-y-1 list-decimal list-inside">
           {% for step, text in content.how_it_works %}
-          <li><strong class="text-gray-200">{{ step }}</strong> — {{ text }}</li>
+          <li><strong class="font-semibold text-ink">{{ step }}</strong> — {{ text }}</li>
           {% endfor %}
         </ol>
-      </section>
-      {% endif %}
+        {% endcall %}
+        {% endif %}
 
-      {% if content.when %}
-      <section class="border border-gray-800 rounded-xl px-5 py-4 space-y-2">
-        <h2 class="text-base font-semibold text-white">{% block when_heading %}{{ _('When to use it') }}{% endblock %}</h2>
-        <p class="text-xs text-gray-400 leading-relaxed">{{ content.when }}</p>
-      </section>
-      {% endif %}
+        {% if content.when %}
+        {% call us.section(title=self.when_heading(), divided=True) %}
+        <p class="max-w-prose">{{ content.when }}</p>
+        {% endcall %}
+        {% endif %}
 
-      {% if content.tech %}
-      <section class="border border-gray-800 rounded-xl px-5 py-4 space-y-2">
-        <h2 class="text-base font-semibold text-white">{{ _('Technical details') }}</h2>
-        <p class="text-xs text-gray-400 leading-relaxed">{{ content.tech }}</p>
-      </section>
-      {% endif %}
+        {% if content.tech %}
+        {% call us.section(title=_('Technical details'), divided=True) %}
+        <p class="max-w-prose">{{ content.tech }}</p>
+        {% endcall %}
+        {% endif %}
 
-      <!-- FAQ — visible question-headings for humans + AI answer engines (GEO) -->
-      {% if content.faq %}
-      <section class="border border-gray-800 rounded-xl px-5 py-4 space-y-4">
-        <h2 class="text-base font-semibold text-white">{{ _('Frequently asked questions') }}</h2>
-        <div class="space-y-3 text-xs leading-relaxed">
+        <!-- FAQ — visible question-headings for humans + AI answer engines (GEO) -->
+        {% if content.faq %}
+        {% call us.section(title=_('Frequently asked questions'), divided=True) %}
+        <div class="max-w-prose space-y-4">
           {% for q, a in content.faq %}
           <div>
-            <h3 class="font-semibold text-gray-200">{{ q }}</h3>
-            <p class="text-gray-400">{{ a }}</p>
+            <h3 class="font-semibold text-ink">{{ q }}</h3>
+            <p>{{ a }}</p>
           </div>
           {% endfor %}
         </div>
-      </section>
-      {% endif %}
+        {% endcall %}
+        {% endif %}
 
-      {% block extra %}{% endblock %}
+        {% block extra %}{% endblock %}
 
-      <!-- Related tools: the page's curated neighbours, then the way up to
-           the whole catalogue and, since every tool here runs on the server,
-           the same task through the API. -->
-      <section class="border border-gray-800 rounded-xl px-5 py-4 space-y-2">
-        <h2 class="text-base font-semibold text-white">{% block related_heading %}{{ _('Related tools') }}{% endblock %}</h2>
-        <div class="flex flex-wrap gap-3 text-xs">
+        <!-- Related tools: the page's curated neighbours, then the way up to
+             the whole catalogue and, since every tool here runs on the server,
+             the same task through the API. -->
+        {% call us.section(title=self.related_heading(), divided=True) %}
+        <div class="flex flex-wrap gap-2">
           {% for link in related %}
-          <a href="{{ localized_url(link.path, current_prefix) }}" class="text-brand-light hover:underline">{{ link.label }}</a>
+          {{ uchip.chip(localized_url(link.path, current_prefix), link.label, accent=True) }}
           {% endfor %}
-          <a href="{{ localized_url('/tools', current_prefix) }}" class="text-brand-light hover:underline">{{ _('All tools →') }}</a>
-          <a href="/docs" target="_blank" rel="noopener" class="text-brand-light hover:underline">{{ _('Use it via the API ↗') }}</a>
+          {{ uchip.chip(localized_url('/tools', current_prefix), _('All tools →'), accent=True) }}
+          {{ uchip.chip('/docs', _('Use it via the API ↗'), accent=True, external=True) }}
         </div>
         {% block related_note %}{% endblock %}
-      </section>
+        {% endcall %}
 
+      </div>
     </div>
   {% endcall %}
 

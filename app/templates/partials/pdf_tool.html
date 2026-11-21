@@ -4,20 +4,22 @@
    → one POST to /api/v1/pdf/{{ tool }} → download. Per-tool
    controls are {% if tool == ... %} branches (no class concatenation). Lives
    in app/templates/partials/ (NOT a _-prefixed dir) so babel picks up the
-   _() chrome strings. Context: content, tool, pdf_accept, insert_accept. #}
+   _() chrome strings. Context: content, tool, pdf_accept, insert_accept.
+   Built from the shared components dropzone, notice and button, like the
+   convert tool (partials/convert_tool.html). #}
 {% import "_components/card.html" as uc %}
 {% import "_components/button.html" as ub %}
+{% import "_components/notice.html" as un %}
+{% import "_components/dropzone.html" as udz %}
 {% call uc.card() %}
 <div id="pdf-tool" class="space-y-5" data-tool="{{ tool }}" data-endpoint="/api/v1/pdf/{{ tool }}">
 
   <!-- Upload + per-tool controls -->
   <div id="pdf-step-upload" class="space-y-4">
     {% if tool == 'insert' %}
-    <p id="pdf-step-file" class="text-sm text-gray-400 font-medium">{{ _('1 · Your PDF') }}</p>
+    <p id="pdf-step-file" class="text-sm font-medium text-ink-muted">{{ _('1 · Your PDF') }}</p>
     {% endif %}
-    <div id="pdf-drop"
-      class="border-2 border-dashed border-gray-700 rounded-xl p-6 sm:p-10 text-center cursor-pointer hover:border-brand transition-colors group"
-      role="button" tabindex="0" aria-label="{{ _('Drop a file here or click to browse') }}"{% if tool == 'insert' %} aria-describedby="pdf-step-file"{% endif %}>
+    {% call udz.dropzone('pdf-drop', _('Drop a file here or click to browse'), describedby=('pdf-step-file' if tool == 'insert' else None)) %}
       <input id="pdf-file" type="file" class="hidden"
         accept="{{ pdf_accept }}"
         aria-label="{{ _('Select a PDF file') }}" />
@@ -27,88 +29,84 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
             d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
         </svg>
-        <p class="text-gray-400">{{ _('Drag & drop a file here') }}</p>
-        <p class="text-xs text-ink-faint">{{ _('or click to browse') }}</p>
+        <p class="text-base text-ink-muted">{{ _('Drag & drop a file here') }}</p>
+        <p class="text-sm text-ink-faint">{{ _('or click to browse') }}</p>
       </div>
       <div id="pdf-selected" class="hidden space-y-1">
         <svg class="mx-auto w-10 h-10 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
             d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
-        <p id="pdf-filename" class="font-medium text-white text-sm"></p>
-        <button id="pdf-clear" class="text-xs text-ink-faint hover:text-red-400 transition-colors">
-          {{ _('Clear') }}
-        </button>
+        <p id="pdf-filename" class="text-sm font-medium text-ink-strong"></p>
+        {{ ub.button(_('Clear'), id='pdf-clear', variant='ghost', size='sm') }}
       </div>
-    </div>
+    {% endcall %}
 
     {% if tool == 'insert' %}
     {# Second file + position. The first dropzone (#pdf-drop) above holds the
        PDF to insert into; its label comes from #pdf-step-file. #}
     <div class="space-y-1">
-      <p id="pdf-step-insert" class="text-sm text-gray-400 font-medium">{{ _('2 · What goes in?') }}</p>
-      <div id="pdf-insert-drop"
-        class="border-2 border-dashed border-gray-700 rounded-xl p-5 text-center cursor-pointer hover:border-brand transition-colors group"
-        role="button" tabindex="0" aria-label="{{ _('Drop the file to insert here or click to browse') }}" aria-describedby="pdf-step-insert">
+      <p id="pdf-step-insert" class="text-sm font-medium text-ink-muted">{{ _('2 · What goes in?') }}</p>
+      {% call udz.dropzone('pdf-insert-drop', _('Drop the file to insert here or click to browse'), describedby='pdf-step-insert', compact=True) %}
         <input id="pdf-insert-file" type="file" class="hidden"
           accept="{{ insert_accept }}"
           aria-label="{{ _('Select the file to insert') }}" />
         <div id="pdf-insert-idle" class="space-y-1">
-          <p class="text-gray-400 text-sm">{{ _('PDF, Word (.docx) or image (JPG, PNG, HEIC …)') }}</p>
-          <p class="text-xs text-ink-faint">{{ _('Drag & drop or click to browse') }}</p>
+          <p class="text-sm text-ink-muted">{{ _('PDF, Word (.docx) or image (JPG, PNG, HEIC …)') }}</p>
+          <p class="text-sm text-ink-faint">{{ _('Drag & drop or click to browse') }}</p>
         </div>
         <div id="pdf-insert-selected" class="hidden space-y-1">
-          <p id="pdf-insert-filename" class="font-medium text-white text-sm"></p>
-          <button id="pdf-insert-clear" class="text-xs text-ink-faint hover:text-red-400 transition-colors">
-            {{ _('Clear') }}
-          </button>
+          <p id="pdf-insert-filename" class="text-sm font-medium text-ink-strong"></p>
+          {{ ub.button(_('Clear'), id='pdf-insert-clear', variant='ghost', size='sm') }}
         </div>
-      </div>
+      {% endcall %}
     </div>
 
-    <fieldset class="space-y-2">
-      <legend class="text-sm text-gray-400 font-medium">{{ _('3 · Where?') }}</legend>
-      <label class="flex items-center gap-2 text-sm text-gray-300">
-        <input type="radio" name="pdf-position" value="start" class="accent-brand" />
+    {# Each choice is a 44 px row on a phone (36 px from 640 px): the whole
+       row is the target, not only the 20 px radio. #}
+    <fieldset class="space-y-1">
+      <legend class="mb-1 text-sm font-medium text-ink-muted">{{ _('3 · Where?') }}</legend>
+      <label class="flex min-h-11 items-center gap-3 text-sm text-ink-soft sm:min-h-9">
+        <input type="radio" name="pdf-position" value="start" class="size-5 accent-brand" />
         {{ _('At the start') }}
       </label>
-      <label class="flex items-center gap-2 text-sm text-gray-300">
-        <input type="radio" name="pdf-position" value="after" class="accent-brand" />
+      <label class="flex min-h-11 items-center gap-3 text-sm text-ink-soft sm:min-h-9">
+        <input type="radio" name="pdf-position" value="after" class="size-5 accent-brand" />
         {{ _('After page') }}
         <input id="pdf-after-page" type="number" min="1" step="1" inputmode="numeric"
           aria-label="{{ _('Page number') }}"
-          class="w-20 bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 text-base sm:text-sm text-gray-200 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand" />
+          class="w-24 bg-surface-sunken border border-hairline rounded-control px-3 py-1.5 text-base sm:text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition-colors" />
       </label>
-      <label class="flex items-center gap-2 text-sm text-gray-300">
-        <input type="radio" name="pdf-position" value="end" class="accent-brand" checked />
+      <label class="flex min-h-11 items-center gap-3 text-sm text-ink-soft sm:min-h-9">
+        <input type="radio" name="pdf-position" value="end" class="size-5 accent-brand" checked />
         {{ _('At the end') }}
       </label>
-      <p id="pdf-position-note" class="text-xs text-gray-400" aria-live="polite"></p>
-      <p class="text-xs text-ink-faint">{{ _("Counted from the first page of the PDF file, not by the printed page numbers.") }}</p>
+      <p id="pdf-position-note" class="text-sm text-ink-muted" aria-live="polite"></p>
+      <p class="text-sm text-ink-faint">{{ _("Counted from the first page of the PDF file, not by the printed page numbers.") }}</p>
     </fieldset>
     {% endif %}
 
     {% if tool == 'extract' %}
     <div class="space-y-1">
-      <label for="pdf-pages" class="text-sm text-gray-400 font-medium">{{ _('Pages to keep') }}</label>
+      <label for="pdf-pages" class="block text-sm font-medium text-ink-muted">{{ _('Pages to keep') }}</label>
       <input id="pdf-pages" type="text" placeholder="1-3,5" maxlength="65536"
-        class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition-colors" />
-      <p class="text-xs text-ink-faint">{{ _("1-based, comma-separated — e.g. 1-3,5 keeps pages 1, 2, 3 and 5.") }}</p>
-      <p id="pdf-pages-warn" class="hidden text-xs text-amber-400 leading-relaxed"></p>
+        class="block w-full bg-surface-sunken border border-hairline rounded-control px-3 py-2.5 text-base sm:text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition-colors" />
+      <p class="text-sm text-ink-faint">{{ _("1-based, comma-separated — e.g. 1-3,5 keeps pages 1, 2, 3 and 5.") }}</p>
+      {{ un.notice(tone='warn', id='pdf-pages-warn', hidden=True) }}
     </div>
     {% endif %}
 
     {% if tool == 'compress' %}
     <div class="space-y-1">
-      <label for="pdf-target-size" class="text-sm text-gray-400 font-medium">{{ _('Target file size') }}</label>
+      <label for="pdf-target-size" class="block text-sm font-medium text-ink-muted">{{ _('Target file size') }}</label>
       <input id="pdf-target-size" type="number" min="0.05" step="0.1" value="2.0"
-        class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-base sm:text-sm text-gray-200 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand" />
-      <p class="text-xs text-ink-faint">{{ _('In MB — only embedded images can be recompressed.') }}</p>
+        class="block w-full bg-surface-sunken border border-hairline rounded-control px-3 py-2.5 text-base sm:text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition-colors" />
+      <p class="text-sm text-ink-faint">{{ _('In MB — only embedded images can be recompressed.') }}</p>
     </div>
     {% endif %}
 
     {% if tool == 'split' %}
-    <p class="text-xs text-ink-faint">{{ _('Returns a ZIP with one PDF per page (page_1.pdf, page_2.pdf, …), capped at 10,000 pages.') }}</p>
+    <p class="text-sm text-ink-faint">{{ _('Returns a ZIP with one PDF per page (page_1.pdf, page_2.pdf, …), capped at 10,000 pages.') }}</p>
     {% endif %}
 
     <div class="space-y-2">
@@ -129,16 +127,14 @@
   </div>
 
   <!-- Result -->
-  <div id="pdf-result" class="hidden space-y-2">
-    <p id="pdf-result-summary" class="text-sm text-emerald-400 text-center">{{ _('Your file is ready to download.') }}</p>
+  <div id="pdf-result" class="hidden space-y-3">
+    {% call un.notice(tone='ok', id='pdf-result-summary') %}{{ _('Your file is ready to download.') }}{% endcall %}
     {# Honesty notice for compress (no images to recompress / target not
-       reached) — pre-styled amber, JS only toggles `hidden`. Never shown
-       for split/extract. #}
-    <p id="pdf-honest-note"
-      class="hidden text-xs text-amber-400 bg-amber-950/40 border border-amber-900/50 rounded-lg px-3 py-2 leading-relaxed"></p>
-    <a id="pdf-download" href="#" download
-      class="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 font-semibold text-white transition-colors text-sm">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+       reached) — pre-styled as a warning, JS only toggles `hidden`. Never
+       shown for split/extract. #}
+    {{ un.notice(tone='warn', id='pdf-honest-note', hidden=True) }}
+    {% call ub.button(href='#', variant='success', id='pdf-download', full_width=True, download=True) %}
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
           d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
       </svg>
@@ -147,25 +143,24 @@
       {% else %}
       <span id="pdf-download-label">{{ _('Download PDF') }}</span>
       {% endif %}
-    </a>
+    {% endcall %}
     {% if tool == 'insert' %}
     {# The result becomes the PDF for the next file (pdf-tools.js). #}
     {{ ub.button(_('Insert something else'), id='pdf-insert-more', variant='secondary', size='sm', full_width=True) }}
     {% endif %}
-    <button id="pdf-restart" class="block mx-auto text-xs text-ink-faint hover:text-white transition-colors">
-      {{ _('Process another file') }}
-    </button>
+    <div class="text-center">
+      {{ ub.button(_('Process another file'), id='pdf-restart', variant='ghost', size='sm') }}
+    </div>
   </div>
 
-  <div id="pdf-error" class="hidden text-center space-y-2">
-    <p id="pdf-error-text" role="alert" class="text-red-400 text-sm text-center bg-red-950 rounded-lg py-3 px-4"></p>
+  <div id="pdf-error" class="hidden space-y-2">
+    {% call un.notice(tone='err', tag='div') %}<p id="pdf-error-text" role="alert"></p>{% endcall %}
     {# Next step (rule: never a dead end) for a PDF over the page cap or
        too large or complex on the split, compress and insert pages: the
        error text names the Extract tool, this makes it one click. Un-hidden
        by pdf-tools.js for pdf_too_many_pages / pdf_too_complex only. #}
     {% if tool in ('split', 'compress', 'insert') %}
-    <a id="pdf-error-extract" href="{{ localized_url('/pdf/extract', current_prefix) }}"
-      class="hidden inline-block text-xs px-3 py-1.5 rounded-lg border border-gray-700 text-gray-200 hover:border-brand hover:text-white transition-colors">{{ _('Extract PDF pages') }} →</a>
+    {{ ub.button(_('Extract PDF pages') ~ ' →', href=localized_url('/pdf/extract', current_prefix), variant='secondary', size='sm', id='pdf-error-extract', hidden=True) }}
     {% endif %}
     {# Quota-error upsell (Upsell-Regeln, docs-internal/ia-navigation-konzept.md):
        only next to a real limit, only when pricing_enabled, free alternative
@@ -173,8 +168,8 @@
        replacement. Un-hidden by pdf-tools.js for input_too_large /
        output_cap_exceeded / target_size_exceeds_cap only. #}
     {% if pricing_enabled %}
-    <a id="pdf-error-upsell" href="{{ localized_url('/pricing', current_prefix) }}"
-      class="hidden inline-block text-xs px-3 py-1.5 rounded-lg border border-gray-700 text-gray-200 hover:border-brand hover:text-white transition-colors">{% if stripe_enabled %}{{ _('See plans and limits →') }}{% else %}{{ _('Costs and limits →') }}{% endif %}</a>
+    {% if stripe_enabled %}{% set upsell_label = _('See plans and limits →') %}{% else %}{% set upsell_label = _('Costs and limits →') %}{% endif %}
+    {{ ub.button(upsell_label, href=localized_url('/pricing', current_prefix), variant='secondary', size='sm', id='pdf-error-upsell', hidden=True) }}
     {% endif %}
   </div>
 

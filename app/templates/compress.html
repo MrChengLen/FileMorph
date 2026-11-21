@@ -1,6 +1,7 @@
 {#- /compress: layouts/tool_page.html with the converter pre-set to Compress
     mode (preset_mode, read by app.js as data-preset-mode on #drop-zone). -#}
 {% extends "layouts/tool_page.html" %}
+{% import "_components/section.html" as us %}
 
 {% block tool %}{% include "partials/convert_tool.html" %}{% endblock %}
 
@@ -8,11 +9,10 @@
 <!-- PDFs? — this tool is image/video only; PDF compression recompresses
      embedded images in the document instead and lives on its own page
      (cannibalization guard: title/meta never mention "pdf"). -->
-<section class="border border-gray-800 rounded-xl px-5 py-4 space-y-2">
-  <h2 class="text-base font-semibold text-white">{{ _('PDFs?') }}</h2>
-  <p class="text-xs text-gray-400 leading-relaxed">
-    {{ _('This tool compresses images and video. To shrink a PDF, use the dedicated PDF compressor instead — it recompresses the images embedded inside the document.') }}
-    <a href="{{ localized_url('/pdf/compress', current_prefix) }}" class="text-brand-light hover:underline">{{ _('Compress a PDF →') }}</a>
-  </p>
-</section>
+{% call us.section(title=_('PDFs?'), divided=True) %}
+<p class="max-w-prose">
+  {{ _('This tool compresses images and video. To shrink a PDF, use the dedicated PDF compressor instead — it recompresses the images embedded inside the document.') }}
+  <a href="{{ localized_url('/pdf/compress', current_prefix) }}" class="text-brand-light underline hover:text-ink-strong">{{ _('Compress a PDF →') }}</a>
+</p>
+{% endcall %}
 {% endblock %}

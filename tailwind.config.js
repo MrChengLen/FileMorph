@@ -20,8 +20,18 @@ module.exports = {
         // tests/test_public_claims.py.
         brand: { DEFAULT: '#6366f1', dark: '#4f46e5', deep: '#4338ca', light: '#818cf8' },
         // Surface tones — replace ad-hoc bg-gray-900 / bg-gray-900/50 / bg-gray-950.
-        // page is the body background, the darkest tone.
-        surface: { DEFAULT: '#0f1115', raised: '#171922', sunken: '#0a0c10', page: '#030712' },
+        // page is the body background, the darkest tone. preview is the mid grey
+        // behind a result thumbnail, so black and white transparent artwork both
+        // stay visible.
+        surface: { DEFAULT: '#0f1115', raised: '#171922', sunken: '#0a0c10', page: '#030712', preview: '#6b7280' },
+        // Status tones of the notice component (_components/notice.html): the
+        // text stays ink, the tone shows as a soft tint behind it and in the icon.
+        tone: {
+          info: '#818cf8', 'info-tint': 'rgba(99, 102, 241, 0.10)',
+          ok: '#34d399', 'ok-tint': 'rgba(16, 185, 129, 0.10)',
+          warn: '#fbbf24', 'warn-tint': 'rgba(245, 158, 11, 0.10)',
+          err: '#f87171', 'err-tint': 'rgba(239, 68, 68, 0.12)',
+        },
         // Ink (text) tones — replace text-white / -gray-100 / -300 / -400 / -500 / -600 sprinkles.
         // strong is the brightest (body default, headings, hover), soft the one
         // below ink. faint is the palest readable text: ≥ 4.5:1 on every dark

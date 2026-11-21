@@ -7,7 +7,8 @@
 
    border  — 'default' (hairline) or 'brand' (2px brand-coloured
              outline, used for "highlighted" pricing tier)
-   padded  — 'md' (24px) or 'lg' (32px)
+   padded  — 'md' (24px) or 'lg' (32px), both 16px on a phone (below
+             640px), so nested boxes don't eat a narrow screen's width
    shadow  — True applies the canonical shadow-card token (used by
              auth-form cards, dashboard cards). Set False for cards
              nested inside another card or on flat compositions.
@@ -26,7 +27,7 @@
 {% macro card(border='default', padded='md', shadow=True, id=None, hidden=False, interactive=False) %}
 <div class="bg-surface-raised rounded-card
             {% if border == 'brand' %}border-2 border-brand{% else %}border border-hairline{% endif %}
-            {% if padded == 'lg' %}p-card-pad-lg{% else %}p-card-pad-md{% endif %}
+            {% if padded == 'lg' %}p-4 sm:p-card-pad-lg{% else %}p-4 sm:p-card-pad-md{% endif %}
             {% if shadow %}shadow-card{% endif %}
             {% if interactive %}relative hover:border-brand transition-colors{% endif %}
             {% if hidden %}hidden{% endif %}"

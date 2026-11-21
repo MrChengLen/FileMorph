@@ -151,7 +151,8 @@ def test_card_default_uses_hairline_border(env: Environment) -> None:
     classes = div["class"]
     assert "rounded-card" in classes
     assert "border-hairline" in classes
-    assert "p-card-pad-md" in classes
+    # 16 px on a phone, so nested boxes don't eat a narrow screen; the token from 640 px.
+    assert {"p-4", "sm:p-card-pad-md"} <= set(classes)
 
 
 def test_card_brand_border_uses_brand_color(env: Environment) -> None:
@@ -173,7 +174,7 @@ def test_card_padded_lg_uses_large_padding(env: Environment) -> None:
         "{% call card.card(padded='lg') %}body{% endcall %}",
     )
     div = soup.find("div", attrs={"data-component": "card"})
-    assert "p-card-pad-lg" in div["class"]
+    assert {"p-4", "sm:p-card-pad-lg"} <= set(div["class"])
 
 
 def test_card_default_has_shadow_token(env: Environment) -> None:
@@ -401,3 +402,183 @@ def test_text_input_value_pre_filled(env: Environment) -> None:
     )
     inp = soup.find("input")
     assert inp["value"] == "alice@example.com"
+
+
+# ── tool-card components (UI frame package 2) ──────────────────────────────────
+
+
+def test_notice_carries_its_tone_and_every_tone_style(env: Environment) -> None:
+    soup = _render(
+        env,
+        '{% import "_components/notice.html" as n %}'
+        "{% call n.notice(tone='warn', id='w') %}Careful{% endcall %}",
+    )
+    p = soup.find("p", attrs={"data-component": "notice"})
+    assert p["id"] == "w" and p["data-tone"] == "warn"
+    assert p.get_text(strip=True) == "Careful"
+    classes = set(p["class"])
+    # Every tone's tint is present, so a script can switch data-tone later.
+    for tone in ("info", "ok", "warn", "err"):
+        assert f"data-[tone={tone}]:bg-tone-{tone}-tint" in classes
+    assert {"rounded-control", "text-sm", "text-ink"} <= classes
+
+
+def test_notice_hides_by_class_or_by_attribute(env: Environment) -> None:
+    soup = _render(
+        env,
+        '{% import "_components/notice.html" as n %}'
+        "{{ n.notice(id='a', hidden=True) }}"
+        "{{ n.notice(id='b', role='status', hidden_attr=True) }}",
+    )
+    a, b = soup.find(id="a"), soup.find(id="b")
+    assert "hidden" in a["class"] and not a.has_attr("hidden")
+    assert b.has_attr("hidden") and "hidden" not in b["class"] and b["role"] == "status"
+
+
+def test_notice_as_div_wraps_an_alert(env: Environment) -> None:
+    soup = _render(
+        env,
+        '{% import "_components/notice.html" as n %}'
+        "{% call n.notice(tone='err', tag='div') %}<p id='t' role='alert'></p>{% endcall %}",
+    )
+    box = soup.find("div", attrs={"data-component": "notice"})
+    assert box["data-tone"] == "err" and box.find(id="t")["role"] == "alert"
+
+
+def test_dropzone_is_one_keyboard_button_with_a_drag_state(env: Environment) -> None:
+    soup = _render(
+        env,
+        '{% import "_components/dropzone.html" as d %}'
+        "{% call d.dropzone('dz', 'Drop here', attrs={'data-preset-source': 'jpg'}) %}"
+        '<input type="file" class="hidden">{% endcall %}',
+    )
+    dz = soup.find(id="dz")
+    assert dz["data-component"] == "dropzone" and dz["role"] == "button"
+    assert dz["tabindex"] == "0" and dz["aria-label"] == "Drop here"
+    assert dz["data-preset-source"] == "jpg"
+    # The script only sets data-dragging; the field styles itself from it.
+    assert {"data-[dragging]:border-brand", "rounded-control", "border-dashed"} <= set(dz["class"])
+
+
+def test_segmented_state_lives_in_aria_pressed(env: Environment) -> None:
+    soup = _render(
+        env,
+        '{% import "_components/segmented.html" as s %}'
+        "{{ s.segmented([{'id': 'a', 'label': 'A', 'pressed': True},"
+        " {'id': 'b', 'label': 'B', 'pressed': False, 'data': {'data-mode': 'b'}}], label_id='lbl') }}",
+    )
+    group = soup.find(attrs={"data-component": "segmented"})
+    assert group["role"] == "group" and group["aria-labelledby"] == "lbl"
+    a, b = soup.find(id="a"), soup.find(id="b")
+    assert a["type"] == "button" and a["aria-pressed"] == "true"
+    assert b["aria-pressed"] == "false" and b["data-mode"] == "b"
+    # The pressed look comes from the attribute alone: one class list for both.
+    assert a["class"] == b["class"]
+    assert {"aria-pressed:bg-brand-dark", "min-h-11"} <= set(a["class"])
+    # White focus ring: a brand ring vanished on the brand-filled pressed button.
+    assert "focus-visible:ring-ink-strong" in a["class"]
+
+
+def test_notice_element_is_only_p_or_div(env: Environment) -> None:
+    # The element name is not autoescaped, so the macro allows only p and div.
+    soup = _render(
+        env,
+        '{% import "_components/notice.html" as n %}'
+        "{{ n.notice(id='x', tag='img src=x onerror=alert(1)') }}",
+    )
+    assert soup.find("img") is None and soup.find(id="x").name == "p"
+
+
+def test_extra_attributes_are_data_attributes_only(env: Environment) -> None:
+    soup = _render(
+        env,
+        '{% import "_components/dropzone.html" as d %}'
+        '{% import "_components/segmented.html" as s %}'
+        "{% call d.dropzone('z', 'Z', attrs={'data-ok': '1', 'onclick': 'x()'}) %}{% endcall %}"
+        "{{ s.segmented([{'id': 'b', 'label': 'B', 'pressed': False,"
+        " 'data': {'data-mode': 'm', 'onfocus': 'x()'}}]) }}",
+    )
+    zone, button = soup.find(id="z"), soup.find(id="b")
+    assert zone["data-ok"] == "1" and not zone.has_attr("onclick")
+    assert button["data-mode"] == "m" and not button.has_attr("onfocus")
+
+
+def test_segmented_without_a_label_is_no_group(env: Environment) -> None:
+    soup = _render(
+        env,
+        '{% import "_components/segmented.html" as s %}'
+        "{{ s.segmented([{'id': 'a', 'label': 'A', 'pressed': True}], id='m') }}",
+    )
+    group = soup.find(id="m")
+    assert group["data-component"] == "segmented" and not group.has_attr("role")
+
+
+def test_dropzone_compact_names_its_step(env: Environment) -> None:
+    soup = _render(
+        env,
+        '{% import "_components/dropzone.html" as d %}'
+        "{% call d.dropzone('z2', 'Second', describedby='step-2', compact=True) %}x{% endcall %}",
+    )
+    zone = soup.find(id="z2")
+    assert zone["aria-describedby"] == "step-2"
+    assert "p-4" in zone["class"] and "sm:p-card-pad-md" not in zone["class"]
+
+
+def test_chip_with_its_own_body(env: Environment) -> None:
+    soup = _render(
+        env,
+        '{% import "_components/chip.html" as c %}'
+        "{% call c.chip('/t', block=True) %}<svg></svg>Tool{% endcall %}",
+    )
+    a = soup.find("a", attrs={"data-component": "chip"})
+    assert a.find("svg") is not None and a.get_text() == "Tool"
+    assert {"flex", "h-full"} <= set(a["class"]) and "text-ink" in a["class"]
+
+
+def test_chip_is_a_44px_link(env: Environment) -> None:
+    soup = _render(
+        env,
+        '{% import "_components/chip.html" as c %}'
+        "{{ c.chip('/x', 'X', accent=True, external=True) }}",
+    )
+    a = soup.find("a", attrs={"data-component": "chip"})
+    assert a["href"] == "/x" and a.get_text() == "X"
+    assert {"min-h-11", "rounded-control", "text-brand-light"} <= set(a["class"])
+    assert a["target"] == "_blank" and a["rel"] == ["noopener"]
+
+
+def test_button_success_download_link_with_its_own_body(env: Environment) -> None:
+    soup = _render(
+        env,
+        '{% import "_components/button.html" as b %}'
+        "{% call b.button(href='#', variant='success', id='dl', download=True) %}"
+        "<span id='lbl'>Get</span>{% endcall %}",
+    )
+    a = soup.find(id="dl")
+    assert a.name == "a" and a.has_attr("download")
+    assert {"bg-emerald-700", "hover:bg-emerald-800"} <= set(a["class"])
+    assert a.find(id="lbl").get_text() == "Get"
+
+
+def test_button_hidden_and_the_look_of_a_script_disabled_button(env: Environment) -> None:
+    soup = _render(
+        env,
+        '{% import "_components/button.html" as b %}{{ b.button("Go", id="go", hidden=True) }}',
+    )
+    btn = soup.find(id="go")
+    assert "hidden" in btn["class"]
+    # A script that sets el.disabled gets the muted look without a class change.
+    assert {"disabled:bg-surface-sunken", "disabled:cursor-not-allowed"} <= set(btn["class"])
+
+
+def test_section_divided_has_a_rule_instead_of_a_box(env: Environment) -> None:
+    soup = _render(
+        env,
+        '{% import "_components/section.html" as s %}'
+        "{% call s.section(title='T', divided=True) %}<p>x</p>{% endcall %}",
+    )
+    sec = soup.find("section", attrs={"data-component": "section"})
+    classes = set(sec["class"])
+    assert {"border-t", "border-hairline", "text-base"} <= classes
+    assert not classes & {"rounded-card", "bg-surface-raised"}
+    assert sec.find("h2").get_text() == "T"

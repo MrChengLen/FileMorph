@@ -53,20 +53,51 @@ _RAW_RADIUS = re.compile(
 )
 _ARBITRARY_TEXT = re.compile(r"(?<![\w-])(?:[a-z0-9]+:)*text-\[[^\]]+\]")
 
-# Templates on the design tokens: the page shell, the component macros and
-# the cookie bar. Add a template here once it is moved onto the tokens.
+# Templates on the design tokens: the page shell, the component macros, the
+# cookie bar and the tool pages (the shared tool layout, the three tool cards
+# and what they include). Add a template here once it is moved onto the tokens.
 TOKEN_FILES = [
     "base.html",
     "partials/cookie_notice.html",
+    "layouts/tool_page.html",
+    "compress.html",
+    "convert_pair.html",
+    "pdf_tool.html",
+    "video_to_gif.html",
+    "video_to_mp3.html",
+    "redact.html",
+    "device_check.html",
+    "partials/convert_tool.html",
+    "partials/pdf_tool.html",
+    "partials/redact_tool.html",
+    "partials/quick_actions.html",
+    "partials/breadcrumb.html",
+    "partials/location_hint.html",
     *sorted(
         p.relative_to(TEMPLATES).as_posix() for p in (TEMPLATES / "_components").glob("*.html")
     ),
 ]
 
+# The scripts that build or restyle the tool cards' markup follow the same
+# rules for the classes they set (app.js: file rows, batch summary; the PDF and
+# redact scripts: drag state, findings rows).
+SCRIPTS = TEMPLATES.parent / "static" / "js"
+TOKEN_SCRIPTS = ["app.js", "pdf-tools.js", "redact.js"]
+_JS_COMMENTS = re.compile(r"/\*.*?\*/|//[^\n]*", re.DOTALL)
+
 
 def _code(path: Path) -> str:
     """The template without its Jinja and HTML comments (they may mention <main>)."""
     return _COMMENTS.sub("", path.read_text(encoding="utf-8"))
+
+
+def _token_violations(code: str) -> dict[str, list[str]]:
+    found = {
+        "raw gray (use ink-*, surface-*, hairline-*)": _RAW_GRAY.findall(code),
+        "raw radius (use rounded-card / rounded-control / rounded-pill)": _RAW_RADIUS.findall(code),
+        "arbitrary text size (use the type scale)": _ARBITRARY_TEXT.findall(code),
+    }
+    return {rule: hits for rule, hits in found.items() if hits}
 
 
 def _pages() -> list[Path]:
@@ -102,14 +133,41 @@ def test_no_page_is_sized_to_the_screen_height():
 
 @pytest.mark.parametrize("name", TOKEN_FILES)
 def test_token_files_use_only_design_tokens(name):
-    code = _code(TEMPLATES / name)
-    found = {
-        "raw gray (use ink-*, surface-*, hairline-*)": _RAW_GRAY.findall(code),
-        "raw radius (use rounded-card / rounded-control / rounded-pill)": _RAW_RADIUS.findall(code),
-        "arbitrary text size (use the type scale)": _ARBITRARY_TEXT.findall(code),
-    }
-    found = {rule: hits for rule, hits in found.items() if hits}
+    found = _token_violations(_code(TEMPLATES / name))
     assert not found, f"{name}: {found}"
+
+
+@pytest.mark.parametrize("name", TOKEN_SCRIPTS)
+def test_tool_scripts_set_only_design_tokens(name):
+    found = _token_violations(_JS_COMMENTS.sub("", (SCRIPTS / name).read_text(encoding="utf-8")))
+    assert not found, f"{name}: {found}"
+
+
+@pytest.mark.parametrize("name", TOKEN_SCRIPTS)
+def test_tool_scripts_never_open_a_browser_dialog(name):
+    """Missing input is said in the tool's own error box (role="alert"), not in
+    alert()/confirm(): one place for every message, the way the PDF tools did."""
+    code = _JS_COMMENTS.sub("", (SCRIPTS / name).read_text(encoding="utf-8"))
+    assert not re.search(r"(?<![\w.])(?:window\.)?(?:alert|confirm)\(", code), name
+
+
+def test_every_tone_a_script_sets_exists_in_the_notice():
+    """app.js sets data-tone on the batch summary; each value needs its styles
+    in _components/notice.html, or the box would lose its tint."""
+    js = _JS_COMMENTS.sub("", (SCRIPTS / "app.js").read_text(encoding="utf-8"))
+    tones = set()
+    for line in re.findall(r"dataset\.tone\s*=([^;]*);", js):
+        tones |= set(re.findall(r"'(\w+)'", line))
+    assert tones, "app.js no longer sets a notice tone"
+    notice = (TEMPLATES / "_components" / "notice.html").read_text(encoding="utf-8")
+    missing = [t for t in sorted(tones) if f"data-[tone={t}]:bg-tone-{t}-tint" not in notice]
+    assert not missing, f"tones without notice styles: {missing}"
+
+
+def test_js_comments_are_not_mistaken_for_classes():
+    code = "/* was bg-gray-800 */ el.className = 'bg-surface-sunken'; // not rounded-lg\n"
+    assert not _token_violations(_JS_COMMENTS.sub("", code))
+    assert _token_violations(_JS_COMMENTS.sub("", "el.className = 'rounded text-gray-200';"))
 
 
 @pytest.mark.parametrize(

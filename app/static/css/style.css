@@ -18,20 +18,11 @@
   box-sizing: border-box;
 }
 
-/* Smooth drag-over highlight */
-#drop-zone.drag-over {
-  border-color: #6366f1;
-  background-color: rgba(99, 102, 241, 0.05);
-}
-
-/* Range input styling for Firefox */
+/* Range input: a 24 px target (WCAG 2.2 SC 2.5.8), also in Firefox. The drag
+   highlight of the drop fields lives in _components/dropzone.html. */
 input[type="range"] {
   cursor: pointer;
-  height: 20px;
-}
-
-#drop-zone {
-  touch-action: manipulation;
+  height: 24px;
 }
 
 /* Scrollbar */

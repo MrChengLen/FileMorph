@@ -10,33 +10,33 @@
    free path before any upsell); it stays in the footer and on /tools when
    ai_operations_enabled is set. #}
 {% import "_components/icon.html" as icons %}
+{% import "_components/chip.html" as uchip %}
 {% import "partials/tool_sections.html" as ts with context %}
 <nav id="quick-actions" aria-labelledby="quick-actions-label" class="space-y-3">
   <div class="flex items-center gap-3">
-    <span id="quick-actions-label" class="text-xs font-semibold uppercase tracking-wider text-gray-400">
+    <span id="quick-actions-label" class="text-eyebrow uppercase text-ink-faint">
       {{ _('Or choose directly') }}
     </span>
-    <span class="flex-1 h-px bg-gray-800" aria-hidden="true"></span>
+    <span class="flex-1 h-px bg-hairline" aria-hidden="true"></span>
   </div>
   {# One group per /tools section; the group's name labels its list. #}
   {% for family, actions in quick_action_groups %}
   <div class="space-y-2">
-    <p id="quick-actions-{{ family }}" class="text-xs font-medium text-gray-400">{{ ts.section_name(family) }}</p>
+    <p id="quick-actions-{{ family }}" class="text-sm font-medium text-ink-muted">{{ ts.section_name(family) }}</p>
     <ul aria-labelledby="quick-actions-{{ family }}" class="grid grid-cols-2 sm:grid-cols-3 gap-2">
       {% for action in actions %}
       <li>
-        <a href="{{ localized_url(action.path, current_prefix) }}"
-          class="flex h-full items-center gap-2 min-h-11 px-3 py-2 rounded-lg border border-gray-700 bg-gray-900 text-sm font-medium text-gray-200 hover:border-brand hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+        {% call uchip.chip(localized_url(action.path, current_prefix), block=True) %}
           {{ icons.icon(action.icon) }}
           {{ action.label }}
-        </a>
+        {% endcall %}
       </li>
       {% endfor %}
     </ul>
   </div>
   {% endfor %}
   <p class="flex flex-wrap gap-x-6 gap-y-2">
-    <a href="{{ localized_url('/tools', current_prefix) }}" class="rounded text-sm font-semibold text-brand-light hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">{{ _('All tools →') }}</a>
-    <a href="{{ localized_url('/formats', current_prefix) }}" class="rounded text-sm font-semibold text-brand-light hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">{{ _('All formats →') }}</a>
+    <a href="{{ localized_url('/tools', current_prefix) }}" class="rounded-control text-sm font-semibold text-brand-light hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">{{ _('All tools →') }}</a>
+    <a href="{{ localized_url('/formats', current_prefix) }}" class="rounded-control text-sm font-semibold text-brand-light hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">{{ _('All formats →') }}</a>
   </p>
 </nav>
