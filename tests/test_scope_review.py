@@ -3,8 +3,9 @@
 
 Pins the rule semantics so that a pattern regression (or the rule list
 silently drifting) trips CI rather than disappearing into a dev's local
-hook output. Doesn't drive the actual git-diff parser — that's covered
-implicitly by ``_staged_added_lines`` running against real diffs in CI.
+hook output. The git-diff parser gets one check against a canned diff in the
+encoding test below: nothing in CI runs it on a real diff (only the local
+pre-commit hook does, with ``|| true``).
 """
 
 from __future__ import annotations
@@ -150,32 +151,9 @@ def test_staged_added_lines_decodes_git_output_as_utf8(monkeypatch):
         return _FakeProc()
 
     monkeypatch.setattr(_subprocess, "run", fake_run)
-    # Drive the function through one call.
-    scope_review._staged_added_lines()
+    # One added line, attributed to its file; the "+++" header is no line.
+    assert scope_review._staged_added_lines() == [("x.py", 1, "x = 1")]
 
     assert captured["kwargs"].get("encoding") == "utf-8"
     assert captured["kwargs"].get("errors") == "replace"
     assert captured["kwargs"].get("text") is True
-
-
-def test_staged_added_lines_parses_utf8_em_dash_without_crashing(monkeypatch):
-    """End-to-end: a diff with an em-dash must parse to a single '+' line
-    rather than raising. Today's regression manifested as ``stdout=None``
-    after a UnicodeDecodeError on byte 0x8f; the fix returns parsed lines
-    even when git emits multi-byte UTF-8."""
-    import subprocess as _subprocess
-
-    class _FakeProc:
-        returncode = 0
-        # The trailing line is the real diff-add — note the em-dash.
-        stdout = "+++ b/docs/x.md\n@@ -0,0 +1 @@\n+title — subtitle\n"
-
-    def fake_run(*args, **kwargs):
-        return _FakeProc()
-
-    monkeypatch.setattr(_subprocess, "run", fake_run)
-    lines = scope_review._staged_added_lines()
-    assert len(lines) == 1
-    file, _, content = lines[0]
-    assert file == "docs/x.md"
-    assert "—" in content

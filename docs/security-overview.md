@@ -559,8 +559,11 @@ itself. Highlights of `default`:
 ### CORS
 
 `CORS_ORIGINS` is an allow-list, never `*` when credentials are
-sent. The default in `.env.example` is `http://localhost:8000` —
-self-hosters set the actual production origin(s) explicitly.
+sent: a `*` in the list, alone or next to other origins, turns
+credentials off, and so does `null` (the origin of every sandboxed
+iframe and `data:`/`file:` page). The default in `.env.example` is
+`http://localhost:8000` — self-hosters set the actual production
+origin(s) explicitly.
 
 `expose_headers=["Content-Disposition"]` is set on the
 `CORSMiddleware` so cross-origin client code can read the

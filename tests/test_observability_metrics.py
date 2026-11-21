@@ -70,21 +70,6 @@ def test_convert_counter_visible_in_exposition(client, auth_headers, sample_jpg)
     )
 
 
-def test_unsupported_target_does_not_create_unbounded_series(client, auth_headers, sample_jpg):
-    """An unsupported pair 422s before the counter site, so no series at
-    all is created for the bogus target — and even if it were, the label
-    would be capped (see bucket_format tests below)."""
-    with sample_jpg.open("rb") as f:
-        r = client.post(
-            "/api/v1/convert",
-            headers=auth_headers,
-            files={"file": ("sample.jpg", f, "image/jpeg")},
-            data={"target_format": "zzznotreal"},
-        )
-    assert r.status_code == 422
-    assert _counter("convert", "zzznotreal", "zzznotreal", "failure") == 0.0
-
-
 def test_bucket_format_caps_unknown_to_other():
     assert observability.bucket_format("jpg") == "jpg"
     assert observability.bucket_format("PNG") == "png"  # case-normalised

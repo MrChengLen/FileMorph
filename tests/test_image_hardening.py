@@ -66,11 +66,15 @@ def test_hardening_module_filters_warning_to_error(monkeypatch):
     from app.core import image_hardening
 
     image_hardening.apply_hardening()
-    monkeypatch.setattr(Image, "MAX_IMAGE_PIXELS", 100)
+    # 1,600 px against a limit of 1,000: over the limit but under twice it.
+    # Above twice the limit Pillow raises DecompressionBombError by itself,
+    # so only this band shows the filter at work — without it Pillow would
+    # merely warn and open the image.
+    monkeypatch.setattr(Image, "MAX_IMAGE_PIXELS", 1_000)
     buf = io.BytesIO()
     Image.new("RGB", (40, 40)).save(buf, format="PNG")
     buf.seek(0)
-    with pytest.raises(Image.DecompressionBombError):
+    with pytest.raises(Image.DecompressionBombWarning):
         Image.open(buf).load()
 
 

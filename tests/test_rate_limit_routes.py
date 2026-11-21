@@ -234,15 +234,18 @@ _WRONG_KEY_HEADERS = {"X-API-Key": "definitely-not-a-real-key"}
 
 
 def _assert_not_lockout_429(res) -> None:
-    """A 429 here would have to come from /convert's OWN 10/minute limit,
-    never the failed-API-key lockout — the two are distinguishable by body
-    shape: slowapi's own handler answers {"error": ...}, the lockout in
-    app/core/rate_limit.py answers {"detail": ...}."""
+    """The request gets through: a 200, or at worst a 429 from /convert's OWN
+    10/minute limit — never the failed-API-key lockout, and never a 401 or
+    500 either. The two 429s are distinguishable by body shape: slowapi's own
+    handler answers {"error": ...}, the lockout in app/core/rate_limit.py
+    answers {"detail": ...}."""
     if res.status_code == 429:
         body = res.json()
         assert "error" in body and "detail" not in body, (
             f"expected the route's own limiter here, not the failed-key lockout: {body}"
         )
+    else:
+        assert res.status_code == 200, res.text
 
 
 # ══ 1. Per-route N+1 boundaries ═══════════════════════════════════════════════
@@ -502,14 +505,18 @@ def test_slowapi_warning_never_logs_the_client_identifier(client, rate_limiter_e
     """
     caplog.set_level(logging.WARNING)
 
-    for _ in range(31):
-        client.get("/api/v1/health")
+    codes = [client.get("/api/v1/health").status_code for _ in range(31)]
+    # Only a limit that really trips can show the log line is silenced.
+    assert codes[-1] == 429, codes
 
     user = asyncio.run(_insert_user(email=f"rl-logtest-{uuid4().hex}@example.com"))
     headers = _bearer_headers(user)
     n = N_PER_ROUTE["create_key"]
-    for i in range(n + 1):
-        client.post("/api/v1/keys", json={"label": f"log-{i}"}, headers=headers)
+    codes = [
+        client.post("/api/v1/keys", json={"label": f"log-{i}"}, headers=headers).status_code
+        for i in range(n + 1)
+    ]
+    assert codes[-1] == 429, codes
 
     slowapi_records = [r for r in caplog.records if r.name == "slowapi"]
     assert not any(r.levelno < logging.ERROR for r in slowapi_records), (

@@ -200,6 +200,8 @@ def test_payment_failed_sets_past_due_and_sends_dunning_email(_mock_send_email):
     assert "payment failed" in kwargs["subject"].lower()
     # render_email returns (subject, html, text) — the body carries the plan + email
     assert "Pro" in kwargs["html"] and "dun1@example.com" in kwargs["html"]
+    # Stripe retries: the mail says so (the counterpart of the no-retry test).
+    assert "Stripe will retry" in kwargs["text"]
     assert len(_events_by_type("billing.subscription.payment_failed")) == 1
     assert len(_events_by_type("billing.dunning_email_sent")) == 1
 
@@ -261,6 +263,9 @@ def test_payment_failed_email_omits_date_when_stripe_gives_up(_mock_send_email):
             tier=TierEnum.business,
             customer_id="cus_dun3",
             status="active",
+            # English, so the sentence checked below could appear at all
+            # (without a language the mail is German).
+            preferred_lang="en",
         )
     )
     _run_payment_failed(_invoice_obj("cus_dun3", next_attempt=None))

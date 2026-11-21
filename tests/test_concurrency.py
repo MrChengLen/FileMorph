@@ -15,17 +15,18 @@ Pins four properties:
    downgrade applies on the next request, not after a restart.
 
 These run against the raw helper rather than the route so failures
-point at the right module. A separate route-level smoke test in
-``tests/test_concurrency_route_smoke.py`` would exercise the
-HTTP-level wiring; for now the integration is covered by the
-existing convert/compress tests passing under the new wrapper.
+point at the right module. One route-level test at the end checks the
+wiring: every upload route takes its slot through ``acquire_slot``.
 """
 
 from __future__ import annotations
 
 import asyncio
+import io
 
 import pytest
+from PIL import Image
+from pypdf import PdfWriter
 
 from app.core import concurrency as concurrency_module
 from app.core.concurrency import ConcurrencyExhausted, acquire_slot
@@ -262,3 +263,60 @@ async def test_request_spanning_tier_change_releases_its_own_slot(monkeypatch):
     await _assert_per_actor_full("user:42", "pro")
     rel.set()
     await asyncio.gather(*holders)
+
+
+# ── Route wiring ──────────────────────────────────────────────────────────────
+
+
+def _png() -> tuple[str, io.BytesIO, str]:
+    buf = io.BytesIO()
+    Image.new("RGB", (1, 1), color="red").save(buf, format="PNG")
+    buf.seek(0)
+    return ("a.png", buf, "image/png")
+
+
+def _pdf() -> tuple[str, io.BytesIO, str]:
+    writer = PdfWriter()
+    writer.add_blank_page(width=72, height=72)
+    buf = io.BytesIO()
+    writer.write(buf)
+    buf.seek(0)
+    return ("a.pdf", buf, "application/pdf")
+
+
+# The eight file routes that hold a slot while they work. The two AI routes
+# take one too, but answer 503 before it while AI operations are off (the
+# default); test_ai_route.py covers them.
+_SLOT_ROUTES = [
+    pytest.param("/api/v1/convert", {"file": _png}, {"target_format": "jpg"}, id="convert"),
+    pytest.param(
+        "/api/v1/convert/batch", {"files": _png}, {"target_formats": "jpg"}, id="convert-batch"
+    ),
+    pytest.param("/api/v1/compress", {"file": _png}, {"quality": "85"}, id="compress"),
+    pytest.param("/api/v1/compress/batch", {"files": _png}, {"quality": "85"}, id="compress-batch"),
+    pytest.param("/api/v1/pdf/extract", {"file": _pdf}, {"pages": "1"}, id="pdf-extract"),
+    pytest.param("/api/v1/pdf/split", {"file": _pdf}, {}, id="pdf-split"),
+    pytest.param("/api/v1/pdf/compress", {"file": _pdf}, {"target_kb": "100"}, id="pdf-compress"),
+    pytest.param("/api/v1/pdf/insert", {"file": _pdf, "insert_file": _pdf}, {}, id="pdf-insert"),
+]
+
+
+@pytest.mark.parametrize(("endpoint", "uploads", "data"), _SLOT_ROUTES)
+def test_every_file_route_answers_503_when_no_slot_is_free(
+    client, auth_headers, monkeypatch, endpoint, uploads, data
+):
+    """With the pool full the request is refused at once, 503 + Retry-After,
+    instead of queueing without limit. A pool of 0 is full from the start;
+    the autouse fixture keeps the wait at 0.05 s."""
+    monkeypatch.setattr(settings, "max_global_concurrency", 0)
+    concurrency_module._reset_for_tests()
+    res = client.post(
+        endpoint,
+        headers=auth_headers,
+        files=[(field, build()) for field, build in uploads.items()],
+        data=data,
+    )
+    assert res.status_code == 503, res.text
+    # The capacity guard's 503, not another one (e.g. "AI operations off").
+    assert res.headers["X-FileMorph-Error-Code"] == "server_busy"
+    assert res.headers["Retry-After"] == "1"

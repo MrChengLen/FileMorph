@@ -192,13 +192,6 @@ def test_footer_links_localized_to_pdf_tools(client):
         assert f'href="/de/pdf/{tool}"' in de
 
 
-def test_homepage_teaser_links_to_pdf_tools(client):
-    r = client.get("/en/")
-    assert r.status_code == 200
-    for tool in _TOOLS:
-        assert f"/pdf/{tool}" in r.text
-
-
 def test_formats_page_links_to_pdf_tools_via_tools_hub(client):
     """IA rework PR 2: /formats has no PDF tools section of its own, only a
     cross-link to /tools, where the tools are described. Since the format

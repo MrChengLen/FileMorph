@@ -158,9 +158,13 @@ def test_enforce_cost_pushing_over_raises_402():
     assert "tier 'pro'" in exc_info.value.detail
 
 
-def test_enforce_exactly_at_limit_raises_402():
+def test_enforce_allows_spending_up_to_exactly_the_limit():
+    # The boundary the 201-credit case above can't show: reaching the limit
+    # exactly is allowed, one credit past it is not.
     user = asyncio.run(_make_user(email="at@example.com", tier=TierEnum.pro))
-    asyncio.run(_seed_credits(user.id, 1, 200))  # 200 used
+    asyncio.run(_seed_credits(user.id, 1, 199))  # 199 used
+    asyncio.run(enforce_ai_credit_quota(user, 1))  # 199 + 1 = 200 → no raise
+    asyncio.run(_seed_credits(user.id, 1, 1))  # 200 used
     with pytest.raises(HTTPException) as exc_info:
         asyncio.run(enforce_ai_credit_quota(user, 1))  # 201 > 200
     assert exc_info.value.status_code == 402

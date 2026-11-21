@@ -40,7 +40,7 @@ import sys
 from pathlib import Path
 
 import pytest
-from pypdf import PdfReader
+from pypdf import PdfReader, PdfWriter
 
 from app.converters import pdf_pages
 from app.converters.base import (
@@ -254,6 +254,32 @@ def test_route_answers_pdf_encryption_unsupported_without_a_logged_traceback(
         r = _post(client, auth_headers, path, form, data)
     assert r.status_code == 400, r.text
     assert r.headers.get("X-FileMorph-Error-Code") == _CODE
+    assert r.json()["detail"] == _UNSUPPORTED
+    assert [rec.getMessage() for rec in caplog.records if rec.exc_info] == []
+
+
+@pytest.mark.parametrize("data", _SHARED)
+@pytest.mark.parametrize("field", ["file", "insert_file"])
+def test_insert_names_the_unsupported_encryption_and_the_field(
+    client, auth_headers, caplog, field, data
+):
+    """/pdf/insert opens two PDFs: either one with an encryption pypdf can't
+    open gets the same 400 as the other PDF routes, and the field says which."""
+    writer = PdfWriter()
+    writer.add_blank_page(width=72, height=72)
+    plain = io.BytesIO()
+    writer.write(plain)
+    files = {"file": plain.getvalue(), "insert_file": plain.getvalue()}
+    files[field] = data
+    with caplog.at_level(logging.INFO):
+        r = client.post(
+            "/api/v1/pdf/insert",
+            headers=auth_headers,
+            files={name: (f"{name}.pdf", pdf, _PDF_MIME) for name, pdf in files.items()},
+        )
+    assert r.status_code == 400, r.text
+    assert r.headers.get("X-FileMorph-Error-Code") == _CODE
+    assert r.headers.get("X-FileMorph-Error-Field") == field
     assert r.json()["detail"] == _UNSUPPORTED
     assert [rec.getMessage() for rec in caplog.records if rec.exc_info] == []
 

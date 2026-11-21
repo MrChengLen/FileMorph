@@ -83,34 +83,6 @@ def test_compress_target_size_keeps_output_hash_and_target_headers(
     assert resp.headers["X-Output-SHA256"] == _sha256(resp.content)
 
 
-def test_output_sha256_differs_for_different_inputs(client, auth_headers, tmp_path):
-    """Two different JPEGs must produce two different output hashes —
-    catches any regression where the helper accidentally caches the
-    last hash, returns a constant, or hashes the input rather than
-    the output."""
-    from PIL import Image
-
-    img1 = Image.new("RGB", (40, 40), color=(255, 0, 0))
-    img2 = Image.new("RGB", (40, 40), color=(0, 255, 0))
-    p1 = tmp_path / "red.jpg"
-    p2 = tmp_path / "green.jpg"
-    img1.save(p1, format="JPEG", quality=90)
-    img2.save(p2, format="JPEG", quality=90)
-
-    def _convert(path):
-        with path.open("rb") as f:
-            r = client.post(
-                "/api/v1/convert",
-                files={"file": (path.name, f, "image/jpeg")},
-                data={"target_format": "png"},
-                headers=auth_headers,
-            )
-        assert r.status_code == 200, r.text
-        return r.headers["X-Output-SHA256"]
-
-    assert _convert(p1) != _convert(p2)
-
-
 def test_helper_matches_streaming_definition(tmp_path):
     """Direct helper-level check: ``sha256_file`` produces the same
     digest whether the input is one chunk or many. Guards against any

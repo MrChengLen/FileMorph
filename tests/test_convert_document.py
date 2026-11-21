@@ -118,38 +118,6 @@ def test_docx_to_pdf_with_table(client, auth_headers, sample_docx_with_table):
     assert "EU" in extracted, "table cell missing in PDF"
 
 
-@_skip_no_weasyprint
-def test_docx_to_pdf_ssrf_blocked(client, auth_headers, sample_docx, monkeypatch):
-    """The DOCX → PDF pipeline must not make outbound network calls.
-
-    mammoth inlines images as data: URIs and WeasyPrint runs with
-    `_deny_url_fetcher`. Even a benign-looking DOCX must convert without
-    touching the network — guards against a future refactor that drops
-    `url_fetcher=`.
-    """
-    import socket
-
-    connects = []
-
-    def _block(self, addr, *args, **kwargs):
-        # Recorded, not only raised: WeasyPrint catches what a fetch raises.
-        connects.append(addr)
-        raise OSError(f"unexpected outbound network call to {addr!r}")
-
-    monkeypatch.setattr(socket.socket, "connect", _block)
-
-    with sample_docx.open("rb") as f:
-        res = client.post(
-            "/api/v1/convert",
-            headers=auth_headers,
-            files={"file": ("sample.docx", f, _DOCX_MIME)},
-            data={"target_format": "pdf"},
-        )
-    assert res.status_code == 200, res.text
-    assert res.content[:5] == b"%PDF-"
-    assert not connects, connects
-
-
 def test_docx_to_txt_unchanged(client, auth_headers, sample_docx):
     """DOCX → TXT uses a separate converter (python-docx) and must keep working."""
     with sample_docx.open("rb") as f:

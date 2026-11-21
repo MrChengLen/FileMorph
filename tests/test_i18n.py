@@ -467,3 +467,24 @@ def test_german_catalog_translates_every_message():
         catalog = read_po(f)
     untranslated = [m.id for m in catalog if m.id and (not m.string or m.fuzzy)]
     assert not untranslated, f"German catalog: empty or fuzzy entries {untranslated[:5]}"
+
+
+@pytest.mark.parametrize("locale", SUPPORTED_LOCALES)
+def test_every_extracted_message_is_in_the_catalog(locale):
+    """Every message the code and templates use (messages.pot) has an entry in
+    the language's .po. One that was extracted but never merged into the .po
+    passes the test above (it walks only the .po) and the drift-check (it
+    compares only the .pot) — and shows in English on /de/."""
+    from pathlib import Path
+
+    from babel.messages.pofile import read_po
+
+    root = Path(__file__).resolve().parents[1] / "locale"
+
+    def _keys(path: Path) -> set:
+        with path.open("rb") as f:
+            return {(m.id, m.context) for m in read_po(f) if m.id}
+
+    pot = _keys(root / "messages.pot")
+    missing = pot - _keys(root / locale / "LC_MESSAGES" / "messages.po")
+    assert pot and not missing, f"{locale}: not in the catalog: {sorted(missing, key=str)[:5]}"
