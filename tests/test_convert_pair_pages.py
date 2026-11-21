@@ -3,9 +3,9 @@
 
 Guards: every curated pair renders in both locales with a working embedded
 tool pre-set to the pair; uncurated/unsupported/malformed slugs 404 (so no
-thin auto-pages); titles/metas stay in SERP range; the sitemap lists the
-pairs with hreflang; the homepage still renders after the tool-card was
-extracted into a shared partial; pages stay deployment-agnostic.
+thin auto-pages); the homepage still renders after the tool-card was
+extracted into a shared partial; pages stay deployment-agnostic
+(rendering, SERP lengths, sitemap and llms.txt for every page: tests/test_catalog.py).
 
 UX refactor guards (convert-pair tool constraints):
 - Pair pages show only the source format in the supported-hint, not the
@@ -17,9 +17,6 @@ UX refactor guards (convert-pair tool constraints):
 """
 
 from __future__ import annotations
-
-import re
-import xml.etree.ElementTree as ET
 
 import pytest
 
@@ -46,24 +43,6 @@ def test_pair_page_renders(client, pair, prefix):
     # has an H1 and a visible FAQ (GEO)
     assert "<h1" in r.text
     assert "<h3" in r.text
-
-
-@pytest.mark.parametrize("pair", _PAIRS, ids=_slug)
-@pytest.mark.parametrize("prefix", ["/en", "/de"])
-def test_pair_title_and_meta_in_serp_range(client, pair, prefix):
-    r = client.get(f"{prefix}/convert/{_slug(pair)}")
-    assert r.status_code == 200
-    title = re.search(r"<title[^>]*>([^<]+)</title>", r.text, re.IGNORECASE).group(1).strip()
-    # double-quote-only so apostrophes in the meta (e.g. "don't") don't truncate
-    # the captured string and under-measure its length.
-    meta = (
-        re.search(r'<meta\s+name="description"\s+content="([^"]+)"', r.text, re.IGNORECASE)
-        .group(1)
-        .strip()
-    )
-    assert len(title) <= 60, f"{prefix}/{_slug(pair)} title {len(title)}: {title!r}"
-    assert len(meta) <= 160, f"{prefix}/{_slug(pair)} meta {len(meta)}: {meta!r}"
-    assert len(title) >= 10 and len(meta) >= 50
 
 
 def test_pair_page_localised(client):
@@ -108,38 +87,6 @@ def test_malformed_slug_404(client):
 def test_unknown_pair_404(client):
     r = client.get("/convert/zzz-to-qqq")
     assert r.status_code == 404
-
-
-# ── sitemap ──────────────────────────────────────────────────────────────────
-
-
-def test_sitemap_lists_pair_pages_with_hreflang(client):
-    r = client.get("/sitemap.xml")
-    assert r.status_code == 200
-    root = ET.fromstring(r.text)
-    ns = {
-        "sm": "http://www.sitemaps.org/schemas/sitemap/0.9",
-        "xhtml": "http://www.w3.org/1999/xhtml",
-    }
-    locs = {
-        (u.find("sm:loc", ns).text or "")
-        for u in root.findall("sm:url", ns)
-        if u.find("sm:loc", ns) is not None
-    }
-    # every curated pair present as x-default + de + en
-    for pair in _PAIRS:
-        slug = _slug(pair)
-        assert any(loc.endswith(f"/convert/{slug}") for loc in locs), f"missing x-default {slug}"
-        assert any(loc.endswith(f"/en/convert/{slug}") for loc in locs), f"missing /en {slug}"
-        assert any(loc.endswith(f"/de/convert/{slug}") for loc in locs), f"missing /de {slug}"
-
-    # each pair url block carries the 3 hreflang alternates
-    for u in root.findall("sm:url", ns):
-        loc = u.find("sm:loc", ns).text or ""
-        if "/convert/" in loc:
-            hreflangs = {a.attrib.get("hreflang") for a in u.findall("xhtml:link", ns)}
-            assert hreflangs == {"x-default", "de", "en"}, f"{loc} hreflangs {hreflangs}"
-            break
 
 
 # ── homepage regression (tool-card extracted into a shared partial) ──────────

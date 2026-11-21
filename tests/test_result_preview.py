@@ -3,11 +3,11 @@
 original's, and a small picture of an image result (app.js, single files).
 
 The repo has no JS runner, so the script is pinned by its source (as in
-tests/test_converter_i18n.py) and the markup and texts by the rendered pages.
+tests/test_converter_i18n.py) and the markup by the rendered pages; the
+texts are checked in tests/test_converter_i18n.py.
 The CSP that lets the picture load is pinned in tests/test_csp_profiles.py.
 """
 
-import json
 import re
 from pathlib import Path
 
@@ -17,7 +17,6 @@ from app.converters.registry import get_supported_conversions
 APP_JS = (Path(__file__).resolve().parent.parent / "app" / "static" / "js" / "app.js").read_text(
     encoding="utf-8"
 )
-BLOB = re.compile(r'<script id="fm-i18n-strings" type="application/json">(.*?)</script>', re.DOTALL)
 
 
 def _function(name: str) -> str:
@@ -41,18 +40,6 @@ def test_the_result_card_has_the_preview_above_the_download_button(client):
     assert "hidden" in re.search(r'class="([^"]*)"', image.group(0)).group(1).split()
     for slot in ('id="result-change"', 'id="result-sizes"'):
         assert slot in html
-
-
-def test_the_texts_are_german_on_de(client):
-    de = json.loads(BLOB.search(client.get("/de/").text).group(1))
-    en = json.loads(BLOB.search(client.get("/en/").text).group(1))
-    assert de["resultSizeSmaller"] == "{percent} kleiner als das Original"
-    assert de["resultSizeLarger"] == "{percent} größer als das Original"
-    assert de["resultSizeTimes"] == "{factor}-mal so groß wie das Original"
-    assert de["resultSizeSame"] == "Etwa so groß wie das Original"
-    assert de["resultSizes"] == "Vorher {before}, jetzt {after}"
-    assert de["resultPreviewAlt"] == "Vorschau von {name}"
-    assert en["resultSizeSmaller"] == "{percent} smaller than the original"
 
 
 def test_only_a_single_file_gets_a_preview():

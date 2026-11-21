@@ -2,24 +2,23 @@
 """/compress — the image/video target-size compression landing page (IA
 rework PR 4, ``docs-internal/ia-navigation-konzept.md``).
 
-Guards: renders in all three locale mounts with the real, working tool
+Guards: the real, working tool is
 embedded (the shared ``partials/convert_tool.html``) pre-set to Compress mode
 via ``data-preset-mode`` (CSP-safe: a data-attribute read by ``app.js``, not
 inline JS) — and that hook is a no-op everywhere else, including the
-homepage; titles/metas stay in SERP range and deliberately never say "pdf"
+homepage; titles/metas deliberately never say "pdf"
 (cannibalization guard — the PDF slice of this query space stays on
 ``/pdf/compress``); content is plain bilingual data (not gettext, see
 app/core/compress_content.py), so DE vs EN must genuinely differ; the honest
 claim that only JPEG/WebP/AVIF hit an exact target (video is quality-only,
 PNG/TIFF lossless without a setting) is present in both locales; a "PDFs?" handoff links
-``/pdf/compress``; the sitemap / llms.txt / footer / /tools / /formats
-surfaces all discover the page; and it stays deployment-agnostic.
+``/pdf/compress``; the footer / /tools / /formats surfaces discover the
+page; and it stays deployment-agnostic (rendering, SERP lengths, sitemap and llms.txt for every page: tests/test_catalog.py).
 """
 
 from __future__ import annotations
 
 import re
-import xml.etree.ElementTree as ET
 
 from app.core import catalog
 from app.core.compress_content import COMPRESS_CONTENT
@@ -32,14 +31,6 @@ def _main(html: str) -> str:
 
 
 # ── renders + tool embedding + preset-mode hook ─────────────────────────────
-
-
-def test_compress_page_renders_on_all_three_mounts(client):
-    for prefix in ("", "/en", "/de"):
-        r = client.get(f"{prefix}/compress")
-        assert r.status_code == 200, f"{prefix}/compress -> {r.status_code}"
-        assert "<h1" in r.text
-        assert "<h3" in r.text  # visible FAQ headings (GEO)
 
 
 def test_compress_page_embeds_the_real_tool_preset_to_compress_mode(client):
@@ -62,21 +53,6 @@ def test_homepage_unaffected_by_preset_mode_hook(client):
 
 
 # ── SERP + cannibalization guard ─────────────────────────────────────────────
-
-
-def test_compress_page_title_and_meta_in_serp_range(client):
-    for prefix in ("/en", "/de"):
-        r = client.get(f"{prefix}/compress")
-        assert r.status_code == 200
-        title = re.search(r"<title[^>]*>([^<]+)</title>", r.text, re.IGNORECASE).group(1).strip()
-        meta = (
-            re.search(r'<meta\s+name="description"\s+content="([^"]+)"', r.text, re.IGNORECASE)
-            .group(1)
-            .strip()
-        )
-        assert len(title) <= 60, f"{prefix}/compress title {len(title)}: {title!r}"
-        assert len(meta) <= 160, f"{prefix}/compress meta {len(meta)}: {meta!r}"
-        assert len(title) >= 10 and len(meta) >= 50
 
 
 def test_compress_page_title_and_meta_never_say_pdf(client):
@@ -204,40 +180,6 @@ def test_compress_page_deployment_agnostic(client):
 
 
 # ── discovery surfaces ───────────────────────────────────────────────────────
-
-
-def test_sitemap_lists_compress_page_with_hreflang(client):
-    r = client.get("/sitemap.xml")
-    assert r.status_code == 200
-    root = ET.fromstring(r.text)
-    ns = {
-        "sm": "http://www.sitemaps.org/schemas/sitemap/0.9",
-        "xhtml": "http://www.w3.org/1999/xhtml",
-    }
-    locs = {
-        (u.find("sm:loc", ns).text or "")
-        for u in root.findall("sm:url", ns)
-        if u.find("sm:loc", ns) is not None
-    }
-    assert any(loc.endswith("/compress") and "/pdf/" not in loc for loc in locs), (
-        "missing x-default /compress"
-    )
-    assert any(loc.endswith("/en/compress") for loc in locs), "missing /en/compress"
-    assert any(loc.endswith("/de/compress") for loc in locs), "missing /de/compress"
-
-    checked = 0
-    for u in root.findall("sm:url", ns):
-        loc = u.find("sm:loc", ns).text or ""
-        if loc.endswith("/compress") and "/pdf/" not in loc:
-            hreflangs = {a.attrib.get("hreflang") for a in u.findall("xhtml:link", ns)}
-            assert hreflangs == {"x-default", "de", "en"}, f"{loc} hreflangs {hreflangs}"
-            checked += 1
-    assert checked == 3  # x-default + de + en
-
-
-def test_llms_txt_lists_compress_page(client):
-    llms = client.get("/llms.txt").text
-    assert "[Compress an image or video]" in llms
 
 
 def test_tools_hub_links_compress_target_card(client):

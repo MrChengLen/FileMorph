@@ -20,7 +20,6 @@ Guards:
   - Labels localized: German chip text on /de/, English on /en/, no
     cross-language leakage inside the block.
   - Absent on /compress and on a pair page (/convert/jpg-to-pdf).
-  - Every chip target actually resolves (HTTP 200) — no dead links.
   - Deployment-agnostic (no hardcoded filemorph.io) and <main> never links
     the gated /redact route, flag on or off (the footer may).
   - The chips belong to the idle state: app.js hides the row once files are
@@ -194,14 +193,6 @@ def test_homepage_main_never_links_redact_flag_on(client, redact_enabled):
 def test_quick_actions_deployment_agnostic(client):
     block = _quick_actions_block(_main(client.get("/en/").text))
     assert "filemorph.io" not in block
-
-
-# ── every chip target resolves ─────────────────────────────────────────────
-
-
-@pytest.mark.parametrize("path", [chip[0] for chip in _CHIPS] + ["/tools", "/formats"])
-def test_quick_actions_targets_return_200(client, path):
-    assert client.get(f"/en{path}").status_code == 200
 
 
 # ── idle-state only: hidden while files are selected ──────────────────────

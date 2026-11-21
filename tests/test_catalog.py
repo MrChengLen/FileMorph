@@ -218,8 +218,20 @@ def test_sitemap_lists_exactly_the_catalogue(client, switches):
 def test_llms_txt_lists_exactly_the_catalogue(client, switches):
     # The "About" section links the privacy policy; only the page lists count.
     lists = client.get("/llms.txt").text.split("\n## About\n", 1)[0]
+    assert "\n## Conversions\n" in lists, "llms.txt lost its list of conversion pages"
     linked = {_base_path(url) for url in _MD_LINK_RE.findall(lists)}
     assert linked == {page.path for page in catalog.pages() if page.llms or page.kind == "convert"}
+
+
+def test_no_page_people_search_for_drops_out_of_sitemap_or_llms_txt():
+    # The two tests above compare sitemap and llms.txt with the catalogue, so a
+    # page that loses its flags would vanish from both without a red test.
+    # Every page is in the sitemap except these two, which are left out on
+    # purpose; a new exception has to be added here.
+    assert {page.path for page in catalog.PAGES if not page.priority} == {"/docs", "/security"}
+    for page in catalog.PAGES:
+        if page.kind in ("home", "hub", "reference", "tool"):
+            assert page.llms, f"{page.path} has no llms.txt entry"
 
 
 # ── no dead internal link ──────────────────────────────────────────────────

@@ -2,74 +2,26 @@
 """/tools — the operations-first hub page (IA rework PR 2,
 docs-internal/ia-navigation-konzept.md).
 
-Guards: renders in all three locale mounts with a real H1; title/meta stay in
-SERP range; content is plain bilingual data (not gettext, see
+Guards: content is plain bilingual data (not gettext, see
 app/core/tools_content.py), so DE vs EN must genuinely differ; every tool and
 convert page of the page catalogue (app/core/catalog.py) has a card under its
 catalogue name, grouped by file type and stating where it runs; the intro
 names batch conversion, which has no page of its own; the Redact card is gated
-on ai_operations_enabled only (mirrors tests/test_footer_nav_structure.py's
-redact_enabled fixture); the page cross-links /formats both ways; stays
-deployment-agnostic; and the sitemap / llms.txt discover it.
+on ai_operations_enabled only (conftest's redact_enabled fixture); the page
+cross-links /formats both ways; and it stays deployment-agnostic
+(rendering, SERP lengths, sitemap and llms.txt for every page: tests/test_catalog.py).
 """
 
 from __future__ import annotations
-
-import re
-import xml.etree.ElementTree as ET
 
 import pytest
 from bs4 import BeautifulSoup
 
 from app.core import catalog
-from app.core.config import settings
-from app.core.convert_pairs import PAIR_CONTENT
-from app.core.templates import templates
 from app.core.tools_content import TOOLS_CONTENT
 
 
-@pytest.fixture
-def redact_enabled():
-    """Mirrors tests/test_footer_nav_structure.py's fixture of the same
-    name — the route's 404-gate (on /redact) reads ``settings`` at request
-    time, the footer and /tools read it through the page catalogue, other
-    templates' ``{% if %}`` read the Jinja global set once at
-    import; both must flip together."""
-    s = settings.__dict__
-    saved_s = {k: s.get(k) for k in ("ai_operations_enabled", "ai_eligible_tiers")}
-    s.update(ai_operations_enabled=True, ai_eligible_tiers="pro,business,enterprise")
-    g = templates.env.globals
-    saved_g = {k: g.get(k) for k in ("ai_operations_enabled", "ai_eligible_tiers")}
-    g["ai_operations_enabled"] = True
-    g["ai_eligible_tiers"] = ["pro", "business", "enterprise"]
-    yield
-    s.update(saved_s)
-    g.update(saved_g)
-
-
-# ── renders + SERP ────────────────────────────────────────────────────────
-
-
-@pytest.mark.parametrize("prefix", ["", "/en", "/de"])
-def test_tools_page_renders(client, prefix):
-    r = client.get(f"{prefix}/tools")
-    assert r.status_code == 200, f"{prefix}/tools -> {r.status_code}"
-    assert "<h1" in r.text
-
-
-@pytest.mark.parametrize("prefix", ["/en", "/de"])
-def test_tools_title_and_meta_in_serp_range(client, prefix):
-    r = client.get(f"{prefix}/tools")
-    assert r.status_code == 200
-    title = re.search(r"<title[^>]*>([^<]+)</title>", r.text, re.IGNORECASE).group(1).strip()
-    meta = (
-        re.search(r'<meta\s+name="description"\s+content="([^"]+)"', r.text, re.IGNORECASE)
-        .group(1)
-        .strip()
-    )
-    assert len(title) <= 60, f"{prefix}/tools title {len(title)}: {title!r}"
-    assert len(meta) <= 160, f"{prefix}/tools meta {len(meta)}: {meta!r}"
-    assert len(title) >= 10 and len(meta) >= 50
+# ── localisation ────────────────────────────────────────────────────────
 
 
 def test_tools_page_localised(client):
@@ -207,41 +159,3 @@ def test_tools_page_cross_links_to_formats(client):
 def test_tools_page_deployment_agnostic(client):
     r = client.get("/en/tools")
     assert "filemorph.io" not in r.text
-
-
-# ── discovery surfaces ───────────────────────────────────────────────────
-
-
-def test_sitemap_lists_tools_with_hreflang(client):
-    r = client.get("/sitemap.xml")
-    assert r.status_code == 200
-    root = ET.fromstring(r.text)
-    ns = {
-        "sm": "http://www.sitemaps.org/schemas/sitemap/0.9",
-        "xhtml": "http://www.w3.org/1999/xhtml",
-    }
-    locs = {
-        (u.find("sm:loc", ns).text or "")
-        for u in root.findall("sm:url", ns)
-        if u.find("sm:loc", ns) is not None
-    }
-    assert any(loc.endswith("/tools") for loc in locs), "missing x-default /tools"
-    assert any(loc.endswith("/en/tools") for loc in locs), "missing /en/tools"
-    assert any(loc.endswith("/de/tools") for loc in locs), "missing /de/tools"
-
-    checked = 0
-    for u in root.findall("sm:url", ns):
-        loc = u.find("sm:loc", ns).text or ""
-        if loc.endswith("/tools"):
-            hreflangs = {a.attrib.get("hreflang") for a in u.findall("xhtml:link", ns)}
-            assert hreflangs == {"x-default", "de", "en"}, f"{loc} hreflangs {hreflangs}"
-            checked += 1
-    assert checked == 3  # x-default + de + en
-
-
-def test_llms_txt_lists_tools_and_all_pair_urls(client):
-    llms = client.get("/llms.txt").text
-    assert "/tools" in llms
-    assert "## Conversions" in llms
-    for src, tgt in PAIR_CONTENT:
-        assert f"/convert/{src}-to-{tgt}" in llms

@@ -13,7 +13,6 @@ from pathlib import Path
 import pytest
 
 from app.core.convert_pairs import PAIR_CONTENT
-from app.core.pdf_tools_content import PDF_TOOL_CONTENT
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -21,14 +20,10 @@ HINT_EN = "Runs via our server — files are uploaded and deleted right after pr
 HINT_DE = "Läuft über unseren Server – Dateien werden hochgeladen und nach der Verarbeitung sofort gelöscht."
 
 _PAIR = next(iter(PAIR_CONTENT))
-_PAGES = [
-    ("/", "convert-btn"),
-    ("/compress", "convert-btn"),
-    (f"/convert/{_PAIR[0]}-to-{_PAIR[1]}", "convert-btn"),
-    ("/convert/video-to-gif", "convert-btn"),
-    ("/convert/video-to-mp3", "convert-btn"),
-    *((f"/pdf/{tool}", "pdf-submit") for tool in PDF_TOOL_CONTENT),
-]
+# One page per partial that includes the hint: partials/convert_tool.html (the
+# home page and every convert and compress page) and partials/pdf_tool.html
+# (every /pdf/ page). The redact tool has its own test below.
+_PAGES = [("/", "convert-btn"), ("/pdf/split", "pdf-submit")]
 
 
 def _hint_after(html: str, button_id: str) -> str:

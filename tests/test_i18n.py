@@ -317,14 +317,6 @@ def test_switcher_uses_aria_label_not_visible_sr_text(client):
 # ── Sub-router prefix isolation ───────────────────────────────────────────────
 
 
-def test_de_prefix_routes_do_not_collide_with_unprefixed(client, accounts_on):
-    """`/de/login` resolves the login page; `/login` likewise — both work."""
-    r_de = client.get("/de/login")
-    r_root = client.get("/login")
-    assert r_de.status_code == 200
-    assert r_root.status_code == 200
-
-
 @pytest.mark.parametrize("locale", SUPPORTED_LOCALES)
 def test_supported_locale_renders_each_page(client, accounts_on, locale):
     """Smoke: every page renders 200 in both supported locales (excluding
@@ -417,40 +409,6 @@ def test_fm_i18n_json_blob_present_on_every_page(client, accounts_on):
         assert r.status_code == 200, f"{path} -> {r.status_code}"
         assert 'id="fm-i18n-strings"' in r.text, f"{path} missing FM_I18N script tag"
         assert "/static/js/i18n-bootstrap.js" in r.text, f"{path} missing FM_I18N bootstrap"
-
-
-def test_fm_i18n_json_blob_localises_per_request(client):
-    """The JSON blob carries strings for the active locale — pin a known
-    DE translation against the /de/ render and a known EN string against
-    /en/. If gettext silently drops back to the msgid, the assertions
-    fail and we know the JS-side i18n is broken at the source."""
-    import json
-    import re
-
-    de = client.get("/de/")
-    en = client.get("/en/")
-    assert de.status_code == 200 and en.status_code == 200
-
-    # Extract the JSON content out of the script tag, parse, compare.
-    pattern = re.compile(
-        r'<script id="fm-i18n-strings" type="application/json">(.*?)</script>',
-        re.DOTALL,
-    )
-    de_match = pattern.search(de.text)
-    en_match = pattern.search(en.text)
-    assert de_match and en_match, "FM_I18N script tag missing"
-
-    de_strings = json.loads(de_match.group(1))
-    en_strings = json.loads(en_match.group(1))
-
-    # German render: 'Convert' button label translated.
-    assert de_strings.get("convert") == "Konvertieren", (
-        f"FM_I18N.convert on /de/ should be 'Konvertieren', got {de_strings.get('convert')!r}"
-    )
-    assert de_strings.get("compress") == "Komprimieren"
-    # English render: msgid is already English so the value stays English.
-    assert en_strings.get("convert") == "Convert"
-    assert en_strings.get("compress") == "Compress"
 
 
 def test_german_catalog_translates_every_message():

@@ -2,21 +2,19 @@
 """/pdf/{split,extract,compress} tool pages — the ungated, core-OSS PDF
 structural-operation landing pages (unlike the flag-gated /redact).
 
-Guards: every tool renders in all three locale mounts with the real, working
-tool embedded (data-tool/data-endpoint, visible FAQ <h3>s for GEO);
-titles/metas stay in SERP range; content is plain bilingual data (not
+Guards: every tool page embeds the real, working tool
+(data-tool/data-endpoint); content is plain bilingual data (not
 gettext, see app/core/pdf_tools_content.py), so DE vs EN must genuinely
 differ; an uncurated tool slug 404s (the content lookup IS the route
-whitelist); per-tool controls are scoped to their own page; the sitemap /
-llms.txt / footer / homepage / /formats surfaces all discover the three
-pages; pages stay deployment-agnostic; and the honest-compress wording
+whitelist); per-tool controls are scoped to their own page; the footer /
+/formats surfaces discover the pages; pages stay deployment-agnostic
+(rendering, SERP lengths, sitemap and llms.txt for every page: tests/test_catalog.py); and the honest-compress wording
 (project motto: never fake a "success") is present on the compress page.
 """
 
 from __future__ import annotations
 
 import re
-import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import pytest
@@ -36,24 +34,6 @@ def test_pdf_tool_page_renders(client, tool, prefix):
     assert f'data-endpoint="/api/v1/pdf/{tool}"' in r.text
     assert "<h1" in r.text
     assert "<h3" in r.text  # visible FAQ headings (GEO)
-
-
-@pytest.mark.parametrize("tool", _TOOLS)
-@pytest.mark.parametrize("prefix", ["/en", "/de"])
-def test_pdf_tool_title_and_meta_in_serp_range(client, tool, prefix):
-    r = client.get(f"{prefix}/pdf/{tool}")
-    assert r.status_code == 200
-    title = re.search(r"<title[^>]*>([^<]+)</title>", r.text, re.IGNORECASE).group(1).strip()
-    # double-quote-only so apostrophes in the meta (e.g. "there's") don't
-    # truncate the captured string and under-measure its length.
-    meta = (
-        re.search(r'<meta\s+name="description"\s+content="([^"]+)"', r.text, re.IGNORECASE)
-        .group(1)
-        .strip()
-    )
-    assert len(title) <= 60, f"{prefix}/pdf/{tool} title {len(title)}: {title!r}"
-    assert len(meta) <= 160, f"{prefix}/pdf/{tool} meta {len(meta)}: {meta!r}"
-    assert len(title) >= 10 and len(meta) >= 50
 
 
 # ── DE/EN localisation ───────────────────────────────────────────────────────
@@ -146,42 +126,6 @@ def test_pdf_honest_note_placeholder_present_on_all_three_pages(client):
 
 
 # ── discovery surfaces ───────────────────────────────────────────────────────
-
-
-def test_sitemap_lists_pdf_tool_pages_with_hreflang(client):
-    r = client.get("/sitemap.xml")
-    assert r.status_code == 200
-    root = ET.fromstring(r.text)
-    ns = {
-        "sm": "http://www.sitemaps.org/schemas/sitemap/0.9",
-        "xhtml": "http://www.w3.org/1999/xhtml",
-    }
-    locs = {
-        (u.find("sm:loc", ns).text or "")
-        for u in root.findall("sm:url", ns)
-        if u.find("sm:loc", ns) is not None
-    }
-    for tool in _TOOLS:
-        path = f"/pdf/{tool}"
-        assert any(loc.endswith(path) for loc in locs), f"missing x-default {path}"
-        assert any(loc.endswith(f"/en{path}") for loc in locs), f"missing /en {path}"
-        assert any(loc.endswith(f"/de{path}") for loc in locs), f"missing /de {path}"
-
-    # every URL block for a /pdf/ page carries exactly the 3 hreflang alternates
-    checked = 0
-    for u in root.findall("sm:url", ns):
-        loc = u.find("sm:loc", ns).text or ""
-        if "/pdf/" in loc:
-            hreflangs = {a.attrib.get("hreflang") for a in u.findall("xhtml:link", ns)}
-            assert hreflangs == {"x-default", "de", "en"}, f"{loc} hreflangs {hreflangs}"
-            checked += 1
-    assert checked == len(_TOOLS) * 3  # 3 tools x (x-default + de + en) URL entries
-
-
-def test_llms_txt_lists_pdf_tool_pages(client):
-    llms = client.get("/llms.txt").text
-    for tool in _TOOLS:
-        assert f"/pdf/{tool}" in llms
 
 
 def test_footer_links_localized_to_pdf_tools(client):

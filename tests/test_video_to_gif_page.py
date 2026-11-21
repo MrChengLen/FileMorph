@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """/convert/video-to-gif — one page for Video → GIF (#266), for every video format.
 
-Guards: the page renders in all three locale mounts (the fixed route wins
-over /convert/{pair_slug}); the converter on it is pre-set to GIF, for every
+Guards (rendering on every mount, where the fixed route wins over
+/convert/{pair_slug}, is in tests/test_catalog.py): the converter on it is pre-set to GIF, for every
 file of a batch too; the limits it states are the converter's and the upload
 cap's own numbers, so the page can't promise more than a visitor gets; and the
 tool is findable — on /tools, in the footer's "Tools" group and from
@@ -19,7 +19,6 @@ import pytest
 
 from app.converters._ffmpeg import GIF_FPS, GIF_MAX_SECONDS, GIF_MAX_SIDE, GIF_MAX_SOURCE_PIXELS
 from app.core import catalog
-from app.core.config import settings
 from app.core.quotas import QUOTAS
 from app.core.video_gif_content import VIDEO_GIF_CONTENT
 
@@ -29,14 +28,6 @@ _APP_JS = Path(__file__).resolve().parent.parent / "app" / "static" / "js" / "ap
 
 def _main(html: str) -> str:
     return html[html.index("<main") : html.index("</main>")]
-
-
-@pytest.mark.parametrize("prefix", ["", "/de", "/en"])
-def test_page_renders_on_every_mount(client, prefix):
-    r = client.get(f"{prefix}{_PATH}")
-    assert r.status_code == 200, f"{prefix}{_PATH} returned {r.status_code}"
-    locale = prefix.strip("/") or settings.lang_default
-    assert VIDEO_GIF_CONTENT[locale]["h1"] in r.text
 
 
 def test_converter_is_preset_to_gif(client):
