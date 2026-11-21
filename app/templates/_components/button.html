@@ -1,4 +1,4 @@
-{# button(label, href=None, variant='primary', size='md', disabled=False, type='button', id=None, full_width=False)
+{# button(label=None, href=None, variant='primary', size='md', disabled=False, type='button', id=None, full_width=False, hidden=False, download=False)
 
    The single source of truth for buttons. Renders <a> when href is
    set, else <button>.
@@ -8,19 +8,29 @@
              ghost    : text-only
              danger   : red outline, no hover — destructive actions
                         (e.g. the dashboard "Delete account" flow)
+             success  : solid emerald — the download of a finished result
    size    — sm | md | lg
    disabled — adds aria-disabled + disabled attribute, mutes colours,
               removes hover. For href variants, the link still
-              renders but is non-interactive.
+              renders but is non-interactive. A button that a script
+              disables while it works (el.disabled = true) gets a muted
+              look through the disabled: variants of the base, with its
+              text still readable (ink-muted): scripts write progress
+              labels into it ("Signing in…").
    full_width — stretch to the parent container (used by auth forms
                 where the submit button spans the card width). The
                 element stays inline-flex so contents stay centered.
+   hidden   — start hidden with the `hidden` class (a script removes it).
+   download — adds the download attribute to a link (a result file).
+
+   Called with {% call %}, the body replaces `label` — for an icon next to
+   the text, or a label span that a script rewrites.
 #}
-{% macro button(label, href=None, variant='primary', size='md', disabled=False, type='button', id=None, full_width=False) %}
+{% macro button(label=None, href=None, variant='primary', size='md', disabled=False, type='button', id=None, full_width=False, hidden=False, download=False) %}
 {# Class composition uses {% if %} branches so every literal class is
    statically extractable by the Tailwind JIT scanner. Do not
    concatenate variant names into class strings. #}
-{%- set base = 'inline-flex items-center justify-center gap-2 rounded-control font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand' -%}
+{%- set base = 'inline-flex items-center justify-center gap-2 rounded-control font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:bg-surface-sunken disabled:text-ink-muted' -%}
 {%- if size == 'sm' -%}{%- set size_cls = 'px-4 py-2 text-sm' -%}
 {%- elif size == 'lg' -%}{%- set size_cls = 'px-7 py-3.5 text-base' -%}
 {%- else -%}{%- set size_cls = 'px-6 py-3 text-base' -%}
@@ -33,24 +43,28 @@
   {%- set variant_cls = 'text-ink-muted hover:text-ink' -%}
 {%- elif variant == 'danger' -%}
   {%- set variant_cls = 'border border-red-900 text-red-400' -%}
+{%- elif variant == 'success' -%}
+  {%- set variant_cls = 'bg-emerald-700 text-white hover:bg-emerald-800' -%}
 {%- else -%}
   {%- set variant_cls = 'bg-brand-dark text-white hover:bg-brand-deep' -%}
 {%- endif -%}
 {%- if full_width -%}{%- set width_cls = 'w-full' -%}{%- else -%}{%- set width_cls = '' -%}{%- endif -%}
+{%- if hidden -%}{%- set hidden_cls = 'hidden' -%}{%- else -%}{%- set hidden_cls = '' -%}{%- endif -%}
 {%- if href and not disabled -%}
 <a href="{{ href }}"
-   class="{{ base }} {{ size_cls }} {{ variant_cls }} {{ width_cls }}"
+   class="{{ base }} {{ size_cls }} {{ variant_cls }} {{ width_cls }} {{ hidden_cls }}"
    {% if id %}id="{{ id }}"{% endif %}
+   {% if download %}download{% endif %}
    data-component="button"
    data-variant="{{ variant }}"
-   data-size="{{ size }}">{{ label }}</a>
+   data-size="{{ size }}">{% if caller is defined %}{{ caller() }}{% else %}{{ label or '' }}{% endif %}</a>
 {%- else -%}
 <button type="{{ type }}"
-        class="{{ base }} {{ size_cls }} {{ variant_cls }} {{ width_cls }}"
+        class="{{ base }} {{ size_cls }} {{ variant_cls }} {{ width_cls }} {{ hidden_cls }}"
         {% if id %}id="{{ id }}"{% endif %}
         {% if disabled %}disabled aria-disabled="true"{% endif %}
         data-component="button"
         data-variant="{{ variant }}"
-        data-size="{{ size }}">{{ label }}</button>
+        data-size="{{ size }}">{% if caller is defined %}{{ caller() }}{% else %}{{ label or '' }}{% endif %}</button>
 {%- endif -%}
 {% endmacro %}

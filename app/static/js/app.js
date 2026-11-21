@@ -68,6 +68,9 @@ document.addEventListener('DOMContentLoaded', () => {
     presetSource = (dz.dataset.presetSource || '').trim().toLowerCase();
     dz.addEventListener('click', () => document.getElementById('file-input').click());
     dz.addEventListener('keydown', e => {
+      // Only the field itself opens the picker: Enter or Space on a control
+      // inside it ("Clear all", a row's ✕ or target select) is that control's.
+      if (e.target !== dz) return;
       if (e.key === 'Enter' || e.key === ' ') document.getElementById('file-input').click();
     });
     dz.addEventListener('dragover', handleDragOver);
@@ -111,10 +114,14 @@ document.addEventListener('DOMContentLoaded', () => {
   if (cmodeTarget) cmodeTarget.addEventListener('click', () => setCompressMode('target'));
 
   const targetSizeInput = document.getElementById('target-size-input');
-  if (targetSizeInput) targetSizeInput.addEventListener('input', updateTargetSizeLabel);
+  if (targetSizeInput) targetSizeInput.addEventListener('input', () => {
+    hideError();
+    updateTargetSizeLabel();
+  });
 
   const targetSelect = document.getElementById('target-format');
   if (targetSelect) targetSelect.addEventListener('change', () => {
+    hideError();
     updateFormatWarning();
     updateQualityVisibility();
   });
@@ -156,22 +163,14 @@ function setMode(mode) {
   const btnCompress = document.getElementById('btn-mode-compress');
   const convertBtn = document.getElementById('convert-btn');
 
+  // The segmented control (_components/segmented.html) styles itself from
+  // aria-pressed: setting the attribute is the whole switch.
   btnConvert.setAttribute('aria-pressed', mode === 'convert' ? 'true' : 'false');
   btnCompress.setAttribute('aria-pressed', mode === 'compress' ? 'true' : 'false');
 
-  if (mode === 'convert') {
-    btnConvert.classList.add('bg-brand-dark', 'text-white');
-    btnConvert.classList.remove('text-gray-400');
-    btnCompress.classList.remove('bg-brand-dark', 'text-white');
-    btnCompress.classList.add('text-gray-400');
-    convertBtn.textContent = (window.FM_I18N && window.FM_I18N.convert) || 'Convert';
-  } else {
-    btnCompress.classList.add('bg-brand-dark', 'text-white');
-    btnCompress.classList.remove('text-gray-400');
-    btnConvert.classList.remove('bg-brand-dark', 'text-white');
-    btnConvert.classList.add('text-gray-400');
-    convertBtn.textContent = (window.FM_I18N && window.FM_I18N.compress) || 'Compress';
-  }
+  convertBtn.textContent = mode === 'convert'
+    ? ((window.FM_I18N && window.FM_I18N.convert) || 'Convert')
+    : ((window.FM_I18N && window.FM_I18N.compress) || 'Compress');
 
   const qHeading = document.getElementById('quality-heading');
   if (qHeading) qHeading.textContent = mode === 'compress'
@@ -215,14 +214,9 @@ function syncCompressModeButtons() {
   const tBtn = document.getElementById('cmode-target');
   if (!qBtn || !tBtn) return;
   const isQuality = compressMode === 'quality';
-  for (const [btn, on] of [[qBtn, isQuality], [tBtn, !isQuality]]) {
-    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-    btn.classList.toggle('bg-brand-dark', on);
-    btn.classList.toggle('text-white', on);
-    btn.classList.toggle('bg-gray-800', !on);
-    btn.classList.toggle('hover:bg-gray-700', !on);
-    btn.classList.toggle('text-gray-200', !on);
-  }
+  // Segmented control: the look follows aria-pressed.
+  qBtn.setAttribute('aria-pressed', isQuality ? 'true' : 'false');
+  tBtn.setAttribute('aria-pressed', isQuality ? 'false' : 'true');
 }
 
 function updateTargetSizeLabel() {
@@ -251,18 +245,20 @@ function handleFileSelect(event) {
   if (files.length) setFiles(files);
 }
 
+// The drop field (_components/dropzone.html) highlights itself while
+// data-dragging is set; no class juggling.
 function handleDragOver(event) {
   event.preventDefault();
-  document.getElementById('drop-zone').classList.add('drag-over');
+  document.getElementById('drop-zone').dataset.dragging = '';
 }
 
 function handleDragLeave(event) {
-  document.getElementById('drop-zone').classList.remove('drag-over');
+  delete document.getElementById('drop-zone').dataset.dragging;
 }
 
 function handleDrop(event) {
   event.preventDefault();
-  document.getElementById('drop-zone').classList.remove('drag-over');
+  delete document.getElementById('drop-zone').dataset.dragging;
   const files = Array.from(event.dataTransfer.files || []);
   if (files.length) setFiles(files);
 }
@@ -295,11 +291,14 @@ function renderFileList() {
   if (list) {
     list.innerHTML = '';
     selectedFiles.forEach((file, idx) => {
+      // On a phone the name gets its own line (in one row with a target
+      // select and the remove button it kept 5–95 px at 320–390 px); from
+      // 640 px everything shares one line again.
       const row = document.createElement('div');
-      row.className = 'flex items-center justify-between gap-2 text-sm';
+      row.className = 'flex flex-wrap items-center gap-x-2 gap-y-1 text-sm';
 
       const name = document.createElement('span');
-      name.className = 'truncate flex-1 text-white';
+      name.className = 'min-w-0 basis-full truncate text-ink-strong sm:basis-0 sm:flex-1';
       name.textContent = file.name;
 
       const size = document.createElement('span');
@@ -311,8 +310,10 @@ function renderFileList() {
       let perRowSelect = null;
       if (isBatch && currentMode === 'convert') {
         perRowSelect = document.createElement('select');
+        // The control recipe of the page's other inputs (text_input macro);
+        // fills the second line on a phone.
         perRowSelect.className =
-          'per-row-target bg-gray-800 border border-gray-700 rounded px-2 py-1 text-base sm:text-xs shrink-0 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition-colors';
+          'per-row-target min-w-0 flex-1 sm:flex-none bg-surface-sunken border border-hairline rounded-control px-2 py-1.5 text-base sm:text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition-colors';
         perRowSelect.setAttribute('aria-label', i18nText('ariaTargetFormatFor', 'Target format for {name}', { name: file.name }));
         const ext = getExtension(file.name);
         const targets = supportedConversions[ext] || [];
@@ -341,7 +342,10 @@ function renderFileList() {
             perRowSelect.value = '';
           }
         }
-        perRowSelect.addEventListener('change', () => updateQualityVisibility());
+        perRowSelect.addEventListener('change', () => {
+          hideError();
+          updateQualityVisibility();
+        });
         // Row lives inside #drop-zone — without stopPropagation, a click on
         // the select bubbles up and fires the drop-zone handler, which opens
         // the file picker instead of the dropdown. Keydown covers the
@@ -352,7 +356,8 @@ function renderFileList() {
 
       const rm = document.createElement('button');
       rm.type = 'button';
-      rm.className = 'text-xs text-ink-faint hover:text-red-400 transition-colors shrink-0';
+      // A real target: 44 px on a phone, 28 px from 640 px (was a 10 × 16 px ✕).
+      rm.className = 'ml-auto inline-flex size-11 shrink-0 items-center justify-center rounded-control text-ink-faint transition-colors hover:bg-surface-sunken hover:text-tone-err sm:ml-0 sm:size-7';
       rm.setAttribute('aria-label', i18nText('ariaRemoveFile', 'Remove {name}', { name: file.name }));
       rm.textContent = '✕';
       rm.addEventListener('click', e => {
@@ -883,7 +888,7 @@ function fillBatchList(listEl, items) {
     const li = document.createElement('li');
     const code = document.createElement('code');
     code.textContent = item.name;
-    code.className = 'font-mono text-amber-200';
+    code.className = 'font-mono text-ink-strong';
     li.appendChild(code);
     li.appendChild(document.createTextNode(' — ' + item.reason));
     listEl.appendChild(li);
@@ -911,17 +916,11 @@ function showBatchSummary({ total, succeeded, failed, failures, notes }) {
 
   if (failuresList) fillBatchList(failuresList, parseBatchFailures(failures));
   if (notesList) fillBatchList(notesList, parseBatchNotes(notes));
-  // Visual tone: emerald-green if all succeeded; amber if any failed or
-  // missed its target size.
+  // Tone of the notice box (_components/notice.html): ok if all succeeded,
+  // warn if any failed or missed its target size.
   const missed = parseBatchFailures(notes).some(n => n.reason.split(',').includes('target=missed'));
-  const warn = f > 0 || missed;
+  box.dataset.tone = f > 0 || missed ? 'warn' : 'ok';
   box.classList.remove('hidden');
-  box.classList.toggle('border-emerald-900/50', !warn);
-  box.classList.toggle('bg-emerald-950/40', !warn);
-  box.classList.toggle('text-emerald-200', !warn);
-  box.classList.toggle('border-amber-900/50', warn);
-  box.classList.toggle('bg-amber-950/40', warn);
-  box.classList.toggle('text-amber-200', warn);
 }
 
 function hideBatchSummary() {
@@ -1429,7 +1428,7 @@ function showSizeEstimate(state, sizes) {
   document.getElementById('size-estimate-text').textContent = text;
   const noteEl = document.getElementById('size-estimate-note');
   noteEl.textContent = note;
-  noteEl.classList.toggle('text-amber-400', larger);
+  noteEl.classList.toggle('text-tone-warn', larger);
   noteEl.classList.toggle('text-ink-faint', !larger);
   // Busy while working it out: screen readers then wait for the number
   // instead of repeating "Working out the size…" on every slider step.
@@ -1444,9 +1443,11 @@ function showSizeEstimate(state, sizes) {
 // no card with a download link its reset has already released.
 let currentRun = 0;
 
+// A missing input is said in the tool's own error box (role="alert"), as the
+// PDF tools do — not in a browser dialog.
 async function submitForm() {
   const I18N = window.FM_I18N || {};
-  if (selectedFiles.length === 0) { alert(I18N.alertNoFiles || 'Please select at least one file.'); return; }
+  if (selectedFiles.length === 0) { showError(I18N.alertNoFiles || 'Please select at least one file.'); return; }
 
   const isBatch = selectedFiles.length > 1;
   const base = currentMode === 'convert' ? '/api/v1/convert' : '/api/v1/compress';
@@ -1468,7 +1469,7 @@ async function submitForm() {
   if (useTargetSize) {
     const mb = parseFloat(document.getElementById('target-size-input').value || '0');
     if (!isFinite(mb) || mb <= 0) {
-      alert(I18N.alertNoTargetSize || 'Please enter a target size in MB.');
+      showError(I18N.alertNoTargetSize || 'Please enter a target size in MB.');
       return;
     }
     // MB as upload portals and macOS count them (5 MB = 5,000,000 bytes),
@@ -1489,12 +1490,12 @@ async function submitForm() {
       // here so the user doesn't waste an upload round-trip on a typo.
       const rows = document.querySelectorAll('.per-row-target');
       if (rows.length !== selectedFiles.length) {
-        alert(I18N.alertInconsistentTarget || 'Target format selection is inconsistent — please reselect your files.');
+        showError(I18N.alertInconsistentTarget || 'Target format selection is inconsistent — please reselect your files.');
         return;
       }
       for (const sel of rows) {
         if (!sel.value) {
-          alert(sel.disabled
+          showError(sel.disabled
             ? (I18N.alertNoTargetAvailable || 'One of the files has no target format available. Remove it to proceed.')
             : (I18N.alertNoTargetFormat || 'Please select a target format.'));
           return;
@@ -1503,7 +1504,7 @@ async function submitForm() {
       }
     } else {
       const target = document.getElementById('target-format').value;
-      if (!target) { alert(I18N.alertNoTargetFormat || 'Please select a target format.'); return; }
+      if (!target) { showError(I18N.alertNoTargetFormat || 'Please select a target format.'); return; }
       formData.append('target_format', target);
     }
   }
@@ -1743,6 +1744,13 @@ function showError(msg, code) {
   document.getElementById('error-section').classList.remove('hidden');
   document.getElementById('convert-btn').disabled = false;
   setConvertErrorUpsell(UPSELL_ERROR_CODES.includes(code));
+}
+
+// A missing-input error ("choose a target format") goes once the user acts on
+// the input it names; a browser dialog used to vanish by itself.
+function hideError() {
+  document.getElementById('error-section').classList.add('hidden');
+  setConvertErrorUpsell(false);
 }
 
 function resetResultState() {

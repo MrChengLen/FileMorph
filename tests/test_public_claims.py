@@ -784,6 +784,48 @@ def test_text_tokens_meet_wcag_aa_on_every_dark_surface():
     assert not low, low
 
 
+def _over(rgba: str, background: str) -> str:
+    """A translucent rgba() token composited over an opaque hex background."""
+    r, g, b, a = (float(v) for v in re.findall(r"[\d.]+", rgba))
+    base = [int(background[i : i + 2], 16) for i in (1, 3, 5)]
+    mixed = [round(c * a + under * (1 - a)) for c, under in zip((r, g, b), base)]
+    return "#" + "".join(f"{c:02x}" for c in mixed)
+
+
+def test_notice_tones_meet_wcag_aa():
+    """The notice box (_components/notice.html): ink text on each tone's tint,
+    over a card and over the page, reaches 4.5 : 1; the icon's glyph
+    (surface-page) on its tone colour 4.5 : 1; the icon against the card
+    3 : 1 (a graphic, WCAG 1.4.11)."""
+    config = (ROOT / "tailwind.config.js").read_text(encoding="utf-8")
+    body = re.search(r"tone:\s*\{([^}]*)\}", config).group(1)
+    tones = dict(re.findall(r"'?([\w-]+)'?:\s*'([^']+)'", body))
+    t = _colour_tokens()
+    low = []
+    for name in ("info", "ok", "warn", "err"):
+        for bg in ("surface-raised", "surface-page"):
+            tint = _over(tones[f"{name}-tint"], t[bg])
+            if _contrast(t["ink"], tint) < 4.5:
+                low.append(f"ink on {name} tint over {bg}: {_contrast(t['ink'], tint):.2f}")
+        if _contrast(t["surface-page"], tones[name]) < 4.5:
+            low.append(f"icon glyph on {name}: {_contrast(t['surface-page'], tones[name]):.2f}")
+        if _contrast(tones[name], t["surface-raised"]) < 3:
+            low.append(
+                f"{name} icon on the card: {_contrast(tones[name], t['surface-raised']):.2f}"
+            )
+    assert not low, low
+
+
+def test_mode_switch_focus_ring_shows_on_both_states():
+    """The pressed button of a mode switch is brand-dark: a brand ring on it
+    was about 1.4 : 1. The ring is white, at least 3 : 1 on both states."""
+    source = (TEMPLATES / "_components" / "segmented.html").read_text(encoding="utf-8")
+    assert "focus-visible:ring-ink-strong" in source
+    t = _colour_tokens()
+    for state in ("brand-dark", "surface-sunken"):
+        assert _contrast(t["ink-strong"], t[state]) >= 3, state
+
+
 def _ui_sources():
     yield from TEMPLATES.rglob("*.html")
     yield from (

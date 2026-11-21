@@ -23,7 +23,6 @@ from app.core import catalog
 
 ROOT = Path(__file__).resolve().parents[1]
 APP_JS = (ROOT / "app/static/js/app.js").read_text(encoding="utf-8")
-CONVERT_TOOL_HTML = (ROOT / "app/templates/partials/convert_tool.html").read_text(encoding="utf-8")
 
 EN_AVIF_HINT = (
     "AVIF takes noticeably longer — a large photo can take a minute or more, "
@@ -81,8 +80,10 @@ def test_clearing_the_selection_hides_the_target_size_section():
     assert "updateQualityVisibility();" in body.group(1)
 
 
-def test_convert_tool_partial_avif_hint_exists_and_starts_hidden():
-    tag = re.search(r'<p id="target-size-avif-hint"[^>]*>', CONVERT_TOOL_HTML)
+def test_convert_tool_partial_avif_hint_exists_and_starts_hidden(client):
+    # Rendered, not the template source: the hint is a notice() macro call there.
+    html = client.get("/en/compress").text
+    tag = re.search(r'<p id="target-size-avif-hint"[^>]*>', html)
     assert tag, "convert_tool.html lost the #target-size-avif-hint element"
     css_class = re.search(r'class="([^"]*)"', tag.group(0))
     assert css_class and "hidden" in css_class.group(1).split(), (

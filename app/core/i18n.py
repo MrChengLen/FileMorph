@@ -288,8 +288,8 @@ def _js_i18n_strings(_: gettext.GNUTranslations.gettext) -> dict[str, str]:
 
     Server-rendered as a JSON blob in ``base.html`` and exposed as
     ``window.FM_I18N`` to every page. JS files reference these instead of
-    hardcoding English literals (e.g. ``alert(window.FM_I18N.alertNoFiles)``
-    instead of ``alert('Please select at least one file.')``).
+    hardcoding English literals (e.g. ``showError(window.FM_I18N.alertNoFiles)``
+    instead of ``showError('Please select at least one file.')``).
 
     Adding a string here:
       1. add the ``"key": _('English source string')`` line below,

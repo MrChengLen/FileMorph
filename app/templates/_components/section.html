@@ -1,4 +1,4 @@
-{# section(title=None, eyebrow=None, padded=True)
+{# section(title=None, eyebrow=None, padded=True, divided=False)
 
    Semantic <section> with optional eyebrow + h2 stacked above the
    body. Body is yielded via {{ caller() }}.
@@ -6,16 +6,19 @@
    padded=True wraps the section in a card-like surface (use for
    feature blocks). padded=False emits a plain <section> for simple
    prose.
+
+   divided=True is the reading section below a tool: no box, a hairline
+   above it, an 18px heading and 16px body text (ink-muted; <strong> and
+   <h3> in ink). Callers cap paragraphs at max-w-prose. Overrides padded.
 #}
-{% macro section(title=None, eyebrow=None, padded=True) %}
-<section class="space-y-5
-                {% if padded %}bg-surface-raised border border-hairline rounded-card p-card-pad-md{% endif %}"
+{% macro section(title=None, eyebrow=None, padded=True, divided=False) %}
+<section class="{% if divided %}space-y-3 border-t border-hairline pt-6 text-base leading-relaxed text-ink-muted{% elif padded %}space-y-5 bg-surface-raised border border-hairline rounded-card p-card-pad-md{% else %}space-y-5{% endif %}"
          data-component="section">
   {% if eyebrow %}
   <p class="text-eyebrow uppercase text-ink-faint">{{ eyebrow }}</p>
   {% endif %}
   {% if title %}
-  <h2 class="text-h-sect text-ink">{{ title }}</h2>
+  <h2 class="{% if divided %}text-lg font-semibold text-ink{% else %}text-h-sect text-ink{% endif %}">{{ title }}</h2>
   {% endif %}
   {{ caller() }}
 </section>

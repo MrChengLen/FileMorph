@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% import "_components/page.html" as up %}
+{% import "_components/section.html" as us %}
 {% block title %}{{ content.title }} | FileMorph{% endblock %}
 {% block meta_description %}{{ content.meta }}{% endblock %}
 {% block content %}
@@ -12,61 +13,61 @@
       <!-- Title -->
       <div class="text-center space-y-2">
         <h1 class="text-h-page text-ink">{{ content.h1 }}</h1>
-        <p class="text-ink-muted text-sm">{{ content.hero }}</p>
+        <p class="text-base text-ink-muted">{{ content.hero }}</p>
       </div>
 
       <!-- The real, working tool: free findings preview (detect) → paid output (apply) -->
       {% include "partials/redact_tool.html" %}
 
-      <p class="text-center text-xs text-ink-muted leading-relaxed">{{ content.trust }}{% if pricing_enabled %} {% include "partials/hosting_note.html" %}.{% endif %}</p>
+      <p class="text-center text-sm text-ink-muted leading-relaxed">{{ content.trust }}{% if pricing_enabled %} {% include "partials/hosting_note.html" %}.{% endif %}</p>
 
-      <!-- What it detects -->
-      <section class="border border-gray-800 rounded-xl px-5 py-4 space-y-2">
-        <h2 class="text-base font-semibold text-white">{{ _('What it detects') }}</h2>
-        <ul class="space-y-1 text-xs text-gray-400 leading-relaxed">
+      {#- The reading sections, as on every tool page (layouts/tool_page.html):
+          no boxes, a hairline above each, 16 px text. -#}
+      <div class="space-y-8 pt-4">
+
+        <!-- What it detects -->
+        {% call us.section(title=_('What it detects'), divided=True) %}
+        <ul class="max-w-prose space-y-1">
           {% for label, detail in content.what_detects %}
-          <li><strong class="text-gray-200">{{ label }}</strong> — {{ detail }}</li>
+          <li><strong class="font-semibold text-ink">{{ label }}</strong> — {{ detail }}</li>
           {% endfor %}
         </ul>
-      </section>
+        {% endcall %}
 
-      <!-- Supported formats + honest limits -->
-      <section class="border border-gray-800 rounded-xl px-5 py-4 space-y-2">
-        <h2 class="text-base font-semibold text-white">{{ _('Supported formats') }}</h2>
-        <p class="text-xs text-gray-400 leading-relaxed">{{ content.formats }}</p>
-        <h3 class="text-sm font-semibold text-gray-200 pt-1">{{ _('Not covered yet') }}</h3>
-        <p class="text-xs text-gray-400 leading-relaxed">{{ content.not_covered }}</p>
-      </section>
+        <!-- Supported formats + honest limits -->
+        {% call us.section(title=_('Supported formats'), divided=True) %}
+        <p class="max-w-prose">{{ content.formats }}</p>
+        <h3 class="font-semibold text-ink">{{ _('Not covered yet') }}</h3>
+        <p class="max-w-prose">{{ content.not_covered }}</p>
+        {% endcall %}
 
-      <!-- How it works -->
-      <section class="border border-gray-800 rounded-xl px-5 py-4 space-y-2">
-        <h2 class="text-base font-semibold text-white">{{ _('How it works') }}</h2>
-        <ol class="space-y-1 text-xs text-gray-400 leading-relaxed list-decimal list-inside">
+        <!-- How it works -->
+        {% call us.section(title=_('How it works'), divided=True) %}
+        <ol class="max-w-prose space-y-1 list-decimal list-inside">
           {% for step, text in content.how_it_works %}
-          <li><strong class="text-gray-200">{{ step }}</strong> — {{ text }}</li>
+          <li><strong class="font-semibold text-ink">{{ step }}</strong> — {{ text }}</li>
           {% endfor %}
         </ol>
-      </section>
+        {% endcall %}
 
-      <!-- When to use -->
-      <section class="border border-gray-800 rounded-xl px-5 py-4 space-y-2">
-        <h2 class="text-base font-semibold text-white">{{ _('When to use it') }}</h2>
-        <p class="text-xs text-gray-400 leading-relaxed">{{ content.when }}</p>
-      </section>
+        <!-- When to use -->
+        {% call us.section(title=_('When to use it'), divided=True) %}
+        <p class="max-w-prose">{{ content.when }}</p>
+        {% endcall %}
 
-      <!-- FAQ — visible question-headings for humans + AI answer engines (GEO) -->
-      <section class="border border-gray-800 rounded-xl px-5 py-4 space-y-4">
-        <h2 class="text-base font-semibold text-white">{{ _('Frequently asked questions') }}</h2>
-        <div class="space-y-3 text-xs leading-relaxed">
+        <!-- FAQ — visible question-headings for humans + AI answer engines (GEO) -->
+        {% call us.section(title=_('Frequently asked questions'), divided=True) %}
+        <div class="max-w-prose space-y-4">
           {% for q, a in content.faq %}
           <div>
-            <h3 class="font-semibold text-gray-200">{{ q }}</h3>
-            <p class="text-gray-400">{{ a }}</p>
+            <h3 class="font-semibold text-ink">{{ q }}</h3>
+            <p>{{ a }}</p>
           </div>
           {% endfor %}
         </div>
-      </section>
+        {% endcall %}
 
+      </div>
     </div>
   {% endcall %}
 

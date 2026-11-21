@@ -15,19 +15,19 @@
 {% block meta_description %}{{ content.intro }}{% endblock %}
 {% block content %}
 {% call up.page(max_w='prose-narrow') %}
-<div id="device-check" data-engine="{{ engine_url }}" class="space-y-8 text-gray-300 text-sm leading-relaxed">
+<div id="device-check" data-engine="{{ engine_url }}" class="space-y-8 text-ink-soft text-base leading-relaxed">
 
   <div class="space-y-3">
-    <h1 class="text-2xl font-bold text-white">{{ content.h1 }}</h1>
-    <p class="text-gray-400">{{ content.intro }}</p>
-    <p class="text-gray-400">{{ content.privacy }}</p>
+    <h1 class="text-h-page text-ink">{{ content.h1 }}</h1>
+    <p class="text-ink-muted">{{ content.intro }}</p>
+    <p class="text-ink-muted">{{ content.privacy }}</p>
   </div>
 
   {% call uc.card() %}
   <div class="space-y-5">
     {{ ui.text_input('model', label=content.model_label, placeholder=content.model_placeholder, id='check-model', autocomplete='off') }}
     <p id="check-device" class="text-xs text-ink-faint"></p>
-    <ol class="list-decimal pl-5 space-y-1 text-gray-400">
+    <ol class="list-decimal pl-5 space-y-1 text-ink-muted">
       {% for step in content.steps %}<li>{{ step }}</li>{% endfor %}
     </ol>
     <div class="flex flex-wrap gap-3">
@@ -41,16 +41,16 @@
       <input id="check-own-input" type="file" accept="image/*" class="hidden">
       <input id="check-camera-input" type="file" accept="image/*" capture="environment" class="hidden">
     </div>
-    <p id="check-status" class="text-white" role="status" aria-live="polite"></p>
+    <p id="check-status" class="text-ink-strong" role="status" aria-live="polite"></p>
     <p id="check-lock" class="text-xs text-ink-faint"></p>
   </div>
   {% endcall %}
 
   <section class="space-y-3" aria-labelledby="check-results-heading">
-    <h2 id="check-results-heading" class="text-base font-semibold text-white">{{ content.results }}</h2>
-    <p id="check-verdict" class="text-white font-semibold"></p>
+    <h2 id="check-results-heading" class="text-lg font-semibold text-ink">{{ content.results }}</h2>
+    <p id="check-verdict" class="text-ink-strong font-semibold"></p>
     <ul id="check-results" class="space-y-2"></ul>
-    <template id="check-row"><li class="flex flex-wrap gap-x-3"><span data-part="label" class="text-ink"></span><span data-part="state" class="font-semibold text-white"></span><span data-part="numbers" class="text-ink-faint"></span></li></template>
+    <template id="check-row"><li class="flex flex-wrap gap-x-3"><span data-part="label" class="text-ink"></span><span data-part="state" class="font-semibold text-ink-strong"></span><span data-part="numbers" class="text-ink-faint"></span></li></template>
     <div class="flex flex-wrap gap-3">
       {{ ub.button(content.copy_result, id='check-copy', variant='secondary') }}
     </div>

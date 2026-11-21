@@ -231,6 +231,7 @@ def test_limit_error_link_names_plans_only_where_they_can_be_booked(
     monkeypatch.setitem(templates.env.globals, "pricing_enabled", True)
     monkeypatch.setitem(templates.env.globals, "stripe_enabled", stripe)
     html = client.get(path).text
-    link = re.search(r'<a id="(?:convert|pdf)-error-upsell"[^>]*>([^<]*)</a>', html)
+    # The link is the button macro's <a>: the id is not its first attribute.
+    link = re.search(r'<a\b[^>]*\bid="(?:convert|pdf)-error-upsell"[^>]*>([^<]*)</a>', html)
     assert link, f"{path}: the limit-error link is missing"
     assert link.group(1).strip() == label

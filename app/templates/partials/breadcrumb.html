@@ -6,7 +6,7 @@
 <nav aria-label="{{ _('Breadcrumb') }}" class="text-sm">
   <ol class="flex flex-wrap items-center gap-2 text-ink-muted">
     <li class="flex items-center gap-2">
-      <a href="{{ localized_url('/tools', current_prefix) }}" class="hover:text-ink transition-colors">{{ _('Tools') }}</a>
+      <a href="{{ localized_url('/tools', current_prefix) }}" class="inline-flex min-h-6 items-center rounded-control hover:text-ink transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">{{ _('Tools') }}</a>
       <span aria-hidden="true">›</span>
     </li>
     <li aria-current="page" class="text-ink">{{ crumb }}</li>

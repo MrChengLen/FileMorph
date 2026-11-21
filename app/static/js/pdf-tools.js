@@ -228,11 +228,14 @@
     dz.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); }
     });
-    dz.addEventListener('dragover', (e) => { e.preventDefault(); dz.classList.add('border-brand'); });
-    dz.addEventListener('dragleave', () => dz.classList.remove('border-brand'));
+    // The drop field (_components/dropzone.html) highlights itself while
+    // data-dragging is set. (Adding border-brand next to the field's own
+    // border colour never showed: the bundle lists border-brand first.)
+    dz.addEventListener('dragover', (e) => { e.preventDefault(); dz.dataset.dragging = ''; });
+    dz.addEventListener('dragleave', () => { delete dz.dataset.dragging; });
     dz.addEventListener('drop', (e) => {
       e.preventDefault();
-      dz.classList.remove('border-brand');
+      delete dz.dataset.dragging;
       if (e.dataTransfer.files && e.dataTransfer.files[0]) onFile(e.dataTransfer.files[0]);
     });
     input.addEventListener('change', () => { if (input.files[0]) onFile(input.files[0]); });

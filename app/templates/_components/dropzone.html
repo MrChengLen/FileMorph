@@ -1,0 +1,25 @@
+{# dropzone(id, label, describedby=None, compact=False, attrs=None)
+
+   The file drop field: a dashed box that opens the file picker on click,
+   Enter or Space and takes files dragged onto it (the page's script wires
+   that up by id). While a file is dragged over it, the script sets
+   data-dragging and the border turns brand-coloured — nothing else styles
+   the drag state. The body (the hidden <input type="file">, the idle and the
+   selected state) is yielded via {{ caller() }}.
+
+   label       — aria-label of the field (it acts as one button).
+   describedby — id of the visible step label of a second field on a page.
+   compact     — less padding, for a second field inside a step. The default
+                 is 16 px on a phone and 24 px from 640 px, so the field stays
+                 in the first screen of a 1280 × 600 laptop window.
+   attrs       — extra data-* attributes as a dict, e.g. the convert tool's
+                 data-preset-*. Only keys starting with data- are rendered
+                 (no event handlers); values are escaped plain strings.
+#}
+{% macro dropzone(id, label, describedby=None, compact=False, attrs=None) %}
+<div id="{{ id }}"{% for key, value in (attrs or {}).items() if key.startswith('data-') %} {{ key }}="{{ value }}"{% endfor %}
+  class="group touch-manipulation rounded-control border-2 border-dashed border-hairline-strong text-center cursor-pointer transition-colors hover:border-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand data-[dragging]:border-brand data-[dragging]:bg-brand/5 {% if compact %}p-4{% else %}p-4 sm:p-card-pad-md{% endif %}"
+  role="button" tabindex="0" aria-label="{{ label }}"{% if describedby %} aria-describedby="{{ describedby }}"{% endif %} data-component="dropzone">
+  {{ caller() }}
+</div>
+{%- endmacro %}

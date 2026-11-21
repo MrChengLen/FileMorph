@@ -89,13 +89,18 @@
     const input = $('redact-file');
     dz.addEventListener('click', () => input.click());
     dz.addEventListener('keydown', (e) => {
+      // Only the field itself opens the picker; Enter or Space on "Clear"
+      // inside it belongs to that button.
+      if (e.target !== dz) return;
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); }
     });
-    dz.addEventListener('dragover', (e) => { e.preventDefault(); dz.classList.add('border-brand'); });
-    dz.addEventListener('dragleave', () => dz.classList.remove('border-brand'));
+    // The drop field (_components/dropzone.html) highlights itself while
+    // data-dragging is set.
+    dz.addEventListener('dragover', (e) => { e.preventDefault(); dz.dataset.dragging = ''; });
+    dz.addEventListener('dragleave', () => { delete dz.dataset.dragging; });
     dz.addEventListener('drop', (e) => {
       e.preventDefault();
-      dz.classList.remove('border-brand');
+      delete dz.dataset.dragging;
       if (e.dataTransfer.files && e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
     });
     input.addEventListener('change', () => { if (input.files[0]) setFile(input.files[0]); });
@@ -107,13 +112,9 @@
     group.querySelectorAll('button[data-mode]').forEach((btn) => {
       btn.addEventListener('click', () => {
         selectedMode = btn.dataset.mode;
+        // Segmented control: the look follows aria-pressed.
         group.querySelectorAll('button[data-mode]').forEach((b) => {
-          const on = b === btn;
-          b.setAttribute('aria-pressed', on ? 'true' : 'false');
-          b.classList.toggle('bg-brand-dark', on);
-          b.classList.toggle('text-white', on);
-          b.classList.toggle('bg-gray-800', !on);
-          b.classList.toggle('text-gray-200', !on);
+          b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
         });
       });
     });
@@ -157,21 +158,22 @@
     findings.forEach((f) => {
       if (f.entity_type === 'PHONE') hasPhone = true;
       const row = document.createElement('div');
-      row.className = 'flex justify-between gap-2 border-b border-gray-800 py-1';
+      row.className = 'flex justify-between gap-2 border-b border-hairline py-1.5';
       const conf = Math.round((f.confidence || 0) * 100);
       // textContent (not innerHTML) for every value: f.value comes from the
       // user's uploaded file, so it must never be interpolated as HTML.
       const left = document.createElement('span');
+      left.className = 'flex min-w-0 flex-wrap gap-x-1';
       const typeSpan = document.createElement('span');
-      typeSpan.className = 'text-gray-200';
+      typeSpan.className = 'text-ink';
       typeSpan.textContent = entityLabel(f.entity_type);
       const valSpan = document.createElement('span');
-      valSpan.className = 'text-ink-faint ml-1';
+      valSpan.className = 'text-ink-faint';
       valSpan.textContent = maskValue(f.value);
       left.appendChild(typeSpan);
       left.appendChild(valSpan);
       const right = document.createElement('span');
-      right.className = conf < 90 ? 'text-amber-400' : 'text-ink-faint';
+      right.className = conf < 90 ? 'shrink-0 text-tone-warn' : 'shrink-0 text-ink-faint';
       right.textContent = `${f.location} · ${conf}%`;
       row.appendChild(left);
       row.appendChild(right);

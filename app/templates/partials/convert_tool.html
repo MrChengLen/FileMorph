@@ -16,9 +16,16 @@
 
    `preset_mode` (e.g. "compress" on /compress) is likewise surfaced as a
    data-attribute; app.js calls the existing setMode() on init when it's
-   present, so the page opens in Compress mode without a dedicated JS path. #}
+   present, so the page opens in Compress mode without a dedicated JS path.
+
+   Built from the shared components: segmented (mode switches, styled by
+   aria-pressed alone), dropzone (drag state via data-dragging), notice (every
+   hint, warning and error; tone via data-tone) and button. #}
 {% import "_components/card.html" as uc %}
 {% import "_components/button.html" as ub %}
+{% import "_components/notice.html" as un %}
+{% import "_components/dropzone.html" as udz %}
+{% import "_components/segmented.html" as useg %}
 {% call uc.card() %}
 <div class="space-y-5">
 
@@ -30,14 +37,10 @@
      toggle with Compress already active, so the page is correct before/without
      JS — app.js's setMode('compress') call on init (data-preset-mode below)
      becomes pure progressive enhancement instead of a required repaint. #}
-  <div id="mode-toggle" class="flex rounded-lg overflow-hidden border border-gray-700 text-sm font-medium">
-    <button id="btn-mode-convert"
-      class="flex-1 py-2 transition-colors{% if preset_mode == 'compress' %} text-gray-400 hover:text-white{% else %} bg-brand-dark text-white{% endif %}"
-      aria-pressed="{% if preset_mode == 'compress' %}false{% else %}true{% endif %}" aria-label="{{ _('File conversion mode') }}">{{ _('Convert') }}</button>
-    <button id="btn-mode-compress"
-      class="flex-1 py-2 transition-colors{% if preset_mode == 'compress' %} bg-brand-dark text-white{% else %} text-gray-400 hover:text-white{% endif %}"
-      aria-pressed="{% if preset_mode == 'compress' %}true{% else %}false{% endif %}" aria-label="{{ _('File compression mode') }}">{{ _('Compress') }}</button>
-  </div>
+  {{ useg.segmented([
+       {'id': 'btn-mode-convert', 'label': _('Convert'), 'aria_label': _('File conversion mode'), 'pressed': preset_mode != 'compress'},
+       {'id': 'btn-mode-compress', 'label': _('Compress'), 'aria_label': _('File compression mode'), 'pressed': preset_mode == 'compress'},
+     ], id='mode-toggle') }}
   {% endif %}
 
   {# What a pre-set page or a "#convert=" link expects, or why the chosen
@@ -45,20 +48,12 @@
      the hidden attribute, which space-y-5 skips (the class would leave a
      gap above the drop field); the way back to the plain converter shows
      only for a "#convert=" link. #}
-  <p id="preset-notice" role="status" hidden
-    class="text-xs text-sky-300 bg-sky-950/40 border border-sky-900/50 rounded-lg px-3 py-2 leading-relaxed">
-    <span id="preset-notice-text"></span>
+  {% call un.notice(id='preset-notice', role='status', hidden_attr=True) %}<span id="preset-notice-text"></span>
     <a id="preset-clear" href="{{ localized_url('/', current_prefix) }}"
-      class="hidden underline hover:text-sky-200 font-semibold ml-1">{{ _('Convert something else') }}</a>
-  </p>
+      class="hidden ml-1 font-semibold underline hover:text-ink-strong">{{ _('Convert something else') }}</a>{% endcall %}
 
   <!-- Drop Zone -->
-  <div id="drop-zone"
-    data-preset-source="{{ preset_source|default('') }}"
-    data-preset-target="{{ preset_target|default('') }}"
-    data-preset-mode="{{ preset_mode|default('') }}"
-    class="border-2 border-dashed border-gray-700 rounded-xl p-6 sm:p-10 text-center cursor-pointer hover:border-brand transition-colors group"
-    role="button" tabindex="0" aria-label="{{ _('Drop files here or click to browse') }}">
+  {% call udz.dropzone('drop-zone', _('Drop files here or click to browse'), attrs={'data-preset-source': preset_source|default(''), 'data-preset-target': preset_target|default(''), 'data-preset-mode': preset_mode|default('')}) %}
     {# On pair pages scope the file picker to the source format only.
        Homepage leaves accept unset so the OS shows all files. #}
     <input id="file-input" type="file" multiple class="hidden"
@@ -71,23 +66,23 @@
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
           d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
       </svg>
-      <p class="text-gray-400">{{ _('Drag & drop your files here') }}</p>
-      <p class="text-xs text-ink-faint">{{ _('or click to browse (multi-file supported)') }}</p>
+      <p class="text-base text-ink-muted">{{ _('Drag & drop your files here') }}</p>
+      <p class="text-sm text-ink-faint">{{ _('or click to browse (multi-file supported)') }}</p>
       {# On pair pages show only the source format as the supported hint.
          On the homepage both lists must match /api/v1/formats — enforced
          by tests/test_homepage_drop_zone_modes.py. #}
       {% if preset_source %}
-      <p id="supported-convert" class="text-xs text-ink-muted mt-2">
+      <p id="supported-convert" class="text-xs leading-5 text-ink-muted">
         {{ _('Supported:') }} {{ preset_source|upper }}
       </p>
       {% else %}
-      <p id="supported-convert" class="text-xs text-ink-muted mt-2">
+      <p id="supported-convert" class="text-xs leading-5 text-ink-muted">
         {{ _('Supported:') }} HEIC · HEIF · JPG · PNG · WebP · AVIF · BMP · TIFF · GIF · ICO<br>
         DOCX · PDF · TXT · MD · HTML · EML · XLSX · CSV · JSON<br>
         MP4 · MOV · AVI · MKV · WebM · FLV · WMV<br>
         MP3 · WAV · FLAC · OGG · M4A · AAC · WMA · OPUS
       </p>
-      <p id="supported-compress" class="hidden text-xs text-ink-muted mt-2">
+      <p id="supported-compress" class="hidden text-xs leading-5 text-ink-muted">
         {{ _('Supported:') }} JPG · PNG · WebP · AVIF · TIFF<br>
         MP4 · MOV · AVI · MKV · WebM
       </p>
@@ -100,15 +95,12 @@
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
           d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
-      <p id="selected-count" class="font-medium text-white text-sm"></p>
+      <p id="selected-count" class="text-sm font-medium text-ink-strong"></p>
       <div id="selected-files-list"
-        class="space-y-1 max-h-32 overflow-y-auto text-left px-2"></div>
-      <button id="clear-file-btn"
-        class="text-xs text-ink-faint hover:text-red-400 transition-colors mt-1">
-        {{ _('Clear all') }}
-      </button>
+        class="space-y-2 max-h-72 sm:max-h-48 overflow-y-auto text-left"></div>
+      {{ ub.button(_('Clear all'), id='clear-file-btn', variant='ghost', size='sm') }}
     </div>
-  </div>
+  {% endcall %}
 
   {# Homepage-only quick actions (partials/quick_actions.html) — gated on
      quick_action_groups (passed only by pages.py::index) so /compress and the
@@ -116,8 +108,8 @@
      get self-links or diluted chip rows. #}
   {% if quick_action_groups %}{% include "partials/quick_actions.html" %}{% endif %}
 
-  <!-- Convert: target format -->
-  <div id="convert-options" class="space-y-4">
+  <!-- Convert: target format, then the hints about it -->
+  <div id="convert-options" class="space-y-3">
     <div class="space-y-1">
       {# On a pair page the target is fixed by the URL, so the dropdown is
          hidden until a file can't reach that target (app.js shows it then,
@@ -126,73 +118,61 @@
          bandwidth-amplification warning). The homepage shows the labelled
          dropdown as before. #}
       {% if not preset_source %}
-      <label class="text-sm text-gray-400 font-medium">{{ _('Target Format') }}</label>
+      <label for="target-format" class="block text-sm font-medium text-ink-muted">{{ _('Target Format') }}</label>
       {% endif %}
       <select id="target-format" aria-label="{{ _('Target Format') }}"
-        class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition-colors{% if preset_source %} hidden{% endif %}">
+        class="block w-full bg-surface-sunken border border-hairline rounded-control px-3 py-2.5 text-base sm:text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition-colors{% if preset_source %} hidden{% endif %}">
         <option value="">{{ _('— select a file first —') }}</option>
       </select>
-      <!-- S1-B: Bandwidth-amplification hint — shown only when source/target
-           combination is known to inflate file size. Text set from app.js. -->
-      <p id="format-warning"
-        class="hidden text-xs text-amber-400 bg-amber-950/40 border border-amber-900/50 rounded-lg px-3 py-2 leading-relaxed">
-        <span id="format-warning-text"></span>
-        <button id="format-warning-suggest" type="button"
-          class="underline hover:text-amber-300 font-semibold ml-1"></button>
-      </p>
-      <!-- Engine-fidelity notice — currently only fires for docx→pdf,
-           where the slim image's mammoth+WeasyPrint fallback drops
-           footnotes / headers / footers / sections / TOC. The
-           office image auto-routes complex docs to LibreOffice.
-           Text set from app.js + window.FM_I18N. -->
-      <p id="engine-notice"
-        class="hidden text-xs text-sky-300 bg-sky-950/40 border border-sky-900/50 rounded-lg px-3 py-2 leading-relaxed">
-        <span id="engine-notice-text"></span>
-        <a id="engine-notice-link" href="https://github.com/MrChengLen/FileMorph/blob/main/docs/formats.md#notes-on-docx--pdf"
-          target="_blank" rel="noopener"
-          class="underline hover:text-sky-200 font-semibold ml-1"></a>
-      </p>
-      {# Video → GIF: the fixed limits (GIF_* in app/converters/_ffmpeg.py, a
-         test pins the numbers), before the upload. Shown by app.js. #}
-      <p id="gif-notice"
-        class="hidden text-xs text-sky-300 bg-sky-950/40 border border-sky-900/50 rounded-lg px-3 py-2 leading-relaxed">
-        {{ _('GIF is for short clips: up to 30 seconds, at most 480 pixels wide or high, without sound.') }}
-      </p>
-      {# PDF is a valid *source* here (→ TXT / PDF/A) but no longer a target
-         (get_public_conversions() drops the pdf->pdf identity pair — a
-         same-format "conversion" would be a silent no-op re-save). When the
-         selected file is a PDF, point at the dedicated structural-op tools
-         this generic converter doesn't cover. Hidden on pair pages (locked
-         to one non-PDF source) — app.js null-guards the toggle. #}
-      {% if not preset_source %}
-      <p id="pdf-tools-hint"
-        class="hidden text-xs text-sky-300 bg-sky-950/40 border border-sky-900/50 rounded-lg px-3 py-2 leading-relaxed">
-        {{ _('Looking to split, extract pages from, insert pages into, or compress a PDF? Try the dedicated PDF tools:') }}
-        <a href="{{ localized_url('/pdf/split', current_prefix) }}" class="underline hover:text-sky-200 font-semibold">{{ _('Split PDF') }}</a>,
-        <a href="{{ localized_url('/pdf/extract', current_prefix) }}" class="underline hover:text-sky-200 font-semibold">{{ _('Extract PDF pages') }}</a>,
-        <a href="{{ localized_url('/pdf/insert', current_prefix) }}" class="underline hover:text-sky-200 font-semibold">{{ _('Insert PDF pages') }}</a>,
-        <a href="{{ localized_url('/pdf/compress', current_prefix) }}" class="underline hover:text-sky-200 font-semibold">{{ _('Compress PDF') }}</a>
-      </p>
-      {% endif %}
     </div>
+    <!-- S1-B: Bandwidth-amplification hint — shown only when source/target
+         combination is known to inflate file size. Text set from app.js. -->
+    {% call un.notice(tone='warn', id='format-warning', hidden=True) %}<span id="format-warning-text"></span>
+      <button id="format-warning-suggest" type="button"
+        class="ml-1 font-semibold underline hover:text-ink-strong"></button>{% endcall %}
+    <!-- Engine-fidelity notice — currently only fires for docx→pdf,
+         where the slim image's mammoth+WeasyPrint fallback drops
+         footnotes / headers / footers / sections / TOC. The
+         office image auto-routes complex docs to LibreOffice.
+         Text set from app.js + window.FM_I18N. -->
+    {% call un.notice(id='engine-notice', hidden=True) %}<span id="engine-notice-text"></span>
+      <a id="engine-notice-link" href="https://github.com/MrChengLen/FileMorph/blob/main/docs/formats.md#notes-on-docx--pdf"
+        target="_blank" rel="noopener"
+        class="ml-1 font-semibold underline hover:text-ink-strong"></a>{% endcall %}
+    {# Video → GIF: the fixed limits (GIF_* in app/converters/_ffmpeg.py, a
+       test pins the numbers), before the upload. Shown by app.js. #}
+    {% call un.notice(id='gif-notice', hidden=True) %}{{ _('GIF is for short clips: up to 30 seconds, at most 480 pixels wide or high, without sound.') }}{% endcall %}
+    {# PDF is a valid *source* here (→ TXT / PDF/A) but no longer a target
+       (get_public_conversions() drops the pdf->pdf identity pair — a
+       same-format "conversion" would be a silent no-op re-save). When the
+       selected file is a PDF, point at the dedicated structural-op tools
+       this generic converter doesn't cover. Hidden on pair pages (locked
+       to one non-PDF source) — app.js null-guards the toggle. #}
+    {% if not preset_source %}
+    {% call un.notice(id='pdf-tools-hint', hidden=True) %}
+      {{ _('Looking to split, extract pages from, insert pages into, or compress a PDF? Try the dedicated PDF tools:') }}
+      <a href="{{ localized_url('/pdf/split', current_prefix) }}" class="font-semibold underline hover:text-ink-strong">{{ _('Split PDF') }}</a>,
+      <a href="{{ localized_url('/pdf/extract', current_prefix) }}" class="font-semibold underline hover:text-ink-strong">{{ _('Extract PDF pages') }}</a>,
+      <a href="{{ localized_url('/pdf/insert', current_prefix) }}" class="font-semibold underline hover:text-ink-strong">{{ _('Insert PDF pages') }}</a>,
+      <a href="{{ localized_url('/pdf/compress', current_prefix) }}" class="font-semibold underline hover:text-ink-strong">{{ _('Compress PDF') }}</a>
+    {% endcall %}
+    {% endif %}
   </div>
 
   <!-- Compress-mode toggle: quality % vs target size MB -->
   <div id="compress-mode-toggle" class="space-y-1 hidden">
-    <label class="text-sm text-gray-400 font-medium">{{ _('Compression mode') }}</label>
-    <div class="flex gap-2">
-      <button type="button" id="cmode-quality" data-cmode="quality"
-        class="flex-1 py-2 rounded-lg text-sm border border-gray-700 bg-gray-800 text-gray-200 hover:bg-gray-700">{{ _('By quality %') }}</button>
-      <button type="button" id="cmode-target" data-cmode="target"
-        class="flex-1 py-2 rounded-lg text-sm border border-gray-700 bg-gray-800 text-gray-200 hover:bg-gray-700">{{ _('By target size') }}</button>
-    </div>
-    <p class="text-xs text-ink-faint">{{ _('JPEG, WebP and AVIF only.') }}</p>
+    <p id="cmode-label" class="text-sm font-medium text-ink-muted">{{ _('Compression mode') }}</p>
+    {{ useg.segmented([
+         {'id': 'cmode-quality', 'data': {'data-cmode': 'quality'}, 'label': _('By quality %'), 'pressed': True},
+         {'id': 'cmode-target', 'data': {'data-cmode': 'target'}, 'label': _('By target size'), 'pressed': False},
+       ], label_id='cmode-label') }}
+    <p class="text-sm text-ink-faint">{{ _('JPEG, WebP and AVIF only.') }}</p>
   </div>
 
   <!-- Quality Slider (both modes) -->
   <div id="quality-section" class="space-y-1 hidden">
     {# The input's name is the heading alone; the slider announces its own value. #}
-    <label for="quality-slider" class="text-sm text-gray-400 font-medium flex justify-between">
+    <label for="quality-slider" class="flex justify-between text-sm font-medium text-ink-muted">
       <span id="quality-heading">{{ _('Quality') }}</span>
       <span id="quality-label" class="text-brand-light font-semibold">85%</span>
     </label>
@@ -206,36 +186,35 @@
     {# Size estimate, filled by app.js in compress mode for one JPEG: how large
        the result will be at this quality, worked out by the browser (nothing
        is uploaded for it); for WebP/AVIF and video a note instead. #}
-    <div id="size-estimate" class="hidden pt-1" aria-live="polite">
+    <div id="size-estimate" class="hidden space-y-0.5" aria-live="polite">
       <p id="size-estimate-text" class="text-sm text-ink"></p>
-      <p id="size-estimate-note" class="text-xs text-ink-faint"></p>
+      <p id="size-estimate-note" class="text-sm text-ink-faint"></p>
     </div>
   </div>
 
   {# Compress mode with only PNG/TIFF chosen (app.js): both are stored
      losslessly, so the slider hides — it would change nothing — and this says
      what does make the file smaller. #}
-  <div id="lossless-note"
-    class="hidden text-xs text-sky-300 bg-sky-950/40 border border-sky-900/50 rounded-lg px-3 py-2 leading-relaxed">
+  {% call un.notice(id='lossless-note', tag='div', hidden=True) %}
     {{ _('PNG and TIFF are lossless: there is no quality setting, compressing only packs the file tighter. As WebP or JPG it usually gets much smaller.') }}
     <button id="lossless-to-webp" type="button"
-      class="hidden underline hover:text-sky-200 font-semibold ml-1">{{ _('Convert to WebP instead →') }}</button>
-  </div>
+      class="hidden ml-1 font-semibold underline hover:text-ink-strong">{{ _('Convert to WebP instead →') }}</button>
+  {% endcall %}
 
   <!-- Target Size Input (compress + cmode=target) -->
   <div id="target-size-section" class="space-y-1 hidden">
-    <label for="target-size-input" class="text-sm text-gray-400 font-medium flex justify-between">
+    <label for="target-size-input" class="flex justify-between text-sm font-medium text-ink-muted">
       <span id="target-size-heading">{{ _('Target file size') }}</span>
       <span id="target-size-label" class="text-brand-light font-semibold">2.0 MB</span>
     </label>
     <input id="target-size-input" type="number" min="0.05" step="0.1" value="2.0"
       aria-labelledby="target-size-heading"
-      class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-base sm:text-sm text-gray-200 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand" />
+      class="block w-full bg-surface-sunken border border-hairline rounded-control px-3 py-2.5 text-base sm:text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition-colors" />
     <div class="flex justify-between text-xs text-ink-muted">
       <span>{{ _('min 0.05 MB') }}</span>
       <span>{{ _('the result is at most this size') }}</span>
     </div>
-    <p id="target-size-avif-hint" class="hidden text-xs text-sky-300 bg-sky-950/40 border border-sky-900/50 rounded-lg px-3 py-2 leading-relaxed">{{ _('AVIF takes noticeably longer — a large photo can take a minute or more, so keep AVIF batches small.') }}</p>
+    {% call un.notice(id='target-size-avif-hint', hidden=True) %}{{ _('AVIF takes noticeably longer — a large photo can take a minute or more, so keep AVIF batches small.') }}{% endcall %}
   </div>
 
   <!-- Convert Button -->
@@ -256,31 +235,32 @@
     </div>
   </div>
 
-  <div id="result-section" class="hidden space-y-2">
+  <div id="result-section" class="hidden space-y-3">
     <!-- Conversion-warning toast — shown above the download button when
          the server reports fidelity-affecting decisions via the
          X-FileMorph-Warnings response header. Lives OUTSIDE the
          downloaded PDF so the user's recipients don't see our
          internal notice. Populated by app.js. -->
-    <div id="conversion-warnings"
-      class="hidden text-xs text-sky-200 bg-sky-950/50 border border-sky-900/60 rounded-lg px-3 py-2 leading-relaxed">
-      <p class="font-semibold mb-1" id="conversion-warnings-title"></p>
-      <ul id="conversion-warnings-list" class="list-disc list-inside space-y-0.5 text-sky-300"></ul>
-    </div>
+    {% call un.notice(id='conversion-warnings', tag='div', hidden=True) %}
+      <div class="space-y-1">
+        <p class="font-semibold" id="conversion-warnings-title"></p>
+        <ul id="conversion-warnings-list" class="list-disc list-inside space-y-0.5"></ul>
+      </div>
+    {% endcall %}
     <!-- P2-1: per-file batch summary. Populated from the
          X-FileMorph-Batch-* response headers after a /batch call.
-         Shown only for batch (N > 1) responses. The colour tone is
-         toggled by app.js — emerald when 0 failures, amber when any
-         file errored or missed its target size, so the visual signal
-         matches the outcome. -->
-    <div id="batch-summary"
-      class="hidden text-xs border rounded-lg px-3 py-2 leading-relaxed">
-      <p class="font-semibold mb-1" id="batch-summary-counts"></p>
-      <ul id="batch-summary-failures"
-        class="hidden list-disc list-inside space-y-0.5 mt-1"></ul>
-      <ul id="batch-summary-notes"
-        class="hidden list-disc list-inside space-y-0.5 mt-1"></ul>
-    </div>
+         Shown only for batch (N > 1) responses. app.js sets the tone
+         (data-tone): ok when nothing failed, warn when any file errored
+         or missed its target size, so the signal matches the outcome. -->
+    {% call un.notice(tone='ok', id='batch-summary', tag='div', hidden=True) %}
+      <div class="space-y-1">
+        <p class="font-semibold" id="batch-summary-counts"></p>
+        <ul id="batch-summary-failures"
+          class="hidden list-disc list-inside space-y-0.5"></ul>
+        <ul id="batch-summary-notes"
+          class="hidden list-disc list-inside space-y-0.5"></ul>
+      </div>
+    {% endcall %}
     <!-- Result preview, filled by app.js for a single file: how the result's
          size compares to the original's (numbers the browser holds, no
          estimate) and, for an image, a small picture of it. The grey behind
@@ -289,33 +269,32 @@
     <div id="result-preview" class="hidden">
       <div class="flex items-center gap-3">
         <img id="result-preview-image" alt="" decoding="async"
-          class="hidden flex-none max-h-16 max-w-16 sm:max-h-20 sm:max-w-20 rounded-lg border border-hairline bg-gray-500" />
+          class="hidden flex-none max-h-16 max-w-16 sm:max-h-20 sm:max-w-20 rounded-control border border-hairline bg-surface-preview" />
         <div class="min-w-0">
           <p id="result-change" class="text-sm text-ink"></p>
           <p id="result-sizes" class="text-xs text-ink-faint"></p>
         </div>
       </div>
     </div>
-    <a id="download-link" href="#" download
-      class="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 font-semibold text-white transition-colors text-sm">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    {% call ub.button(href='#', variant='success', id='download-link', full_width=True, download=True) %}
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
           d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
       </svg>
       <span id="download-link-label">{{ _('Download Result') }}</span>
-    </a>
+    {% endcall %}
   </div>
 
-  <div id="error-section" class="hidden text-center space-y-2">
-    <p id="error-text" role="alert" class="text-red-400 text-sm text-center bg-red-950 rounded-lg py-3 px-4"></p>
+  <div id="error-section" class="hidden space-y-2">
+    {% call un.notice(tone='err', tag='div') %}<p id="error-text" role="alert"></p>{% endcall %}
     {# Quota-error upsell (Upsell-Regeln, docs-internal/ia-navigation-konzept.md):
        only next to a real limit, only when pricing_enabled, free alternative
        named first in #error-text — this link is an addition, not a
        replacement. Un-hidden by app.js for input_too_large /
        output_cap_exceeded / target_size_exceeds_cap / batch_too_large only. #}
     {% if pricing_enabled %}
-    <a id="convert-error-upsell" href="{{ localized_url('/pricing', current_prefix) }}"
-      class="hidden inline-block text-xs px-3 py-1.5 rounded-lg border border-gray-700 text-gray-200 hover:border-brand hover:text-white transition-colors">{% if stripe_enabled %}{{ _('See plans and limits →') }}{% else %}{{ _('Costs and limits →') }}{% endif %}</a>
+    {% if stripe_enabled %}{% set upsell_label = _('See plans and limits →') %}{% else %}{% set upsell_label = _('Costs and limits →') %}{% endif %}
+    {{ ub.button(upsell_label, href=localized_url('/pricing', current_prefix), variant='secondary', size='sm', id='convert-error-upsell', hidden=True) }}
     {% endif %}
   </div>
 

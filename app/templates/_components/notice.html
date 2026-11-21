@@ -1,0 +1,27 @@
+{# notice(tone='info', id=None, tag='p', role=None, hidden=False, hidden_attr=False)
+
+   The one message box: a hint, a warning, a success line or an error. The
+   text stays ink-coloured; the tone shows as a soft tint behind it and as a
+   small round icon (i, ✓ or !) drawn by CSS, so a script can replace the
+   text (textContent) without losing the icon. The body is yielded via
+   {{ caller() }}; a box that a script fills is called with an empty body.
+
+   tone   — info | ok | warn | err, rendered as data-tone. A script that
+            learns the outcome later sets el.dataset.tone: the classes for
+            every tone are always present (data-[tone=…] variants).
+   tag    — p (default: text and inline links) or div (a title plus a list).
+   role   — e.g. status or alert.
+   hidden — start hidden with the `hidden` class (a script removes it).
+   hidden_attr — start hidden with the hidden attribute instead: space-y-*
+            skips [hidden] elements, so a box at the top of a stack leaves
+            no gap while it is hidden.
+
+   Strings never live here (babel skips _components/): callers pass them in.
+#}
+{% macro notice(tone='info', id=None, tag='p', role=None, hidden=False, hidden_attr=False) %}
+{#- The element name is not escaped by autoescape: only p or div get through. -#}
+{%- set el = tag if tag in ('p', 'div') else 'p' -%}
+<{{ el }}{% if id %} id="{{ id }}"{% endif %}{% if role %} role="{{ role }}"{% endif %}{% if hidden_attr %} hidden{% endif %}
+  class="{% if hidden %}hidden {% endif %}relative rounded-control py-2.5 pl-9 pr-3 text-sm leading-6 text-ink before:absolute before:left-3 before:top-3.5 before:size-4 before:rounded-pill before:text-center before:text-xs before:font-bold before:leading-4 before:text-surface-page data-[tone=info]:bg-tone-info-tint data-[tone=info]:before:bg-tone-info data-[tone=info]:before:content-['i'] data-[tone=ok]:bg-tone-ok-tint data-[tone=ok]:before:bg-tone-ok data-[tone=ok]:before:content-['✓'] data-[tone=warn]:bg-tone-warn-tint data-[tone=warn]:before:bg-tone-warn data-[tone=warn]:before:content-['!'] data-[tone=err]:bg-tone-err-tint data-[tone=err]:before:bg-tone-err data-[tone=err]:before:content-['!']"
+  data-tone="{{ tone }}" data-component="notice">{% if caller is defined %}{{ caller() }}{% endif %}</{{ el }}>
+{%- endmacro %}

@@ -1,0 +1,25 @@
+{# segmented(options, id=None, label_id=None)
+
+   A row of mutually exclusive buttons (a mode switch). The pressed button is
+   brand-filled, and the look follows aria-pressed alone: a script switches
+   the mode by setting aria-pressed and never touches classes. 44 px high on
+   a phone, 32 px from 640 px (40 px with the frame). The keyboard focus ring
+   is white, so it shows on the brand fill and on the dark track alike.
+
+   options  — list of dicts: label, pressed (bool) and optionally id,
+              aria_label and data (a dict of data-* attributes; only keys
+              starting with data- are rendered, values escaped).
+   id       — the group's id.
+   label_id — id of the visible label that names the group; with it the row
+              is a role="group".
+#}
+{% macro segmented(options, id=None, label_id=None) %}
+<div{% if id %} id="{{ id }}"{% endif %}{% if label_id %} role="group" aria-labelledby="{{ label_id }}"{% endif %}
+  class="flex gap-1 rounded-control border border-hairline-strong bg-surface-sunken p-1" data-component="segmented">
+  {%- for o in options %}
+  <button type="button"{% if o.id %} id="{{ o.id }}"{% endif %}{% for key, value in (o.data or {}).items() if key.startswith('data-') %} {{ key }}="{{ value }}"{% endfor %}
+    class="flex-1 min-h-11 sm:min-h-8 rounded-control px-3 text-sm font-medium text-ink-muted transition-colors hover:text-ink-strong aria-pressed:bg-brand-dark aria-pressed:text-ink-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink-strong"
+    aria-pressed="{% if o.pressed %}true{% else %}false{% endif %}"{% if o.aria_label %} aria-label="{{ o.aria_label }}"{% endif %}>{{ o.label }}</button>
+  {%- endfor %}
+</div>
+{%- endmacro %}
