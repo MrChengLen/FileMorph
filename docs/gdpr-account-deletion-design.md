@@ -794,8 +794,8 @@ directly.
     `is_active=False` and `deleted_at IS NOT NULL` guards
     already block login one layer up.)
 
-These tests (`tests/test_account_deletion.py`) run against an
-in-memory SQLite engine of their own, whose schema comes from the
+These tests (`tests/test_account_deletion.py`) run against the
+shared in-memory SQLite test database (`tests/support/db.py`), whose schema comes from the
 ORM models (`Base.metadata.create_all` — including `deleted_at` and
 the partial unique index, which SQLite supports), with rate
 limiting switched off for the whole suite by `RATELIMIT_ENABLED=0`

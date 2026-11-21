@@ -32,58 +32,21 @@ import json
 from unittest.mock import MagicMock
 
 import pytest
-from sqlalchemy import delete, select, text
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
+from sqlalchemy import select, text
 
 from app.api.routes import billing as billing_module
 from app.core import audit as audit_module
 from app.core.auth import hash_password
 from app.core.config import settings
-from app.db.base import Base, get_db
 from app.db.models import AuditEvent, TierEnum, User
-from app.main import app
+from tests.support.db import TestSession, cloud_db
 
 
-# ── Test engine ──────────────────────────────────────────────────────────────
-
-_test_engine = create_async_engine(
-    "sqlite+aiosqlite:///:memory:",
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-    echo=False,
-)
-_TestSession = async_sessionmaker(_test_engine, expire_on_commit=False, class_=AsyncSession)
-
-
-async def _setup_schema() -> None:
-    async with _test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-        # Every Alembic-managed database still has this column (migration 005)
-        # until a later migration drops it; the model no longer maps it.
-        await conn.execute(text("ALTER TABLE audit_events ADD COLUMN actor_ip VARCHAR(45)"))
-
-
-async def _wipe() -> None:
-    async with _TestSession() as s:
-        await s.execute(delete(AuditEvent))
-        await s.execute(delete(User))
-        await s.commit()
-
-
-async def _override_get_db():
-    async with _TestSession() as session:
-        yield session
+_db = cloud_db(audit_module)
 
 
 @pytest.fixture(scope="module", autouse=True)
 def _install_overrides():
-    asyncio.run(_setup_schema())
-    app.dependency_overrides[get_db] = _override_get_db
-    # Re-point audit's self-owned session factory at the test engine —
-    # without this, record_event early-returns when DATABASE_URL is unset.
-    original_audit = audit_module.AsyncSessionLocal
-    audit_module.AsyncSessionLocal = _TestSession
     # Configure Stripe settings so _stripe_enabled() doesn't 503.
     original_secret = settings.stripe_secret_key
     original_pro = settings.stripe_pro_price_id
@@ -97,17 +60,9 @@ def _install_overrides():
         "business": "price_test_business",
     }
     yield
-    audit_module.AsyncSessionLocal = original_audit
     settings.__dict__["stripe_secret_key"] = original_secret
     settings.__dict__["stripe_pro_price_id"] = original_pro
     settings.__dict__["stripe_business_price_id"] = original_biz
-    app.dependency_overrides.pop(get_db, None)
-
-
-@pytest.fixture(autouse=True)
-def _wipe_between_tests():
-    asyncio.run(_wipe())
-    yield
 
 
 @pytest.fixture(autouse=True)
@@ -130,7 +85,7 @@ def _mock_stripe(monkeypatch):
 
 def _events_by_type(event_type: str) -> list[AuditEvent]:
     async def _q():
-        async with _TestSession() as s:
+        async with TestSession() as s:
             res = await s.execute(
                 select(AuditEvent)
                 .where(AuditEvent.event_type == event_type)
@@ -145,7 +100,7 @@ def _stored_cells(event_id: int) -> list[str]:
     """Every column of one stored audit row, as strings — mapped or not."""
 
     async def _q():
-        async with _TestSession() as s:
+        async with TestSession() as s:
             res = await s.execute(
                 text("SELECT * FROM audit_events WHERE id = :id"), {"id": event_id}
             )
@@ -155,7 +110,7 @@ def _stored_cells(event_id: int) -> list[str]:
 
 
 async def _insert_user(*, email: str, password: str = "secure-pw-1") -> User:
-    async with _TestSession() as s:
+    async with TestSession() as s:
         user = User(email=email, password_hash=hash_password(password), tier=TierEnum.free)
         s.add(user)
         await s.commit()
@@ -319,7 +274,7 @@ def test_audit_event_chain_intact_across_two_writes(client):
     assert len(checkout_rows) == 2
 
     async def _verify():
-        async with _TestSession() as s:
+        async with TestSession() as s:
             return await audit_module.verify_chain(s)
 
     assert asyncio.run(_verify()) is None
@@ -346,7 +301,7 @@ def test_audit_event_chain_detects_payload_tampering(client):
     # trigger (Postgres does, via migration 005), so we can mutate
     # directly to prove verify_chain catches it.
     async def _tamper():
-        async with _TestSession() as s:
+        async with TestSession() as s:
             row = (
                 await s.execute(select(AuditEvent).where(AuditEvent.id == tampered_id))
             ).scalar_one()
@@ -356,7 +311,7 @@ def test_audit_event_chain_detects_payload_tampering(client):
     asyncio.run(_tamper())
 
     async def _verify():
-        async with _TestSession() as s:
+        async with TestSession() as s:
             return await audit_module.verify_chain(s)
 
     assert asyncio.run(_verify()) == tampered_id

@@ -21,9 +21,10 @@ if os.environ.get("PYTEST_XDIST_WORKER"):
     os.environ["TMPDIR"] = _worker_tmp
     tempfile.tempdir = _worker_tmp
 
-# Cockpit/auth tests opt into an in-memory SQLite database on demand via the
-# `sqlite_db` fixture. By default, `DATABASE_URL` stays unset so the existing
-# Community-Edition tests run exactly as before.
+# Cloud-Edition tests (accounts, billing, audit, quotas, cockpit) opt into the
+# shared in-memory SQLite database of tests/support/db.py (`cloud_db`). By
+# default, `DATABASE_URL` stays unset so the Community-Edition tests run
+# exactly as before.
 
 import pytest
 from fastapi.testclient import TestClient

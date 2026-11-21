@@ -1,10 +1,9 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Compliance Edition: audit-log hash-chain tests.
 
-Mirrors the in-memory-SQLite shape used in ``test_daily_metrics.py``:
-spin up a fresh engine, run the model metadata create_all, then drive
-``app.core.audit.record_event`` and ``verify_chain`` through the
-session-handle path.
+On the shared Cloud test database (``cloud_db``, tests/support/db.py),
+emptied before every test: drive ``app.core.audit.record_event`` and
+``verify_chain`` through the session-handle path.
 
 Coverage
 --------
@@ -40,9 +39,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
-from sqlalchemy import delete, select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import audit as audit_module
 from app.core.audit import (
@@ -60,27 +58,10 @@ from app.core.audit import (
     verify_chain,
 )
 from app.core.config import settings
-from app.db.base import Base
 from app.db.models import AuditEvent
+from tests.support.db import TestSession, cloud_db
 
-_test_engine = create_async_engine(
-    "sqlite+aiosqlite:///:memory:",
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-    echo=False,
-)
-_TestSession = async_sessionmaker(_test_engine, expire_on_commit=False, class_=AsyncSession)
-
-
-async def _setup_schema() -> None:
-    async with _test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
-
-async def _reset_audit() -> None:
-    async with _TestSession() as s:
-        await s.execute(delete(AuditEvent))
-        await s.commit()
+_db = cloud_db(override_get_db=False)
 
 
 @pytest.fixture(autouse=True)
@@ -92,9 +73,7 @@ def _audit_open_default(monkeypatch):
 
 @pytest.fixture
 async def audit_session():
-    await _setup_schema()
-    await _reset_audit()
-    async with _TestSession() as s:
+    async with TestSession() as s:
         yield s
 
 
@@ -284,7 +263,7 @@ async def test_chain_verifies_from_a_fresh_session(audit_session):
     reproduce the hashed value (SQLite hands it back without tzinfo)."""
     for i in range(3):
         await record_event("test.event", payload={"i": i}, db=audit_session)
-    async with _TestSession() as fresh:
+    async with TestSession() as fresh:
         assert await chain_length(fresh) == 3
         assert await verify_chain(fresh) is None
 
@@ -469,7 +448,7 @@ async def test_recipe_1_rows_verify_and_chain_into_new_rows(audit_session):
     assert [r.hash_version for r in rows] == [1, 1, HASH_VERSION, HASH_VERSION]
     assert rows[2].prev_hash == second.record_hash
     assert await verify_chain(audit_session) is None
-    async with _TestSession() as fresh:
+    async with TestSession() as fresh:
         assert await verify_chain(fresh) is None
 
 

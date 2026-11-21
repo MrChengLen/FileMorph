@@ -19,66 +19,25 @@ response (the reveal), then asserts no subsequent list/auth path
 returns it. This pins the contract; if a regression introduces a leak,
 this fails before merge.
 
-Test scaffolding mirrors ``tests/test_account_deletion.py`` — a
-module-scoped sqlite-in-memory engine that replaces ``get_db``.
+Database: the shared Cloud test database (``cloud_db``, tests/support/db.py), emptied before every test.
 """
 
 from __future__ import annotations
 
 import asyncio
 
-import pytest
-from sqlalchemy import delete
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
 
 from app.core.auth import hash_password
-from app.db.base import Base, get_db
 from app.db.models import RoleEnum, TierEnum, User
-from app.main import app
+
+from tests.support.db import TestSession, cloud_db
 
 
-_test_engine = create_async_engine(
-    "sqlite+aiosqlite:///:memory:",
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-    echo=False,
-)
-_TestSession = async_sessionmaker(_test_engine, expire_on_commit=False, class_=AsyncSession)
-
-
-async def _setup_schema() -> None:
-    async with _test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
-
-async def _reset() -> None:
-    async with _TestSession() as s:
-        await s.execute(delete(User))
-        await s.commit()
-
-
-async def _override_get_db():
-    async with _TestSession() as session:
-        yield session
-
-
-@pytest.fixture(scope="module", autouse=True)
-def _install_overrides():
-    asyncio.run(_setup_schema())
-    app.dependency_overrides[get_db] = _override_get_db
-    yield
-    app.dependency_overrides.pop(get_db, None)
-
-
-@pytest.fixture(autouse=True)
-def _wipe_between_tests():
-    asyncio.run(_reset())
-    yield
+_db = cloud_db()
 
 
 async def _insert_user(email: str, password: str = "initial-password") -> User:
-    async with _TestSession() as s:
+    async with TestSession() as s:
         user = User(
             email=email,
             password_hash=hash_password(password),

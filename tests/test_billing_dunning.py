@@ -33,62 +33,30 @@ import json
 from unittest.mock import AsyncMock
 
 import pytest
-from sqlalchemy import delete, select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
+from sqlalchemy import select
 
 from app.api.routes import billing as billing_module
 from app.core import audit as audit_module
 from app.core import email as email_module
 from app.core.auth import hash_password
 from app.core.config import settings
-from app.db.base import Base
 from app.db.models import AuditEvent, TierEnum, User
-
-# ── Test engine ──────────────────────────────────────────────────────────────
-
-_test_engine = create_async_engine(
-    "sqlite+aiosqlite:///:memory:",
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-    echo=False,
-)
-_TestSession = async_sessionmaker(_test_engine, expire_on_commit=False, class_=AsyncSession)
+from tests.support.db import TestSession, cloud_db
 
 
-async def _setup_schema() -> None:
-    async with _test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
-
-async def _wipe() -> None:
-    async with _TestSession() as s:
-        await s.execute(delete(AuditEvent))
-        await s.execute(delete(User))
-        await s.commit()
+_db = cloud_db(audit_module, override_get_db=False)
 
 
 @pytest.fixture(scope="module", autouse=True)
 def _install_overrides():
-    asyncio.run(_setup_schema())
-    # Audit helper opens its own session — point it at the test engine.
-    original_audit = audit_module.AsyncSessionLocal
-    audit_module.AsyncSessionLocal = _TestSession
     # Configure Stripe price IDs so _tier_for_price() maps correctly.
     original_pro = settings.stripe_pro_price_id
     original_biz = settings.stripe_business_price_id
     settings.__dict__["stripe_pro_price_id"] = "price_test_pro"
     settings.__dict__["stripe_business_price_id"] = "price_test_business"
     yield
-    audit_module.AsyncSessionLocal = original_audit
     settings.__dict__["stripe_pro_price_id"] = original_pro
     settings.__dict__["stripe_business_price_id"] = original_biz
-
-
-@pytest.fixture(autouse=True)
-def _wipe_between_tests():
-    asyncio.run(_wipe())
-    yield
 
 
 @pytest.fixture(autouse=True)
@@ -110,7 +78,7 @@ async def _make_user(
     status: str | None = None,
     preferred_lang: str | None = None,
 ) -> User:
-    async with _TestSession() as s:
+    async with TestSession() as s:
         user = User(
             email=email,
             password_hash=hash_password("pw-secure-1"),
@@ -126,13 +94,13 @@ async def _make_user(
 
 
 async def _reload(user_id) -> User:
-    async with _TestSession() as s:
+    async with TestSession() as s:
         return (await s.execute(select(User).where(User.id == user_id))).scalar_one()
 
 
 def _events_by_type(event_type: str) -> list[AuditEvent]:
     async def _q():
-        async with _TestSession() as s:
+        async with TestSession() as s:
             res = await s.execute(
                 select(AuditEvent)
                 .where(AuditEvent.event_type == event_type)
@@ -163,7 +131,7 @@ def _invoice_obj(customer: str, *, next_attempt: int | None = 1_900_000_000) -> 
 
 def _run_sync(sub: dict, **kw):
     async def _go():
-        async with _TestSession() as db:
+        async with TestSession() as db:
             await billing_module._sync_subscription(sub, db, **kw)
 
     asyncio.run(_go())
@@ -171,7 +139,7 @@ def _run_sync(sub: dict, **kw):
 
 def _run_payment_failed(invoice: dict):
     async def _go():
-        async with _TestSession() as db:
+        async with TestSession() as db:
             await billing_module._handle_payment_failed(invoice, db)
 
     asyncio.run(_go())

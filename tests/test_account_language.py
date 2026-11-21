@@ -1,8 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """PR-i18n-3: ``PUT /api/v1/auth/account/language`` — email-language preference.
 
-Self-contained (own in-memory SQLite + ``get_db`` override + per-test wipe),
-mirroring the pattern in ``tests.test_account_deletion``.
+Database: the shared Cloud test database (``cloud_db``, tests/support/db.py), emptied before every test.
 
 Pinned:
 
@@ -20,56 +19,18 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-from sqlalchemy import delete, select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
+from sqlalchemy import select
 
 from app.core.auth import hash_password
-from app.db.base import Base, get_db
 from app.db.models import User
-from app.main import app
 
-_test_engine = create_async_engine(
-    "sqlite+aiosqlite:///:memory:",
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-    echo=False,
-)
-_TestSession = async_sessionmaker(_test_engine, expire_on_commit=False, class_=AsyncSession)
+from tests.support.db import TestSession, cloud_db
 
-
-async def _setup_schema() -> None:
-    async with _test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
-
-async def _reset_tables() -> None:
-    async with _TestSession() as s:
-        await s.execute(delete(User))
-        await s.commit()
-
-
-async def _override_get_db():
-    async with _TestSession() as session:
-        yield session
-
-
-@pytest.fixture(scope="module", autouse=True)
-def _install_overrides():
-    asyncio.run(_setup_schema())
-    app.dependency_overrides[get_db] = _override_get_db
-    yield
-    app.dependency_overrides.pop(get_db, None)
-
-
-@pytest.fixture(autouse=True)
-def _wipe_between_tests():
-    asyncio.run(_reset_tables())
-    yield
+_db = cloud_db()
 
 
 async def _insert_user(*, email: str, preferred_lang: str | None = None) -> User:
-    async with _TestSession() as s:
+    async with TestSession() as s:
         user = User(
             email=email,
             password_hash=hash_password("initial-password"),
@@ -82,7 +43,7 @@ async def _insert_user(*, email: str, preferred_lang: str | None = None) -> User
 
 
 async def _preferred_lang(email: str) -> str | None:
-    async with _TestSession() as s:
+    async with TestSession() as s:
         r = await s.execute(select(User).where(User.email == email))
         return r.scalar_one().preferred_lang
 

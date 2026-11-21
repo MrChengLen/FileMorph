@@ -30,9 +30,7 @@ from unittest.mock import patch
 
 import pytest
 from fastapi import HTTPException
-from sqlalchemy import delete, func, select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
+from sqlalchemy import func, select
 
 from app.api.routes.auth import get_optional_user
 from app.core import usage as usage_module
@@ -45,61 +43,16 @@ from app.core.usage import (
     monthly_call_count,
     record_usage,
 )
-from app.db.base import Base, get_db
 from app.db.models import TierEnum, UsageRecord, User
 from app.main import app
+from tests.support.db import TestSession, cloud_db
 
 
-# ── Test engine ──────────────────────────────────────────────────────────────
-
-_test_engine = create_async_engine(
-    "sqlite+aiosqlite:///:memory:",
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-    echo=False,
-)
-_TestSession = async_sessionmaker(_test_engine, expire_on_commit=False, class_=AsyncSession)
-
-
-async def _setup_schema() -> None:
-    async with _test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
-
-async def _wipe() -> None:
-    async with _TestSession() as s:
-        await s.execute(delete(UsageRecord))
-        await s.execute(delete(User))
-        await s.commit()
-
-
-async def _override_get_db():
-    async with _TestSession() as session:
-        yield session
-
-
-@pytest.fixture(scope="module", autouse=True)
-def _install_overrides():
-    asyncio.run(_setup_schema())
-    app.dependency_overrides[get_db] = _override_get_db
-    # Re-point usage's self-owned session factory at the test engine,
-    # otherwise enforce_monthly_quota / record_usage early-return when
-    # DATABASE_URL is unset.
-    original_session = usage_module.AsyncSessionLocal
-    usage_module.AsyncSessionLocal = _TestSession
-    yield
-    usage_module.AsyncSessionLocal = original_session
-    app.dependency_overrides.pop(get_db, None)
-
-
-@pytest.fixture(autouse=True)
-def _wipe_between_tests():
-    asyncio.run(_wipe())
-    yield
+_db = cloud_db(usage_module)
 
 
 async def _make_user(*, email: str, tier: TierEnum) -> User:
-    async with _TestSession() as s:
+    async with TestSession() as s:
         user = User(email=email, password_hash=hash_password("pw-secure-1"), tier=tier)
         s.add(user)
         await s.commit()
@@ -120,7 +73,7 @@ async def _seed_usage(user_id: uuid.UUID, n: int, *, when: datetime | None = Non
     """Insert N UsageRecord rows for a user at the given timestamp."""
     if when is None:
         when = datetime.now(timezone.utc)
-    async with _TestSession() as s:
+    async with TestSession() as s:
         for _ in range(n):
             s.add(
                 UsageRecord(
@@ -163,7 +116,7 @@ def test_monthly_call_count_zero_for_new_user():
     user = asyncio.run(_make_user(email="zero@example.com", tier=TierEnum.free))
 
     async def _q():
-        async with _TestSession() as s:
+        async with TestSession() as s:
             return await monthly_call_count(s, user.id)
 
     assert asyncio.run(_q()) == 0
@@ -178,7 +131,7 @@ def test_monthly_call_count_returns_current_month_only():
     asyncio.run(_seed_usage(user.id, 7, when=now))
 
     async def _q():
-        async with _TestSession() as s:
+        async with TestSession() as s:
             return await monthly_call_count(s, user.id, now=now)
 
     assert asyncio.run(_q()) == 7
@@ -257,7 +210,7 @@ def test_record_usage_inserts_one_row():
             file_size_bytes=12345,
             duration_ms=42,
         )
-        async with _TestSession() as s:
+        async with TestSession() as s:
             return await monthly_call_count(s, user.id)
 
     assert asyncio.run(_do()) == 1
@@ -276,7 +229,7 @@ def test_record_usage_anonymous_is_noop():
             file_size_bytes=1,
             duration_ms=1,
         )
-        async with _TestSession() as s:
+        async with TestSession() as s:
             return (await s.execute(select(func.count()).select_from(UsageRecord))).scalar_one()
 
     assert asyncio.run(_do()) == 0
@@ -372,7 +325,7 @@ def test_convert_route_succeeds_when_user_is_below_monthly_limit(client):
         # Side effect: the successful call wrote one UsageRecord row.
 
         async def _q():
-            async with _TestSession() as s:
+            async with TestSession() as s:
                 return await monthly_call_count(
                     s, user.id, now=datetime.now(timezone.utc) + timedelta(seconds=1)
                 )

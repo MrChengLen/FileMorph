@@ -1,10 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Admin cockpit — auth gating, CRUD and timeseries tests.
 
-Self-contained: installs a dedicated in-memory SQLite engine (StaticPool so
-all connections see the same DB) and overrides the ``get_db`` /
-``get_current_user`` FastAPI dependencies. Other test modules keep their
-DB-less fast path unchanged.
+Database: the shared Cloud test database (``cloud_db``, tests/support/db.py), emptied before every test; tests that act as a user override
+``get_current_user``.
 """
 
 from __future__ import annotations
@@ -15,55 +13,19 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 from fastapi.routing import APIRoute, iter_route_contexts
-from sqlalchemy import delete
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
 
 from app.api.routes.auth import get_current_user
 from app.core.auth import hash_password
-from app.db.base import Base, get_db
-from app.db.models import RoleEnum, TierEnum, UsageRecord, User
+from app.db.models import RoleEnum, TierEnum, User
 from app.main import app
-
-# ── Module-scoped test engine ──────────────────────────────────────────────────
-
-_test_engine = create_async_engine(
-    "sqlite+aiosqlite:///:memory:",
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-    echo=False,
-)
-_TestSession = async_sessionmaker(_test_engine, expire_on_commit=False, class_=AsyncSession)
+from tests.support.db import TestSession, cloud_db
 
 
-async def _setup_schema() -> None:
-    async with _test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
-
-async def _reset_tables() -> None:
-    async with _TestSession() as s:
-        await s.execute(delete(UsageRecord))
-        await s.execute(delete(User))
-        await s.commit()
-
-
-async def _override_get_db():
-    async with _TestSession() as session:
-        yield session
-
-
-@pytest.fixture(scope="module", autouse=True)
-def _install_overrides():
-    asyncio.run(_setup_schema())
-    app.dependency_overrides[get_db] = _override_get_db
-    yield
-    app.dependency_overrides.pop(get_db, None)
+_db = cloud_db()
 
 
 @pytest.fixture(autouse=True)
-def _wipe_between_tests():
-    asyncio.run(_reset_tables())
+def _drop_user_override():
     yield
     app.dependency_overrides.pop(get_current_user, None)
 
@@ -79,7 +41,7 @@ async def _insert_user(
     is_active: bool = True,
     created_at: datetime | None = None,
 ) -> User:
-    async with _TestSession() as s:
+    async with TestSession() as s:
         user = User(
             email=email,
             password_hash=hash_password("test-password"),
