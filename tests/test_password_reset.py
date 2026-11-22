@@ -1,9 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Forgot / reset password flow — JWT+phv token lifecycle, SMTP mocked out.
 
-Mirrors the self-contained pattern from :mod:`tests.test_cockpit_admin`:
-a dedicated StaticPool SQLite engine, ``get_db`` dependency override, and
-a per-test wipe. No real SMTP traffic leaves the process — the
+Database: the shared Cloud test database (``cloud_db``, tests/support/db.py), emptied before every test. No real SMTP traffic leaves the process — the
 ``app.core.email.send_email`` coroutine is replaced with an
 ``AsyncMock`` via fixture.
 """
@@ -15,56 +13,15 @@ import time
 from unittest.mock import AsyncMock
 
 import pytest
-from sqlalchemy import delete
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
 
 from app.core import email as email_mod
 from app.core.auth import hash_password
 from app.core.tokens import create_password_reset_token, password_hash_version
-from app.db.base import Base, get_db
 from app.db.models import TierEnum, User
-from app.main import app
 
-# ── Module-scoped test engine ──────────────────────────────────────────────────
+from tests.support.db import TestSession, cloud_db
 
-_test_engine = create_async_engine(
-    "sqlite+aiosqlite:///:memory:",
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-    echo=False,
-)
-_TestSession = async_sessionmaker(_test_engine, expire_on_commit=False, class_=AsyncSession)
-
-
-async def _setup_schema() -> None:
-    async with _test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
-
-async def _reset_tables() -> None:
-    async with _TestSession() as s:
-        await s.execute(delete(User))
-        await s.commit()
-
-
-async def _override_get_db():
-    async with _TestSession() as session:
-        yield session
-
-
-@pytest.fixture(scope="module", autouse=True)
-def _install_overrides():
-    asyncio.run(_setup_schema())
-    app.dependency_overrides[get_db] = _override_get_db
-    yield
-    app.dependency_overrides.pop(get_db, None)
-
-
-@pytest.fixture(autouse=True)
-def _wipe_between_tests():
-    asyncio.run(_reset_tables())
-    yield
+_db = cloud_db()
 
 
 @pytest.fixture
@@ -84,7 +41,7 @@ async def _insert_user(
     tier: TierEnum = TierEnum.free,
     is_active: bool = True,
 ) -> User:
-    async with _TestSession() as s:
+    async with TestSession() as s:
         user = User(
             email=email,
             password_hash=hash_password(password),

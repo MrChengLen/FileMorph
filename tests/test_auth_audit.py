@@ -9,12 +9,11 @@ NEU-B.1 shipped the chain itself; this slice wires four routes —
 ``/auth/reset-password`` — into that chain.
 
 These tests drive the routes through ``TestClient`` and inspect
-the resulting ``audit_events`` rows. The harness is the same
-StaticPool / SQLite shape used in ``test_password_reset.py``,
-extended with one extra step: ``app.core.audit.AsyncSessionLocal``
-gets re-pointed at the test session factory so ``record_event``'s
-self-owned session uses the test database. Without that override
-the helper would early-return (no DATABASE_URL → no audit-log).
+the resulting ``audit_events`` rows, on the shared Cloud test database
+(``cloud_db``, tests/support/db.py). ``cloud_db(audit_module)`` also
+points ``app.core.audit.AsyncSessionLocal`` there, so ``record_event``'s
+self-owned session uses the test database. Without that the helper
+would early-return (no DATABASE_URL → no audit-log).
 
 Properties verified
 -------------------
@@ -42,65 +41,17 @@ from __future__ import annotations
 import asyncio
 import json
 
-import pytest
-from sqlalchemy import delete, select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
+from sqlalchemy import select
 
 from app.core import audit as audit_module
 from app.core.audit import verify_chain
 from app.core.auth import hash_password
-from app.db.base import Base, get_db
 from app.db.models import AuditEvent, TierEnum, User
-from app.main import app
+
+from tests.support.db import TestSession, cloud_db
 
 
-# ── Test engine — single in-memory SQLite shared across tests ───────────────
-
-_test_engine = create_async_engine(
-    "sqlite+aiosqlite:///:memory:",
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-    echo=False,
-)
-_TestSession = async_sessionmaker(_test_engine, expire_on_commit=False, class_=AsyncSession)
-
-
-async def _setup_schema() -> None:
-    async with _test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
-
-async def _wipe() -> None:
-    async with _TestSession() as s:
-        await s.execute(delete(AuditEvent))
-        await s.execute(delete(User))
-        await s.commit()
-
-
-async def _override_get_db():
-    async with _TestSession() as session:
-        yield session
-
-
-@pytest.fixture(scope="module", autouse=True)
-def _install_overrides():
-    asyncio.run(_setup_schema())
-    app.dependency_overrides[get_db] = _override_get_db
-    # Re-point audit's self-owned session factory at the test engine.
-    # Without this, record_event returns early because
-    # AsyncSessionLocal is None in the default test environment.
-    original = audit_module.AsyncSessionLocal
-    audit_module.AsyncSessionLocal = _TestSession
-    yield
-    audit_module.AsyncSessionLocal = original
-    app.dependency_overrides.pop(get_db, None)
-
-
-@pytest.fixture(autouse=True)
-def _wipe_between_tests():
-    asyncio.run(_wipe())
-    yield
+_db = cloud_db(audit_module)
 
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
@@ -108,7 +59,7 @@ def _wipe_between_tests():
 
 def _events_by_type(event_type: str) -> list[AuditEvent]:
     async def _q():
-        async with _TestSession() as s:
+        async with TestSession() as s:
             res = await s.execute(
                 select(AuditEvent)
                 .where(AuditEvent.event_type == event_type)
@@ -121,7 +72,7 @@ def _events_by_type(event_type: str) -> list[AuditEvent]:
 
 def _all_events() -> list[AuditEvent]:
     async def _q():
-        async with _TestSession() as s:
+        async with TestSession() as s:
             res = await s.execute(select(AuditEvent).order_by(AuditEvent.id.asc()))
             return list(res.scalars().all())
 
@@ -131,7 +82,7 @@ def _all_events() -> list[AuditEvent]:
 async def _insert_user(
     *, email: str, password: str = "initial-password", is_active: bool = True
 ) -> User:
-    async with _TestSession() as s:
+    async with TestSession() as s:
         user = User(
             email=email,
             password_hash=hash_password(password),
@@ -352,7 +303,7 @@ def test_chain_remains_intact_after_auth_events(client):
     assert len(rows) >= 3
 
     async def _verify():
-        async with _TestSession() as s:
+        async with TestSession() as s:
             return await verify_chain(s)
 
     assert asyncio.run(_verify()) is None

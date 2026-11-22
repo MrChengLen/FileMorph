@@ -51,63 +51,17 @@ from unittest.mock import AsyncMock
 
 import pytest
 import stripe
-from sqlalchemy import delete, select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
+from sqlalchemy import select
 
 from app.api.routes import auth as auth_route
 from app.core import email as email_mod
 from app.core.auth import deleted_password_sentinel, hash_password, verify_password
-from app.db.base import Base, get_db
-from app.db.models import ApiKey, FileJob, RoleEnum, TierEnum, UsageRecord, User
-from app.main import app
+from app.db.models import ApiKey, FileJob, RoleEnum, TierEnum, User
+
+from tests.support.db import TestSession, cloud_db
 
 
-# ── Module-scoped test engine ──────────────────────────────────────────────────
-
-
-_test_engine = create_async_engine(
-    "sqlite+aiosqlite:///:memory:",
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-    echo=False,
-)
-_TestSession = async_sessionmaker(_test_engine, expire_on_commit=False, class_=AsyncSession)
-
-
-async def _setup_schema() -> None:
-    async with _test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
-
-async def _reset_tables() -> None:
-    async with _TestSession() as s:
-        # Child tables first; the paid path retains the User row, so a bare
-        # ``DELETE FROM users`` would leave dangling FKs on SQLite.
-        await s.execute(delete(UsageRecord))
-        await s.execute(delete(FileJob))
-        await s.execute(delete(ApiKey))
-        await s.execute(delete(User))
-        await s.commit()
-
-
-async def _override_get_db():
-    async with _TestSession() as session:
-        yield session
-
-
-@pytest.fixture(scope="module", autouse=True)
-def _install_overrides():
-    asyncio.run(_setup_schema())
-    app.dependency_overrides[get_db] = _override_get_db
-    yield
-    app.dependency_overrides.pop(get_db, None)
-
-
-@pytest.fixture(autouse=True)
-def _wipe_between_tests():
-    asyncio.run(_reset_tables())
-    yield
+_db = cloud_db()
 
 
 @pytest.fixture
@@ -143,7 +97,7 @@ async def _insert_user(
     preferred_lang: str | None = None,
     email_verified_at=None,
 ) -> User:
-    async with _TestSession() as s:
+    async with TestSession() as s:
         user = User(
             email=email,
             password_hash=hash_password(password),
@@ -162,7 +116,7 @@ async def _insert_user(
 
 
 async def _insert_api_key(user_id, key_hash: str = "a" * 64) -> ApiKey:
-    async with _TestSession() as s:
+    async with TestSession() as s:
         key = ApiKey(user_id=user_id, key_hash=key_hash, label="test")
         s.add(key)
         await s.commit()
@@ -171,7 +125,7 @@ async def _insert_api_key(user_id, key_hash: str = "a" * 64) -> ApiKey:
 
 
 async def _insert_file_job(user_id) -> FileJob:
-    async with _TestSession() as s:
+    async with TestSession() as s:
         job = FileJob(
             user_id=user_id,
             original_name="x.png",
@@ -213,39 +167,39 @@ def _delete(client, email: str, token: str, password: str = "initial-password"):
 
 async def _user_exists(email: str) -> bool:
     """Any row with this email (live or tax-retained)."""
-    async with _TestSession() as s:
+    async with TestSession() as s:
         r = await s.execute(select(User).where(User.email == email))
         return r.scalar_one_or_none() is not None
 
 
 async def _fetch_retained_user(email: str) -> User | None:
     """The single ``deleted_at IS NOT NULL`` row for this email, if any."""
-    async with _TestSession() as s:
+    async with TestSession() as s:
         r = await s.execute(select(User).where(User.email == email, User.deleted_at.is_not(None)))
         return r.scalar_one_or_none()
 
 
 async def _fetch_live_user(email: str) -> User | None:
     """The single ``deleted_at IS NULL`` row for this email, if any."""
-    async with _TestSession() as s:
+    async with TestSession() as s:
         r = await s.execute(select(User).where(User.email == email, User.deleted_at.is_(None)))
         return r.scalar_one_or_none()
 
 
 async def _count_users(email: str) -> int:
-    async with _TestSession() as s:
+    async with TestSession() as s:
         r = await s.execute(select(User).where(User.email == email))
         return len(r.scalars().all())
 
 
 async def _count_api_keys(user_id) -> int:
-    async with _TestSession() as s:
+    async with TestSession() as s:
         r = await s.execute(select(ApiKey).where(ApiKey.user_id == user_id))
         return len(r.scalars().all())
 
 
 async def _file_job_user_id(job_id):
-    async with _TestSession() as s:
+    async with TestSession() as s:
         r = await s.execute(select(FileJob).where(FileJob.id == job_id))
         return r.scalar_one().user_id
 

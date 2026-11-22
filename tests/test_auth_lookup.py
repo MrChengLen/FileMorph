@@ -17,53 +17,19 @@ from unittest.mock import AsyncMock
 import bcrypt
 import pytest
 from fastapi import BackgroundTasks
-from sqlalchemy import delete
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
 from starlette.requests import Request
 
 from app.api.routes import auth as auth_route
 from app.core import email as email_mod
 from app.core.auth import DUMMY_PASSWORD_HASH, hash_password, verify_password
 from app.core.tokens import create_password_reset_token, password_hash_version
-from app.db.base import Base, get_db
 from app.db.models import User
-from app.main import app
+from tests.support.db import TestSession, cloud_db
 
-_engine = create_async_engine(
-    "sqlite+aiosqlite:///:memory:",
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-)
-_Session = async_sessionmaker(_engine, expire_on_commit=False, class_=AsyncSession)
+_db = cloud_db()
+# Made at import, before the fixture makes bcrypt cheap: a real cost-12 hash
+# (test_the_dummy_hash_is_a_valid_cost_12_bcrypt_hash compares the two).
 _PASSWORD_HASH = hash_password("correct-password")
-
-
-async def _override_get_db():
-    async with _Session() as session:
-        yield session
-
-
-@pytest.fixture(scope="module", autouse=True)
-def _database():
-    async def _create():
-        async with _engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-
-    asyncio.run(_create())
-    app.dependency_overrides[get_db] = _override_get_db
-    yield
-    app.dependency_overrides.pop(get_db, None)
-
-
-@pytest.fixture(autouse=True)
-def _no_users():
-    async def _wipe():
-        async with _Session() as session:
-            await session.execute(delete(User))
-            await session.commit()
-
-    asyncio.run(_wipe())
 
 
 @pytest.fixture
@@ -76,7 +42,7 @@ def sent_mail(monkeypatch):
 def _add_users(*emails: str) -> list[User]:
     async def _insert():
         users = [User(email=e, password_hash=_PASSWORD_HASH, preferred_lang="en") for e in emails]
-        async with _Session() as session:
+        async with TestSession() as session:
             session.add_all(users)
             await session.commit()
         return users
@@ -149,7 +115,7 @@ def test_the_reset_mail_is_sent_after_the_response(sent_mail):
             {"type": "http", "method": "POST", "path": "/", "headers": [], "query_string": b""}
         )
         body = auth_route.ForgotPasswordRequest(email="real@example.com")
-        async with _Session() as db:
+        async with TestSession() as db:
             answer = await auth_route.forgot_password.__wrapped__(
                 request=request, body=body, background_tasks=tasks, db=db
             )

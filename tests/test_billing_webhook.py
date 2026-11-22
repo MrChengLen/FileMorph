@@ -23,15 +23,15 @@ import time
 from unittest.mock import AsyncMock
 
 import pytest
-from sqlalchemy import delete, select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
+from sqlalchemy import select
 
 from app.core import email as email_module
 from app.core.config import settings
-from app.db.base import Base, get_db
-from app.db.models import AuditEvent, TierEnum, User
-from app.main import app
+from app.db.models import TierEnum, User
+from tests.support.db import TestSession, cloud_db
+
+# The rejection tests below never reach the database; the signed-event tests do.
+_db = cloud_db()
 
 
 def test_webhook_rejects_when_secret_not_configured(client, monkeypatch):
@@ -75,47 +75,12 @@ def test_webhook_rejects_invalid_signature(client, monkeypatch):
 
 _WEBHOOK_SECRET = "whsec_test_signed_events"
 
-_test_engine = create_async_engine(
-    "sqlite+aiosqlite:///:memory:",
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-    echo=False,
-)
-_TestSession = async_sessionmaker(_test_engine, expire_on_commit=False, class_=AsyncSession)
-
-
-async def _setup_schema() -> None:
-    async with _test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
-
-async def _wipe() -> None:
-    async with _TestSession() as s:
-        await s.execute(delete(AuditEvent))
-        await s.execute(delete(User))
-        await s.commit()
-
-
-async def _override_get_db():
-    async with _TestSession() as session:
-        yield session
-
-
-@pytest.fixture(scope="module")
-def _webhook_db():
-    """In-memory database behind ``get_db`` — only the signed-event tests ask
-    for it; the rejection tests above never reach the database."""
-    asyncio.run(_setup_schema())
-    app.dependency_overrides[get_db] = _override_get_db
-    yield
-    app.dependency_overrides.pop(get_db, None)
-
 
 @pytest.fixture
-def webhook_env(_webhook_db, monkeypatch):
-    """Empty tables, a known webhook secret and the Pro price id; monkeypatch
-    restores both settings after the test."""
-    asyncio.run(_wipe())
+def webhook_env(monkeypatch):
+    """A known webhook secret and the Pro price id (the test database behind
+    ``get_db`` starts empty for every test); monkeypatch restores both
+    settings after the test."""
     monkeypatch.setattr(settings, "stripe_webhook_secret", _WEBHOOK_SECRET)
     monkeypatch.setattr(settings, "stripe_pro_price_id", "price_test_pro")
 
@@ -130,7 +95,7 @@ def send_mock(monkeypatch):
 async def _insert_subscriber(
     customer_id: str, *, tier: TierEnum = TierEnum.pro, status: str | None = "active"
 ) -> User:
-    async with _TestSession() as s:
+    async with TestSession() as s:
         user = User(
             email=f"{customer_id}@example.com",
             password_hash="never-checked-here",
@@ -146,7 +111,7 @@ async def _insert_subscriber(
 
 
 async def _reload(user_id) -> User:
-    async with _TestSession() as s:
+    async with TestSession() as s:
         return (await s.execute(select(User).where(User.id == user_id))).scalar_one()
 
 

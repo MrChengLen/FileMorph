@@ -1,9 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """NEU-B.3 (slice b): email-verification flow.
 
-Mirrors the self-contained pattern from :mod:`tests.test_password_reset`:
-a dedicated StaticPool SQLite engine, ``get_db`` dependency override,
-and a per-test wipe. The ``send_email`` coroutine is replaced with an
+Database: the shared Cloud test database (``cloud_db``, tests/support/db.py), emptied before every test. The ``send_email`` coroutine is replaced with an
 ``AsyncMock`` so no real SMTP traffic leaves the process.
 
 Pinned contracts:
@@ -35,58 +33,17 @@ from unittest.mock import AsyncMock
 
 import pytest
 from fastapi import HTTPException
-from sqlalchemy import delete, select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
+from sqlalchemy import select
 
 from app.core import email as email_mod
 from app.core.auth import hash_password
 from app.core.tokens import create_email_verify_token, decode_email_verify_token
-from app.db.base import Base, get_db
 from app.db.models import TierEnum, User
-from app.main import app
+
+from tests.support.db import TestSession, cloud_db
 
 
-# ── Module-scoped test engine ──────────────────────────────────────────────────
-
-
-_test_engine = create_async_engine(
-    "sqlite+aiosqlite:///:memory:",
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-    echo=False,
-)
-_TestSession = async_sessionmaker(_test_engine, expire_on_commit=False, class_=AsyncSession)
-
-
-async def _setup_schema() -> None:
-    async with _test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
-
-async def _reset_tables() -> None:
-    async with _TestSession() as s:
-        await s.execute(delete(User))
-        await s.commit()
-
-
-async def _override_get_db():
-    async with _TestSession() as session:
-        yield session
-
-
-@pytest.fixture(scope="module", autouse=True)
-def _install_overrides():
-    asyncio.run(_setup_schema())
-    app.dependency_overrides[get_db] = _override_get_db
-    yield
-    app.dependency_overrides.pop(get_db, None)
-
-
-@pytest.fixture(autouse=True)
-def _wipe_between_tests():
-    asyncio.run(_reset_tables())
-    yield
+_db = cloud_db()
 
 
 @pytest.fixture
@@ -107,7 +64,7 @@ async def _insert_user(
     is_active: bool = True,
     verified: bool = False,
 ) -> User:
-    async with _TestSession() as s:
+    async with TestSession() as s:
         user = User(
             email=email,
             password_hash=hash_password(password),
@@ -187,7 +144,7 @@ def test_register_dispatches_verification_email(client, mock_send_email):
     # email_verified_at starts NULL; preferred_lang seeded from the request
     # locale (the Accept-Language: en header above).
     async def _check():
-        async with _TestSession() as s:
+        async with TestSession() as s:
             r = await s.execute(select(User).where(User.email == "newuser@example.com"))
             user = r.scalar_one()
             assert user.email_verified_at is None
@@ -217,7 +174,7 @@ def test_register_seeds_preferred_lang_from_request_locale(
     assert res.status_code == 201, res.text
 
     async def _check():
-        async with _TestSession() as s:
+        async with TestSession() as s:
             r = await s.execute(select(User).where(User.email == email))
             assert r.scalar_one().preferred_lang == expected_lang
 
@@ -251,7 +208,7 @@ def test_verify_email_with_valid_token_marks_user_verified(client, mock_send_ema
     assert "verified" in res.json()["message"].lower()
 
     async def _check():
-        async with _TestSession() as s:
+        async with TestSession() as s:
             r = await s.execute(select(User).where(User.email == "alice@example.com"))
             user = r.scalar_one()
             assert user.email_verified_at is not None
@@ -260,7 +217,7 @@ def test_verify_email_with_valid_token_marks_user_verified(client, mock_send_ema
 
 
 async def _get_user_id(email: str):
-    async with _TestSession() as s:
+    async with TestSession() as s:
         r = await s.execute(select(User).where(User.email == email))
         return r.scalar_one().id
 
@@ -290,7 +247,7 @@ def test_verify_email_rejects_token_after_email_rotation(client):
 
     # Simulate email rotation.
     async def _rotate():
-        async with _TestSession() as s:
+        async with TestSession() as s:
             r = await s.execute(select(User).where(User.id == user_id))
             user = r.scalar_one()
             user.email = "new@example.com"

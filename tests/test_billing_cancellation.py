@@ -36,9 +36,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 import stripe
 from fastapi.testclient import TestClient
-from sqlalchemy import delete, select, text
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
+from sqlalchemy import select, text
 
 from app.api.routes import billing as billing_module
 from app.core import audit as audit_module
@@ -46,11 +44,12 @@ from app.core import billing as billing_core
 from app.core import email as email_module
 from app.core.config import settings
 from app.core.rate_limit import limiter
-from app.db.base import Base, get_db
+from app.db.base import get_db
 from app.db.models import AuditEvent, TierEnum, User
 from app.main import app
 from app.models import schemas as schemas_module
 from app.models.schemas import CancellationRequest
+from tests.support.db import TestSession, cloud_db
 
 URL = "/api/v1/billing/cancellation"
 PRO_PRICE = "price_test_pro"
@@ -88,46 +87,9 @@ def rate_limiter_enabled():
         limiter.enabled = False
 
 
-# ── Test database (mirrors tests/test_rate_limit_routes.py) ─────────────────
+# ── Test database ────────────────────────────────────────────────────────────
 
-_test_engine = create_async_engine(
-    "sqlite+aiosqlite:///:memory:",
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-    echo=False,
-)
-_TestSession = async_sessionmaker(_test_engine, expire_on_commit=False, class_=AsyncSession)
-
-
-async def _setup_schema() -> None:
-    async with _test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-        # Every Alembic-managed database still has this column (migration 005)
-        # until a later migration drops it; the model no longer maps it.
-        await conn.execute(text("ALTER TABLE audit_events ADD COLUMN actor_ip VARCHAR(45)"))
-
-
-async def _wipe() -> None:
-    async with _TestSession() as s:
-        await s.execute(delete(AuditEvent))
-        await s.execute(delete(User))
-        await s.commit()
-
-
-async def _override_get_db():
-    async with _TestSession() as session:
-        yield session
-
-
-@pytest.fixture(scope="module", autouse=True)
-def _install_overrides():
-    asyncio.run(_setup_schema())
-    app.dependency_overrides[get_db] = _override_get_db
-    original_audit = audit_module.AsyncSessionLocal
-    audit_module.AsyncSessionLocal = _TestSession
-    yield
-    audit_module.AsyncSessionLocal = original_audit
-    app.dependency_overrides.pop(get_db, None)
+_db = cloud_db(audit_module)
 
 
 @pytest.fixture(autouse=True)
@@ -144,12 +106,6 @@ def _settings(monkeypatch):
         "app_base_url": "http://localhost:8000",
     }.items():
         monkeypatch.setitem(settings.__dict__, key, value)
-
-
-@pytest.fixture(autouse=True)
-def _wipe_between_tests():
-    asyncio.run(_wipe())
-    yield
 
 
 @pytest.fixture(autouse=True)
@@ -217,7 +173,7 @@ async def _insert_user(
     preferred_lang: str | None = None,
     deleted: bool = False,
 ) -> User:
-    async with _TestSession() as s:
+    async with TestSession() as s:
         user = User(
             email=email,
             password_hash="never-checked-here",
@@ -234,7 +190,7 @@ async def _insert_user(
 
 def _events(event_type: str | None = None) -> list[AuditEvent]:
     async def _q():
-        async with _TestSession() as s:
+        async with TestSession() as s:
             stmt = select(AuditEvent).order_by(AuditEvent.id.asc())
             if event_type is not None:
                 stmt = stmt.where(AuditEvent.event_type == event_type)
@@ -247,7 +203,7 @@ def _stored_cells() -> list[str]:
     """Every column of every stored audit row, as strings — mapped or not."""
 
     async def _q():
-        async with _TestSession() as s:
+        async with TestSession() as s:
             res = await s.execute(text("SELECT * FROM audit_events"))
             return [str(cell) for row in res.all() for cell in row]
 

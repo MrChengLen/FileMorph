@@ -17,9 +17,7 @@ The upload gate in front of both (``require_api_key``) must accept the same
 dashboard keys: it once checked only the file store, so every key minted via
 ``POST /api/v1/keys`` got 401 before the fallback above could resolve it.
 
-Self-contained: installs a dedicated in-memory SQLite engine with
-``StaticPool`` so every connection sees the same DB, and overrides the
-``get_db`` FastAPI dependency only for the duration of this module.
+Database: the shared Cloud test database (``cloud_db``, tests/support/db.py), emptied before every test.
 """
 
 from __future__ import annotations
@@ -30,9 +28,7 @@ from datetime import datetime, timedelta, timezone
 
 import jwt
 import pytest
-from sqlalchemy import delete, select, update
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
+from sqlalchemy import select, update
 
 from app.api.deps import require_api_key
 from app.api.routes.auth import get_optional_user
@@ -40,58 +36,19 @@ from app.core.auth import hash_password
 from app.core.config import settings
 from app.core.security import validate_api_key
 from app.core.tokens import ALGORITHM, create_access_token, password_hash_version
-from app.db.base import Base, get_db
 from app.db.models import ApiKey, TierEnum, User
-from app.main import app
+
+from tests.support.db import TestSession, cloud_db
 from tests.conftest import TEST_KEY
 
-# ── Module-scoped test engine ──────────────────────────────────────────────────
-
-_test_engine = create_async_engine(
-    "sqlite+aiosqlite:///:memory:",
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-    echo=False,
-)
-_TestSession = async_sessionmaker(_test_engine, expire_on_commit=False, class_=AsyncSession)
-
-
-async def _setup_schema() -> None:
-    async with _test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
-
-async def _reset_tables() -> None:
-    async with _TestSession() as s:
-        await s.execute(delete(ApiKey))
-        await s.execute(delete(User))
-        await s.commit()
-
-
-async def _override_get_db():
-    async with _TestSession() as session:
-        yield session
-
-
-@pytest.fixture(scope="module", autouse=True)
-def _install_overrides():
-    asyncio.run(_setup_schema())
-    app.dependency_overrides[get_db] = _override_get_db
-    yield
-    app.dependency_overrides.pop(get_db, None)
-
-
-@pytest.fixture(autouse=True)
-def _wipe_between_tests():
-    asyncio.run(_reset_tables())
-    yield
+_db = cloud_db()
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 
 async def _insert_business_user(email: str = "biz@x.test") -> User:
-    async with _TestSession() as s:
+    async with TestSession() as s:
         user = User(
             email=email,
             password_hash=hash_password("test-password"),
@@ -107,19 +64,19 @@ async def _revoke_keys(user: User) -> None:
     """What ``DELETE /api/v1/keys/{id}`` does: flip ``is_active`` off. Done
     directly because that route compares its ``str`` path param to a UUID
     column, which the SQLite test engine rejects."""
-    async with _TestSession() as s:
+    async with TestSession() as s:
         await s.execute(update(ApiKey).where(ApiKey.user_id == user.id).values(is_active=False))
         await s.commit()
 
 
 async def _update_owner(user: User, **values) -> None:
-    async with _TestSession() as s:
+    async with TestSession() as s:
         await s.execute(update(User).where(User.id == user.id).values(**values))
         await s.commit()
 
 
 async def _last_used_at(user: User) -> datetime | None:
-    async with _TestSession() as s:
+    async with TestSession() as s:
         return await s.scalar(select(ApiKey.last_used_at).where(ApiKey.user_id == user.id))
 
 
@@ -349,7 +306,7 @@ def test_file_store_key_accepted_with_database_configured(client, sample_jpg):
 
 def _open_after(dependency) -> bool:
     async def _run() -> bool:
-        async with _TestSession() as db:
+        async with TestSession() as db:
             await dependency(db)
             return db.in_transaction()
 

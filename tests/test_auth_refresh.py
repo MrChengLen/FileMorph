@@ -6,8 +6,7 @@ account is live — active, not deleted — and the password is the one it was
 issued under (the ``phv`` claim). Refreshing never extends a sign-in: the
 answer carries the presented refresh token back.
 
-Same self-contained harness as :mod:`tests.test_password_reset`: a StaticPool
-SQLite engine, the ``get_db`` override for this module, a wipe per test.
+Database: the shared Cloud test database (``cloud_db``, tests/support/db.py), emptied before every test.
 """
 
 from __future__ import annotations
@@ -18,59 +17,23 @@ from datetime import datetime, timedelta, timezone
 import jwt
 import pytest
 from sqlalchemy import delete, update
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
 
 from app.core.auth import hash_password
 from app.core.config import settings
 from app.core.tokens import ALGORITHM, password_hash_version
-from app.db.base import Base, get_db
+from app.db.base import get_db
 from app.db.models import User
 from app.main import app
 
-_test_engine = create_async_engine(
-    "sqlite+aiosqlite:///:memory:",
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-    echo=False,
-)
-_TestSession = async_sessionmaker(_test_engine, expire_on_commit=False, class_=AsyncSession)
+from tests.support.db import TestSession, cloud_db
+
+_db = cloud_db()
 
 _PASSWORD = "refresh-test-password"
 
 
-async def _setup_schema() -> None:
-    async with _test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
-
-async def _reset_tables() -> None:
-    async with _TestSession() as s:
-        await s.execute(delete(User))
-        await s.commit()
-
-
-async def _override_get_db():
-    async with _TestSession() as session:
-        yield session
-
-
-@pytest.fixture(scope="module", autouse=True)
-def _install_overrides():
-    asyncio.run(_setup_schema())
-    app.dependency_overrides[get_db] = _override_get_db
-    yield
-    app.dependency_overrides.pop(get_db, None)
-
-
-@pytest.fixture(autouse=True)
-def _wipe_between_tests():
-    asyncio.run(_reset_tables())
-    yield
-
-
 async def _insert_user(email: str) -> User:
-    async with _TestSession() as s:
+    async with TestSession() as s:
         user = User(email=email, password_hash=hash_password(_PASSWORD))
         s.add(user)
         await s.commit()
@@ -79,13 +42,13 @@ async def _insert_user(email: str) -> User:
 
 
 async def _deactivate(user: User) -> None:
-    async with _TestSession() as s:
+    async with TestSession() as s:
         await s.execute(update(User).where(User.id == user.id).values(is_active=False))
         await s.commit()
 
 
 async def _remove(user: User) -> None:
-    async with _TestSession() as s:
+    async with TestSession() as s:
         await s.execute(delete(User).where(User.id == user.id))
         await s.commit()
 

@@ -11,8 +11,7 @@ Pins the contract:
   anonymous / unlimited.
 * ``record_ai_usage`` writes one row per charged op; no-op for anonymous.
 
-Own in-memory SQLite engine + a patched session factory, same pattern as
-tests/test_monthly_quota.py.
+Database: the shared Cloud test database (``cloud_db``, tests/support/db.py), emptied before every test; ``app.core.ai_credits`` opens its sessions there.
 """
 
 from __future__ import annotations
@@ -23,9 +22,6 @@ from datetime import datetime, timezone
 
 import pytest
 from fastapi import HTTPException
-from sqlalchemy import delete
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
 
 from app.core import ai_credits as ai_credits_module
 from app.core.ai_credits import (
@@ -36,47 +32,15 @@ from app.core.ai_credits import (
     record_ai_usage,
 )
 from app.core.auth import hash_password
-from app.db.base import Base
 from app.db.models import AiUsageRecord, TierEnum, User
 
-_test_engine = create_async_engine(
-    "sqlite+aiosqlite:///:memory:",
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-    echo=False,
-)
-_TestSession = async_sessionmaker(_test_engine, expire_on_commit=False, class_=AsyncSession)
+from tests.support.db import TestSession, cloud_db
 
-
-async def _setup_schema() -> None:
-    async with _test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
-
-async def _wipe() -> None:
-    async with _TestSession() as s:
-        await s.execute(delete(AiUsageRecord))
-        await s.execute(delete(User))
-        await s.commit()
-
-
-@pytest.fixture(scope="module", autouse=True)
-def _install_overrides():
-    asyncio.run(_setup_schema())
-    original = ai_credits_module.AsyncSessionLocal
-    ai_credits_module.AsyncSessionLocal = _TestSession
-    yield
-    ai_credits_module.AsyncSessionLocal = original
-
-
-@pytest.fixture(autouse=True)
-def _wipe_between_tests():
-    asyncio.run(_wipe())
-    yield
+_db = cloud_db(ai_credits_module, override_get_db=False)
 
 
 async def _make_user(*, email: str, tier: TierEnum) -> User:
-    async with _TestSession() as s:
+    async with TestSession() as s:
         user = User(email=email, password_hash=hash_password("pw-secure-1"), tier=tier)
         s.add(user)
         await s.commit()
@@ -89,7 +53,7 @@ async def _seed_credits(
 ) -> None:
     if when is None:
         when = datetime.now(timezone.utc)
-    async with _TestSession() as s:
+    async with TestSession() as s:
         for _ in range(n):
             s.add(
                 AiUsageRecord(
@@ -109,7 +73,7 @@ def test_credits_used_zero_for_new_user():
     user = asyncio.run(_make_user(email="z@example.com", tier=TierEnum.pro))
 
     async def _q():
-        async with _TestSession() as s:
+        async with TestSession() as s:
             return await monthly_credits_used(s, user.id)
 
     assert asyncio.run(_q()) == 0
@@ -123,7 +87,7 @@ def test_credits_used_sums_current_month_only():
     asyncio.run(_seed_credits(user.id, 3, 4, when=now))  # 12, counted
 
     async def _q():
-        async with _TestSession() as s:
+        async with TestSession() as s:
             return await monthly_credits_used(s, user.id, now=now)
 
     assert asyncio.run(_q()) == 12
@@ -202,7 +166,7 @@ def test_record_inserts_credits():
 
     async def _do():
         await record_ai_usage(user_id=user.id, operation="redact", credits_charged=3)
-        async with _TestSession() as s:
+        async with TestSession() as s:
             return await monthly_credits_used(s, user.id)
 
     assert asyncio.run(_do()) == 3
@@ -220,7 +184,7 @@ def test_charge_inserts_and_counts():
 
     async def _do():
         await charge_ai_credits(user, 3, operation="redact")
-        async with _TestSession() as s:
+        async with TestSession() as s:
             return await monthly_credits_used(s, user.id)
 
     assert asyncio.run(_do()) == 3
@@ -236,7 +200,7 @@ def test_charge_unlimited_records_without_limit():
 
     async def _do():
         await charge_ai_credits(user, 1, operation="redact")  # no 402
-        async with _TestSession() as s:
+        async with TestSession() as s:
             return await monthly_credits_used(s, user.id)
 
     assert asyncio.run(_do()) == 5001  # still recorded
@@ -251,7 +215,7 @@ def test_charge_over_limit_raises_402_and_does_not_insert():
     assert exc_info.value.headers.get("X-FileMorph-Error-Code") == "ai_credits_exhausted"
 
     async def _q():
-        async with _TestSession() as s:
+        async with TestSession() as s:
             return await monthly_credits_used(s, user.id)
 
     assert asyncio.run(_q()) == 200  # the rejected charge left no row
@@ -270,7 +234,7 @@ def test_charge_rechecks_fresh_state_at_the_boundary():
     asyncio.run(_seed_credits(user.id, 1, 199))  # 199 used
 
     async def _q():
-        async with _TestSession() as s:
+        async with TestSession() as s:
             return await monthly_credits_used(s, user.id)
 
     asyncio.run(charge_ai_credits(user, 1, operation="redact"))  # 199 -> 200, ok
