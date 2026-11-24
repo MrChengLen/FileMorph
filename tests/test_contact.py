@@ -109,6 +109,23 @@ def test_contact_post_honeypot_silently_dropped(client, monkeypatch):
 @pytest.mark.parametrize(
     "payload",
     [
+        {"email": "a@b.com", "message": "x" * 25},  # missing nothing required... actually fine
+    ],
+)
+def test_contact_post_minimal_valid_body_ok(client, monkeypatch, payload):
+    """name/subject/website are optional — a body with just email + a
+    long-enough message is accepted."""
+    send_mock = AsyncMock()
+    monkeypatch.setattr(email_mod, "send_email", send_mock)
+    monkeypatch.setattr("app.api.routes.contact.audit_record", AsyncMock())
+    r = client.post("/api/v1/contact", json=payload)
+    assert r.status_code == 200
+    send_mock.assert_awaited_once()
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
         {"message": "x" * 25},  # missing email
         {"email": "a@b.com", "message": "too short"},  # < 20 chars
         {"email": "not-an-email", "message": "x" * 25},  # invalid email
