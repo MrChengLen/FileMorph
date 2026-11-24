@@ -44,9 +44,7 @@ from uuid import uuid4
 import pytest
 from fastapi.routing import APIRoute, iter_route_contexts
 from fastapi.testclient import TestClient
-from sqlalchemy import delete, select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
+from sqlalchemy import select
 
 from app.api.routes import billing as billing_module
 from app.api.routes.keys import MAX_ACTIVE_KEYS
@@ -55,9 +53,9 @@ from app.core.auth import hash_password
 from app.core.config import settings
 from app.core.rate_limit import account_or_ip, limiter
 from app.core.tokens import create_access_token, create_refresh_token, password_hash_version
-from app.db.base import Base, get_db
 from app.db.models import ApiKey, AuditEvent, TierEnum, User
 from app.main import app
+from tests.support.db import TestSession, cloud_db
 
 # Budgets under test (app/api/routes/{keys,billing,auth}.py) — one source of
 # truth for the parametrized test below and the routes that need dedicated
@@ -92,41 +90,13 @@ def rate_limiter_enabled():
         limiter.enabled = False
 
 
-# ── Shared test database (mirrors tests/test_billing_consent.py) ────────────
+# ── Test database ────────────────────────────────────────────────────────────
 
-_test_engine = create_async_engine(
-    "sqlite+aiosqlite:///:memory:",
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-    echo=False,
-)
-_TestSession = async_sessionmaker(_test_engine, expire_on_commit=False, class_=AsyncSession)
-
-
-async def _setup_schema() -> None:
-    async with _test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
-
-async def _wipe() -> None:
-    async with _TestSession() as s:
-        await s.execute(delete(AuditEvent))
-        await s.execute(delete(ApiKey))
-        await s.execute(delete(User))
-        await s.commit()
-
-
-async def _override_get_db():
-    async with _TestSession() as session:
-        yield session
+_db = cloud_db(audit_module)
 
 
 @pytest.fixture(scope="module", autouse=True)
 def _install_overrides():
-    asyncio.run(_setup_schema())
-    app.dependency_overrides[get_db] = _override_get_db
-    original_audit = audit_module.AsyncSessionLocal
-    audit_module.AsyncSessionLocal = _TestSession
     original_secret = settings.stripe_secret_key
     original_pro = settings.stripe_pro_price_id
     original_biz = settings.stripe_business_price_id
@@ -136,18 +106,10 @@ def _install_overrides():
     settings.__dict__["stripe_business_price_id"] = "price_test_business"
     billing_module._TIER_TO_PRICE = {"pro": "price_test_pro", "business": "price_test_business"}
     yield
-    audit_module.AsyncSessionLocal = original_audit
     settings.__dict__["stripe_secret_key"] = original_secret
     settings.__dict__["stripe_pro_price_id"] = original_pro
     settings.__dict__["stripe_business_price_id"] = original_biz
     billing_module._TIER_TO_PRICE = original_tier_to_price
-    app.dependency_overrides.pop(get_db, None)
-
-
-@pytest.fixture(autouse=True)
-def _wipe_between_tests():
-    asyncio.run(_wipe())
-    yield
 
 
 # ── Small helpers ─────────────────────────────────────────────────────────────
@@ -156,7 +118,7 @@ def _wipe_between_tests():
 async def _insert_user(
     *, email: str, password: str = "rl-test-password-1", stripe_customer_id: str | None = None
 ) -> User:
-    async with _TestSession() as s:
+    async with TestSession() as s:
         user = User(
             email=email,
             password_hash=hash_password(password),
@@ -179,7 +141,7 @@ def _bearer_headers(user: User) -> dict[str, str]:
 async def _bulk_insert_keys(user_id, count: int, *, is_active: bool) -> None:
     """Insert `count` ApiKey rows directly — bypassing POST /keys (and its
     own 10/minute limit) so the key-cap tests can set up an exact count."""
-    async with _TestSession() as s:
+    async with TestSession() as s:
         for _ in range(count):
             s.add(
                 ApiKey(
@@ -195,7 +157,7 @@ async def _bulk_insert_keys(user_id, count: int, *, is_active: bool) -> None:
 async def _insert_active_key_for(user_id, raw_key: str) -> None:
     """Insert one ApiKey row a caller can then authenticate with using
     `raw_key` — only its SHA-256 hash is stored, matching find_active_api_key."""
-    async with _TestSession() as s:
+    async with TestSession() as s:
         s.add(
             ApiKey(
                 user_id=user_id,
@@ -209,7 +171,7 @@ async def _insert_active_key_for(user_id, raw_key: str) -> None:
 
 def _events_by_type(event_type: str) -> list[AuditEvent]:
     async def _q():
-        async with _TestSession() as s:
+        async with TestSession() as s:
             res = await s.execute(
                 select(AuditEvent)
                 .where(AuditEvent.event_type == event_type)

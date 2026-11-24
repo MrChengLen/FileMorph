@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """S10-lite — DailyMetric increment + cockpit usage-summary tests.
 
-Self-contained, mirrors the pattern in ``test_cockpit_admin.py``: spins up an
-in-memory SQLite, overrides ``get_db``, and runs assertions through the
-existing ``client`` fixture (the concurrency test uses its own file DB).
+Database: the shared Cloud test database (``cloud_db``, tests/support/db.py), emptied before every test;
+assertions run through the ``client`` fixture (the concurrency test uses
+its own file DB).
 
 What's covered
 --------------
@@ -22,67 +22,30 @@ import logging
 from datetime import date, datetime, timezone
 
 import pytest
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import NullPool, StaticPool
+from sqlalchemy.pool import NullPool
 
 from app.api.routes.auth import get_current_user
 from app.core.auth import hash_password
 from app.core import metrics as metrics_module
 from app.core.config import settings
 from app.core.metrics import increment
-from app.db.base import Base, get_db
 from app.db.models import DailyMetric, RoleEnum, User
 from app.main import app
+from tests.support.db import TestSession, cloud_db
 
-_test_engine = create_async_engine(
-    "sqlite+aiosqlite:///:memory:",
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-    echo=False,
-)
-_TestSession = async_sessionmaker(_test_engine, expire_on_commit=False, class_=AsyncSession)
-
-
-async def _setup_schema() -> None:
-    async with _test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
-
-async def _reset_tables() -> None:
-    async with _TestSession() as s:
-        await s.execute(delete(DailyMetric))
-        await s.execute(delete(User))
-        await s.commit()
-
-
-async def _override_get_db():
-    async with _TestSession() as session:
-        yield session
-
-
-@pytest.fixture(scope="module", autouse=True)
-def _install_overrides():
-    asyncio.run(_setup_schema())
-    app.dependency_overrides[get_db] = _override_get_db
-    # Production callers no longer pass an explicit session — increment opens
-    # its own. The unit tests still pass one explicitly via ``db=`` to keep
-    # writes inside the in-memory engine. The middleware integration test
-    # below patches ``AsyncSessionLocal`` so the global path also targets the
-    # test engine.
-    yield
-    app.dependency_overrides.pop(get_db, None)
+_db = cloud_db()
 
 
 @pytest.fixture(autouse=True)
-def _wipe_between_tests():
-    asyncio.run(_reset_tables())
+def _drop_user_override():
     yield
     app.dependency_overrides.pop(get_current_user, None)
 
 
 async def _insert_admin() -> User:
-    async with _TestSession() as s:
+    async with TestSession() as s:
         u = User(
             email="admin@test.local",
             password_hash=hash_password("test-password"),
@@ -106,7 +69,7 @@ def _act_as(user: User) -> None:
 
 def test_increment_creates_row_when_absent():
     async def _run():
-        async with _TestSession() as s:
+        async with TestSession() as s:
             await increment("page_views", db=s)
             row = (
                 await s.execute(select(DailyMetric).where(DailyMetric.metric_key == "page_views"))
@@ -119,7 +82,7 @@ def test_increment_creates_row_when_absent():
 
 def test_increment_is_atomic_upsert_on_repeat():
     async def _run():
-        async with _TestSession() as s:
+        async with TestSession() as s:
             for _ in range(5):
                 await increment("page_views", db=s)
             row = (
@@ -140,7 +103,7 @@ def test_increment_by_n_aggregates_in_one_round_trip():
     """
 
     async def _run():
-        async with _TestSession() as s:
+        async with TestSession() as s:
             await increment("convert.jpg-to-pdf", by=7, db=s)
             row = (
                 await s.execute(
@@ -163,7 +126,7 @@ def test_increment_by_n_aggregates_in_one_round_trip():
 
 def test_increment_keeps_separate_counters_per_key():
     async def _run():
-        async with _TestSession() as s:
+        async with TestSession() as s:
             await increment("page_views", db=s)
             await increment("page_views", db=s)
             await increment("registrations", db=s)
@@ -184,7 +147,7 @@ def test_increment_is_noop_when_metrics_disabled(monkeypatch):
     monkeypatch.setattr(settings, "metrics_enabled", False)
 
     async def _run():
-        async with _TestSession() as s:
+        async with TestSession() as s:
             await increment("page_views", db=s)
             count = (await s.execute(select(DailyMetric))).scalars().all()
             assert count == [], "no rows should be written when disabled"
@@ -222,7 +185,7 @@ def test_increment_is_noop_when_no_db_and_no_global_session(monkeypatch):
 )
 def test_increment_rejects_invalid_metric_keys(bad_key):
     async def _run():
-        async with _TestSession() as s:
+        async with TestSession() as s:
             await increment(bad_key, db=s)
             rows = (await s.execute(select(DailyMetric))).scalars().all()
             assert rows == [], f"{bad_key!r} should not have been written"
@@ -235,7 +198,7 @@ def test_increment_rejects_non_string_key():
     accidental int/None values that slip past type-checks at runtime."""
 
     async def _run():
-        async with _TestSession() as s:
+        async with TestSession() as s:
             await increment(None, db=s)  # type: ignore[arg-type]
             await increment(123, db=s)  # type: ignore[arg-type]
             rows = (await s.execute(select(DailyMetric))).scalars().all()
@@ -258,7 +221,7 @@ def test_increment_accepts_documented_key_shapes():
     )
 
     async def _run():
-        async with _TestSession() as s:
+        async with TestSession() as s:
             for key in keys:
                 await increment(key, db=s)
             rows = (await s.execute(select(DailyMetric))).scalars().all()
@@ -280,7 +243,7 @@ def test_increment_is_safe_under_concurrent_callers(tmp_path, caplog):
     semantics hold (SQLite branch; the Postgres ON CONFLICT path is not
     exercised here).
 
-    Not on the module's StaticPool engine: that hands every session the same
+    Not on the shared StaticPool test database: that hands every session the same
     connection, so all writers share one transaction and one session's
     pool-return rollback can discard another's pending UPDATE — a harness
     artefact SQLAlchemy 2.1's aiosqlite adapter exposes (9-48 of 50 in CI).
@@ -347,7 +310,7 @@ def test_usage_summary_aggregates_recent_counters(client):
     today = datetime.now(timezone.utc).date()
 
     async def _seed():
-        async with _TestSession() as s:
+        async with TestSession() as s:
             s.add(DailyMetric(date=today, metric_key="page_views", count=42))
             s.add(DailyMetric(date=today, metric_key="registrations", count=3))
             s.add(DailyMetric(date=today, metric_key="convert.jpg-to-pdf", count=10))
@@ -398,7 +361,7 @@ def test_usage_summary_old_records_outside_window_are_ignored(client):
     _act_as(admin)
 
     async def _seed():
-        async with _TestSession() as s:
+        async with TestSession() as s:
             s.add(DailyMetric(date=date(2020, 1, 1), metric_key="page_views", count=999))
             await s.commit()
 
@@ -433,7 +396,7 @@ def test_failure_rate_today_suppressed_below_sample_threshold(client):
     today = datetime.now(timezone.utc).date()
 
     async def _seed():
-        async with _TestSession() as s:
+        async with TestSession() as s:
             s.add(DailyMetric(date=today, metric_key="convert.jpg-to-pdf", count=2))
             s.add(DailyMetric(date=today, metric_key="failures.convert", count=1))
             await s.commit()
@@ -455,7 +418,7 @@ def test_failure_rate_today_computed_above_sample_threshold(client):
     today = datetime.now(timezone.utc).date()
 
     async def _seed():
-        async with _TestSession() as s:
+        async with TestSession() as s:
             s.add(DailyMetric(date=today, metric_key="convert.jpg-to-pdf", count=80))
             s.add(DailyMetric(date=today, metric_key="compress.jpg", count=10))
             s.add(DailyMetric(date=today, metric_key="failures.convert", count=8))
@@ -483,7 +446,7 @@ def test_failure_rate_today_yesterday_does_not_count(client):
     yesterday = today - timedelta(days=1)
 
     async def _seed():
-        async with _TestSession() as s:
+        async with TestSession() as s:
             s.add(DailyMetric(date=yesterday, metric_key="convert.jpg-to-pdf", count=200))
             s.add(DailyMetric(date=yesterday, metric_key="failures.convert", count=20))
             await s.commit()
