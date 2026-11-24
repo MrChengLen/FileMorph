@@ -37,6 +37,7 @@ def test_convert_response_carries_output_sha256_header(client, auth_headers, sam
             headers=auth_headers,
         )
     assert resp.status_code == 200, resp.text
+    assert resp.headers["content-type"] == "application/octet-stream"
     header_hash = resp.headers.get("X-Output-SHA256")
     assert header_hash is not None, "missing X-Output-SHA256 on /convert success"
     assert len(header_hash) == 64

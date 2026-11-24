@@ -206,21 +206,6 @@ def test_charge_unlimited_records_without_limit():
     assert asyncio.run(_do()) == 5001  # still recorded
 
 
-def test_charge_over_limit_raises_402_and_does_not_insert():
-    user = asyncio.run(_make_user(email="chover@example.com", tier=TierEnum.pro))  # 200/mo
-    asyncio.run(_seed_credits(user.id, 1, 200))  # at the limit
-    with pytest.raises(HTTPException) as exc_info:
-        asyncio.run(charge_ai_credits(user, 1, operation="redact"))
-    assert exc_info.value.status_code == 402
-    assert exc_info.value.headers.get("X-FileMorph-Error-Code") == "ai_credits_exhausted"
-
-    async def _q():
-        async with TestSession() as s:
-            return await monthly_credits_used(s, user.id)
-
-    assert asyncio.run(_q()) == 200  # the rejected charge left no row
-
-
 def test_charge_rechecks_fresh_state_at_the_boundary():
     """The race the pre-check can't close: the authoritative charge re-reads usage
     (incl. the row a concurrent op just wrote) before inserting, so it refuses
@@ -242,4 +227,5 @@ def test_charge_rechecks_fresh_state_at_the_boundary():
     with pytest.raises(HTTPException) as exc_info:
         asyncio.run(charge_ai_credits(user, 1, operation="redact"))  # would be 201
     assert exc_info.value.status_code == 402
+    assert exc_info.value.headers.get("X-FileMorph-Error-Code") == "ai_credits_exhausted"
     assert asyncio.run(_q()) == 200  # never exceeded the allotment

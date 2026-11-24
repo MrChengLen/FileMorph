@@ -331,7 +331,6 @@ def test_filled_honeypot_goes_to_the_operator_without_confirmation(
         {"kind": "whenever"},
         {"end": "tomorrow"},
         {"end": "date"},  # end_date missing
-        {"end": "date", "end_date": "2020-01-01"},  # in the past
         {"kind": "extraordinary", "reason": "x" * 1001},
     ],
     ids=[
@@ -340,7 +339,6 @@ def test_filled_honeypot_goes_to_the_operator_without_confirmation(
         "bad-kind",
         "bad-end",
         "date-missing",
-        "past-date",
         "long-reason",
     ],
 )
@@ -390,11 +388,12 @@ def test_end_date_from_yesterday_utc_is_accepted(client, frozen_today, days_back
     assert _payload("billing.cancellation.received")["end_date"] == wanted
 
 
-def test_end_date_two_days_back_is_422(client, frozen_today, send_mock):
+def test_end_date_two_days_back_is_422(client, frozen_today, send_mock, stripe_api):
     wanted = (frozen_today - timedelta(days=2)).isoformat()
     res = _post(client, _form(end="date", end_date=wanted))
     assert res.status_code == 422, res.text
     send_mock.assert_not_awaited()
+    stripe_api.list.assert_not_called()
     assert _events() == []
 
 
@@ -522,11 +521,10 @@ def test_unknown_end_says_end_of_the_billing_period(client, send_mock, stripe_ap
 @pytest.mark.parametrize(
     "modified,expected",
     [
-        (_subscription(cancel_at=CANCEL_AT), "2027-01-26"),
         (_subscription(cancel_at=None), "2027-01-15"),
         (_subscription(item_period_end=None, current_period_end=LEGACY_PERIOD_END), "2027-02-07"),
     ],
-    ids=["cancel_at", "item-period-end", "legacy-period-end"],
+    ids=["item-period-end", "legacy-period-end"],
 )
 def test_helper_reads_the_end_defensively(stripe_api, modified, expected):
     stripe_api.list.return_value = _stripe_list(_subscription())

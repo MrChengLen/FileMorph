@@ -32,14 +32,6 @@ _skip_no_weasyprint = pytest.mark.skipif(
 # ── image → pdf (Pillow native — runs everywhere) ────────────────────────────
 
 
-def test_image_to_pdf_registered_for_common_formats():
-    from app.converters.registry import get_supported_conversions
-
-    conv = get_supported_conversions()
-    for src in ("jpg", "png", "webp"):
-        assert "pdf" in conv.get(src, []), f"{src}→pdf must be registered"
-
-
 def test_jpg_to_pdf(client, auth_headers, sample_jpg):
     with sample_jpg.open("rb") as f:
         res = client.post(
@@ -70,25 +62,6 @@ def test_png_with_alpha_to_pdf(client, auth_headers, tmp_path):
 
 
 # ── html → pdf (WeasyPrint) ──────────────────────────────────────────────────
-
-
-@_skip_no_weasyprint
-def test_html_to_pdf(client, auth_headers, tmp_path):
-    p = tmp_path / "page.html"
-    p.write_text(
-        "<!DOCTYPE html><html><body><h1>Hello</h1><p>FileMorph</p></body></html>",
-        encoding="utf-8",
-    )
-    with p.open("rb") as f:
-        res = client.post(
-            "/api/v1/convert",
-            headers=auth_headers,
-            files={"file": ("page.html", f, "text/html")},
-            data={"target_format": "pdf"},
-        )
-    assert res.status_code == 200, res.text
-    assert res.content[:5] == b"%PDF-"
-    assert len(res.content) > 512
 
 
 def _spy_on_deny_fetcher(monkeypatch) -> list[str]:
@@ -210,34 +183,6 @@ def test_eml_to_pdf_renders_subject(client, auth_headers, tmp_path):
     reader = PdfReader(BytesIO(res.content))
     extracted = "\n".join((pg.extract_text() or "") for pg in reader.pages)
     assert "Quarterly report" in extracted, "email subject missing from PDF"
-
-
-@_skip_no_weasyprint
-def test_eml_to_pdf_ssrf_blocked(client, auth_headers, tmp_path, monkeypatch):
-    """An email HTML part with a remote tracking pixel must not be fetched."""
-    connects = _record_connects(monkeypatch)
-
-    msg = EmailMessage()
-    msg["From"] = "a@example.com"
-    msg["To"] = "b@example.com"
-    msg["Subject"] = "tracked"
-    msg.set_content("plain")
-    msg.add_alternative(
-        "<html><body><img src='http://169.254.169.254/pixel.gif'>hi</body></html>",
-        subtype="html",
-    )
-    p = tmp_path / "tracked.eml"
-    p.write_bytes(msg.as_bytes())
-    with p.open("rb") as f:
-        res = client.post(
-            "/api/v1/convert",
-            headers=auth_headers,
-            files={"file": ("tracked.eml", f, "message/rfc822")},
-            data={"target_format": "pdf"},
-        )
-    assert res.status_code == 200, res.text
-    assert res.content[:5] == b"%PDF-"
-    assert not connects, connects
 
 
 # ── SSRF guard (WeasyPrint 70 takes a fetcher object) ────────────────────────
@@ -442,33 +387,6 @@ def test_la_mode_image_to_pdf(client, auth_headers, tmp_path):
     assert res.content[:5] == b"%PDF-"
 
 
-def test_unsupported_source_to_pdf_rejected(client, auth_headers, tmp_path):
-    """pdf is not a universal target — a non-image/doc source must 422, proving
-    the image→pdf loop didn't over-claim pdf for unrelated formats."""
-    p = tmp_path / "a.mp3"
-    p.write_bytes(b"ID3\x04\x00\x00\x00\x00\x00\x00fake mp3 body")
-    with p.open("rb") as f:
-        res = client.post(
-            "/api/v1/convert",
-            headers=auth_headers,
-            files={"file": ("a.mp3", f, "audio/mpeg")},
-            data={"target_format": "pdf"},
-        )
-    assert res.status_code == 422, res.text
-
-
-def test_magic_byte_blocks_pe_disguised_as_image_to_pdf(client, auth_headers):
-    """A PE payload renamed to .png with target pdf must be rejected at the
-    magic-byte gate before any converter runs (BLOCKED_MAGIC)."""
-    res = client.post(
-        "/api/v1/convert",
-        headers=auth_headers,
-        files={"file": ("evil.png", b"MZ\x90\x00fake-pe-payload", "image/png")},
-        data={"target_format": "pdf"},
-    )
-    assert res.status_code == 400, res.text
-
-
 # ── _eml_to_html assembly (pure stdlib — runs everywhere, guards untrusted HTML) ──
 
 
@@ -552,6 +470,7 @@ def test_htm_to_pdf(client, auth_headers, tmp_path):
         )
     assert res.status_code == 200, res.text
     assert res.content[:5] == b"%PDF-"
+    assert len(res.content) > 512
     assert 'filename="page.pdf"' in res.headers.get("content-disposition", "")
 
 

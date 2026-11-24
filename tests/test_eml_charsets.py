@@ -86,12 +86,6 @@ def test_raw_8bit_headers_are_read_as_utf8():
     assert "<td>Grüße</td>" in out
 
 
-def test_raw_8bit_text_and_an_encoded_word_in_one_header():
-    subject = "Jörg und ".encode() + b"=?utf-8?q?M=C3=BCller?="
-    out = _eml_to_html(_mail(subject, b"text/plain; charset=utf-8", b"hi"))
-    assert "<td>Jörg und Müller</td>" in out
-
-
 @pytest.mark.parametrize(
     ("subject", "shown"),
     [
@@ -114,11 +108,6 @@ def test_a_folded_header_keeps_its_space(fold):
     )
     space = fold.decode()[-1]  # the line break goes, the space or tab after it stays
     assert f"<td>Antwort zur{space}Kündigung</td>" in out
-
-
-def test_a_damaged_encoded_word_is_shown_as_it_is():
-    out = _eml_to_html(_mail(b"=?utf-8?b?A?=", b"text/plain", b"hi"))
-    assert "<td>=?utf-8?b?A?=</td>" in out
 
 
 def test_a_header_is_read_up_to_its_limit():

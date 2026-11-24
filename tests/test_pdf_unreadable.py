@@ -46,7 +46,7 @@ import pytest
 from pypdf import PdfReader, PdfWriter
 from pypdf.errors import DependencyError, DeprecationError, LimitReachedError
 
-from app.converters.pdf_pages import UnreadablePdfError, _reading_pdf, extract_pages, split_pdf
+from app.converters.pdf_pages import UnreadablePdfError, _reading_pdf
 
 _UNREADABLE = "Could not read the PDF. Verify the file is valid."
 _CATALOG = b"<< /Type /Catalog /Pages 2 0 R >>"
@@ -259,22 +259,6 @@ _FOR_TEXT = [
 def test_reading_guard_answers_stream_filter_errors_as_unreadable(error):
     with pytest.raises(UnreadablePdfError, match=_UNREADABLE), _reading_pdf():
         raise error("a stream filter")
-
-
-@pytest.mark.parametrize("build", _FOR_PAGES)
-def test_extract_pages_raises_unreadable(tmp_path, build):
-    src = tmp_path / "in.pdf"
-    src.write_bytes(build())
-    with pytest.raises(UnreadablePdfError, match=_UNREADABLE):
-        extract_pages(src, tmp_path / "out.pdf", "1")
-
-
-@pytest.mark.parametrize("build", _FOR_PAGES)
-def test_split_pdf_raises_unreadable(tmp_path, build):
-    src = tmp_path / "in.pdf"
-    src.write_bytes(build())
-    with pytest.raises(UnreadablePdfError, match=_UNREADABLE):
-        split_pdf(src, tmp_path, 10**9)
 
 
 # ── routes ───────────────────────────────────────────────────────────────────

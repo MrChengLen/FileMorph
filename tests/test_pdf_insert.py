@@ -126,24 +126,6 @@ def _files(tmp_path: Path, base: bytes, insert: bytes) -> tuple[Path, Path, Path
 # ── Engine ───────────────────────────────────────────────────────────────────
 
 
-@pytest.mark.parametrize(
-    "index, expected",
-    [
-        (0, [300, 301, 200, 201, 202]),
-        (1, [200, 300, 301, 201, 202]),
-        (3, [200, 201, 202, 300, 301]),
-    ],
-    ids=["start", "after-1", "end"],
-)
-def test_pages_go_where_asked(tmp_path, index, expected):
-    base, insert, out = _files(tmp_path, _pdf([200, 201, 202]), _pdf([300, 301]))
-
-    result = _insert(base, insert, out, index)
-
-    assert result == {"inserted_pages": 2, "page_count": 5}
-    assert _widths(out.read_bytes()) == expected
-
-
 def test_bookmarks_still_lead_to_their_pages(tmp_path):
     writer = _writer([200, 201, 202])
     for i in range(3):

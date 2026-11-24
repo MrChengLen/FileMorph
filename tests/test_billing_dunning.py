@@ -13,8 +13,9 @@ These tests pin the FileMorph side of that:
 * Recovery (``past_due`` → ``active``) re-derives the tier from the price
   and records ``billing.subscription.recovered``.
 * A terminal status (``canceled`` / ``unpaid`` / ``incomplete_expired``)
-  — or the ``customer.subscription.deleted`` event — drops the tier to
-  Free and records ``billing.subscription.canceled``.
+  drops the tier to Free and records ``billing.subscription.canceled``.
+  The ``customer.subscription.deleted`` event takes the same branch;
+  test_billing_webhook.py pins its downgrade.
 * An unknown status leaves the tier untouched (conservative — never
   escalate or downgrade on a status we don't model).
 * An event for a customer we don't know is a graceful no-op.
@@ -288,21 +289,6 @@ def test_subscription_canceled_drops_to_free(_mock_send_email):
     assert len(rows) == 1
     payload = json.loads(rows[0].payload_json)
     assert payload["prev_status"] == "past_due"
-
-
-def test_subscription_deleted_event_forces_terminal(_mock_send_email):
-    """The deleted event often carries status=active; we treat it as terminal."""
-    user = asyncio.run(
-        _make_user(
-            email="del@example.com", tier=TierEnum.pro, customer_id="cus_del", status="active"
-        )
-    )
-    _run_sync(_sub_obj("cus_del", "active"), force_terminal=True)
-
-    reloaded = asyncio.run(_reload(user.id))
-    assert reloaded.tier == TierEnum.free
-    assert reloaded.subscription_status == "canceled"
-    assert len(_events_by_type("billing.subscription.canceled")) == 1
 
 
 def test_subscription_unknown_status_leaves_tier_untouched(_mock_send_email):

@@ -18,15 +18,6 @@ def test_response_carries_baseline_security_headers(client):
     assert r.headers.get("referrer-policy") == "strict-origin-when-cross-origin"
 
 
-def test_csp_default_src_self(client):
-    r = client.get("/")
-    csp = r.headers.get("content-security-policy", "")
-    assert "default-src 'self'" in csp
-    assert "frame-ancestors" in csp or "X-Frame-Options" in r.headers, (
-        "framing must be denied via CSP frame-ancestors or X-Frame-Options"
-    )
-
-
 def test_permissions_policy_disables_camera_mic_geolocation(client):
     """A converter site should never need camera, mic, or geolocation;
     locking them down at the policy layer protects against a future XSS

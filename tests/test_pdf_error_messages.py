@@ -53,7 +53,6 @@ from pypdf.errors import FileNotDecryptedError
 from app.api.routes import pdf_pages as pdf_routes
 from app.converters import base, pdf_pages
 from app.converters.base import EncryptedPdfError, InvalidInputError
-from app.converters.document import PdfToTxtConverter
 
 _ENCRYPTED = (
     "This PDF is password-protected. Remove the password "
@@ -151,25 +150,6 @@ def test_pageless_fixture_has_no_pages():
 
 # ── password-protected: engine ───────────────────────────────────────────────
 
-_ENGINES = [
-    pytest.param(lambda src, out: pdf_pages.extract_pages(src, out, "1"), id="extract_pages"),
-    pytest.param(lambda src, out: pdf_pages.split_pdf(src, out.parent, 10**9), id="split_pdf"),
-    pytest.param(
-        lambda src, out: pdf_pages.PdfPageExtractConverter().convert(src, out), id="pdf-to-pdf"
-    ),
-    pytest.param(lambda src, out: PdfToTxtConverter().convert(src, out), id="pdf-to-txt"),
-]
-
-
-@pytest.mark.parametrize("algorithm", _ALGORITHMS)
-@pytest.mark.parametrize("run", _ENGINES)
-def test_engine_raises_encrypted_pdf_error(tmp_path, run, algorithm):
-    src = tmp_path / "in.pdf"
-    src.write_bytes(_locked(algorithm))
-    with pytest.raises(EncryptedPdfError) as caught:
-        run(src, tmp_path / "out")
-    assert str(caught.value) == _ENCRYPTED
-
 
 @pytest.mark.parametrize("clone", [copy.copy, lambda e: pickle.loads(pickle.dumps(e))])
 def test_encrypted_pdf_error_survives_copy_and_pickle(clone):
@@ -193,7 +173,9 @@ def test_route_answers_pdf_encrypted_without_a_logged_traceback(
     assert [rec.getMessage() for rec in caplog.records if rec.exc_info] == []
 
 
-@pytest.mark.parametrize("algorithm", _ALGORITHMS)
+# The batch answers with str(e) for any InvalidInputError, whatever the
+# algorithm; the route tests above run all three. RC4 is the legacy risk.
+@pytest.mark.parametrize("algorithm", ["RC4-128"])
 @pytest.mark.parametrize("target", ["txt", "pdf", pytest.param("pdfa", marks=_PIKEPDF)])
 def test_convert_batch_names_the_password(client, auth_headers, target, algorithm):
     r = client.post(
@@ -259,9 +241,10 @@ def test_pdfa_still_lets_ghostscript_repair_a_pdf_pikepdf_cannot_open(tmp_path, 
 #
 # The converter gates stage 1 on a ``%PDF-`` header as the file's first
 # non-blank content and refuses anything that does not present as a PDF with a
-# caller-safe message rather than a 500. A damaged PDF that still carries the
-# header passes the gate so ghostscript can repair it. Ghostscript is faked in
-# most of these; the last case runs against the real tool when it is installed.
+# caller-safe message rather than a 500 (a damaged PDF that still carries the
+# header passes the gate: see the section above). The first case fakes
+# Ghostscript; test_pdfa_refuses_postscript_with_real_ghostscript runs the real
+# tool when it is installed.
 
 
 @_PIKEPDF
@@ -278,46 +261,6 @@ def test_pdfa_does_not_run_ghostscript_on_a_non_pdf(tmp_path, monkeypatch):
     src.write_bytes(b"this upload is not a PDF, just some bytes under a .pdf name")
     with pytest.raises(InvalidInputError):
         PdfToPdfaConverter().convert(src, tmp_path / "out.pdf")
-
-
-@_PIKEPDF
-def test_pdfa_refuses_a_file_that_presents_as_postscript(tmp_path, monkeypatch):
-    """A ``%!``-leading file is refused even when a ``%PDF-`` substring appears
-    later in the header window, so the gate does not depend on how ghostscript
-    would read such a hybrid."""
-    from app.converters import _ghostscript as gs
-    from app.converters.pdfa import PdfToPdfaConverter
-
-    def _must_not_run(*_args, **_kwargs):
-        raise AssertionError("ghostscript ran on a file that presents as PostScript")
-
-    monkeypatch.setattr(gs, "is_available", lambda: True)
-    monkeypatch.setattr(gs, "rerender_to_pdfa", _must_not_run)
-    src = tmp_path / "in.pdf"
-    src.write_bytes(b"%!PS-Adobe-3.0\n% %PDF-1.4 only in a comment\nshowpage\n")
-    with pytest.raises(InvalidInputError):
-        PdfToPdfaConverter().convert(src, tmp_path / "out.pdf")
-
-
-@_PIKEPDF
-def test_pdfa_still_runs_ghostscript_on_a_damaged_pdf_with_a_header(tmp_path, monkeypatch):
-    """The header gate lets a damaged-but-headered PDF keep its gs repair pass."""
-    from app.converters import _ghostscript as gs
-    from app.converters.pdfa import PdfToPdfaConverter
-
-    calls: list[Path] = []
-
-    def _repair(src, dst, **_kwargs):
-        calls.append(src)
-        dst.write_bytes(_pdf(1))
-        return dst
-
-    monkeypatch.setattr(gs, "is_available", lambda: True)
-    monkeypatch.setattr(gs, "rerender_to_pdfa", _repair)
-    src = tmp_path / "in.pdf"
-    src.write_bytes(b"%PDF-1.4 damaged beyond what pikepdf can recover")
-    PdfToPdfaConverter().convert(src, tmp_path / "out.pdf")
-    assert calls, "ghostscript should still run on a damaged PDF that has a header"
 
 
 @pytest.mark.parametrize(
@@ -349,25 +292,6 @@ def test_pdf_header_gate_matches_ghostscripts_view(tmp_path, head, accepted):
     src = tmp_path / "in.pdf"
     src.write_bytes(head)
     assert _has_pdf_header(src) is accepted
-
-
-@_PIKEPDF
-def test_pdfa_refuses_postscript_behind_leading_whitespace(tmp_path, monkeypatch):
-    """A ``%!`` file is refused even behind leading PDF white-space, not only
-    with ``%!`` at byte zero: the blank is stripped and it still presents as
-    PostScript."""
-    from app.converters import _ghostscript as gs
-    from app.converters.pdfa import PdfToPdfaConverter
-
-    def _must_not_run(*_args, **_kwargs):
-        raise AssertionError("ghostscript ran on a file that presents as PostScript")
-
-    monkeypatch.setattr(gs, "is_available", lambda: True)
-    monkeypatch.setattr(gs, "rerender_to_pdfa", _must_not_run)
-    src = tmp_path / "in.pdf"
-    src.write_bytes(b"\x00%!PS-Adobe-3.0\n% %PDF-1.4 in a comment\nshowpage\n")
-    with pytest.raises(InvalidInputError):
-        PdfToPdfaConverter().convert(src, tmp_path / "out.pdf")
 
 
 @_PIKEPDF
@@ -483,6 +407,7 @@ def test_pdf_to_pdf_over_the_page_cap_does_not_blame_a_selection(
 def test_pdf_to_pdf_exactly_at_the_page_cap_keeps_every_page(client, auth_headers, two_page_cap):
     r = _post(client, auth_headers, "/api/v1/convert", {"target_format": "pdf"}, _pdf(2))
     assert r.status_code == 200, r.text
+    assert r.content[:4] == b"%PDF"
     assert len(PdfReader(io.BytesIO(r.content)).pages) == 2
 
 
@@ -577,7 +502,11 @@ _PAST_THE_LIMITS = [
 ]
 
 
-@pytest.mark.parametrize("child", _PAST_THE_LIMITS)
+# One child outcome is enough here: run_isolated turns all three into the same
+# TooComplexError. test_isolated_conversions.py pins memory and signal in
+# test_child_outcomes_map_to_the_usual_errors and time in
+# test_a_child_over_its_time_is_stopped.
+@pytest.mark.parametrize("child", _PAST_THE_LIMITS[:1])
 def test_compress_past_the_childs_limits_answers_pdf_too_complex(
     client, auth_headers, monkeypatch, child
 ):

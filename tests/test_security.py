@@ -1,9 +1,12 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Security regression tests — covers A-1, A-3, A-4, A-5, A-7 and v1.0.2 fixes."""
+"""Security regression tests — covers A-1, A-3, A-4, A-5 and v1.0.2 fixes.
+
+A-7 (the download name is the upload's, never the disk UUID) lives in
+test_convert_download_name.py; the magic-byte deny list in
+test_docs_match_code.py."""
 
 import json
 import os
-import re
 import subprocess
 import sys
 from pathlib import Path
@@ -16,15 +19,6 @@ from app.core.config import Settings
 # ---------------------------------------------------------------------------
 # Security headers (A-4)
 # ---------------------------------------------------------------------------
-
-
-def test_security_headers_present(client):
-    """All OWASP baseline security headers must be present on every response."""
-    res = client.get("/")
-    assert res.headers.get("x-content-type-options") == "nosniff"
-    assert res.headers.get("x-frame-options") == "DENY"
-    assert "strict-origin-when-cross-origin" in res.headers.get("referrer-policy", "")
-    assert "default-src" in res.headers.get("content-security-policy", "")
 
 
 def test_security_headers_on_api_responses(client):
@@ -82,66 +76,6 @@ def test_path_traversal_filename_sanitized(client, auth_headers, tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# Magic-byte validation (A-1 extension)
-# ---------------------------------------------------------------------------
-
-
-def test_magic_byte_pe_blocked(client, auth_headers, tmp_path):
-    """A Windows PE binary disguised as a JPEG must be rejected (400)."""
-    path = tmp_path / "evil.jpg"
-    path.write_bytes(b"MZ\x90\x00" + b"\x00" * 200)
-    with path.open("rb") as f:
-        res = client.post(
-            "/api/v1/convert",
-            headers=auth_headers,
-            files={"file": ("evil.jpg", f, "image/jpeg")},
-            data={"target_format": "png"},
-        )
-    assert res.status_code == 400
-    assert "not permitted" in res.json()["detail"].lower()
-
-
-def test_magic_byte_elf_blocked(client, auth_headers, tmp_path):
-    """A Linux ELF binary disguised as a JPEG must be rejected."""
-    path = tmp_path / "evil.jpg"
-    path.write_bytes(b"\x7fELF" + b"\x00" * 200)
-    with path.open("rb") as f:
-        res = client.post(
-            "/api/v1/convert",
-            headers=auth_headers,
-            files={"file": ("evil.jpg", f, "image/jpeg")},
-            data={"target_format": "png"},
-        )
-    assert res.status_code == 400
-
-
-def test_magic_byte_shell_blocked(client, auth_headers, tmp_path):
-    """A shell script disguised as an image must be rejected."""
-    path = tmp_path / "evil.jpg"
-    path.write_bytes(b"#!/bin/bash\nrm -rf /\n" + b"\x00" * 100)
-    with path.open("rb") as f:
-        res = client.post(
-            "/api/v1/convert",
-            headers=auth_headers,
-            files={"file": ("evil.jpg", f, "image/jpeg")},
-            data={"target_format": "png"},
-        )
-    assert res.status_code == 400
-
-
-def test_valid_jpeg_not_blocked(client, auth_headers, sample_jpg):
-    """A valid JPEG must pass magic-byte check and convert successfully."""
-    with sample_jpg.open("rb") as f:
-        res = client.post(
-            "/api/v1/convert",
-            headers=auth_headers,
-            files={"file": ("valid.jpg", f, "image/jpeg")},
-            data={"target_format": "png"},
-        )
-    assert res.status_code == 200
-
-
-# ---------------------------------------------------------------------------
 # Exception detail not leaked (A-3)
 # ---------------------------------------------------------------------------
 
@@ -164,41 +98,6 @@ def test_exception_detail_not_leaked_on_corrupt_file(client, auth_headers, tmp_p
         )
     assert res.status_code == 400
     assert res.json()["detail"] == _UNREADABLE_IMAGE
-
-
-# ---------------------------------------------------------------------------
-# Content-Disposition: original filename, not UUID (A-7 + GDPR)
-# ---------------------------------------------------------------------------
-
-
-def test_download_filename_reflects_original_name(client, auth_headers, sample_jpg):
-    """The Content-Disposition filename must use the original upload name, not a UUID."""
-    with sample_jpg.open("rb") as f:
-        res = client.post(
-            "/api/v1/convert",
-            headers=auth_headers,
-            files={"file": ("my_document.jpg", f, "image/jpeg")},
-            data={"target_format": "png"},
-        )
-    assert res.status_code == 200
-    disposition = res.headers.get("content-disposition", "")
-    assert "my_document" in disposition
-    # UUID hex (32 lowercase hex chars) must NOT appear in the download name
-    assert not re.search(r"[0-9a-f]{32}", disposition)
-
-
-def test_download_filename_extension_matches_target(client, auth_headers, sample_jpg):
-    """The download file extension must match the requested target format."""
-    with sample_jpg.open("rb") as f:
-        res = client.post(
-            "/api/v1/convert",
-            headers=auth_headers,
-            files={"file": ("photo.jpg", f, "image/jpeg")},
-            data={"target_format": "webp"},
-        )
-    assert res.status_code == 200
-    disposition = res.headers.get("content-disposition", "")
-    assert ".webp" in disposition
 
 
 # ---------------------------------------------------------------------------

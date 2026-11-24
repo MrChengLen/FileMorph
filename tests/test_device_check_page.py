@@ -21,7 +21,9 @@ from app.core.device_check_content import DEVICE_CHECK_CONTENT
 from app.core.engine import ENGINE_DIR, engine_modules, engine_url
 from app.main import _CSP_HEADERS
 
-_PATHS = ["/device-check", "/de/device-check", "/en/device-check"]
+# One handler serves "", /de and /en (main.py mounts the pages router three
+# times); test_csp_profiles pins the CSP of the prefixed paths.
+_PATH = "/device-check"
 _SCRIPT = ENGINE_DIR / "check" / "device-check.js"
 _STRINGS = re.compile(r'<script id="fm-check-strings" type="application/json">(.*?)</script>', re.S)
 
@@ -31,17 +33,15 @@ def engine_on(monkeypatch):
     monkeypatch.setattr(settings, "local_tools_enabled", True)
 
 
-@pytest.mark.parametrize("path", _PATHS)
-def test_the_page_is_not_there_without_the_switch(client, monkeypatch, path):
+def test_the_page_is_not_there_without_the_switch(client, monkeypatch):
     monkeypatch.setattr(settings, "local_tools_enabled", False)
-    r = client.get(path)
+    r = client.get(_PATH)
     assert r.status_code == 404
     assert r.headers["content-security-policy"] == _CSP_HEADERS["default"]
 
 
-@pytest.mark.parametrize("path", _PATHS)
-def test_the_page_is_strict_and_left_out_of_search(client, engine_on, path):
-    r = client.get(path)
+def test_the_page_is_strict_and_left_out_of_search(client, engine_on):
+    r = client.get(_PATH)
     assert r.status_code == 200
     assert r.headers["content-security-policy"] == _CSP_HEADERS["local"]
     assert r.headers["x-robots-tag"] == "noindex, nofollow"

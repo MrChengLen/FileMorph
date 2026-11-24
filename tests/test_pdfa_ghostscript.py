@@ -7,14 +7,13 @@ gap in the markup-only slice. Pinned behaviours:
 1. After re-render, every font referenced from the page tree carries
    a ``/FontFile*`` byte stream — i.e. nothing is left as a bare
    standard-14 reference.
-2. The PDF/A markers from the markup pass survive the gs round-trip
-   (XMP ``pdfaid:part=2`` / ``conformance=B``, exactly one
-   ``OutputIntent``, ``/ID`` array set).
-3. Forbidden surfaces injected on the source still get stripped on
-   the output even though gs handled the heavy lift.
-4. When the gs invocation fails (simulated subprocess error), the
+2. When the gs invocation fails (simulated subprocess error), the
    converter falls back to the markup-only path and still produces
    a valid output — the gs path is opportunistic, not load-bearing.
+
+The PDF/A markers and the stripping of forbidden surfaces after the gs
+round-trip are pinned in test_pdfa.py: its ``converted`` fixture takes
+this path wherever Ghostscript is installed, as in CI.
 
 Skips
 -----
@@ -118,48 +117,6 @@ def test_rerender_embeds_all_fonts(simple_pdf, tmp_path):
     assert embedded == total, (
         f"{embedded}/{total} fonts embedded; PDF/A-2b requires every font to ship its glyph program"
     )
-
-
-def test_rerender_preserves_pdfa_markers(simple_pdf, tmp_path):
-    """gs writes its own OutputIntent via PDFA_def.ps; the pikepdf
-    markup pass appends DocumentID/InstanceID/XMP-MM and verifies
-    the catalog-level markers are present and singular."""
-    pikepdf = pytest.importorskip("pikepdf")
-    out = tmp_path / "rerendered.pdf"
-    PdfToPdfaConverter().convert(simple_pdf, out)
-
-    with pikepdf.open(str(out)) as pdf:
-        with pdf.open_metadata() as meta:
-            assert meta.get("pdfaid:part") == "2"
-            assert meta.get("pdfaid:conformance") == "B"
-            assert meta.get("xmpMM:DocumentID", "").startswith("uuid:")
-            assert meta.get("xmpMM:InstanceID", "").startswith("uuid:")
-        intents = pdf.Root.get("/OutputIntents")
-        assert intents is not None
-        assert len(intents) == 1, (
-            "expected exactly one OutputIntent — gs writes one via PDFA_def.ps "
-            "and the markup pass must not append a second"
-        )
-        assert str(intents[0]["/S"]) == "/GTS_PDFA1"
-
-
-def test_rerender_strips_forbidden_surfaces(tmp_path, simple_pdf):
-    """Even after gs re-render, the markup pass strips any /OpenAction
-    or /JavaScript surfaces that might survive (or that gs left in
-    when gs's own filtering is permissive)."""
-    pikepdf = pytest.importorskip("pikepdf")
-    spiked = tmp_path / "spiked.pdf"
-    with pikepdf.open(str(simple_pdf)) as pdf:
-        pdf.Root["/OpenAction"] = pikepdf.Dictionary(
-            S=pikepdf.Name("/JavaScript"),
-            JS=pikepdf.String("app.alert('xss');"),
-        )
-        pdf.save(str(spiked))
-
-    out = tmp_path / "cleaned.pdf"
-    PdfToPdfaConverter().convert(spiked, out)
-    with pikepdf.open(str(out)) as pdf:
-        assert "/OpenAction" not in pdf.Root
 
 
 def test_ghostscript_failure_falls_back_to_markup(monkeypatch, simple_pdf, tmp_path):

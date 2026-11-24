@@ -112,7 +112,6 @@ def test_hooks_and_the_scope_guard_workflow_block_the_same_paths(hooks, hook_var
         # terms templates which carry the operator's business address. Must stay
         # allowed or every pybabel update is rejected by the hook.
         "locale/de/LC_MESSAGES/messages.po",
-        "locale/en/LC_MESSAGES/messages.po",
         "locale/messages.pot",
         # Public legal templates that intentionally contain the operator's
         # business address.
@@ -230,20 +229,15 @@ def test_forbidden_paths_does_not_block_public_artifacts(hooks, path):
 @pytest.mark.parametrize(
     "path",
     [
-        # Historical / explicit names — the 13 originally enumerated.
+        # Historical / explicit names that only their own alternative catches.
+        # The other names of the original 13 also match a broader pattern, so
+        # the deny-by-default cases below cover them.
         "docs/admin-cockpit.md",
         "docs/open-tasks.md",
-        "docs/filemorph-io-runbook.md",
-        "docs/marketing-plan.md",
-        "docs/seo-strategy.md",
         "docs/business-case.md",
         "docs/claims-audit.md",
-        "docs/launch-gate-snapshot.md",
-        "docs/launch-readiness-tracker.md",
         "docs/seo-audit.md",
-        "docs/user-acquisition-strategy.md",
         "docs/requirements-v2.md",
-        "docs/sprint-5-multi-file-plan.md",
     ],
 )
 def test_internal_paths_redirects_business_docs(hooks, path):

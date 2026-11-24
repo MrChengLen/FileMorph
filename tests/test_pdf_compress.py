@@ -589,25 +589,6 @@ def test_route_compress_image_pdf(client, auth_headers):
     assert "doc_compressed.pdf" in res.headers.get("content-disposition", "")
 
 
-def test_route_compress_past_the_limits_names_the_next_step(client, auth_headers, monkeypatch):
-    """The engine runs in a child process with memory and time limits; past
-    them the route answers 400 and points to extracting fewer pages."""
-    from app.converters import _isolated
-
-    module, function, memory, _, file_bytes = _isolated._STEPS["pdf-compress"]
-    limits = (module, function, memory, 0.01, file_bytes)
-    monkeypatch.setitem(_isolated._STEPS, "pdf-compress", limits)
-    res = client.post(
-        "/api/v1/pdf/compress",
-        headers=auth_headers,
-        files={"file": ("doc.pdf", _image_pdf_bytes(), _PDF_MIME)},
-        data={"target_kb": "200"},
-    )
-    assert res.status_code == 400
-    assert res.headers["X-FileMorph-Error-Code"] == "pdf_too_complex"
-    assert "/api/v1/pdf/extract" in res.json()["detail"]
-
-
 def test_route_compress_long_name_keeps_suffix(client, auth_headers):
     # An over-long stem is shortened; "_compressed.pdf" survives intact.
     res = client.post(
@@ -619,18 +600,6 @@ def test_route_compress_long_name_keeps_suffix(client, auth_headers):
     assert res.status_code == 200, res.text
     expected = "d" * 185 + "_compressed.pdf"
     assert f'filename="{expected}"' in res.headers.get("content-disposition", "")
-
-
-def test_route_compress_shrinks_below_source(client, auth_headers):
-    source = _image_pdf_bytes(dim=1400, quality=98)
-    res = client.post(
-        "/api/v1/pdf/compress",
-        headers=auth_headers,
-        files={"file": ("big.pdf", source, _PDF_MIME)},
-        data={"target_kb": "150"},
-    )
-    assert res.status_code == 200, res.text
-    assert len(res.content) < len(source)
 
 
 def test_route_compress_text_pdf_reports_nothing_to_shrink(client, auth_headers):

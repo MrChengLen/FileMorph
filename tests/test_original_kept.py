@@ -558,7 +558,7 @@ def test_a_missed_target_keeps_the_re_encode(client, auth_headers, monkeypatch):
 
 @pytest.fixture
 def batch_user():
-    """A free account: batches of more than one file (tests/test_compress_batch.py)."""
+    """A free account: batches of more than one file."""
     user = MagicMock()
     user.tier.value = "free"
     app.dependency_overrides[get_optional_user] = lambda: user

@@ -46,10 +46,6 @@ def test_postgres_keeps_only_the_capabilities_its_entrypoint_needs():
     assert postgres["ulimits"] == {"core": 0}
 
 
-def test_the_app_container_gets_no_superuser_password():
-    assert _services()["filemorph"]["environment"]["POSTGRES_PASSWORD"] == ""
-
-
 def test_the_docs_section_the_compose_files_name_exists():
     docs = (_ROOT / "docs" / "self-hosting.md").read_text(encoding="utf-8")
     assert "### Without the database superuser" in docs

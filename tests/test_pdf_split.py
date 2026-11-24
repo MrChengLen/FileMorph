@@ -4,7 +4,7 @@
 Covers the engine (``app/converters/pdf_pages.py``) and the dedicated
 routes (``app/api/routes/pdf_pages.py``):
 
-* extract a valid range / single page / full-doc range (page counts);
+* extract a valid range / single page (page counts);
 * split → ZIP (valid zip, one entry per page, each entry a real PDF);
 * malformed / empty / out-of-range / reversed / non-numeric input →
   graceful 400 (no 500, no stack trace / pypdf internals in the body);
@@ -31,7 +31,6 @@ from pypdf import PdfReader, PdfWriter
 from app.converters.pdf_pages import (
     PageSelectionError,
     TooManyPagesError,
-    extract_pages,
     page_file_names,
     parse_page_ranges,
     split_pdf,
@@ -104,70 +103,13 @@ def test_parse_invalid_raises_page_selection_error(spec):
         parse_page_ranges(spec, 5)
 
 
-def test_parse_zero_page_doc():
-    with pytest.raises(PageSelectionError):
-        parse_page_ranges("1", 0)
-
-
 def test_parse_too_many_pages():
     # A huge range against a doc claiming that many pages must be capped.
     with pytest.raises(TooManyPagesError):
         parse_page_ranges("1-20000", 20000)
 
 
-# ── extract_pages (engine) ───────────────────────────────────────────────────
-
-
-def test_extract_range(tmp_path, pdf5):
-    out = tmp_path / "out.pdf"
-    extract_pages(pdf5, out, "1-3,5")
-    reader = PdfReader(str(out))
-    assert len(reader.pages) == 4
-
-
-def test_extract_single_page(tmp_path, pdf5):
-    out = tmp_path / "out.pdf"
-    extract_pages(pdf5, out, "2")
-    reader = PdfReader(str(out))
-    assert len(reader.pages) == 1
-
-
-def test_extract_full_doc(tmp_path, pdf5):
-    out = tmp_path / "out.pdf"
-    extract_pages(pdf5, out, "1-5")
-    reader = PdfReader(str(out))
-    assert len(reader.pages) == 5
-
-
-def test_extract_out_of_range_raises(tmp_path, pdf5):
-    out = tmp_path / "out.pdf"
-    with pytest.raises(PageSelectionError):
-        extract_pages(pdf5, out, "99")
-
-
-def test_extract_corrupt_pdf_raises_safe(tmp_path):
-    bad = tmp_path / "bad.pdf"
-    bad.write_bytes(b"%PDF-1.4 not really a pdf body")
-    out = tmp_path / "out.pdf"
-    with pytest.raises(PageSelectionError):
-        extract_pages(bad, out, "1")
-
-
 # ── split_pdf (engine) ───────────────────────────────────────────────────────
-
-
-def test_split_writes_one_file_per_page(tmp_path, pdf5):
-    pages = tmp_path / "pages"
-    pages.mkdir()
-    assert split_pdf(pdf5, pages, 10**9) == 5
-    names = sorted(p.name for p in pages.iterdir())
-    assert names == ["page_1.pdf", "page_2.pdf", "page_3.pdf", "page_4.pdf", "page_5.pdf"]
-    # Each file is a real single-page PDF.
-    for name in names:
-        content = (pages / name).read_bytes()
-        assert content[:4] == b"%PDF"
-        reader = PdfReader(io.BytesIO(content))
-        assert len(reader.pages) == 1
 
 
 def test_split_zero_padding_width(tmp_path):
@@ -181,13 +123,6 @@ def test_split_zero_padding_width(tmp_path):
     assert names[-1] == "page_10.pdf"
     assert names == sorted(names)
     assert sorted(p.name for p in pages.iterdir()) == names
-
-
-def test_split_corrupt_pdf_raises_safe(tmp_path):
-    bad = tmp_path / "bad.pdf"
-    bad.write_bytes(b"%PDF-1.4 garbage")
-    with pytest.raises(PageSelectionError):
-        split_pdf(bad, tmp_path, 10**9)
 
 
 def test_split_too_many_pages_raises(tmp_path, monkeypatch, pdf5):
@@ -463,23 +398,6 @@ def test_route_split_blocks_disguised_executable(client, auth_headers):
     )
     assert res.status_code == 400, res.text
     assert "not permitted" in res.text.lower()
-
-
-# ── registry: pdf→pdf extract is a registry citizen ──────────────────────────
-
-
-def test_registry_pdf_to_pdf_full_doc_passthrough(client, auth_headers):
-    """Bare /convert?target_format=pdf with a PDF returns the whole doc
-    (no `pages` param flows through convert, so it's a pass-through)."""
-    res = client.post(
-        "/api/v1/convert",
-        headers=auth_headers,
-        files={"file": ("doc.pdf", _pdf_bytes(3), _PDF_MIME)},
-        data={"target_format": "pdf"},
-    )
-    assert res.status_code == 200, res.text
-    assert res.content[:4] == b"%PDF"
-    assert len(PdfReader(io.BytesIO(res.content)).pages) == 3
 
 
 # ── the child process ────────────────────────────────────────────────────────

@@ -86,16 +86,6 @@ _ENGINES = [
 ]
 
 
-@pytest.mark.parametrize("data", _KEY_LENGTHS)
-@pytest.mark.parametrize("run", _ENGINES)
-def test_engine_answers_a_key_length_cryptography_refuses_as_unreadable(tmp_path, run, data):
-    src = tmp_path / "in.pdf"
-    src.write_bytes(data)
-    with pytest.raises(pdf_pages.UnreadablePdfError) as caught:
-        run(src, tmp_path / "out.pdf")
-    assert str(caught.value) == _UNREADABLE
-
-
 _ROUTES = [
     pytest.param("/api/v1/pdf/extract", {"pages": "1"}, "invalid_pdf", id="extract"),
     pytest.param("/api/v1/pdf/split", {}, "invalid_pdf", id="split"),

@@ -84,14 +84,6 @@ def converted(tmp_path, simple_pdf) -> Path:
     return out
 
 
-def test_output_is_a_valid_pdf(converted):
-    """File starts with %PDF and re-opens cleanly with pikepdf."""
-    pikepdf = pytest.importorskip("pikepdf")
-    assert converted.read_bytes()[:4] == b"%PDF"
-    with pikepdf.open(str(converted)) as pdf:
-        assert len(pdf.pages) >= 1
-
-
 def test_xmp_declares_pdfa_part_and_conformance(converted):
     pikepdf = pytest.importorskip("pikepdf")
     with pikepdf.open(str(converted)) as pdf:

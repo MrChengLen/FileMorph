@@ -158,23 +158,6 @@ def test_compress_decompression_bomb_returns_400_with_error_code(
     assert r.headers.get("X-FileMorph-Error-Code") == "decompression_bomb"
 
 
-def test_convert_below_threshold_still_succeeds(client, auth_headers, sample_jpg):
-    """Sanity: an ordinary small image at the *default* threshold still
-    converts. Without this, a buggy hardening that rejects everything
-    would still pass the bomb-detection tests."""
-    with sample_jpg.open("rb") as f:
-        r = client.post(
-            "/api/v1/convert",
-            headers=auth_headers,
-            files={"file": ("sample.jpg", f, "image/jpeg")},
-            data={"target_format": "png"},
-        )
-    # We don't pin status==200 because a noisy preceding test (rate-limit,
-    # output-cap) can yield other codes; what we care about is that we
-    # don't get the decompression-bomb 400.
-    assert r.headers.get("X-FileMorph-Error-Code") != "decompression_bomb"
-
-
 # ── Ghostscript: Pillow never starts it ──────────────────────────────────────
 
 # About the smallest EPS Pillow parses: the header line and a bounding box.

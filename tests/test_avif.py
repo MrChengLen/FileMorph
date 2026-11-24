@@ -6,8 +6,8 @@ AVIF rides the existing generic image converter/compressor: registering
 ``avif->*`` pair, and adding it to the compressor's supported / target-size
 sets enables quality- and target-size compression. These tests pin:
 
-1. Encode: ``png->avif`` and ``jpg->avif`` produce output that opens as a
-   valid AVIF via Pillow (format == "AVIF").
+1. Encode: ``png->avif`` produces output that opens as a valid AVIF via
+   Pillow (format == "AVIF", same size); test_bench_smoke runs ``jpg->avif``.
 2. Decode + roundtrip: ``avif->png`` returns a valid PNG of the same size.
 3. ``avif`` target-size compression converges to <= the requested size.
 4. Metadata consistency: AVIF output is EXIF-stripped like every other
@@ -95,22 +95,7 @@ def test_png_to_avif(client, auth_headers, sample_png):
     out = Image.open(BytesIO(res.content))
     out.load()
     assert out.format == "AVIF"
-
-
-def test_jpg_to_avif(client, auth_headers, sample_jpg):
-    """JPEG -> AVIF; output must open as a valid AVIF image."""
-    with sample_jpg.open("rb") as f:
-        res = client.post(
-            "/api/v1/convert",
-            headers=auth_headers,
-            files={"file": ("sample.jpg", f, "image/jpeg")},
-            data={"target_format": "avif", "quality": "80"},
-        )
-    assert res.status_code == 200, res.text
-    out = Image.open(BytesIO(res.content))
-    out.load()
-    assert out.format == "AVIF"
-    assert out.size == (100, 100)  # sample_jpg fixture is 100x100
+    assert out.size == (50, 50)  # sample_png fixture is 50x50
 
 
 # ── Decode + roundtrip: avif->png ────────────────────────────────────────────

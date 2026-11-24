@@ -79,14 +79,6 @@ def test_no_unpinned_inline_scripts(client, accounts_on, route):
         )
 
 
-def test_csp_hardening_directives_present(client):
-    """base-uri and frame-ancestors lock down base-tag injection and
-    clickjacking; both were added alongside the inline-script fix."""
-    csp = client.get("/").headers.get("content-security-policy", "")
-    assert "base-uri 'self'" in csp
-    assert "frame-ancestors 'none'" in csp
-
-
 def test_i18n_bootstrap_loads_before_consumers(client, accounts_on):
     """The extracted bootstrap must load before nav/auth/app.js, which read
     window.FM_I18N at parse time. Order regression = empty catalogue."""

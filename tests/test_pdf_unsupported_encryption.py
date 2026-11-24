@@ -20,7 +20,9 @@ says no password helps, the batch route puts that message in the per-file
 
 Fixtures are tiny PDFs assembled byte by byte: a one-page document whose
 ``/Encrypt`` entry points at the encryption dictionary under test, no binary
-files. Three variants are refused by pypdf *and* qpdf and go through every path.
+files. Three variants are refused by pypdf *and* qpdf: one goes through every
+route, and all three go through open_pypdf (the insert test) and open_pikepdf
+(the PDF/A test), which every route opens its PDFs with.
 Two more are refused only by pypdf (a ``/SubFilter``, an unknown crypt-filter
 method): qpdf doesn't call either unsupported, it takes both for password-protected
 files and reports a bad password, so only the pypdf engines get those. Compress
@@ -183,7 +185,10 @@ _ENGINES = [
 ]
 
 
-@pytest.mark.parametrize("data", _SHARED + _PYPDF_ONLY)
+# Every engine opens its PDF through open_pypdf, and the insert test below runs
+# all three shared fixtures through it; only the pypdf-only ones need the
+# engines called directly.
+@pytest.mark.parametrize("data", _PYPDF_ONLY)
 @pytest.mark.parametrize("run", _ENGINES)
 def test_engine_raises_unsupported_pdf_encryption(tmp_path, run, data):
     src = tmp_path / "in.pdf"
@@ -219,14 +224,6 @@ def test_unsupported_filter_outside_encryption_is_not_blamed_on_encryption(tmp_p
     assert not isinstance(caught.value, EncryptedPdfError)
 
 
-def test_unsupported_encryption_is_an_encrypted_pdf_error_with_its_own_code():
-    """The routes' ``except EncryptedPdfError`` clauses rely on the subclass."""
-    assert issubclass(UnsupportedPdfEncryptionError, EncryptedPdfError)
-    assert EncryptedPdfError().error_code == "pdf_encrypted"
-    assert UnsupportedPdfEncryptionError().error_code == _CODE
-    assert str(UnsupportedPdfEncryptionError()) == _UNSUPPORTED
-
-
 @pytest.mark.parametrize(
     "clone",
     [
@@ -245,7 +242,10 @@ def test_unsupported_encryption_error_survives_copy_and_pickle(clone):
 # ── routes ───────────────────────────────────────────────────────────────────
 
 
-@pytest.mark.parametrize("data", _SHARED)
+# The routes map the error class, not the fixture, so one fixture per route is
+# enough. Every shared fixture still runs through open_pypdf in the insert test
+# and through open_pikepdf in the PDF/A test below.
+@pytest.mark.parametrize("data", _SHARED[:1])
 @pytest.mark.parametrize(("path", "form"), _ROUTES)
 def test_route_answers_pdf_encryption_unsupported_without_a_logged_traceback(
     client, auth_headers, caplog, path, form, data
@@ -264,7 +264,10 @@ def test_insert_names_the_unsupported_encryption_and_the_field(
     client, auth_headers, caplog, field, data
 ):
     """/pdf/insert opens two PDFs: either one with an encryption pypdf can't
-    open gets the same 400 as the other PDF routes, and the field says which."""
+    open gets the same 400 as the other PDF routes, and the field says which.
+
+    This is also the only app-level run of every shared fixture through
+    open_pypdf: the route and batch tests above use one fixture each."""
     writer = PdfWriter()
     writer.add_blank_page(width=72, height=72)
     plain = io.BytesIO()
@@ -284,7 +287,7 @@ def test_insert_names_the_unsupported_encryption_and_the_field(
     assert [rec.getMessage() for rec in caplog.records if rec.exc_info] == []
 
 
-@pytest.mark.parametrize("data", _SHARED)
+@pytest.mark.parametrize("data", _SHARED[:1])
 @pytest.mark.parametrize("target", ["txt", "pdf", pytest.param("pdfa", marks=_PIKEPDF)])
 def test_convert_batch_names_the_unsupported_encryption(client, auth_headers, target, data):
     r = client.post(
