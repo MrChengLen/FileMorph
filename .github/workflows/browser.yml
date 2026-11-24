@@ -7,7 +7,8 @@ name: Browser tests
 # and posts no form: fetch, XHR, sendBeacon, WebSocket, EventSource and form
 # posts never reach the server, while the same probes on a `default` page do.
 # It also runs the device check (/device-check) end to end with the network
-# cut (tests/browser/).
+# cut, and uploads files with names beyond ASCII to check the name a page
+# gives the download (tests/browser/).
 #
 # A workflow of its own rather than a job in ci.yml: notify-ops.yml deploys
 # once CI and Docker have passed, and a browser test that flakes must not hold

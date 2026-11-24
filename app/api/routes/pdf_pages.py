@@ -66,7 +66,7 @@ from app.core.quotas import _MB, file_too_large_message, get_quota, higher_cap_h
 from app.core.rate_limit import limiter
 from app.core.responses import TempDirFileResponse
 from app.core.usage import enforce_monthly_quota, record_usage
-from app.core.utils import safe_download_name
+from app.core.utils import content_disposition, safe_download_name
 from app.db.models import User
 
 logger = logging.getLogger(__name__)
@@ -145,7 +145,7 @@ async def _do_extract(
     _enforce_input_size(file, quota, tier)
     await enforce_monthly_quota(user)
 
-    original_stem = Path(file.filename or "result").stem
+    original_stem = Path(file.filename or "").stem
     _t0 = time.monotonic()
     tmp_dir = tempfile.mkdtemp(prefix="fm_")
     try:
@@ -361,11 +361,11 @@ async def _do_split(
 
     # ZIP is fully built in memory; the input PDF and its pages are gone by now.
     shutil.rmtree(tmp_dir, ignore_errors=True)
-    download_name = safe_download_name(Path(file.filename or "result").stem, "_pages.zip")
+    download_name = safe_download_name(Path(file.filename or "").stem, "_pages.zip")
     return Response(
         content=zip_bytes,
         media_type="application/zip",
-        headers={"Content-Disposition": f'attachment; filename="{download_name}"'},
+        headers={"Content-Disposition": content_disposition(download_name)},
     )
 
 
@@ -538,7 +538,7 @@ async def _do_compress(
 
     await enforce_monthly_quota(user)
 
-    original_stem = Path(file.filename or "result").stem
+    original_stem = Path(file.filename or "").stem
     _t0 = time.monotonic()
     tmp_dir = tempfile.mkdtemp(prefix="fm_")
     try:
@@ -758,7 +758,7 @@ async def _do_insert(
     _enforce_input_size(insert_file, quota, tier, field="insert_file")
     await enforce_monthly_quota(user)
 
-    original_stem = Path(file.filename or "result").stem
+    original_stem = Path(file.filename or "").stem
     _t0 = time.monotonic()
     tmp_dir = tempfile.mkdtemp(prefix="fm_")
     try:

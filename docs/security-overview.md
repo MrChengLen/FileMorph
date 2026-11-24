@@ -215,9 +215,12 @@ converter:
 
 The original filename is preserved only in the
 `Content-Disposition` header, where it is filtered through
-`safe_download_name()` in `app/core/utils.py`. ASCII-unsafe
-characters are stripped or RFC 5987-encoded, so a malicious
-filename cannot inject header bytes or break the parser.
+`safe_download_name()` and written by `content_disposition()`, both
+in `app/core/utils.py`. Control and format characters (a bidi
+override among them), path separators and the characters Windows
+forbids in a name are stripped; a name beyond ASCII travels
+RFC 8187-encoded, so a malicious filename cannot inject header bytes
+or break the parser.
 
 ### WeasyPrint SSRF hardening
 

@@ -26,6 +26,7 @@ from app.converters._lossless_strip import STRIPPABLE, original_without_metadata
 from app.converters.base import InvalidInputError, OutputTooLargeError
 from app.core.audit import record_event as audit_record
 from app.core.batch import (
+    BATCH_ZIP_NAME,
     BatchFileError,
     BatchFileResult,
     batch_error_response,
@@ -48,7 +49,7 @@ from app.core.quotas import (
 from app.core.rate_limit import limiter
 from app.core.responses import TempDirFileResponse
 from app.core.usage import enforce_monthly_quota, record_usage
-from app.core.utils import safe_download_name
+from app.core.utils import content_disposition, safe_download_name
 from app.db.models import User
 
 logger = logging.getLogger(__name__)
@@ -199,7 +200,7 @@ async def _do_compress(
             )
 
     # GDPR: keep original stem only for Content-Disposition, never as a filesystem path
-    original_stem = Path(file.filename or "result").stem
+    original_stem = Path(file.filename or "").stem
 
     # A-1 + GDPR: UUID temp names — no PII on disk, no path traversal
     _t0 = time.monotonic()
@@ -527,7 +528,7 @@ async def _do_compress_batch(
     metric_counts: dict[str, int] = {}
 
     for upload in files:
-        original_stem = Path(upload.filename or "result").stem
+        original_stem = Path(upload.filename or "").stem
         ext = Path(upload.filename or "").suffix.lstrip(".").lower()
         size_in = upload.size or 0
         out_name = safe_download_name(original_stem, f"_compressed.{ext}")
@@ -683,7 +684,7 @@ async def _do_compress_batch(
         duration_ms=duration_ms,
     )
 
-    response_headers = {"Content-Disposition": 'attachment; filename="filemorph-batch.zip"'}
+    response_headers = {"Content-Disposition": content_disposition(BATCH_ZIP_NAME)}
     # P2-1: see app/api/routes/convert.py — same structured batch summary
     # so the UI can render per-file results without unzipping.
     response_headers.update(batch_summary_headers(results, summary))

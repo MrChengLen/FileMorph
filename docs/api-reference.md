@@ -723,10 +723,24 @@ The engine routing is described in [`formats.md`](formats.md#notes-on-docx--pdf)
 | `/ai/redact/apply` | `<name>.redacted.<ext>` — `<name>.redacted.txt` for every text input |
 | `/convert/batch`, `/compress/batch` | `filemorph-batch.zip`; the entries inside are named like single-file results |
 
-The name is sanitised: accents and other combining marks are dropped
-(`Café` → `Cafe`), and every character other than a letter, digit, space,
-`_`, `-` or `.` is removed. It is capped at 200 characters by shortening only
-`<name>`, so the extension and suffixes such as `_compressed` are kept.
+`<name>` is the upload's name without its extension, letters of every script
+with their accents, digits, spaces and punctuation included (`Grüße an Oma`).
+Removed are path separators and the characters Windows forbids in a file
+name (`\ / : * ? " < > |`) together with their lookalikes such as `／` and
+`？`, control and format characters such as a bidi override, and dots and
+spaces at either end; a name with nothing left becomes `result`. A browser's
+form upload sends a quote, CR and LF in a file name as `%22`, `%0D` and
+`%0A`; these three sequences are removed as well, so a name that holds the
+text `%22` loses it. Punctuation such as `;`, `$`, `&` and `'` stays: quote
+the name before you hand it to a shell. The whole name is capped at 200
+bytes (UTF-8) by shortening only `<name>`, so the extension and suffixes such
+as `_compressed` are kept.
+
+A name in plain ASCII without `%` comes as `filename="Mein Urlaub.png"`. Any
+other comes in both forms of RFC 6266: `filename*=UTF-8''Gr%C3%BC%C3%9Fe.png`,
+the name percent-encoded (RFC 8187), and an ASCII stand-in in `filename` for
+clients that read only that one (`Gru_e.png`). Browsers use `filename*`; read
+it first in your own client too.
 
 ---
 

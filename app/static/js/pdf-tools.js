@@ -367,11 +367,14 @@
   }
 
   // ── submit ──────────────────────────────────────────────────────────────
-  function filenameFromDisposition(res, fallback) {
-    const cd = res.headers.get('Content-Disposition') || '';
-    const m = cd.match(/filename="?([^"]+)"?/);
-    return (m && m[1]) || fallback;
-  }
+  // What the server appends to the PDF's name, per tool (app/api/routes/
+  // pdf_pages.py) — for a response that names no file. A test pins it.
+  const RESULT_SUFFIX = {
+    extract: '_pages.pdf',
+    split: '_pages.zip',
+    compress: '_compressed.pdf',
+    insert: '_inserted.pdf',
+  };
 
   // Compress-honesty: read the achieved-size/converged/recompressible-images
   // headers. No images or not-converged → amber #pdf-honest-note with the
@@ -517,8 +520,7 @@
       }
 
       const blob = await res.blob();
-      const fallbackExt = TOOL === 'split' ? 'zip' : 'pdf';
-      const name = filenameFromDisposition(res, `result.${fallbackExt}`);
+      const name = FM_downloadName(res, FM_resultName(baseName, RESULT_SUFFIX[TOOL]));
       const link = $('pdf-download');
       if (link.href && link.href.startsWith('blob:')) URL.revokeObjectURL(link.href);
       link.href = URL.createObjectURL(blob);

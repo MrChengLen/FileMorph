@@ -205,7 +205,10 @@ The full field reference lives in [`api-reference.md`](api-reference.md#post-api
 This section focuses on **handling the response** correctly.
 
 ```python
-import requests, re
+import re
+import urllib.parse
+
+import requests
 
 
 def convert(path: str, target_format: str, key: str, quality: int = 85) -> tuple[bytes, str]:
@@ -220,11 +223,16 @@ def convert(path: str, target_format: str, key: str, quality: int = 85) -> tuple
         )
     r.raise_for_status()
     # Server sets the filename in Content-Disposition; parse it for
-    # display, but you can save under any name you want.
+    # display, but you can save under any name you want. A name beyond
+    # ASCII comes percent-encoded in filename*=UTF-8''…: read that first.
     cd = r.headers.get("Content-Disposition", "")
-    m = re.search(r'filename="([^"]+)"', cd)
-    ext = "pdf" if target_format == "pdfa" else target_format  # PDF/A is a .pdf
-    suggested = m.group(1) if m else f"output.{ext}"
+    m = re.search(r"filename\*=UTF-8''([^;\s]+)", cd, re.IGNORECASE)
+    if m:
+        suggested = urllib.parse.unquote(m.group(1))
+    else:
+        m = re.search(r'filename="([^"]+)"', cd)
+        ext = "pdf" if target_format == "pdfa" else target_format  # PDF/A is a .pdf
+        suggested = m.group(1) if m else f"output.{ext}"
     return r.content, suggested
 ```
 
@@ -234,10 +242,12 @@ def convert(path: str, target_format: str, key: str, quality: int = 85) -> tuple
 - `Content-Disposition: attachment; filename="<original-stem>.<target-ext>"`
   (PDF/A is the exception: `target_format=pdfa` returns
   `<original-stem>_pdfa.pdf`, since PDF/A is a PDF profile, not a file extension).
-  The stem is sanitised — accents are dropped and characters other than
-  letters, digits, spaces, `_`, `-` and `.` removed — and the whole name is
-  capped at 200 characters by shortening the stem, so the extension survives
-  (details in [`api-reference.md`](api-reference.md#download-names)).
+  The stem keeps its letters, accents and punctuation; path separators,
+  the characters Windows forbids in a name (with lookalikes such as `／`)
+  and control characters are removed, and the whole name is capped at 200 bytes by shortening the
+  stem, so the extension survives. A name beyond ASCII also comes as
+  `filename*=UTF-8''<percent-encoded name>` (details in
+  [`api-reference.md`](api-reference.md#download-names)).
 - Body: the converted file, raw bytes.
 
 **Quality semantics** vary by format:
@@ -825,10 +835,16 @@ const res = await fetch(uploadUrl, { method: "POST", body: fd });
 const cd = res.headers.get("Content-Disposition");  // "attachment; filename=\"photo.png\""
 ```
 
+A name beyond ASCII comes as `filename*=UTF-8''Gr%C3%BC%C3%9Fe.png`
+beside an ASCII stand-in in `filename`: decode the first with
+`decodeURIComponent` and use `filename` only when it is missing.
+FileMorph's own pages read the header in `app/static/js/download-name.js`.
+
 If you forget the cross-origin allowlist on a self-hosted instance,
-the browser will hide the header silently and you'll fall back to
-`"result"` as the filename. This is a frequent source of "downloads
-have no extension" bugs in self-hosted setups.
+the browser hides the header silently and `res.headers.get` returns
+`null`. FileMorph's own pages then name the result after the picked
+file (`photo.jpg` → `photo.png`), so check `expose_headers` before you
+trust a name that merely looks right.
 
 ### Self-hosted CORS setup
 

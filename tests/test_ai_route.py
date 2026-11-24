@@ -14,6 +14,7 @@ auth/DB stack. Production keeps ``anonymous`` out (paid-only).
 import pytest
 
 from app.core.config import settings
+from app.core.utils import content_disposition
 
 # A text note carrying structured PII the deterministic engine catches.
 PII_NOTE = b"Kontakt: max.mustermann@beispiel.de, IBAN DE89 3704 0044 0532 0130 00."
@@ -206,6 +207,17 @@ def test_apply_long_name_keeps_redacted_suffix(client, auth_headers, ai_enabled)
     assert resp.status_code == 200
     expected = "n" * 187 + ".redacted.txt"
     assert f'filename="{expected}"' in resp.headers.get("Content-Disposition", "")
+
+
+def test_apply_keeps_a_name_beyond_latin1(client, auth_headers, ai_enabled):
+    # The route wrote this header by hand, which failed with a 500 here.
+    resp = client.post(
+        "/api/v1/ai/redact/apply",
+        headers=auth_headers,
+        files={"file": ("Отчёт.txt", PII_NOTE, "text/plain")},
+    )
+    assert resp.status_code == 200
+    assert resp.headers["Content-Disposition"] == content_disposition("Отчёт.redacted.txt")
 
 
 def test_apply_mask_mode(client, auth_headers, ai_enabled):

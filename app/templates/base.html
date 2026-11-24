@@ -259,6 +259,8 @@
   <script id="fm-i18n-strings" type="application/json">{{ js_i18n_json | safe }}</script>
   <script src="{{ static_url('js/i18n-bootstrap.js') }}"></script>
   <script src="{{ static_url('js/announce.js') }}"></script>
+  {# Names every download — app.js and the tools' own scripts; asks the server nothing. #}
+  <script src="{{ static_url('js/download-name.js') }}"></script>
   <script src="{{ static_url('js/nav.js') }}"></script>
   <script src="{{ static_url('js/cookie-notice.js') }}"></script>
   {# A strict page (CSP profile "local", app/core/csp.py) empties this block: both

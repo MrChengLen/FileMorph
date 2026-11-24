@@ -9,6 +9,10 @@ import zipfile
 from dataclasses import dataclass, field
 from typing import Literal
 
+# The download name of every batch's ZIP; app/static/js/app.js falls back to
+# it when a response names none.
+BATCH_ZIP_NAME = "filemorph-batch.zip"
+
 
 class BatchFileError(Exception):
     """A per-file batch rejection written for the client (e.g. size, magic bytes).

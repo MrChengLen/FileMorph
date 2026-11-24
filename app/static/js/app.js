@@ -1509,6 +1509,21 @@ async function submitForm() {
     }
   }
 
+  // The result's name when the response names none (a proxy that drops
+  // Content-Disposition): the server's own, built from the picked file — read
+  // now, as the selection may change while the server works. PDF/A takes the
+  // `_pdfa.pdf` suffix, not a `.pdfa` extension — see DOWNLOAD_SUFFIX.
+  let fallbackName = 'filemorph-batch.zip';
+  if (!isBatch) {
+    const source = selectedFiles[0].name;
+    let suffix = '_compressed.' + getExtension(source);
+    if (currentMode === 'convert') {
+      const target = document.getElementById('target-format').value;
+      suffix = DOWNLOAD_SUFFIX[target] || '.' + target;
+    }
+    fallbackName = FM_resultName(source, suffix);
+  }
+
   const run = ++currentRun;
   showProgress(isBatch
     ? i18nText('progressBatch', 'Processing {count} files…', { count: selectedFiles.length })
@@ -1628,19 +1643,7 @@ async function submitForm() {
 
     const blob = await res.blob();
     if (run !== currentRun) return;
-    const disposition = res.headers.get('content-disposition') || '';
-    const nameMatch = disposition.match(/filename="?([^"]+)"?/);
-    // Defensive fallback: if Content-Disposition is unreadable (e.g. a proxy
-    // strips it), still produce a correctly-extensioned filename. The target
-    // extension is known client-side: convert mode → the target-format
-    // dropdown; compress mode → the source extension (output format matches).
-    // PDF/A needs the `_pdfa.pdf` suffix rather than a literal `.pdfa`
-    // extension — see DOWNLOAD_SUFFIX above.
-    const outputExt = currentMode === 'convert'
-      ? document.getElementById('target-format').value
-      : getExtension(selectedFiles[0].name);
-    const fallbackName = isBatch ? 'filemorph-batch.zip' : `result${DOWNLOAD_SUFFIX[outputExt] || '.' + outputExt}`;
-    const filename = nameMatch ? nameMatch[1] : fallbackName;
+    const filename = FM_downloadName(res, fallbackName);
 
     const url = URL.createObjectURL(blob);
     const link = document.getElementById('download-link');

@@ -1,13 +1,14 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Which scripts each page template loads.
 
-base.html loads i18n-bootstrap.js, nav.js and cookie-notice.js on every page,
-then auth.js and app.js in its ``core_scripts`` block. Both of those call the
-API (app.js fetches /api/v1/formats on every page), so a strict page — CSP
-profile ``local``, where the browser refuses fetch and XHR — empties that
-block. ``_PAGES`` pins each template's own scripts, so a new script or a new
-template is added on purpose. Every script is linked with its content
-version (``static_url``), so a browser loads the new file after an update.
+base.html loads i18n-bootstrap.js, announce.js, download-name.js, nav.js and
+cookie-notice.js on every page, then auth.js and app.js in its
+``core_scripts`` block. Both of those call the API (app.js fetches
+/api/v1/formats on every page), so a strict page — CSP profile ``local``,
+where the browser refuses fetch and XHR — empties that block. ``_PAGES``
+pins each template's own scripts, so a new script or a new template is added
+on purpose. Every script is linked with its content version
+(``static_url``), so a browser loads the new file after an update.
 """
 
 from __future__ import annotations
@@ -29,6 +30,7 @@ _SRC = re.compile(r'<script\b[^>]*\bsrc="([^"]+)"', re.IGNORECASE)
 _SHARED = [
     "/static/js/i18n-bootstrap.js",
     "/static/js/announce.js",
+    "/static/js/download-name.js",
     "/static/js/nav.js",
     "/static/js/cookie-notice.js",
 ]
