@@ -117,6 +117,17 @@ def operator_recipient() -> str:
     )
 
 
+def smtp_configured() -> bool:
+    """Whether this deployment can send mail at all (``SMTP_HOST`` is set).
+
+    Without it :func:`send_email` is a no-op. That is right where the answer
+    must not depend on delivery (password reset: no account enumeration), but
+    a sender who needs to know whether the mail went out (the contact form)
+    has to check this first instead of reporting a success.
+    """
+    return bool(settings.smtp_host)
+
+
 class EmailSendError(RuntimeError):
     """Raised when SMTP delivery fails. The original SMTP error is logged by
     type and SMTP code only and never chained onto this exception — its text
@@ -139,7 +150,7 @@ async def send_email(
     # Log lines carry the recipient's domain, never the address, and no
     # subject: the contact form puts the sender's own text into it.
     to_domain = to.split("@", 1)[-1] if "@" in to else "unknown"
-    if not settings.smtp_host:
+    if not smtp_configured():
         logger.warning("send_email skipped — SMTP not configured (to_domain=%s)", to_domain)
         return
 

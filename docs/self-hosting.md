@@ -106,6 +106,17 @@ The key is stored as a hash in `./data/api_keys.json` (bind-mounted into the con
 curl http://localhost:8000/api/v1/health
 ```
 
+### 5. Set up outgoing email (once)
+
+The contact form (`/contact`, linked from the Impressum and the footer) sends
+each message to your inbox by email. Without SMTP it cannot: it tells visitors
+that sending is not set up and offers your address instead. Set the `SMTP_*`
+variables and `CONTACT_FORM_RECIPIENT_EMAIL` in `.env`, restart the container
+and send yourself a test message through `/contact` — the walk-through,
+provider examples and a verification step are in
+[`docs/email-setup.md`](email-setup.md). The Cloud Edition's password resets,
+verification and cancellation confirmations use the same settings.
+
 ---
 
 ## Image variants

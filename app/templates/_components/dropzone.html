@@ -13,11 +13,12 @@
                  is 16 px on a phone and 24 px from 640 px, so the field stays
                  in the first screen of a 1280 × 600 laptop window.
    attrs       — extra data-* attributes as a dict, e.g. the convert tool's
-                 data-preset-*. Only keys starting with data- are rendered
-                 (no event handlers); values are escaped plain strings.
+                 data-preset-* (rendered by data_attrs.html: data-* keys
+                 only, values escaped).
 #}
+{% import "_components/data_attrs.html" as uda %}
 {% macro dropzone(id, label, describedby=None, compact=False, attrs=None) %}
-<div id="{{ id }}"{% for key, value in (attrs or {}).items() if key.startswith('data-') %} {{ key }}="{{ value }}"{% endfor %}
+<div id="{{ id }}"{{ uda.data_attrs(attrs) }}
   class="group touch-manipulation rounded-control border-2 border-dashed border-hairline-strong text-center cursor-pointer transition-colors hover:border-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand data-[dragging]:border-brand data-[dragging]:bg-brand/5 {% if compact %}p-4{% else %}p-4 sm:p-card-pad-md{% endif %}"
   role="button" tabindex="0" aria-label="{{ label }}"{% if describedby %} aria-describedby="{{ describedby }}"{% endif %} data-component="dropzone">
   {{ caller() }}
