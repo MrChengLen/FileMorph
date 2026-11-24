@@ -481,10 +481,11 @@ async def security_page(request: Request):
 async def contact_page(request: Request):
     # Ungated — the Impressum links here (DDG §5 second contact channel),
     # and the form is useful for self-hosters who set
-    # CONTACT_FORM_RECIPIENT_EMAIL. When nothing is configured,
+    # CONTACT_FORM_RECIPIENT_EMAIL. When no address is configured,
     # ``contact_email`` is "" and the template hides the "email us
-    # directly" line; the form still renders (the POST then no-ops the
-    # email, same as /forgot-password without SMTP).
+    # directly" line and the "Write an email instead" button. The form
+    # still renders; without SMTP its POST answers 503 and the page says
+    # sending is not set up (docs/email-setup.md).
     return _render(request, "contact.html", contact_email=email_mod.operator_recipient())
 
 

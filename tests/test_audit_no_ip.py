@@ -332,6 +332,8 @@ def _clean_audit_table(request):
 def mail(monkeypatch):
     mock = AsyncMock()
     monkeypatch.setattr(email_mod, "send_email", mock)
+    # A deployment that can send mail: without SMTP the contact form answers 503.
+    monkeypatch.setattr(email_mod.settings, "smtp_host", "smtp.example.test")
     return mock
 
 

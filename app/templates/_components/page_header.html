@@ -1,0 +1,20 @@
+{# page_header(title, back_href, back_label)
+
+   The head of a text page (security policy, privacy, terms, impressum,
+   contact): a way back, the page heading and, when called with
+   {% call %}, a small meta line under it (date, legal basis, a source link).
+   The back link is a 24 px target; the heading is the page token
+   (text-h-page), the same as on every tool page.
+
+   Strings never live here (babel skips _components/): callers pass the
+   title and the back label in, and the meta line as the call body.
+#}
+{% macro page_header(title, back_href, back_label) %}
+<div class="space-y-3" data-component="page-header">
+  <a href="{{ back_href }}" class="inline-flex min-h-6 items-center rounded-control text-sm text-ink-faint transition-colors hover:text-ink-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">{{ back_label }}</a>
+  <div class="space-y-1">
+    <h1 class="text-h-page text-ink">{{ title }}</h1>
+    {% if caller is defined %}<p class="text-sm text-ink-faint">{{ caller() }}</p>{% endif %}
+  </div>
+</div>
+{%- endmacro %}

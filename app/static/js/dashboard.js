@@ -204,9 +204,11 @@ async function confirmDeleteAccount() {
     return;
   }
   if (res.status === 401) { window.location.href = '/login'; return; }
-  if (res.status === 400 || res.status === 422) { status.textContent = status.dataset.err400; return; }
-  if (res.status === 409) { status.textContent = status.dataset.err409; return; }
-  status.textContent = status.dataset.err500;
+  // data-err-400 / -409 / -500 via getAttribute, as for the billing errors
+  // above: dataset.err400 is undefined (a dash before a digit stays in the
+  // dataset key), so a failed deletion used to show no message at all.
+  const code = res.status === 422 ? 400 : res.status;
+  status.textContent = status.getAttribute('data-err-' + code) || status.getAttribute('data-err-500');
 }
 
 document.addEventListener('DOMContentLoaded', function () {

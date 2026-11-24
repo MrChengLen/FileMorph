@@ -7,11 +7,16 @@ session, and we mock it here), so these tests need only the session
 ``send_email`` / ``audit_record`` at their import sites.
 """
 
+import re
+from pathlib import Path
 from unittest.mock import AsyncMock
 
 import pytest
+from bs4 import BeautifulSoup
 
 from app.core import email as email_mod
+
+_CONTACT_JS = Path(__file__).resolve().parent.parent / "app" / "static" / "js" / "contact.js"
 
 
 # ── Page render ───────────────────────────────────────────────────────────────
@@ -27,6 +32,62 @@ def test_contact_page_renders(client):
     # Honeypot field is present but inside a display:none container.
     assert 'name="website"' in body
     assert 'class="hidden"' in body
+
+
+def test_contact_outcome_box_shows_success_and_errors_apart(client):
+    """A sent message and a failed one looked alike, and the error texts did
+    not show at all. The outcome is a notice box inside a live region:
+    contact.js tints it ok on success and err on every failure, and each error
+    code it shows has its text on the box (read with getAttribute)."""
+    box = BeautifulSoup(client.get("/contact").text, "html.parser").find(id="contact-status")
+    assert box["data-component"] == "notice" and "hidden" in box["class"]
+    assert box.parent.get("aria-live") == "polite"
+    assert box.get("data-ok")
+    js = _CONTACT_JS.read_text(encoding="utf-8")
+    assert "showStatus(status.dataset.ok, 'ok')" in js
+    codes = set(re.findall(r"showError\((\d+)\)", js))
+    assert codes, "contact.js shows no error codes — regex drift?"
+    for code in sorted(codes):
+        assert box.get(f"data-err-{code}"), f"data-err-{code} missing: that error would be empty"
+
+
+@pytest.mark.parametrize("address", ["", "team@example.org"])
+def test_contact_server_error_names_the_address_when_there_is_one(client, monkeypatch, address):
+    """Never a dead end: with an operator address the server-error text says
+    where to write instead; without one it stops after the apology."""
+    monkeypatch.setattr(email_mod.settings, "contact_form_recipient_email", address)
+    monkeypatch.setattr(email_mod.settings, "smtp_reply_to", "")
+    monkeypatch.setattr(email_mod.settings, "smtp_from_email", "")
+    soup = BeautifulSoup(client.get("/en/contact").text, "html.parser")
+    box = soup.find(id="contact-status")
+    texts = {
+        "data-err-500": "Sorry, we could not send your message right now.",
+        "data-err-503": "Sending messages through this form is not set up on this server.",
+    }
+    for attr, start in texts.items():
+        text = box[attr]
+        assert text.startswith(start), attr
+        if address:
+            assert text.endswith(f"Please email us directly at {address}."), attr
+        else:
+            assert "Please email us directly" not in text, attr
+    # "Write an email instead": only with an address to write to, hidden until
+    # an error the form cannot deliver past (contact.js fills subject and body).
+    mailto = soup.find(id="contact-mailto")
+    if address:
+        assert mailto["href"] == f"mailto:{address}" and "hidden" in mailto["class"]
+    else:
+        assert mailto is None
+
+
+def test_contact_js_offers_mail_only_where_the_form_cannot_deliver():
+    js = _CONTACT_JS.read_text(encoding="utf-8")
+    codes = re.search(r"MAILTO_CODES = \[([^\]]*)\]", js)
+    assert codes and {c.strip() for c in codes.group(1).split(",")} == {"429", "500", "503"}
+    # What the visitor typed goes into the link URI-encoded, never raw, subject
+    # and message character by character (a cut through an emoji would throw).
+    assert "encodeWithin(text, room)" in js and "encodeURIComponent(ch)" in js
+    assert "encodeURIComponent(subject)" not in js
 
 
 @pytest.mark.parametrize("prefix,lang", [("/de", "de"), ("/en", "en")])
@@ -52,7 +113,30 @@ def test_impressum_links_to_contact_and_uses_ddg(client):
 # ── POST /api/v1/contact ──────────────────────────────────────────────────────
 
 
-def test_contact_post_happy_path(client, monkeypatch):
+@pytest.fixture
+def smtp_on(monkeypatch):
+    """A deployment that can send mail. Without SMTP the endpoint answers 503
+    (test_contact_post_without_smtp_is_503_not_a_false_success)."""
+    monkeypatch.setattr(email_mod.settings, "smtp_host", "smtp.example.test")
+
+
+def test_contact_post_without_smtp_is_503_not_a_false_success(client, monkeypatch):
+    """send_email skips the mail when SMTP is not set up, so a 200 here told
+    the visitor "sent" while nobody would ever read the message. The form
+    says it is not set up instead; nothing is sent and nothing audited."""
+    monkeypatch.setattr(email_mod.settings, "smtp_host", "")
+    send_mock = AsyncMock()
+    audit_mock = AsyncMock()
+    monkeypatch.setattr(email_mod, "send_email", send_mock)
+    monkeypatch.setattr("app.api.routes.contact.audit_record", audit_mock)
+    r = client.post("/api/v1/contact", json={"email": "erika@example.com", "message": "x" * 25})
+    assert r.status_code == 503
+    assert "smtp" not in r.text.lower()
+    send_mock.assert_not_awaited()
+    audit_mock.assert_not_awaited()
+
+
+def test_contact_post_happy_path(client, monkeypatch, smtp_on):
     send_mock = AsyncMock()
     audit_mock = AsyncMock()
     monkeypatch.setattr(email_mod, "send_email", send_mock)
@@ -112,7 +196,7 @@ def test_contact_post_honeypot_silently_dropped(client, monkeypatch):
         {"email": "a@b.com", "message": "x" * 25},  # missing nothing required... actually fine
     ],
 )
-def test_contact_post_minimal_valid_body_ok(client, monkeypatch, payload):
+def test_contact_post_minimal_valid_body_ok(client, monkeypatch, smtp_on, payload):
     """name/subject/website are optional — a body with just email + a
     long-enough message is accepted."""
     send_mock = AsyncMock()
@@ -141,7 +225,7 @@ def test_contact_post_validation_errors(client, monkeypatch, payload):
     send_mock.assert_not_awaited()
 
 
-def test_contact_post_email_failure_returns_502(client, monkeypatch):
+def test_contact_post_email_failure_returns_502(client, monkeypatch, smtp_on):
     send_mock = AsyncMock(side_effect=email_mod.EmailSendError("smtp boom"))
     monkeypatch.setattr(email_mod, "send_email", send_mock)
     monkeypatch.setattr("app.api.routes.contact.audit_record", AsyncMock())

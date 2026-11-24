@@ -479,6 +479,62 @@ def test_segmented_state_lives_in_aria_pressed(env: Environment) -> None:
     assert "focus-visible:ring-ink-strong" in a["class"]
 
 
+def test_page_header_back_link_heading_and_meta(env: Environment) -> None:
+    soup = _render(
+        env,
+        '{% import "_components/page_header.html" as h %}'
+        "{% call h.page_header('Terms', '/en/', '← Back') %}Last updated: today{% endcall %}",
+    )
+    head = soup.find(attrs={"data-component": "page-header"})
+    link, title = head.find("a"), head.find("h1")
+    assert link["href"] == "/en/" and link.get_text() == "← Back"
+    assert "min-h-6" in link["class"]  # a 24 px target
+    assert title.get_text() == "Terms" and "text-h-page" in title["class"]
+    assert head.find("p").get_text() == "Last updated: today"
+
+
+def test_page_header_without_meta_has_no_meta_line(env: Environment) -> None:
+    soup = _render(
+        env,
+        '{% import "_components/page_header.html" as h %}'
+        "{{ h.page_header('Contact', '/de/', '← Zurück') }}",
+    )
+    assert soup.find("h1").get_text() == "Contact" and soup.find("p") is None
+
+
+def test_notice_carries_data_attributes_only(env: Environment) -> None:
+    soup = _render(
+        env,
+        '{% import "_components/notice.html" as n %}'
+        "{{ n.notice(id='s', attrs={'data-ok': 'Sent', 'onclick': 'x()'}) }}",
+    )
+    box = soup.find(id="s")
+    assert box["data-ok"] == "Sent" and not box.has_attr("onclick")
+
+
+@pytest.mark.parametrize(
+    ("macro", "call"),
+    [
+        ("notice", "{{ m.notice(id='t', attrs={KEY: 'v'}) }}"),
+        ("dropzone", "{% call m.dropzone('t', 'T', attrs={KEY: 'v'}) %}{% endcall %}"),
+        (
+            "segmented",
+            "{{ m.segmented([{'id': 't', 'label': 'T', 'pressed': True, 'data': {KEY: 'v'}}]) }}",
+        ),
+    ],
+)
+def test_extra_attribute_names_cannot_smuggle_attributes(env: Environment, macro, call) -> None:
+    # Autoescape guards attribute values, not names: a key with spaces or "="
+    # would otherwise add attributes of its own.
+    key = "'data-x onfocus=alert(1) autofocus'"
+    soup = _render(
+        env, f'{{% import "_components/{macro}.html" as m %}}' + call.replace("KEY", key)
+    )
+    element = soup.find(id="t")
+    assert element is not None
+    assert not {"onfocus", "autofocus", "data-x"} & set(element.attrs)
+
+
 def test_notice_element_is_only_p_or_div(env: Environment) -> None:
     # The element name is not autoescaped, so the macro allows only p and div.
     soup = _render(

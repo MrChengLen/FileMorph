@@ -488,25 +488,8 @@ def test_cancel_js_posts_anonymously_to_the_cancellation_endpoint():
     assert "authFetch" not in js and "Authorization" not in js
 
 
-def _dataset_keys(html: str) -> set[str]:
-    """What ``element.dataset`` exposes for a page's data-* attributes (HTML spec): a dash
-    before an ASCII lowercase letter is dropped and the letter upper-cased, every other dash
-    stays. So ``data-err-422`` is ``dataset['err-422']`` and ``dataset.err422`` is undefined
-    — a message read that way silently comes out empty."""
-    keys: set[str] = set()
-    for tag in _soup(html).find_all(True):
-        for attr in tag.attrs:
-            if attr.startswith("data-"):
-                keys.add(re.sub(r"-([a-z])", lambda m: m.group(1).upper(), attr[len("data-") :]))
-    return keys
-
-
-def test_cancel_js_reads_only_dataset_keys_the_page_provides(client, stripe_on):
-    js = _CANCEL_JS.read_text(encoding="utf-8")
-    read = set(re.findall(r"\.dataset\.(\w+)", js))
-    assert read, "cancel.js reads no dataset keys — regex drift?"
-    missing = read - _dataset_keys(client.get("/en/cancel").text)
-    assert not missing, f"cancel.js reads dataset keys no data-* attribute produces: {missing}"
+# cancel.js's dataset reads are checked with contact.js and dashboard.js in
+# tests/test_dataset_reads.py.
 
 
 def test_cancel_js_writes_text_never_html():

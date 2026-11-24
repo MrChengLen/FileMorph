@@ -73,16 +73,22 @@ TOKEN_FILES = [
     "partials/quick_actions.html",
     "partials/breadcrumb.html",
     "partials/location_hint.html",
+    # The text pages (UI frame package 3a).
+    "security.html",
+    "privacy.html",
+    "terms.html",
+    "impressum.html",
+    "contact.html",
     *sorted(
         p.relative_to(TEMPLATES).as_posix() for p in (TEMPLATES / "_components").glob("*.html")
     ),
 ]
 
-# The scripts that build or restyle the tool cards' markup follow the same
+# The scripts that build or restyle markup on those pages follow the same
 # rules for the classes they set (app.js: file rows, batch summary; the PDF and
-# redact scripts: drag state, findings rows).
+# redact scripts: drag state, findings rows; contact.js: the status box).
 SCRIPTS = TEMPLATES.parent / "static" / "js"
-TOKEN_SCRIPTS = ["app.js", "pdf-tools.js", "redact.js"]
+TOKEN_SCRIPTS = ["app.js", "pdf-tools.js", "redact.js", "contact.js"]
 _JS_COMMENTS = re.compile(r"/\*.*?\*/|//[^\n]*", re.DOTALL)
 
 

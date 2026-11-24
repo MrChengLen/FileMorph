@@ -27,7 +27,11 @@ resources"):
 This endpoint deliberately returns ``502`` (not the generic ``200`` that
 ``/forgot-password`` returns on a send failure): there is no enumeration
 concern here, and the user genuinely needs to know whether the message got
-through — on failure the UI hands them the direct-email fallback.
+through — on failure the UI hands them the direct-email fallback. For the
+same reason it returns ``503`` on a deployment without SMTP: ``send_email``
+would skip the mail there, and a ``200`` would tell the visitor their message
+was sent when nobody will ever read it (docs/email-setup.md says how to set
+SMTP up).
 """
 
 from __future__ import annotations
@@ -68,6 +72,15 @@ async def submit_contact(request: Request, body: ContactRequest):
         # but do nothing — no email, no audit event, no IP in the log.
         logger.info("contact: honeypot tripped, dropping submission")
         return {"detail": "Message sent."}
+
+    if not email_mod.smtp_configured():
+        # send_email would skip the mail and the form would say "sent": a
+        # false success. Nothing is received, so no audit event either.
+        logger.warning("contact: SMTP not configured, the form cannot deliver")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="The contact form is not set up on this server — please email us directly.",
+        )
 
     locale = resolve_locale(request)
     await audit_record(

@@ -1,30 +1,27 @@
 {% extends "base.html" %}
 {% import "_components/page.html" as up %}
+{% import "_components/page_header.html" as uh %}
 {% block title %}{{ _('Terms of Use') }} — FileMorph{% endblock %}
 {% block content %}
 {% call up.page(max_w='prose-narrow') %}
-<div class="space-y-8 text-gray-300 text-sm leading-relaxed">
+<div class="space-y-section-sm text-base leading-relaxed text-ink-soft">
 
-  <div>
-    <a href="{{ localized_url('/', current_prefix) }}" class="text-sm text-ink-faint hover:text-gray-300 transition-colors">{{ _('← Back') }}</a>
-    <h1 class="text-2xl font-bold mt-4 text-white">{{ _('Terms of Use') }}</h1>
-    <p class="text-xs text-ink-faint mt-1">{{ _('Last updated: 2026-10-21 · Community + Cloud Edition') }}</p>
-  </div>
+  {% call uh.page_header(_('Terms of Use'), localized_url('/', current_prefix), _('← Back')) %}{{ _('Last updated: 2026-10-21 · Community + Cloud Edition') }}{% endcall %}
 
-  <section class="space-y-3">
-    <h2 class="text-base font-semibold text-white">{{ _('1. Acceptance') }}</h2>
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-ink">{{ _('1. Acceptance') }}</h2>
     <p>{{ _('By using FileMorph (the "Service"), you agree to these Terms of Use. If you do not agree, do not use the Service.') }}</p>
   </section>
 
-  <section class="space-y-3">
-    <h2 class="text-base font-semibold text-white">{{ _('2. Description of Service') }}</h2>
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-ink">{{ _('2. Description of Service') }}</h2>
     <p>{{ _('FileMorph is a file conversion and compression service. The Community Edition is provided free of charge, without warranty, and without SLA commitments.') }}</p>
   </section>
 
-  <section class="space-y-3">
-    <h2 class="text-base font-semibold text-white">{{ _('3. Acceptable Use') }}</h2>
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-ink">{{ _('3. Acceptable Use') }}</h2>
     <p>{{ _('You may not use the Service to:') }}</p>
-    <ul class="list-disc list-inside space-y-1 text-gray-400">
+    <ul class="list-disc list-outside ml-5 space-y-2 text-ink-muted">
       <li>{{ _('Upload files that contain malware, exploits, or illegal content') }}</li>
       <li>{{ _('Attempt to circumvent rate limits or security controls') }}</li>
       <li>{{ _('Use the Service for automated large-scale processing without prior agreement') }}</li>
@@ -33,51 +30,51 @@
     </ul>
   </section>
 
-  <section class="space-y-3">
-    <h2 class="text-base font-semibold text-white">{{ _('4. Disclaimer of Warranties') }}</h2>
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-ink">{{ _('4. Disclaimer of Warranties') }}</h2>
     <p>{{ _('The Service is provided "as is" without warranty of any kind, express or implied. We do not guarantee uptime, accuracy of conversion results, or fitness for a particular purpose.') }}</p>
     {% if ai_operations_enabled %}<p>{{ _('Redaction — scope and no guarantee of anonymization. The redaction feature assists with removing certain structured personal data — currently email addresses, IBANs, phone numbers, IP addresses, and payment-card numbers — detected by deterministic pattern-and-checksum matching. It does not detect or remove free-text personal data such as names, addresses, dates of birth, or other identifiers, and it does not detect every possible format of the supported types. A redacted file is therefore not guaranteed to be fully anonymous or to satisfy any specific legal anonymization or pseudonymization standard. You remain the controller of your documents and are solely responsible for reviewing every redacted file before sharing or publishing it. PDF input is intentionally not supported for redaction.') }}</p>{% endif %}
   </section>
 
-  <section class="space-y-3">
-    <h2 class="text-base font-semibold text-white">{{ _('5. Limitation of Liability') }}</h2>
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-ink">{{ _('5. Limitation of Liability') }}</h2>
     <p>{{ _('To the extent permitted by applicable law, the operator of FileMorph shall not be liable for any direct, indirect, incidental, or consequential damages arising from your use of the Service.') }}</p>
     {% if ai_operations_enabled %}<p>{{ _('In particular, FileMorph is a processing tool, not legal or compliance advice; you are responsible for verifying that any output (including redacted files) meets your own legal obligations before relying on or disclosing it.') }}</p>{% endif %}
   </section>
 
-  <section class="space-y-3">
-    <h2 class="text-base font-semibold text-white">{{ _('6. Open Source License') }}</h2>
-    <p>{{ _('FileMorph is open source software licensed under the GNU Affero General Public License v3.0 (AGPLv3). The source code is available at') }} <a href="https://github.com/MrChengLen/FileMorph" class="text-brand-light hover:underline" target="_blank">github.com/MrChengLen/FileMorph</a>.</p>
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-ink">{{ _('6. Open Source License') }}</h2>
+    <p>{{ _('FileMorph is open source software licensed under the GNU Affero General Public License v3.0 (AGPLv3). The source code is available at') }} <a href="https://github.com/MrChengLen/FileMorph" class="text-brand-light underline hover:text-ink-strong" target="_blank" rel="noopener noreferrer">github.com/MrChengLen/FileMorph</a>.</p>
   </section>
 
-  <section class="space-y-3">
-    <h2 class="text-base font-semibold text-white">{{ _('7. Governing Law') }}</h2>
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-ink">{{ _('7. Governing Law') }}</h2>
     <p>{{ _('These Terms are governed by the laws of the Federal Republic of Germany. Place of jurisdiction is Hamburg, Germany.') }}</p>
   </section>
 
-  <section class="space-y-3">
-    <h2 class="text-base font-semibold text-white">{{ _('8. Subscriptions (Cloud Edition)') }}</h2>
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-ink">{{ _('8. Subscriptions (Cloud Edition)') }}</h2>
     {# Without Stripe no plan can be booked (the pricing page shows the free
        variant), so §8 and §9 have nothing to apply to yet. #}
     {% if not stripe_enabled %}<p>{{ _('We currently offer no paid plans. Sections 8 and 9 apply only once paid plans are offered.') }}</p>{% endif %}
-    <p>{{ _('Paid plans are billed monthly via Stripe, at the prices shown on the pricing page at the time of your order, and renew automatically until cancelled. You may cancel at any time, without logging in, through the “Cancel contracts here” link at the bottom of every page, or by emailing') }} <a href="mailto:legal@filemorph.io" class="text-brand-light hover:underline">legal@filemorph.io</a>{{ _('; an ordinary cancellation takes effect at the end of the current billing period, or on a later date you name, and you retain access until then. A cancellation made through the link is confirmed to you by email immediately.') }}</p>
-    <p>{{ _('Refunds are not issued for partial billing periods. In the event of a documented service outage exceeding 24 hours within a single billing period, you may request a discretionary credit by contacting:') }} <a href="mailto:legal@filemorph.io" class="text-brand-light hover:underline">legal@filemorph.io</a>.</p>
+    <p>{{ _('Paid plans are billed monthly via Stripe, at the prices shown on the pricing page at the time of your order, and renew automatically until cancelled. You may cancel at any time, without logging in, through the “Cancel contracts here” link at the bottom of every page, or by emailing') }} <a href="mailto:legal@filemorph.io" class="text-brand-light underline hover:text-ink-strong">legal@filemorph.io</a>{{ _('; an ordinary cancellation takes effect at the end of the current billing period, or on a later date you name, and you retain access until then. A cancellation made through the link is confirmed to you by email immediately.') }}</p>
+    <p>{{ _('Refunds are not issued for partial billing periods. In the event of a documented service outage exceeding 24 hours within a single billing period, you may request a discretionary credit by contacting:') }} <a href="mailto:legal@filemorph.io" class="text-brand-light underline hover:text-ink-strong">legal@filemorph.io</a>.</p>
     <p>{{ _("Payment processing is handled by Stripe Payments Europe Ltd.; Stripe's terms apply to the processing of your payment details.") }}</p>
   </section>
 
-  <section class="space-y-3">
-    <h2 class="text-base font-semibold text-white">{{ _('9. Right of Withdrawal (Consumers)') }}</h2>
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-ink">{{ _('9. Right of Withdrawal (Consumers)') }}</h2>
     <p>{{ _('If you are a consumer (a natural person entering a contract for purposes outside your trade, business or profession) and reside in the European Union, you have the statutory right to withdraw from a paid subscription within fourteen (14) days of contract conclusion — the date your first Stripe payment is confirmed — without giving any reason.') }}</p>
-    <p>{{ _('To exercise the right of withdrawal, send an unambiguous statement to:') }} <a href="mailto:legal@filemorph.io" class="text-brand-light hover:underline">legal@filemorph.io</a>{{ _(' — for example: "I hereby withdraw from the contract concluded on [date] for the FileMorph [Pro / Business] subscription." Including your registered email address speeds up identification of your account.') }}</p>
-    <p><strong class="text-gray-200">{{ _('Early expiration of the right of withdrawal:') }}</strong> {{ _('Pursuant to § 356 (5) BGB, the right of withdrawal expires when we begin executing the contract — i.e. when paid-tier API access becomes available — provided you (a) expressly consented to this and (b) acknowledged that you lose your right of withdrawal upon full performance. By ticking the dedicated waiver checkbox on the pricing page before being redirected to Stripe checkout, you give such consent. Without this acknowledgement, the standard 14-day withdrawal protection applies. The Community Edition (free of charge) is not subject to a right of withdrawal because no contract for paid services is concluded.') }}</p>
+    <p>{{ _('To exercise the right of withdrawal, send an unambiguous statement to:') }} <a href="mailto:legal@filemorph.io" class="text-brand-light underline hover:text-ink-strong">legal@filemorph.io</a>{{ _(' — for example: "I hereby withdraw from the contract concluded on [date] for the FileMorph [Pro / Business] subscription." Including your registered email address speeds up identification of your account.') }}</p>
+    <p><strong class="text-ink">{{ _('Early expiration of the right of withdrawal:') }}</strong> {{ _('Pursuant to § 356 (5) BGB, the right of withdrawal expires when we begin executing the contract — i.e. when paid-tier API access becomes available — provided you (a) expressly consented to this and (b) acknowledged that you lose your right of withdrawal upon full performance. By ticking the dedicated waiver checkbox on the pricing page before being redirected to Stripe checkout, you give such consent. Without this acknowledgement, the standard 14-day withdrawal protection applies. The Community Edition (free of charge) is not subject to a right of withdrawal because no contract for paid services is concluded.') }}</p>
   </section>
 
-  <section class="space-y-3">
-    <h2 class="text-base font-semibold text-white">{{ _('10. Contact') }}</h2>
-    <p>{{ _('For questions about these Terms, contact:') }} <a href="mailto:legal@filemorph.io" class="text-brand-light hover:underline">legal@filemorph.io</a>.</p>
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-ink">{{ _('10. Contact') }}</h2>
+    <p>{{ _('For questions about these Terms, contact:') }} <a href="mailto:legal@filemorph.io" class="text-brand-light underline hover:text-ink-strong">legal@filemorph.io</a>.</p>
   </section>
 
-  <p class="text-xs text-ink-faint pt-6 border-t border-gray-800 mt-6 leading-relaxed">
+  <p class="border-t border-hairline pt-6 text-sm text-ink-faint">
     {{ _('This English translation is provided for accessibility. The German version is the authoritative legal text in case of conflict.') }}
   </p>
 
