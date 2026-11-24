@@ -338,9 +338,6 @@ compressor format — each is pinned by a test, so a missed one fails the build:
 - The homepage drop-zone captions `#supported-convert` and `#supported-compress`
   (`app/templates/partials/convert_tool.html`, EN + DE) —
   `tests/test_homepage_drop_zone_modes.py` compares them with `/api/v1/formats`.
-- `_HOMEPAGE_ADVERTISED` in `tests/test_format_registry.py` — the test's own list of
-  the formats the homepage names. Add the format there; the test only checks that
-  every listed format is registered, so a missing entry goes unnoticed.
 - `_FORMAT_CATEGORY` in `app/api/routes/pages.py` — `tests/test_formats_categories.py`
   fails for a source format without a category (it would land in the "Other"
   bucket on `/formats`).

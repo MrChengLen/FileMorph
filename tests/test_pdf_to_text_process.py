@@ -202,12 +202,12 @@ def test_a_child_stopped_by_a_limit_gets_400(tmp_path, monkeypatch):
 def test_a_failed_child_is_logged_by_type(tmp_path, monkeypatch, caplog):
     monkeypatch.setattr(document.subprocess, "run", _fake_child("failed KeyError", returncode=1))
     with caplog.at_level(logging.WARNING, logger="app.converters.document"):
-        with pytest.raises(RuntimeError):
+        with pytest.raises(RuntimeError, match="pdf to txt child failed"):
             document.PdfToTxtConverter().convert(tmp_path / "in.pdf", tmp_path / "out.txt")
     assert "pdf to txt child failed (status 1): KeyError" in caplog.messages
 
 
-@pytest.mark.parametrize("stdout", ["", "failed KeyError", "something else"])
+@pytest.mark.parametrize("stdout", ["", "something else"])
 def test_any_other_child_outcome_is_a_server_error(tmp_path, monkeypatch, stdout):
     monkeypatch.setattr(document.subprocess, "run", _fake_child(stdout, returncode=1))
     with pytest.raises(RuntimeError, match="pdf to txt child failed"):

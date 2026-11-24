@@ -6,10 +6,10 @@ Database: the shared Cloud test database (``cloud_db``, tests/support/db.py), em
 
 Pinned contracts:
 
-1. Token round-trip — ``create_email_verify_token`` /
-   ``decode_email_verify_token`` produce and accept ``(user_id, eat)``.
-   Wrong type, expired, or missing claims → HTTP 400 with a generic
-   "invalid or expired" message that doesn't leak the failure cause.
+1. A garbage, stale or unknown token → HTTP 400 with a generic "invalid or
+   expired" message that doesn't leak the failure cause. The token
+   round-trip and the claim checks live in test_jwt_claims.py and
+   test_token_types.py.
 2. ``/register`` dispatches the verification email and writes an
    ``auth.email_verification.requested`` audit row with
    ``trigger=register``. The user is created with
@@ -32,12 +32,11 @@ import asyncio
 from unittest.mock import AsyncMock
 
 import pytest
-from fastapi import HTTPException
 from sqlalchemy import select
 
 from app.core import email as email_mod
 from app.core.auth import hash_password
-from app.core.tokens import create_email_verify_token, decode_email_verify_token
+from app.core.tokens import create_email_verify_token
 from app.db.models import TierEnum, User
 
 from tests.support.db import TestSession, cloud_db
@@ -81,15 +80,6 @@ async def _insert_user(
         return user
 
 
-def _extract_token_from_mock(mock: AsyncMock) -> str:
-    assert mock.await_count >= 1, "send_email was never awaited"
-    text_body = mock.await_args.kwargs["text"]
-    marker = "token="
-    idx = text_body.find(marker)
-    assert idx >= 0, f"no token= in text body: {text_body!r}"
-    return text_body[idx + len(marker) :].split()[0].strip()
-
-
 def _login(client, email: str, password: str = "initial-password") -> str:
     res = client.post(
         "/api/v1/auth/login",
@@ -97,24 +87,6 @@ def _login(client, email: str, password: str = "initial-password") -> str:
     )
     assert res.status_code == 200, res.text
     return res.json()["access_token"]
-
-
-# ── Token round-trip (pure-function contract) ─────────────────────────────────
-
-
-def test_token_roundtrip_returns_subject_and_email():
-    """Happy-path: token created with (user_id, email) decodes to the
-    same pair. No DB interaction needed."""
-    token = create_email_verify_token("user-123", "alice@example.com")
-    sub, eat = decode_email_verify_token(token)
-    assert sub == "user-123"
-    assert eat == "alice@example.com"
-
-
-def test_token_rejects_garbage():
-    with pytest.raises(HTTPException) as exc:
-        decode_email_verify_token("not-a-real-jwt")
-    assert exc.value.status_code == 400
 
 
 # ── /register dispatches verification email ───────────────────────────────────

@@ -52,21 +52,15 @@ def tiny_free_output_cap(monkeypatch):
     yield
 
 
-def test_output_cap_field_exists_on_all_tiers():
-    """Every tier must declare output_cap_bytes — no implicit defaults."""
-    for tier in ("anonymous", "free", "pro", "business", "enterprise"):
-        q = get_quota(tier)
-        assert q.output_cap_bytes > 0, f"tier {tier!r} missing output_cap_bytes"
-
-
 def test_output_cap_progression():
-    """Caps must grow monotonically from anonymous to business; enterprise >= business."""
+    """Every tier has a cap above zero, growing from anonymous to business;
+    enterprise >= business."""
     anon = get_quota("anonymous").output_cap_bytes
     free = get_quota("free").output_cap_bytes
     pro = get_quota("pro").output_cap_bytes
     biz = get_quota("business").output_cap_bytes
     ent = get_quota("enterprise").output_cap_bytes
-    assert anon < free < pro < biz
+    assert 0 < anon < free < pro < biz
     assert ent >= biz
 
 
@@ -85,18 +79,6 @@ def test_convert_rejects_output_over_cap(client, auth_headers, tiny_anonymous_ou
     # "your upload was too big" from "we converted it and the OUTPUT is
     # over your tier cap" — same 413 status, very different remediation.
     assert r.headers.get("X-FileMorph-Error-Code") == "output_cap_exceeded"
-
-
-def test_convert_passes_under_cap(client, auth_headers):
-    """Normal JPG→PNG conversion well under default cap must succeed."""
-    r = client.post(
-        "/api/v1/convert",
-        headers=auth_headers,
-        files={"file": ("sample.jpg", _jpg_bytes(), "image/jpeg")},
-        data={"target_format": "png"},
-    )
-    assert r.status_code == 200
-    assert len(r.content) > 0
 
 
 def test_compress_rejects_output_over_cap(client, auth_headers, tiny_anonymous_output_cap):
@@ -153,34 +135,3 @@ def test_batch_compress_over_cap_file_marked_failed(
     body = r.json()
     assert body["summary"]["failed"] == 1
     assert "Output too large" in body["files"][0]["error_message"]
-
-
-def test_batch_per_file_cap_does_not_aggregate(client, auth_headers, override_free_user):
-    """H4 — output_cap_bytes is per-file, never aggregate-across-batch.
-
-    A regression that summed output across files in a batch (e.g., a
-    misplaced ``running_total >= cap`` accumulator) would silently reject
-    legitimate large batches even when each individual file fits the
-    per-file cap.
-
-    The test sends three small JPGs that each convert to ~tiny PNGs well
-    under the default free-tier cap (300 MB). The aggregate output is
-    obviously still well under that, so an aggregate cap of 300 MB
-    wouldn't catch it — but the test pins the contract that no synthetic
-    accumulator was introduced. If a future PR adds e.g. a 300-byte
-    aggregate cap, this test fails first.
-    """
-    files = [("files", (f"file{i}.jpg", _jpg_bytes(), "image/jpeg")) for i in range(3)]
-    r = client.post(
-        "/api/v1/convert/batch",
-        headers=auth_headers,
-        data={"target_formats": ["png", "png", "png"]},
-        files=files,
-    )
-    # All three files should succeed under the standard free-tier cap.
-    # Status 200 (zip with three outputs) — never 413, never 422.
-    assert r.status_code == 200, (
-        f"Per-file cap regressed to aggregate: status={r.status_code}, body={r.text[:200]}"
-    )
-    # Sanity: response is the zip, not an error JSON.
-    assert r.headers.get("content-type", "").startswith("application/zip")

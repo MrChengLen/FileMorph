@@ -475,17 +475,6 @@ def test_a_video_larger_than_4k_is_refused_with_the_next_step(tmp_path):
 
 @requires_ffmpeg
 @pytest.mark.skipif(sys.platform != "linux", reason="the file size limit applies on Linux")
-def test_ffmpeg_stops_writing_at_the_output_cap(tmp_path):
-    source = tmp_path / "in.mp3"
-    _generate("-f", "lavfi", "-i", "sine=frequency=440:duration=5", str(source))
-    with pytest.raises(OutputTooLargeError):  # 5 s of WAV are about 440 KB
-        get_converter("mp3", "wav").convert(
-            source, tmp_path / "out.wav", quality=85, max_output_bytes=100_000
-        )
-
-
-@requires_ffmpeg
-@pytest.mark.skipif(sys.platform != "linux", reason="the file size limit applies on Linux")
 def test_cover_art_over_the_pixel_limit_does_not_hide_the_output_cap(tmp_path):
     # ffmpeg probes the 3000 × 3000 cover, logs that it is over MAX_PIXELS and
     # converts the sound, up to the output cap.

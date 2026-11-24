@@ -91,9 +91,9 @@ def test_cancel_page_404_when_stripe_off(client, stripe_off, path):
     assert client.get(path).status_code == 404
 
 
-@pytest.mark.parametrize("path", _CANCEL_PATHS)
-def test_cancel_page_renders_when_stripe_on(client, stripe_on, path):
-    assert client.get(path).status_code == 200
+# /en/cancel and /de/cancel: see the headline and statutory-label tests.
+def test_cancel_page_renders_when_stripe_on(client, stripe_on):
+    assert client.get("/cancel").status_code == 200
 
 
 def test_cancel_page_shows_no_skip_link(client, stripe_on):
@@ -416,16 +416,13 @@ def test_footer_links_cancel_page_last_in_legal_group_when_stripe_on(client, str
 
 @pytest.mark.parametrize(
     "path",
-    ["/en/", "/en/login", "/en/contact", "/en/privacy", "/en/terms", "/en/imprint", "/en/cancel"],
+    # /en/ and /en/cancel: see the legal-group order and cancel-page chrome tests.
+    ["/en/login", "/en/contact", "/en/privacy", "/en/terms", "/en/imprint"],
 )
 def test_footer_link_is_on_every_page_when_stripe_on(client, stripe_on, accounts_on, path):
     r = client.get(path)
     assert r.status_code == 200
     assert 'href="/en/cancel"' in _footer(r.text)
-
-
-def test_footer_link_is_localized_on_de(client, stripe_on):
-    assert 'href="/de/cancel"' in _footer(client.get("/de/").text)
 
 
 def test_footer_has_no_cancel_link_when_stripe_off(client, stripe_off):

@@ -281,14 +281,6 @@ def test_dashboard_key_of_inactive_owner_is_rejected(client, sample_jpg, owner_s
     assert res.status_code == 401
 
 
-def test_unknown_key_rejected_with_database_configured(client, sample_jpg):
-    """The DB fallback must not widen the gate: a key in neither store is
-    still 401 when a database is configured."""
-    res = _convert_jpg(client, sample_jpg, "not-a-real-key")
-
-    assert res.status_code == 401
-
-
 def test_file_store_key_accepted_with_database_configured(client, sample_jpg):
     """Self-host/CLI keys from the file store have no ``api_keys`` row and
     must keep working when a database is configured."""

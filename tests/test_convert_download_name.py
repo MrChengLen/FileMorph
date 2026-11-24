@@ -15,6 +15,7 @@ JS fallback map doesn't drift from the server-side one.
 from __future__ import annotations
 
 import io
+import re
 import zipfile
 from pathlib import Path
 
@@ -87,7 +88,8 @@ def test_pdfa_long_stem_keeps_pdfa_suffix(client, auth_headers, stub_pdfa_conver
 
 def test_regular_target_keeps_plain_extension(client, auth_headers, sample_jpg):
     """Guards the default branch: a target with no ``_DOWNLOAD_SUFFIX`` entry
-    must keep using the plain ``<stem>.<tgt_ext>`` name, unchanged."""
+    must keep using the plain ``<stem>.<tgt_ext>`` name, unchanged. The upload's
+    own name comes back, never the UUID the file had on disk."""
     with sample_jpg.open("rb") as f:
         res = client.post(
             "/api/v1/convert",
@@ -96,7 +98,9 @@ def test_regular_target_keeps_plain_extension(client, auth_headers, sample_jpg):
             data={"target_format": "png"},
         )
     assert res.status_code == 200, res.text
-    assert 'filename="sample.png"' in res.headers.get("content-disposition", "")
+    disposition = res.headers.get("content-disposition", "")
+    assert 'filename="sample.png"' in disposition
+    assert not re.search(r"[0-9a-f]{32}", disposition)
 
 
 def test_app_js_fallback_mirrors_server_download_suffix():

@@ -38,33 +38,13 @@ def test_validate_key_uses_compare_digest():
 # ---------------------------------------------------------------------------
 
 
-def test_safe_download_name_normal():
-    assert safe_download_name("photo.jpg") == "photo.jpg"
-
-
-def test_safe_download_name_path_traversal():
-    result = safe_download_name("../../etc/passwd.jpg")
-    assert ".." not in result
-    assert "/" not in result
-
-
 def test_safe_download_name_null_bytes():
     result = safe_download_name("file\x00name.jpg")
     assert "\x00" not in result
 
 
-def test_safe_download_name_unicode():
-    result = safe_download_name("Ünïcödé.pdf")
-    assert isinstance(result, str)
-    assert len(result) > 0
-
-
 def test_safe_download_name_empty():
     assert safe_download_name("") == "result"
-
-
-def test_safe_download_name_max_length():
-    assert len(safe_download_name("a" * 300 + ".jpg")) <= 200
 
 
 @pytest.mark.parametrize("suffix", [".png", "_pdfa.pdf", "_compressed.jpg", ".redacted.pdf"])

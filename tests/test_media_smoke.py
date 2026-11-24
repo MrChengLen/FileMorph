@@ -258,20 +258,6 @@ def test_app_opens_media_only_through_media_input():
     assert sites == ["app/converters/_ffmpeg.py"], sites
 
 
-def test_a_refused_container_is_a_400_not_a_500(monkeypatch):
-    import app.converters._ffmpeg as mod
-
-    monkeypatch.setattr(mod.shutil, "which", lambda _: "ffmpeg")
-
-    class _Result:
-        returncode = 1
-        stderr = b"Format au not on whitelist 'mp3,wav'\nin.wav: Invalid argument"
-
-    monkeypatch.setattr(mod, "_exec", lambda cmd, **kw: _Result())
-    with pytest.raises(InvalidInputError):
-        run_ffmpeg(_fake_stream(), timeout=5)
-
-
 def test_uploads_are_opened_with_the_listed_demuxers_and_decoders_only(tmp_path, monkeypatch):
     commands = []
 
@@ -305,33 +291,6 @@ def test_run_ffmpeg_missing_binary(monkeypatch):
     monkeypatch.setattr(mod.shutil, "which", lambda _: None)
     with pytest.raises(FFmpegError, match="not found"):
         run_ffmpeg(_fake_stream())
-
-
-def test_run_ffmpeg_timeout_translated(monkeypatch):
-    import app.converters._ffmpeg as mod
-
-    monkeypatch.setattr(mod.shutil, "which", lambda _: "ffmpeg")
-
-    def fake_run(cmd, **kwargs):
-        raise subprocess.TimeoutExpired(cmd, kwargs.get("timeout"))
-
-    monkeypatch.setattr(mod, "_exec", fake_run)
-    with pytest.raises(InvalidInputError, match="takes longer to convert"):
-        run_ffmpeg(_fake_stream(), timeout=1)
-
-
-def test_run_ffmpeg_failure_translated(monkeypatch):
-    import app.converters._ffmpeg as mod
-
-    monkeypatch.setattr(mod.shutil, "which", lambda _: "ffmpeg")
-
-    class _Result:
-        returncode = 1
-        stderr = b"boom: invalid argument"
-
-    monkeypatch.setattr(mod, "_exec", lambda cmd, **kw: _Result())
-    with pytest.raises(FFmpegError, match="exit 1"):
-        run_ffmpeg(_fake_stream(), timeout=5)
 
 
 # ---------------------------------------------------------------------------

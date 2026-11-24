@@ -3,8 +3,8 @@
 
 The Web UI used to load `cdn.tailwindcss.com`, which broke a strict CSP
 and put a third-party request on every page. These tests catch any
-silent re-introduction — either in the HTML templates or in the CSP
-allow-list — and also verify that a hashed `tailwind.<sha>.css` bundle
+silent re-introduction in the HTML templates (test_csp_profiles.py pins
+the CSP allow-list) and also verify that a hashed `tailwind.<sha>.css` bundle
 is shipped so the swap actually works at runtime with a far-future,
 `immutable` Cache-Control."""
 
@@ -42,17 +42,6 @@ def test_base_template_has_no_cdn_script(client):
     assert _CDN_HOST not in r.text, (
         f"Tailwind CDN host '{_CDN_HOST}' found in rendered HTML; "
         "the template should link the self-hosted hashed bundle instead."
-    )
-
-
-def test_csp_header_does_not_allow_tailwind_cdn(client):
-    """CSP must not allowlist the CDN. If someone re-adds it to the
-    policy, future CDN-loaded scripts would silently execute again."""
-    r = client.get("/")
-    csp = r.headers.get("content-security-policy", "")
-    assert csp, "CSP header missing from HTML response"
-    assert _CDN_HOST not in csp, (
-        f"'{_CDN_HOST}' still appears in CSP:\n  {csp}\nDrop it now that we self-host Tailwind."
     )
 
 

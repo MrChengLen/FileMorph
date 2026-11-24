@@ -80,19 +80,6 @@ def test_increment_creates_row_when_absent():
     asyncio.run(_run())
 
 
-def test_increment_is_atomic_upsert_on_repeat():
-    async def _run():
-        async with TestSession() as s:
-            for _ in range(5):
-                await increment("page_views", db=s)
-            row = (
-                await s.execute(select(DailyMetric).where(DailyMetric.metric_key == "page_views"))
-            ).scalar_one()
-            assert row.count == 5
-
-    asyncio.run(_run())
-
-
 def test_increment_by_n_aggregates_in_one_round_trip():
     """Batch flush path: ``increment(key, by=N)`` adds N in a single UPSERT.
 

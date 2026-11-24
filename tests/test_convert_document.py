@@ -83,20 +83,6 @@ def sample_docx_with_table(tmp_path) -> Path:
 
 
 @_skip_no_weasyprint
-def test_docx_to_pdf_happy_path(client, auth_headers, sample_docx):
-    with sample_docx.open("rb") as f:
-        res = client.post(
-            "/api/v1/convert",
-            headers=auth_headers,
-            files={"file": ("sample.docx", f, _DOCX_MIME)},
-            data={"target_format": "pdf"},
-        )
-    assert res.status_code == 200, res.text
-    assert res.content[:5] == b"%PDF-", "output is not a PDF"
-    assert len(res.content) > 1024, "PDF unexpectedly small"
-
-
-@_skip_no_weasyprint
 def test_docx_to_pdf_with_table(client, auth_headers, sample_docx_with_table):
     with sample_docx_with_table.open("rb") as f:
         res = client.post(
@@ -107,6 +93,7 @@ def test_docx_to_pdf_with_table(client, auth_headers, sample_docx_with_table):
         )
     assert res.status_code == 200, res.text
     assert res.content[:5] == b"%PDF-"
+    assert len(res.content) > 1024, "PDF unexpectedly small"
 
     from io import BytesIO
 

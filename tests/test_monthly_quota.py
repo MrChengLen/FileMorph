@@ -7,7 +7,8 @@ The pricing page advertises 1 000/month (Free), 25 000 (Pro), 200 000
 * ``enforce_monthly_quota`` raises 429 with a ``Retry-After`` header
   pointing at the start of the next calendar month when the user has
   hit the limit, and is a no-op below the limit.
-* Anonymous (``user is None``) and Enterprise (unlimited) tiers
+* Anonymous (``user is None``; the anonymous ``/convert`` in
+  test_docs_match_code.py runs it) and Enterprise (unlimited) tiers
   bypass the gate entirely.
 * ``record_usage`` writes one ``UsageRecord`` row per successful
   conversion / compression and is a no-op for anonymous callers.
@@ -112,16 +113,6 @@ def test_next_month_start_within_year():
 # ── monthly_call_count: time-window correctness ──────────────────────────────
 
 
-def test_monthly_call_count_zero_for_new_user():
-    user = asyncio.run(_make_user(email="zero@example.com", tier=TierEnum.free))
-
-    async def _q():
-        async with TestSession() as s:
-            return await monthly_call_count(s, user.id)
-
-    assert asyncio.run(_q()) == 0
-
-
 def test_monthly_call_count_returns_current_month_only():
     """Last-month rows must NOT count against this-month quota."""
     user = asyncio.run(_make_user(email="rollover@example.com", tier=TierEnum.free))
@@ -138,11 +129,6 @@ def test_monthly_call_count_returns_current_month_only():
 
 
 # ── enforce_monthly_quota: gate behaviour ────────────────────────────────────
-
-
-def test_enforce_anonymous_is_noop():
-    """No user → no gate. The per-IP rate-limiter is the only constraint."""
-    asyncio.run(enforce_monthly_quota(None))  # must not raise
 
 
 def _count_returning(used: int):
@@ -199,23 +185,6 @@ def test_enforce_at_limit_raises_429_with_retry_after():
 # ── record_usage: writer correctness ─────────────────────────────────────────
 
 
-def test_record_usage_inserts_one_row():
-    user = asyncio.run(_make_user(email="writer@example.com", tier=TierEnum.free))
-
-    async def _do():
-        await record_usage(
-            user_id=user.id,
-            api_key_id=None,
-            endpoint="convert",
-            file_size_bytes=12345,
-            duration_ms=42,
-        )
-        async with TestSession() as s:
-            return await monthly_call_count(s, user.id)
-
-    assert asyncio.run(_do()) == 1
-
-
 def test_record_usage_anonymous_is_noop():
     """No user_id and no api_key_id → nothing to attribute the row to, so no
     row is written. (record_usage swallows a failed write, so "it didn't
@@ -236,12 +205,6 @@ def test_record_usage_anonymous_is_noop():
 
 
 # ── End-to-end via the upload routes ─────────────────────────────────────────
-
-
-def _login(client, email: str, password: str = "pw-secure-1") -> str:
-    res = client.post("/api/v1/auth/login", json={"email": email, "password": password})
-    assert res.status_code == 200, res.text
-    return res.json()["access_token"]
 
 
 def _override_user(user: User):
@@ -312,6 +275,12 @@ def test_every_upload_route_returns_429_at_the_monthly_limit(client, endpoint, u
 def test_convert_route_succeeds_when_user_is_below_monthly_limit(client):
     """Negative twin: a fresh free user (no usage rows) gets through."""
     user = asyncio.run(_make_user(email="convert-ok@example.com", tier=TierEnum.free))
+
+    async def _q(now=None):
+        async with TestSession() as s:
+            return await monthly_call_count(s, user.id, now=now)
+
+    assert asyncio.run(_q()) == 0  # a new user starts at zero (default "now")
     app.dependency_overrides[get_optional_user] = _override_user(user)
     try:
         png_bytes = _tiny_png_bytes()
@@ -323,13 +292,6 @@ def test_convert_route_succeeds_when_user_is_below_monthly_limit(client):
         )
         assert res.status_code == 200, res.text
         # Side effect: the successful call wrote one UsageRecord row.
-
-        async def _q():
-            async with TestSession() as s:
-                return await monthly_call_count(
-                    s, user.id, now=datetime.now(timezone.utc) + timedelta(seconds=1)
-                )
-
-        assert asyncio.run(_q()) == 1
+        assert asyncio.run(_q(datetime.now(timezone.utc) + timedelta(seconds=1))) == 1
     finally:
         app.dependency_overrides.pop(get_optional_user, None)

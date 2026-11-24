@@ -220,8 +220,6 @@ def _request_factory(client, route_id: str):
     below instead of living here."""
     user = asyncio.run(_insert_user(email=f"rl-{route_id}-{uuid4().hex}@example.com"))
     headers = _bearer_headers(user)
-    if route_id == "create_key":
-        return lambda i: client.post("/api/v1/keys", json={"label": f"rl-{i}"}, headers=headers)
     if route_id == "list_keys":
         return lambda i: client.get("/api/v1/keys", headers=headers)
     if route_id == "set_language":
@@ -234,7 +232,7 @@ def _request_factory(client, route_id: str):
 @pytest.mark.parametrize(
     "route_id,expected_status",
     [
-        ("create_key", 201),
+        # create_key: test_create_key_rate_limit_is_per_account_not_per_ip.
         ("list_keys", 200),
         ("set_language", 200),
     ],

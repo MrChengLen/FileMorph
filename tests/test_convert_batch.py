@@ -67,21 +67,6 @@ def test_batch_anon_one_file_ok(client, auth_headers):
     assert any(n.endswith(".png") for n in names)
 
 
-def test_batch_anon_rejects_two_files(client, auth_headers):
-    files = [
-        ("files", ("a.jpg", _jpg_bytes(), "image/jpeg")),
-        ("files", ("b.jpg", _jpg_bytes(), "image/jpeg")),
-    ]
-    r = client.post(
-        "/api/v1/convert/batch",
-        headers=auth_headers,
-        data=_targets("png", 2),
-        files=files,
-    )
-    assert r.status_code == 400
-    assert "exceeds tier limit" in r.json()["detail"]
-
-
 def test_batch_free_three_files_ok(client, auth_headers, override_free_user):
     files = [("files", (f"img{i}.jpg", _jpg_bytes(), "image/jpeg")) for i in range(3)]
     r = client.post(

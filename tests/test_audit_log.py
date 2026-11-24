@@ -77,18 +77,7 @@ async def audit_session():
         yield s
 
 
-# ── 1. Genesis row ───────────────────────────────────────────────────
-
-
-@pytest.mark.asyncio
-async def test_first_event_uses_genesis_prev_hash(audit_session):
-    await record_event("test.event", payload={"k": 1}, db=audit_session)
-    rows = (await audit_session.execute(select(AuditEvent))).scalars().all()
-    assert len(rows) == 1
-    assert rows[0].prev_hash == GENESIS_PREV_HASH
-
-
-# ── 2 + 3. Forward chain + recompute ─────────────────────────────────
+# ── 1–3. Genesis row, forward chain + recompute ──────────────────────
 
 
 @pytest.mark.asyncio
@@ -108,14 +97,6 @@ async def test_chain_links_each_row_to_predecessor(audit_session):
         assert curr.hash_version == HASH_VERSION
         recomputed = _recompute_hash(curr)
         assert recomputed == curr.record_hash
-
-
-@pytest.mark.asyncio
-async def test_verify_chain_returns_none_for_intact_chain(audit_session):
-    for i in range(3):
-        await record_event("test.event", payload={"i": i}, db=audit_session)
-    bad = await verify_chain(audit_session)
-    assert bad is None
 
 
 @pytest.mark.asyncio

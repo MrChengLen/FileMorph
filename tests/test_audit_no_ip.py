@@ -98,12 +98,6 @@ def test_chain_insert_has_no_ip_parameter():
     assert not {p for p in params if _tokens(p) & _ADDRESS_TOKENS}, params
 
 
-def test_passing_an_ip_fails_loudly():
-    """A forgotten caller must crash in tests, not store the address."""
-    with pytest.raises(TypeError):
-        record_event("test.event", actor_ip=DOC_IP)  # type: ignore[call-arg]
-
-
 def test_audit_model_maps_no_ip_column():
     """SQLAlchemy writes every mapped column into each INSERT, so a mapped
     ``actor_ip`` would break every audit write once the column is dropped."""

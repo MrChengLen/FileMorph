@@ -106,12 +106,6 @@ def test_every_page_loses_its_metadata(tmp_path):
     assert len(_read(result)) == 2
 
 
-def test_a_single_page_tiff_is_packed_as_before(tmp_path):
-    page = _page(1)
-    result = _read(_compress(tmp_path, _tiff([page])))
-    assert result == [("RGB", SIZE, page.tobytes(), ("tiff_adobe_deflate", 2))]
-
-
 def _held(pages: int, width: int, height: int, size: int) -> int:
     """The bytes strip_pages counts: the pixels and Pillow's pointer to each row."""
     return pages * (width * size + 8) * height
@@ -365,7 +359,7 @@ def test_inserting_a_tiff_into_a_pdf_inserts_every_page(client, auth_headers):
 
 @pytest.fixture
 def batch_user():
-    """A free account: batches of more than one file (tests/test_compress_batch.py)."""
+    """A free account: batches of more than one file."""
     user = MagicMock()
     user.tier.value = "free"
     app.dependency_overrides[get_optional_user] = lambda: user

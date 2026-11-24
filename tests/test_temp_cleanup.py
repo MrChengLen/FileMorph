@@ -6,6 +6,7 @@ and when the request fails. Regression-guards against a path that leaves
 
 import dataclasses
 import io
+import re
 import sys
 import tempfile
 from pathlib import Path
@@ -209,6 +210,10 @@ def test_only_the_result_is_left_when_the_response_starts(
     assert r.status_code == 200, r.text
     [(result, names, copies)] = answer_state
     assert names == [result]
+    # On disk the result has a UUID name: the upload's own name ("sample")
+    # only ever goes back in the Content-Disposition header.
+    assert re.match(r"[0-9a-f]{32}", result), result
+    assert "sample" not in result, result
     assert copies and all(closed for _rolled, closed in copies), copies
 
 

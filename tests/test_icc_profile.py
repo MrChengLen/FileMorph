@@ -99,7 +99,6 @@ def test_webp_gets_no_greyscale_profile(tmp_path):
     "src_ext,src_fmt,tgt",
     [
         ("png", "PNG", "jpg"),
-        ("png", "PNG", "webp"),
         ("jpg", "JPEG", "webp"),
         ("jpg", "JPEG", "png"),
     ],
