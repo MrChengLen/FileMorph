@@ -32,9 +32,9 @@ is exactly why the column exists. The cancellation confirmation falls back to th
 language of the page it was sent from — not `LANG_DEFAULT` — when the address
 belongs to no account or the account has no saved language.
 
-If `SMTP_HOST` is empty, every feature above degrades gracefully — all of
-them return their normal success status regardless, and the outbound
-send is silently skipped:
+If `SMTP_HOST` is empty, every feature above except the contact form degrades
+gracefully — they return their normal success status regardless, and the
+outbound send is silently skipped:
 
 - `/forgot-password` and `/resend-verification` still return `200`.
   `send_email()` sees `SMTP_HOST` is empty, logs `send_email skipped —
@@ -54,9 +54,12 @@ send is silently skipped:
   `email_sent: false`, and the page asks the visitor to print or save the receipt
   instead. The confirmation email § 312k BGB requires cannot go out without SMTP,
   so a deployment that sells paid plans needs it.
-- `/contact` still returns `200` — the operator-notification email is fire-and-forget,
-  so on an SMTP-less deployment the submission is logged and dropped (same behaviour
-  as `/register`'s verification mail). Set SMTP for the contact form to actually work.
+- `/contact` answers `503`: a visitor must not be told "your message has been sent"
+  when nobody will ever read it. The page says the form is not set up on this server,
+  and — when `CONTACT_FORM_RECIPIENT_EMAIL` (or `SMTP_REPLY_TO` / `SMTP_FROM_EMAIL`) is
+  set — names that address and offers a "Write an email instead" button that opens
+  the visitor's own mail program with their subject and message filled in. Set SMTP
+  once at setup for the form itself to work (the bot honeypot still answers `200`).
 
 ---
 

@@ -2501,6 +2501,9 @@ msgstr ""
 msgid "Send us a message and we will get back to you."
 msgstr ""
 
+msgid "Sending messages through this form is not set up on this server."
+msgstr "Sending messages through this form is not set up on this server."
+
 msgid "Sending…"
 msgstr ""
 
@@ -3484,6 +3487,9 @@ msgstr ""
 
 msgid "Working out the size…"
 msgstr "Working out the size…"
+
+msgid "Write an email instead"
+msgstr "Write an email instead"
 
 msgid ""
 "Yes. FileMorph can compress JPEG, WebP and AVIF images to at most a "

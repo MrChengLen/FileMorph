@@ -1,0 +1,11 @@
+{# data_attrs(attrs)
+
+   Renders a dict as extra data-* attributes for the component macros that
+   take them (dropzone, segmented, notice), each with a leading space. Only
+   plain data-<letters, digits, dashes> keys get through: autoescape guards
+   attribute values, not names, so a key with a space or "=" in it could
+   otherwise add attributes of its own. Values are escaped plain strings.
+#}
+{% macro data_attrs(attrs) -%}
+{% for key, value in (attrs or {}).items() if key.startswith('data-') and key[5:].replace('-', '').isalnum() %} {{ key }}="{{ value }}"{% endfor %}
+{%- endmacro %}

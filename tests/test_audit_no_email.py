@@ -178,6 +178,8 @@ def _audit_rows() -> list[dict]:
 
 def test_no_audit_payload_keeps_email_derived_data(client, monkeypatch):
     monkeypatch.setattr(email_mod, "send_email", AsyncMock())
+    # The contact form answers 503 without SMTP (nothing would be delivered).
+    monkeypatch.setattr(email_mod.settings, "smtp_host", "smtp.example.test")
 
     account = {"email": _HOLDER, "password": _PASSWORD}
     res = client.post("/api/v1/auth/register", json=account)

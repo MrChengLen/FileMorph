@@ -1,28 +1,25 @@
 {% extends "base.html" %}
 {% import "_components/page.html" as up %}
+{% import "_components/page_header.html" as uh %}
 {% block title %}{{ _('Security disclosure policy') }} — FileMorph{% endblock %}
 {% block content %}
 {% call up.page(max_w='prose-narrow') %}
-<div class="space-y-8 text-gray-300 text-sm leading-relaxed">
+<div class="space-y-section-sm text-base leading-relaxed text-ink-soft">
 
-  <div>
-    <a href="{{ localized_url('/', current_prefix) }}" class="text-sm text-ink-faint hover:text-gray-300 transition-colors">{{ _('← Back') }}</a>
-    <h1 class="text-2xl font-bold mt-4 text-white">{{ _('Security disclosure policy') }}</h1>
-    <p class="text-xs text-ink-faint mt-1">{{ _('RFC 9116 · referenced from') }} <a href="/.well-known/security.txt" class="text-brand-light hover:underline">/.well-known/security.txt</a></p>
-  </div>
+  {% call uh.page_header(_('Security disclosure policy'), localized_url('/', current_prefix), _('← Back')) %}{{ _('RFC 9116 · referenced from') }} <a href="/.well-known/security.txt" class="text-brand-light underline hover:text-ink-strong">/.well-known/security.txt</a>{% endcall %}
 
-  <section class="space-y-3">
-    <h2 class="text-base font-semibold text-white">{{ _('Reporting a vulnerability') }}</h2>
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-ink">{{ _('Reporting a vulnerability') }}</h2>
     <p>
       {{ _('If you have discovered a security issue in FileMorph or in this deployment, please email') }}
-      <a href="mailto:{{ security_contact_email }}" class="text-brand-light hover:underline">{{ security_contact_email }}</a>
+      <a href="mailto:{{ security_contact_email }}" class="text-brand-light underline hover:text-ink-strong">{{ security_contact_email }}</a>
       {{ _('with a clear description of the issue and any steps required to reproduce it. Encrypted mail is welcome — request our PGP key at the same address if needed.') }}
     </p>
   </section>
 
-  <section class="space-y-3">
-    <h2 class="text-base font-semibold text-white">{{ _('What to include in a report') }}</h2>
-    <ul class="list-disc list-inside space-y-1 text-gray-400">
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-ink">{{ _('What to include in a report') }}</h2>
+    <ul class="list-disc list-outside ml-5 space-y-2 text-ink-muted">
       <li>{{ _('A description of the vulnerability and its potential impact.') }}</li>
       <li>{{ _('Steps to reproduce, including any required configuration or input files.') }}</li>
       <li>{{ _('Affected version (commit hash or release tag if known).') }}</li>
@@ -30,26 +27,26 @@
     </ul>
   </section>
 
-  <section class="space-y-3">
-    <h2 class="text-base font-semibold text-white">{{ _('Our response') }}</h2>
-    <ul class="list-disc list-inside space-y-1 text-gray-400">
-      <li><strong class="text-gray-200">{{ _('Acknowledgement:') }}</strong> {{ _('within 72 hours of receipt.') }}</li>
-      <li><strong class="text-gray-200">{{ _('Initial triage:') }}</strong> {{ _('within 7 days, including a severity assessment.') }}</li>
-      <li><strong class="text-gray-200">{{ _('Fix timeline:') }}</strong> {{ _('critical issues within 7 days, high severity within 30 days, medium/low within the next regular release.') }}</li>
-      <li><strong class="text-gray-200">{{ _('Coordinated disclosure:') }}</strong> {{ _('we publish an advisory once a fixed release is available, and credit reporters who wish to be named.') }}</li>
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-ink">{{ _('Our response') }}</h2>
+    <ul class="list-disc list-outside ml-5 space-y-2 text-ink-muted">
+      <li><strong class="text-ink">{{ _('Acknowledgement:') }}</strong> {{ _('within 72 hours of receipt.') }}</li>
+      <li><strong class="text-ink">{{ _('Initial triage:') }}</strong> {{ _('within 7 days, including a severity assessment.') }}</li>
+      <li><strong class="text-ink">{{ _('Fix timeline:') }}</strong> {{ _('critical issues within 7 days, high severity within 30 days, medium/low within the next regular release.') }}</li>
+      <li><strong class="text-ink">{{ _('Coordinated disclosure:') }}</strong> {{ _('we publish an advisory once a fixed release is available, and credit reporters who wish to be named.') }}</li>
     </ul>
   </section>
 
-  <section class="space-y-3">
-    <h2 class="text-base font-semibold text-white">{{ _('Scope') }}</h2>
-    <p>{{ _('In scope:') }}</p>
-    <ul class="list-disc list-inside space-y-1 text-gray-400">
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-ink">{{ _('Scope') }}</h2>
+    <h3 class="font-semibold text-ink">{{ _('In scope:') }}</h3>
+    <ul class="list-disc list-outside ml-5 space-y-2 text-ink-muted">
       <li>{{ _('The FileMorph application source code (this repository).') }}</li>
       <li>{{ _('The official Docker images and release artifacts.') }}</li>
       <li>{{ _('Documented API endpoints and the web UI.') }}</li>
     </ul>
-    <p>{{ _('Out of scope:') }}</p>
-    <ul class="list-disc list-inside space-y-1 text-gray-400">
+    <h3 class="font-semibold text-ink">{{ _('Out of scope:') }}</h3>
+    <ul class="list-disc list-outside ml-5 space-y-2 text-ink-muted">
       <li>{{ _('Third-party services we depend on (Stripe, Zoho, Cloudflare, Hetzner) — please report to those vendors directly.') }}</li>
       <li>{{ _('Issues that require physical access to a self-hosted server, or social engineering of an operator.') }}</li>
       <li>{{ _('Reports generated solely by automated scanners without a working proof-of-concept.') }}</li>
@@ -57,8 +54,8 @@
     </ul>
   </section>
 
-  <section class="space-y-3">
-    <h2 class="text-base font-semibold text-white">{{ _('Safe-harbour') }}</h2>
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-ink">{{ _('Safe-harbour') }}</h2>
     <p>
       {{ _('Good-faith research in line with this policy will not result in legal action from the FileMorph project. Please avoid privacy violations, service disruption, and data destruction; test against your own self-hosted instance whenever possible.') }}
     </p>

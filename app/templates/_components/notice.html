@@ -1,4 +1,4 @@
-{# notice(tone='info', id=None, tag='p', role=None, hidden=False, hidden_attr=False)
+{# notice(tone='info', id=None, tag='p', role=None, hidden=False, hidden_attr=False, attrs=None)
 
    The one message box: a hint, a warning, a success line or an error. The
    text stays ink-coloured; the tone shows as a soft tint behind it and as a
@@ -15,13 +15,16 @@
    hidden_attr — start hidden with the hidden attribute instead: space-y-*
             skips [hidden] elements, so a box at the top of a stack leaves
             no gap while it is hidden.
+   attrs  — extra data-* attributes as a dict (e.g. the texts a script
+            shows in the box), rendered by data_attrs.html.
 
    Strings never live here (babel skips _components/): callers pass them in.
 #}
-{% macro notice(tone='info', id=None, tag='p', role=None, hidden=False, hidden_attr=False) %}
+{% import "_components/data_attrs.html" as uda %}
+{% macro notice(tone='info', id=None, tag='p', role=None, hidden=False, hidden_attr=False, attrs=None) %}
 {#- The element name is not escaped by autoescape: only p or div get through. -#}
 {%- set el = tag if tag in ('p', 'div') else 'p' -%}
 <{{ el }}{% if id %} id="{{ id }}"{% endif %}{% if role %} role="{{ role }}"{% endif %}{% if hidden_attr %} hidden{% endif %}
   class="{% if hidden %}hidden {% endif %}relative rounded-control py-2.5 pl-9 pr-3 text-sm leading-6 text-ink before:absolute before:left-3 before:top-3.5 before:size-4 before:rounded-pill before:text-center before:text-xs before:font-bold before:leading-4 before:text-surface-page data-[tone=info]:bg-tone-info-tint data-[tone=info]:before:bg-tone-info data-[tone=info]:before:content-['i'] data-[tone=ok]:bg-tone-ok-tint data-[tone=ok]:before:bg-tone-ok data-[tone=ok]:before:content-['✓'] data-[tone=warn]:bg-tone-warn-tint data-[tone=warn]:before:bg-tone-warn data-[tone=warn]:before:content-['!'] data-[tone=err]:bg-tone-err-tint data-[tone=err]:before:bg-tone-err data-[tone=err]:before:content-['!']"
-  data-tone="{{ tone }}" data-component="notice">{% if caller is defined %}{{ caller() }}{% endif %}</{{ el }}>
+  data-tone="{{ tone }}"{{ uda.data_attrs(attrs) }} data-component="notice">{% if caller is defined %}{{ caller() }}{% endif %}</{{ el }}>
 {%- endmacro %}
