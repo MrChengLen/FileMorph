@@ -14,7 +14,7 @@ from io import BytesIO
 
 import pytest
 from PIL import Image
-from playwright.sync_api import Page, Route
+from playwright.sync_api import Page
 from pypdf import PdfWriter
 
 
@@ -33,13 +33,25 @@ def _pdf() -> bytes:
     return buf.getvalue()
 
 
-def _convert(page: Page, server, name: str) -> str:
+# What a page reads when Content-Disposition is out of its reach — a proxy
+# dropped the header, or a cross-origin API does not expose it: null.
+_HIDE_DISPOSITION = """() => {
+  const get = Headers.prototype.get;
+  Headers.prototype.get = function (name) {
+    return String(name).toLowerCase() === 'content-disposition' ? null : get.call(this, name);
+  };
+}"""
+
+
+def _convert(page: Page, server, name: str, *, hide_disposition: bool = False) -> str:
     """Convert a JPG named ``name`` to PNG on the pair page; the name of its
     download."""
     page.goto(f"{server.base_url}/de/convert/jpg-to-png")
     # app.js fills the target list from /api/v1/formats: wait until it has
     # the list, or the file finds no target.
     page.wait_for_load_state("networkidle")
+    if hide_disposition:
+        page.evaluate(_HIDE_DISPOSITION)
     page.set_input_files(
         "#file-input", files=[{"name": name, "mimeType": "image/jpeg", "buffer": _jpg()}]
     )
@@ -64,16 +76,13 @@ def test_a_converted_file_keeps_its_name(page: Page, server, name: str, expected
 
 
 def test_without_the_header_the_name_comes_from_the_picked_file(page: Page, server):
-    """A proxy that drops Content-Disposition: the page names the result the
-    way the server does, not "result.png"."""
-
-    def drop_header(route: Route) -> None:
-        response = route.fetch()
-        headers = {k: v for k, v in response.headers.items() if k != "content-disposition"}
-        route.fulfill(response=response, headers=headers)
-
-    page.route("**/api/v1/convert", drop_header)
-    assert _convert(page, server, "Grüße an Oma.jpg") == "Grüße an Oma.png"
+    """A page that can't read Content-Disposition names the result the way the
+    server does, not "result.png". The page is kept from reading the header
+    rather than the header taken off the response: intercepting the upload
+    (route.fetch) mangles its binary body in WebKit, and the server then
+    refuses the picture as damaged."""
+    name = _convert(page, server, "Grüße an Oma.jpg", hide_disposition=True)
+    assert name == "Grüße an Oma.png"
 
 
 def test_a_split_pdf_keeps_its_name(page: Page, server):
