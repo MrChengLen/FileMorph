@@ -1,9 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """/convert/video-to-mp3 — one page for Video → audio, for every video format.
 
-Guards, as for /convert/video-to-gif (tests/test_video_to_gif_page.py): the
-page renders in all three locale mounts (the fixed route wins over
-/convert/{pair_slug}); the converter on it is pre-set to MP3; what it says
+Guards, as for /convert/video-to-gif (tests/test_video_to_gif_page.py; the
+rendering on every mount is in tests/test_catalog.py): the converter on it is pre-set to MP3; what it says
 is the converter's and the upload cap's own facts, so the page can't promise
 more than a visitor gets; and the tool is findable — on /tools, in the
 footer, from the Video to GIF page and from every video → MP3 chip on
@@ -20,7 +19,6 @@ import pytest
 from app.api.routes.pages import _tool_formats
 from app.converters.audio import _AUDIO_FORMATS
 from app.converters.video import _AUDIO_TARGETS, _VIDEO_FORMATS
-from app.core.config import settings
 from app.core.quotas import QUOTAS
 from app.core.video_audio_content import VIDEO_AUDIO_CONTENT
 
@@ -29,14 +27,6 @@ _PATH = "/convert/video-to-mp3"
 
 def _main(html: str) -> str:
     return html[html.index("<main") : html.index("</main>")]
-
-
-@pytest.mark.parametrize("prefix", ["", "/de", "/en"])
-def test_page_renders_on_every_mount(client, prefix):
-    r = client.get(f"{prefix}{_PATH}")
-    assert r.status_code == 200, f"{prefix}{_PATH} returned {r.status_code}"
-    locale = prefix.strip("/") or settings.lang_default
-    assert VIDEO_AUDIO_CONTENT[locale]["h1"] in r.text
 
 
 def test_converter_is_preset_to_mp3(client):

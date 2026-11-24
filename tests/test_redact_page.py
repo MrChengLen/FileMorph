@@ -3,18 +3,12 @@
 
 The page route 404-gates on ``settings.ai_operations_enabled`` (runtime); the
 template links/sections gate on the Jinja global of the same name (set once at
-import). Tests patch BOTH so the enabled and inert states are exercised. Inert is
-the default (no env var), so the disabled-state tests need no fixture.
+import). Tests patch BOTH so the enabled state is exercised. The inert state (the
+default, no env var) is checked for every gated page by test_catalog.py.
 """
 
 
 # ── page route gating ──────────────────────────────────────────────────────
-
-
-def test_redact_404_when_disabled(client):
-    # Default build (AI off): the page 404s on all three locale mounts.
-    for path in ("/redact", "/de/redact", "/en/redact"):
-        assert client.get(path).status_code == 404, path
 
 
 def test_redact_renders_when_enabled(client, redact_enabled):
@@ -51,18 +45,3 @@ def test_redact_footer_link_present_when_enabled_no_nav_slot(client, redact_enab
     assert 'id="nav-ai-slot-mobile"' not in r.text
     footer = r.text[r.text.index("<footer") :]
     assert 'href="/en/redact"' in footer  # footer Tools-group link
-
-
-# ── discovery surfaces gated together ──────────────────────────────────────
-
-
-def test_footer_and_seo_surfaces_present_when_enabled(client, redact_enabled):
-    assert "/redact" in client.get("/en/").text  # footer link (no homepage teaser)
-    assert "/redact" in client.get("/sitemap.xml").text
-    assert "/redact" in client.get("/llms.txt").text
-
-
-def test_no_redact_surfaces_when_disabled(client):
-    assert "/redact" not in client.get("/en/").text
-    assert "/redact" not in client.get("/sitemap.xml").text
-    assert "/redact" not in client.get("/llms.txt").text

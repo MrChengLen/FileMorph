@@ -86,6 +86,12 @@ def test_converter_texts_are_german_on_de(client):
     assert de["downloadResult"] == "Ergebnis herunterladen"
     assert de["downloadResultSize"] == "Ergebnis herunterladen ({size} MB)"
     assert de["downloadZip"] == "ZIP herunterladen ({count} Dateien)"
+    # The result card: their message ids differ by a word, so a fuzzy merge
+    # could swap them without anything else noticing ("smaller" on a file
+    # that grew).
+    assert de["resultSizeSmaller"] == "{percent} kleiner als das Original"
+    assert de["resultSizeLarger"] == "{percent} größer als das Original"
+    assert de["resultSizes"] == "Vorher {before}, jetzt {after}"
     assert en["progressSingle"] == "Processing your file…"
 
 

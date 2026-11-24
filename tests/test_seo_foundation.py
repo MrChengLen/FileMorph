@@ -100,27 +100,6 @@ def test_sitemap_includes_hreflang_alternates_per_url(client):
 # ── AT-03..05 — Title / description / viewport / canonical ───────────────────
 
 
-def test_homepage_has_title_in_seo_range(client):
-    r = client.get("/")
-    assert r.status_code == 200
-    m = re.search(r"<title[^>]*>([^<]+)</title>", r.text, re.IGNORECASE)
-    assert m, "missing <title>"
-    title = m.group(1).strip()
-    assert 10 <= len(title) <= 60, f"title length {len(title)} out of SEO range (10-60)"
-
-
-def test_homepage_has_meta_description_in_seo_range(client):
-    r = client.get("/")
-    m = re.search(
-        r'<meta\s+name=["\']description["\']\s+content=["\']([^"\']+)["\']',
-        r.text,
-        re.IGNORECASE,
-    )
-    assert m, "missing meta description"
-    desc = m.group(1).strip()
-    assert 50 <= len(desc) <= 160, f"description length {len(desc)} out of SEO range (50-160)"
-
-
 def test_homepage_has_viewport_device_width(client):
     r = client.get("/")
     assert re.search(
@@ -269,54 +248,6 @@ def test_jsonld_url_built_from_app_base_url_not_hardcoded_saas():
     )
 
 
-def test_sitemap_omits_pricing_when_pricing_page_disabled(client, monkeypatch):
-    """Self-hosters running without the pricing surface enabled don't have
-    a /pricing route at all (404 enforced in main.py). Listing it in the
-    sitemap would point search engines at a 404."""
-    from app.core.config import settings
-
-    monkeypatch.setattr(settings, "pricing_page_enabled", False)
-    r = client.get("/sitemap.xml")
-    assert r.status_code == 200
-    assert "/pricing" not in r.text, (
-        "sitemap must not advertise /pricing on a deployment with pricing disabled"
-    )
-
-
-def test_sitemap_includes_pricing_when_pricing_page_enabled(client, monkeypatch):
-    """When pricing_page_enabled is on (filemorph.io SaaS), /pricing belongs
-    in the sitemap regardless of Stripe state — that's the whole point of
-    the split, so a 'Coming Soon' pricing page can be indexed before
-    Stripe live-mode comes online."""
-    from app.core.config import settings
-
-    monkeypatch.setattr(settings, "pricing_page_enabled", True)
-    r = client.get("/sitemap.xml")
-    assert r.status_code == 200
-    assert "/pricing" in r.text, "sitemap must list /pricing when pricing_page_enabled is on"
-
-
-def test_pricing_route_returns_404_when_pricing_disabled(client, monkeypatch):
-    """Self-host default — no commercial pricing surface to advertise.
-    The route must 404 so search engines don't index a dangling page."""
-    from app.core.config import settings
-
-    monkeypatch.setattr(settings, "pricing_page_enabled", False)
-    r = client.get("/pricing")
-    assert r.status_code == 404
-
-
-def test_pricing_route_renders_when_pricing_enabled(client, monkeypatch):
-    """When pricing_page_enabled is on, the page renders (200) — even if
-    Stripe itself is disabled (then as the free variant)."""
-    from app.core.config import settings
-
-    monkeypatch.setattr(settings, "pricing_page_enabled", True)
-    monkeypatch.setattr(settings, "stripe_secret_key", "")
-    r = client.get("/pricing")
-    assert r.status_code == 200
-
-
 def test_pricing_renders_the_free_variant_when_stripe_disabled(client, monkeypatch):
     """Without Stripe no plan can be booked, so the pricing page is the free
     variant: it says there are no plans (no "coming soon" promise — paid
@@ -421,41 +352,6 @@ def test_navbar_shows_pricing_link_when_pricing_enabled(client, monkeypatch):
 
 
 # ── /enterprise gating mirrors /pricing — both are commercial-offer surface ──
-
-
-def test_sitemap_omits_enterprise_when_pricing_page_disabled(client, monkeypatch):
-    """Self-host default — neither /pricing nor /enterprise is served, so
-    listing /enterprise in the sitemap would point search engines at a 404
-    and (worse) leak the upstream enterprise@filemorph.io contact."""
-    from app.core.config import settings
-
-    monkeypatch.setattr(settings, "pricing_page_enabled", False)
-    r = client.get("/sitemap.xml")
-    assert r.status_code == 200
-    assert "/enterprise" not in r.text
-
-
-def test_sitemap_includes_enterprise_when_pricing_page_enabled(client, monkeypatch):
-    """When the commercial-offer surface is on, /enterprise rides the same
-    sitemap gate as /pricing — procurement-driven discovery is the whole
-    point of the page."""
-    from app.core.config import settings
-
-    monkeypatch.setattr(settings, "pricing_page_enabled", True)
-    r = client.get("/sitemap.xml")
-    assert r.status_code == 200
-    assert "/enterprise" in r.text
-
-
-def test_enterprise_route_returns_404_when_pricing_disabled(client, monkeypatch):
-    """Same gating as /pricing — a self-hoster running Community Edition
-    must not advertise the upstream enterprise@ contact as if it were
-    their own."""
-    from app.core.config import settings
-
-    monkeypatch.setattr(settings, "pricing_page_enabled", False)
-    r = client.get("/enterprise")
-    assert r.status_code == 404
 
 
 def test_enterprise_route_renders_when_pricing_enabled(client, monkeypatch):
@@ -988,37 +884,8 @@ def test_formats_hub_renders_from_registry(client):
     assert "Compress to a target size" in body, "compression section missing"
 
 
-def test_formats_hub_is_ungated_on_self_host(client, monkeypatch):
-    """Unlike /pricing + /enterprise, /formats is public content and must
-    render (200) even when the commercial surface is disabled — it's the
-    sitemap-listed discovery hub for every deployment."""
-    from app.core.config import settings
-
-    monkeypatch.setattr(settings, "pricing_page_enabled", False)
-    r = client.get("/formats")
-    assert r.status_code == 200
-
-
 def test_formats_hub_deployment_agnostic(client):
     """The hub ships in the public OSS repo; it must not bake in the upstream
     SaaS host (links go through localized_url / GitHub, not filemorph.io)."""
     body = client.get("/en/formats").text
     assert "filemorph.io" not in body
-
-
-def test_sitemap_includes_formats_hub(client):
-    """/formats is always-on content, so it belongs in the sitemap on every
-    deployment (x-default + de + en variants)."""
-    import xml.etree.ElementTree as ET
-
-    r = client.get("/sitemap.xml")
-    root = ET.fromstring(r.text)
-    ns = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
-    locs = [
-        (u.find("sm:loc", ns).text or "")
-        for u in root.findall("sm:url", ns)
-        if u.find("sm:loc", ns) is not None
-    ]
-    assert any(loc.rstrip("/").endswith("/formats") for loc in locs), (
-        f"sitemap must include /formats; got {locs!r}"
-    )

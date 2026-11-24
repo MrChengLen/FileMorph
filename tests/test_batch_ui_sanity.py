@@ -98,30 +98,6 @@ def test_cors_exposes_content_disposition_for_download_filename():
     )
 
 
-def test_cors_exposes_pdf_compress_honesty_headers():
-    """The PDF-tools compress page reads these cross-origin
-    (pdf-tools.js::showCompressHonesty) to show its honest "couldn't reach
-    the target" / "nothing to recompress" notice — same class of bug as
-    Content-Disposition above: an unexposed header is invisible to JS, so the
-    UI would silently fall back to a plain "ready to download" message
-    instead of the honest one."""
-    from starlette.middleware.cors import CORSMiddleware
-
-    from app.main import app
-
-    cors = next(
-        (m for m in app.user_middleware if m.cls is CORSMiddleware),
-        None,
-    )
-    assert cors is not None, "CORSMiddleware no longer registered on the app"
-    expose = cors.kwargs.get("expose_headers") or []
-    for header in ("X-FileMorph-Converged", "X-FileMorph-Recompressible-Images"):
-        assert header in expose, (
-            f"CORSMiddleware must expose {header} so the PDF-tools compress "
-            f"page can read it cross-origin. Currently expose_headers={expose!r}."
-        )
-
-
 def test_every_header_the_js_reads_is_exposed():
     """Network quadruple (c), for every header at once: a response header the
     client JS reads must be in expose_headers, or the browser hides it on a
@@ -134,11 +110,12 @@ def test_every_header_the_js_reads_is_exposed():
 
     root = Path(__file__).resolve().parent.parent
     cors = next(m for m in app.user_middleware if m.cls is CORSMiddleware)
-    expose = cors.kwargs.get("expose_headers") or []
-    for js in ("app/static/js/app.js", "app/static/js/pdf-tools.js"):
-        read = re.findall(r"headers\.get\('(X-[\w-]+)'\)", (root / js).read_text(encoding="utf-8"))
+    expose = {h.lower() for h in cors.kwargs.get("expose_headers") or []}
+    for js in ("app/static/js/app.js", "app/static/js/pdf-tools.js", "app/static/js/redact.js"):
+        source = (root / js).read_text(encoding="utf-8")
+        read = re.findall(r"""headers\.get\(\s*['"](x-[\w-]+)['"]""", source, re.I)
         assert read, f"{js} reads no X- headers any more — update this test"
-        missing = sorted({h for h in read if h not in expose})
+        missing = sorted({h for h in read if h.lower() not in expose})
         assert not missing, f"{js} reads {missing}, which expose_headers lacks"
 
 
@@ -153,27 +130,6 @@ def test_target_size_notes_reach_the_page(client):
     pdf_js = (root / "app/static/js/pdf-tools.js").read_text(encoding="utf-8")
     assert "res.headers.get('X-FileMorph-Warnings')" in pdf_js
     assert "'pdfCompressScaled'" in pdf_js
-
-
-def test_cors_exposes_the_error_code_header():
-    """app.js reads `X-FileMorph-Error-Code` on a failed upload to pick the
-    localized text — the limit 413s, the batch-size 400, encrypted PDFs.
-    Unexposed, the header reads as null cross-origin and the page shows the
-    server's English `detail` instead, on /de/ too."""
-    from starlette.middleware.cors import CORSMiddleware
-
-    from app.main import app
-
-    cors = next(
-        (m for m in app.user_middleware if m.cls is CORSMiddleware),
-        None,
-    )
-    assert cors is not None, "CORSMiddleware no longer registered on the app"
-    expose = cors.kwargs.get("expose_headers") or []
-    assert "X-FileMorph-Error-Code" in expose, (
-        "CORSMiddleware must expose X-FileMorph-Error-Code so the Web UI can "
-        f"read it on cross-origin uploads. Currently expose_headers={expose!r}."
-    )
 
 
 def test_csp_connect_src_extends_to_api_base_when_set():

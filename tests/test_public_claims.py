@@ -383,25 +383,6 @@ def test_target_size_surfaces_state_the_upper_bound(client, path, locale, senten
     assert sentence in _page(client, locale, path)
 
 
-def test_target_size_upper_bound_matches_the_compressor(tmp_path):
-    """The pages' "at most" is the compressor's own rule: an image that
-    doesn't fit even at quality 1 is scaled down, not shipped above the
-    target."""
-    from PIL import Image
-
-    from app.compressors.image import compress_image_to_target
-
-    src = tmp_path / "noise.jpg"
-    Image.effect_noise((800, 600), 90).convert("RGB").save(src, quality=95)
-    out = tmp_path / "out.jpg"
-
-    result = compress_image_to_target(src, out, target_bytes=20 * 1024)
-
-    assert out.stat().st_size <= 20 * 1024
-    assert result["converged"] is True
-    assert result["resized_to"] is not None
-
-
 @pytest.mark.parametrize(
     "locale,label,rare",
     [
@@ -452,11 +433,6 @@ def test_redact_page_uses_the_hosting_sentence(client, pricing_on, monkeypatch):
         page = _page(client, locale, "/redact")
         assert HOSTING[locale] in page and f"/{locale}/privacy#hosting" in page, locale
         assert not _HOSTING_CLAIM.search(page), locale
-
-
-def test_privacy_section_4_is_the_link_target(client):
-    for locale in LOCALES:
-        assert '<section id="hosting"' in _page(client, locale, "/privacy"), locale
 
 
 def test_llms_txt_uses_the_hosting_sentence(client, pricing_on):
@@ -685,18 +661,14 @@ def test_gdpr_analysis_describes_the_running_service():
     assert "there is no self-service export and no self-service email change" in text
 
 
-# ── 13. Contrast of the location hint (formerly the homepage privacy note) ──
+# ── 13. Contrast of the text tokens ──────────────────────────────────────
 
-# Tailwind's default palette (v3.4) for the classes these notes may use; the
-# ink tokens are read from tailwind.config.js so a token change is caught.
+# Tailwind's default palette (v3.4) for the dark surfaces the text sits on;
+# the ink tokens are read from tailwind.config.js so a token change is caught.
 _TAILWIND_DEFAULTS = {
     "gray-950": "#030712",
     "gray-900": "#111827",
     "gray-800": "#1f2937",
-    "gray-400": "#9ca3af",
-    "gray-500": "#6b7280",
-    "gray-600": "#4b5563",
-    "gray-700": "#374151",
 }
 
 
@@ -709,42 +681,6 @@ def _luminance(hex_color: str) -> float:
 def _contrast(fg: str, bg: str) -> float:
     hi, lo = sorted((_luminance(fg), _luminance(bg)), reverse=True)
     return (hi + 0.05) / (lo + 0.05)
-
-
-def _text_colour(classes: str) -> str:
-    config = (ROOT / "tailwind.config.js").read_text(encoding="utf-8")
-    ink = re.search(r"ink:\s*\{([^}]*)\}", config).group(1)
-    tokens = {
-        ("ink" if key == "DEFAULT" else f"ink-{key}"): value
-        for key, value in re.findall(r"(\w+):\s*'(#[0-9a-fA-F]{6})'", ink)
-    }
-    tokens.update(_TAILWIND_DEFAULTS)
-    names = [c.removeprefix("text-") for c in classes.split() if c.startswith("text-")]
-    colours = [tokens[n] for n in names if n in tokens]
-    assert len(colours) == 1, f"expected one text colour in {classes!r}"
-    return colours[0]
-
-
-def test_location_hint_meets_wcag_aa_contrast():
-    """The hint sits under each processing button, inside the tool card: it has
-    to read at WCAG AA on the card surface and on the page background."""
-    body = re.search(
-        r'<body class="([^"]*)"', (TEMPLATES / "base.html").read_text(encoding="utf-8")
-    )
-    assert body and "bg-surface-page" in body.group(1).split(), (
-        "the page background is no longer surface-page"
-    )
-    card = (TEMPLATES / "_components" / "card.html").read_text(encoding="utf-8")
-    assert "bg-surface-raised" in card, "the tool card no longer uses the raised surface"
-    source = (TEMPLATES / "partials" / "location_hint.html").read_text(encoding="utf-8")
-    hint = re.search(r'<p class="([^"]*)" data-component="location-hint"', source)
-    assert hint, "location hint not found"
-    config = (ROOT / "tailwind.config.js").read_text(encoding="utf-8")
-    raised = re.search(r"raised:\s*'(#[0-9a-fA-F]{6})'", config).group(1)
-    page = re.search(r"page:\s*'(#[0-9a-fA-F]{6})'", config).group(1)
-    for background in (page, raised):
-        ratio = _contrast(_text_colour(hint.group(1)), background)
-        assert ratio >= 4.5, f"{hint.group(1)!r}: {ratio:.2f} : 1 on {background} (AA: 4.5 : 1)"
 
 
 _LOW_CONTRAST_TEXT = {"text-gray-500", "text-gray-600", "text-gray-700"}

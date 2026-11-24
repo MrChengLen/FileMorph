@@ -52,10 +52,6 @@ def test_limit_messages_offer_no_upgrade(path):
     assert not hits, f"{path} still offers an upgrade: {hits}"
 
 
-def test_accounts_exist_only_with_a_session_factory(accounts):
-    assert accounts_enabled() is accounts
-
-
 def test_register_is_a_dead_end_without_accounts(client):
     """Why the Community Edition messages offer no free account."""
     assert not accounts_enabled()

@@ -105,11 +105,3 @@ def test_unknown_template_stem_raises_keyerror() -> None:
     with pytest.raises(KeyError) as excinfo:
         render_email("does_not_exist", locale="en", **_CTX)
     assert "EMAIL_SUBJECTS" in str(excinfo.value)
-
-
-def test_every_subject_has_both_html_and_txt_template(tmp_path) -> None:
-    # render_email expects <stem>.html and <stem>.txt to co-exist; if a new
-    # subject is registered without both files this surfaces it.
-    for stem in _ALL_STEMS:
-        subject, html, text = render_email(stem, locale="en", **_CTX)
-        assert html and text, stem

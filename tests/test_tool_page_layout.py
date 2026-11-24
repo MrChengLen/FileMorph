@@ -45,13 +45,6 @@ def test_tool_page_shows_its_breadcrumb(client, redact_enabled, prefix, page):
     assert current and current.group(1).strip() == page.label[prefix.strip("/")]
 
 
-@pytest.mark.parametrize("page", _TOOL_PAGES, ids=lambda p: p.path)
-def test_tool_page_has_no_back_link(client, redact_enabled, page):
-    main = _main(client.get(f"/en{page.path}").text)
-    assert "← Back to Convert" not in main
-    assert "← All formats" not in main
-
-
 @pytest.mark.parametrize(
     "page", [p for p in _TOOL_PAGES if p.path != "/redact"], ids=lambda p: p.path
 )

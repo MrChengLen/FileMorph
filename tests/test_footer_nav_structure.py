@@ -166,11 +166,6 @@ def test_redact_footer_link_absent_when_flag_off(client):
 # ── nav-ai-slot removal (G6 CSP) ─────────────────────────────────────────────
 
 
-def test_nav_ai_slot_ids_gone_from_homepage(client):
-    r = client.get("/en/").text
-    assert "nav-ai-slot" not in r
-
-
 def test_nav_ai_slot_ids_gone_even_when_ai_enabled(client, redact_enabled):
     """The slot must not reappear now that the flag is on — Redact
     discoverability moved to the footer entirely, there is no nav path left."""

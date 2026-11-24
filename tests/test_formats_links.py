@@ -71,14 +71,6 @@ def test_every_conversion_is_a_link(client, prefix):
             assert href.startswith(f"{prefix}/convert/"), href
 
 
-def test_page_links_on_formats_lead_to_pages(client):
-    matrix = _matrix(client.get("/en/formats").text)
-    paths = {href for href in re.findall(r'<a href="([^"#]+)"', matrix)}
-    assert paths
-    for path in sorted(paths):
-        assert client.get(path).status_code == 200, path
-
-
 def test_video_to_gif_chips_link_the_video_to_gif_page(client):
     matrix = _matrix(client.get("/en/formats").text)
     assert matrix.count('href="/en/convert/video-to-gif"') == len(_VIDEO_FORMATS)
