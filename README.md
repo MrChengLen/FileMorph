@@ -55,7 +55,6 @@ FileMorph is an open-source file conversion service with two interfaces:
 │     All tools →                                         │
 │                                                         │
 │     Target Format:  [ JPG                  ▼ ]          │
-│     Quality:        ████████░░  85%                     │
 │                                                         │
 │                  [ Convert ]                            │
 │                                                         │
@@ -168,6 +167,7 @@ every edition runs.
 **Compression** (quality-based or target-size, no re-encoding format change):
 Images: JPG, PNG, WebP, AVIF, TIFF · Video: MP4, MOV, AVI, MKV, WebM
 Compress mode supports both *by quality %* and *by target size MB*.
+Converting in the web UI has no quality setting: JPEG, WebP, AVIF and video come out at the API's default quality (85), and after converting one file to JPEG, WebP, AVIF, MP4, MOV, AVI, MKV or WebM the result points to Compress for a smaller file.
 Target-size compression covers the lossy image formats (JPEG, WebP, AVIF); AVIF/AV1 encode is more CPU-intensive than JPEG/WebP.
 PNG and TIFF are compressed losslessly, so quality has no effect on them. With one JPEG, the web UI shows the result's size under the quality slider before anything is uploaded (in Chromium-based browsers, where a probe proves the browser encodes like the server).
 

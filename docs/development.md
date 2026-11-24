@@ -355,6 +355,10 @@ compressor format — each is pinned by a test, so a missed one fails the build:
   which formats take a target size (homepage FAQ, `/formats`, `/llms.txt`, the
   OpenAPI form-field docs, the `/tools` card); the `/compress` page copy is pinned
   by `tests/test_compress_page.py`.
+- If the format is a video Compress takes, `_SUPPORTED_FORMATS` in
+  `app/compressors/video.py` **and** `COMPRESS_VIDEO_TYPES` in
+  `app/static/js/app.js` — `tests/test_convert_without_quality.py` fails the
+  build if the two disagree.
 - A test per new format/pair (Step 5 above / the equivalent for compressors).
 
 ---

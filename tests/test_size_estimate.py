@@ -303,7 +303,7 @@ def test_the_formats_match_the_server():
     assert _js_constant("LOSSLESS_COMPRESS_TYPES") == lossless
     controls = _function("updateQualityControls")
     assert "section.classList.toggle('hidden', showTarget || lossless);" in controls
-    assert controls.count("showLosslessNote(") == 3, "shown, and hidden on both other paths"
+    assert controls.count("showLosslessNote(") == 2, "shown, and hidden on the other path"
 
 
 # ── Parity with the server's encoder ─────────────────────────────────────────

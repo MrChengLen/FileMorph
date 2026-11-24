@@ -123,7 +123,6 @@ document.addEventListener('DOMContentLoaded', () => {
   if (targetSelect) targetSelect.addEventListener('change', () => {
     hideError();
     updateFormatWarning();
-    updateQualityVisibility();
   });
 
   // PNG/TIFF note in compress mode (showLosslessNote): convert the one file to
@@ -135,7 +134,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (sel && Array.from(sel.options).some(o => o.value === 'webp')) {
       sel.value = 'webp';
       updateFormatWarning();
-      updateQualityVisibility();
       sel.focus(); // the button is gone now; keep the keyboard on the choice
     }
   });
@@ -147,7 +145,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (alt && sel) {
       sel.value = alt;
       updateFormatWarning();
-      updateQualityVisibility();
     }
   });
 
@@ -171,11 +168,6 @@ function setMode(mode) {
   convertBtn.textContent = mode === 'convert'
     ? ((window.FM_I18N && window.FM_I18N.convert) || 'Convert')
     : ((window.FM_I18N && window.FM_I18N.compress) || 'Compress');
-
-  const qHeading = document.getElementById('quality-heading');
-  if (qHeading) qHeading.textContent = mode === 'compress'
-    ? ((window.FM_I18N && window.FM_I18N.compression) || 'Compression')
-    : ((window.FM_I18N && window.FM_I18N.quality) || 'Quality');
 
   if (mode !== 'compress') {
     compressMode = 'quality';
@@ -342,10 +334,7 @@ function renderFileList() {
             perRowSelect.value = '';
           }
         }
-        perRowSelect.addEventListener('change', () => {
-          hideError();
-          updateQualityVisibility();
-        });
+        perRowSelect.addEventListener('change', hideError);
         // Row lives inside #drop-zone — without stopPropagation, a click on
         // the select bubbles up and fires the drop-zone handler, which opens
         // the file picker instead of the dropdown. Keydown covers the
@@ -545,31 +534,28 @@ function clearAllFiles(event) {
 // Mirrors `_DOWNLOAD_SUFFIX` in app/api/routes/convert.py.
 const DOWNLOAD_SUFFIX = { pdfa: '_pdfa.pdf' };
 
-// File types where quality slider is relevant
-const QUALITY_TYPES = ['jpg', 'jpeg', 'png', 'webp', 'mp4', 'avi', 'mov', 'mkv', 'webm'];
-
 // Compress mode: formats the server stores losslessly whatever the quality
 // (app/compressors/image.py) — the slider hides for them.
 const LOSSLESS_COMPRESS_TYPES = ['png', 'tiff', 'tif'];
 
+// The videos Compress takes. Mirrors _SUPPORTED_FORMATS in
+// app/compressors/video.py — a parity test pins this.
+const COMPRESS_VIDEO_TYPES = ['mp4', 'avi', 'mov', 'mkv', 'webm'];
+
 // Mirrors _VIDEO_FORMATS in app/converters/video.py — a parity test pins this.
 const VIDEO_TYPES = ['mp4', 'avi', 'mov', 'mkv', 'webm', 'flv', 'wmv'];
-
-// Mirrors _AUDIO_FORMATS in app/converters/audio.py — a parity test pins this.
-const AUDIO_TYPES = ['mp3', 'wav', 'flac', 'ogg', 'm4a', 'aac', 'wma', 'opus'];
 
 function isVideoToGif(ext, target) {
   return target === 'gif' && VIDEO_TYPES.includes(ext);
 }
 
-// A GIF target ignores the quality setting (video → GIF has a fixed size and
-// frame rate, image → GIF is lossless), so the slider hides for it. So it
-// does for every audio target, as it always has for audio → audio: the file
-// gets the server's default (submitForm sends no hidden value).
-function pairUsesQuality(ext, target) {
-  if (target === 'gif') return false;
-  if (AUDIO_TYPES.includes(target)) return false;
-  return QUALITY_TYPES.includes(ext) || QUALITY_TYPES.includes(target);
+// Convert mode has no quality slider: a conversion is saved at the server's
+// default quality (85, app/api/routes/convert.py), as it was with the slider
+// left alone. A smaller file is a step on, under Compress — pointed to under
+// the result for the targets Compress makes smaller by quality: JPEG, WebP
+// and AVIF (its target-size formats) and its videos.
+function compressMakesSmaller(target) {
+  return TARGET_SIZE_FORMATS.includes(target) || COMPRESS_VIDEO_TYPES.includes(target);
 }
 
 // S1-B: src→tgt pairs that inflate output size. Keys are source extensions,
@@ -939,61 +925,43 @@ function updateQualityControls() {
   const cmodeToggle = document.getElementById('compress-mode-toggle');
   const targetSection = document.getElementById('target-size-section');
 
-  const hideAll = () => {
+  // Only compress mode has a quality to choose: a conversion is saved at the
+  // server's default quality (compressMakesSmaller).
+  if (selectedFiles.length === 0 || currentMode !== 'compress') {
     section.classList.add('hidden');
     if (cmodeToggle) cmodeToggle.classList.add('hidden');
     if (targetSection) targetSection.classList.add('hidden');
     showLosslessNote(false);
-  };
-
-  if (selectedFiles.length === 0) { hideAll(); return; }
-
-  if (currentMode === 'compress') {
-    // Target-size mode is only valid when every selected file is JPEG/WebP/AVIF.
-    const targetEligible = selectedFiles.every(f =>
-      TARGET_SIZE_FORMATS.includes(getExtension(f.name))
-    );
-    if (cmodeToggle) {
-      cmodeToggle.classList.toggle('hidden', !targetEligible);
-      if (targetEligible) syncCompressModeButtons();
-    }
-    if (!targetEligible && compressMode === 'target') {
-      compressMode = 'quality';
-    }
-    const showTarget = compressMode === 'target' && targetEligible;
-    // PNG and TIFF are stored losslessly (app/compressors/image.py): the
-    // slider would change nothing, so it hides and a note says what does.
-    const lossless = selectedFiles.every(f =>
-      LOSSLESS_COMPRESS_TYPES.includes(getExtension(f.name))
-    );
-    section.classList.toggle('hidden', showTarget || lossless);
-    showLosslessNote(lossless);
-    if (targetSection) targetSection.classList.toggle('hidden', !showTarget);
-    if (showTarget) updateTargetSizeLabel();
-    // AVIF target-size compression is much slower — only warn when it applies.
-    const avifHint = document.getElementById('target-size-avif-hint');
-    if (avifHint) {
-      const hasAvif = selectedFiles.some(f => getExtension(f.name) === 'avif');
-      avifHint.classList.toggle('hidden', !(showTarget && hasAvif));
-    }
     return;
   }
 
-  // Convert mode: hide compress-mode-toggle and target-size-section.
-  if (cmodeToggle) cmodeToggle.classList.add('hidden');
-  if (targetSection) targetSection.classList.add('hidden');
-  showLosslessNote(false);
-
-  // Batch: one target per file, the rows in the order of selectedFiles.
-  const isBatch = selectedFiles.length > 1;
-  const rows = document.querySelectorAll('.per-row-target');
-  const relevant = selectedFiles.some((f, i) => {
-    const target = isBatch
-      ? (rows[i] ? rows[i].value : '')
-      : document.getElementById('target-format').value;
-    return pairUsesQuality(getExtension(f.name), target);
-  });
-  section.classList.toggle('hidden', !relevant);
+  // Target-size mode is only valid when every selected file is JPEG/WebP/AVIF.
+  const targetEligible = selectedFiles.every(f =>
+    TARGET_SIZE_FORMATS.includes(getExtension(f.name))
+  );
+  if (cmodeToggle) {
+    cmodeToggle.classList.toggle('hidden', !targetEligible);
+    if (targetEligible) syncCompressModeButtons();
+  }
+  if (!targetEligible && compressMode === 'target') {
+    compressMode = 'quality';
+  }
+  const showTarget = compressMode === 'target' && targetEligible;
+  // PNG and TIFF are stored losslessly (app/compressors/image.py): the
+  // slider would change nothing, so it hides and a note says what does.
+  const lossless = selectedFiles.every(f =>
+    LOSSLESS_COMPRESS_TYPES.includes(getExtension(f.name))
+  );
+  section.classList.toggle('hidden', showTarget || lossless);
+  showLosslessNote(lossless);
+  if (targetSection) targetSection.classList.toggle('hidden', !showTarget);
+  if (showTarget) updateTargetSizeLabel();
+  // AVIF target-size compression is much slower — only warn when it applies.
+  const avifHint = document.getElementById('target-size-avif-hint');
+  if (avifHint) {
+    const hasAvif = selectedFiles.some(f => getExtension(f.name) === 'avif');
+    avifHint.classList.toggle('hidden', !(showTarget && hasAvif));
+  }
 }
 
 // ── Result preview ────────────────────────────────────────────────────────────
@@ -1095,9 +1063,12 @@ async function showResultPreview(blob, filename, beforeBytes, { sizes, picture }
   }
 }
 
-// Every new run, error and reset: the earlier result's preview goes, and
-// both its blob: URLs (picture, download) are released.
+// Every new run, error and reset: the earlier result's preview and the
+// pointer to Compress go, and both its blob: URLs (picture, download) are
+// released.
 function releaseResult() {
+  const hint = document.getElementById('compress-hint');
+  if (hint) hint.classList.add('hidden');
   const box = document.getElementById('result-preview');
   if (box) {
     box.classList.add('hidden');
@@ -1324,7 +1295,7 @@ function sizeEstimateKind() {
   if (!section || section.classList.contains('hidden')) return null;
   const ext = getExtension(selectedFiles[0].name);
   if (ESTIMATE_TYPES.includes(ext)) return 'jpeg';
-  if (VIDEO_TYPES.includes(ext) && QUALITY_TYPES.includes(ext)) return 'video';
+  if (COMPRESS_VIDEO_TYPES.includes(ext)) return 'video';
   if (TARGET_SIZE_FORMATS.includes(ext)) return 'none';
   return null;
 }
@@ -1458,6 +1429,8 @@ async function submitForm() {
   // Read before the upload: the selection may change while the server works.
   const videoToGif = !isBatch && currentMode === 'convert' && isVideoToGif(
     getExtension(selectedFiles[0].name), document.getElementById('target-format').value);
+  const compressHint = !isBatch && currentMode === 'convert'
+    && compressMakesSmaller(document.getElementById('target-format').value);
   const beforeBytes = selectedFiles[0].size;
 
   const formData = new FormData();
@@ -1477,9 +1450,9 @@ async function submitForm() {
     // counted. The API takes KiB.
     formData.append('target_size_kb', String(Math.max(5, Math.floor(mb * 1e6 / 1024))));
   } else if (!document.getElementById('quality-section').classList.contains('hidden')) {
-    // A hidden slider sends nothing, so the server's default applies — not a
-    // value left from an earlier file the user can no longer see (an audio
-    // target's bit rate, for one).
+    // A hidden slider sends nothing, so the server's default applies: always
+    // in convert mode, which has no slider, and never a value left from an
+    // earlier file the user can no longer see.
     formData.append('quality', quality);
   }
 
@@ -1582,9 +1555,13 @@ async function submitForm() {
         const i18n = window.FM_I18N || {};
         let msg;
         if (errCode === 'output_cap_exceeded') {
-          // A GIF from a video shrinks only with a shorter clip — not with
-          // the "more efficient format or lower quality" of the general text.
-          msg = (videoToGif ? i18n.errorOutputCapGif : i18n.errorOutputCapExceeded) || data.detail;
+          // A GIF from a video shrinks only with a shorter clip, and a
+          // conversion has no quality to lower (convert mode has no slider):
+          // only compress mode gets the "lower quality" of the general text.
+          if (videoToGif) msg = i18n.errorOutputCapGif;
+          else if (currentMode === 'convert') msg = i18n.errorOutputCapConvert;
+          else msg = i18n.errorOutputCapExceeded;
+          msg = msg || data.detail;
         } else if (errCode === 'target_size_exceeds_cap') {
           msg = i18n.errorTargetSizeExceedsCap || data.detail;
         } else if (errCode === 'input_too_large') {
@@ -1696,6 +1673,9 @@ async function submitForm() {
       if (run !== currentRun) return;
     }
 
+    // Before showResult, which reads the card out: the way to a smaller file.
+    const hint = document.getElementById('compress-hint');
+    if (hint) hint.classList.toggle('hidden', !compressHint);
     showResult();
   } catch (e) {
     if (run === currentRun) showError(i18nText('errorNetwork', 'Network error: {detail}', { detail: e.message }));

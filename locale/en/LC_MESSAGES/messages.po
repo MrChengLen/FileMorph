@@ -1345,6 +1345,9 @@ msgstr ""
 msgid "GitHub's privacy statement"
 msgstr ""
 
+msgid "Go to Compress →"
+msgstr "Go to Compress →"
+
 msgid ""
 "Good-faith research in line with this policy will not result in legal "
 "action from the FileMorph project. Please avoid privacy violations, "
@@ -2162,9 +2165,6 @@ msgid ""
 "contract for paid services is concluded."
 msgstr ""
 
-msgid "Quality"
-msgstr ""
-
 msgid "Questions about cost and limits"
 msgstr ""
 
@@ -2918,6 +2918,22 @@ msgid ""
 msgstr ""
 
 msgid ""
+"The result would be larger than allowed. Try a more efficient target "
+"format, or self-host FileMorph — there you set the limits."
+msgstr ""
+"The result would be larger than allowed. Try a more efficient target "
+"format, or self-host FileMorph — there you set the limits."
+
+msgid ""
+"The result would be larger than allowed. Try a more efficient target "
+"format, or self-host FileMorph — there you set the limits. No account "
+"yet? Register free for a higher limit."
+msgstr ""
+"The result would be larger than allowed. Try a more efficient target "
+"format, or self-host FileMorph — there you set the limits. No account "
+"yet? Register free for a higher limit."
+
+msgid ""
 "The status page (§ 4a) is a separate site; what it keeps in your browser "
 "is described there."
 msgstr ""
@@ -3103,6 +3119,9 @@ msgid ""
 "files together. Select fewer or smaller files, or self-host FileMorph — "
 "there you set the limits."
 msgstr ""
+
+msgid "Too large? Download the file, then make it smaller under Compress."
+msgstr "Too large? Download the file, then make it smaller under Compress."
 
 msgid "Too many attempts from your network right now. Please try again later."
 msgstr ""
