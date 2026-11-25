@@ -322,7 +322,6 @@ def _js_i18n_strings(_: gettext.GNUTranslations.gettext) -> dict[str, str]:
         "ariaTargetFormatFor": _("Target format for {name}"),
         "chooseTargetFormat": _("— choose a target format —"),
         "compress": _("Compress"),
-        "compression": _("Compression"),
         "convert": _("Convert"),
         # Compressing didn't make the file smaller, so the original comes back
         # without its metadata (compress.py::keep_original).
@@ -347,7 +346,6 @@ def _js_i18n_strings(_: gettext.GNUTranslations.gettext) -> dict[str, str]:
         "presetReady": _("Preset: {src} to {tgt}. Choose your {src} file."),
         "progressBatch": _("Processing {count} files…"),
         "progressSingle": _("Processing your file…"),
-        "quality": _("Quality"),
         # The result card (one file): {name} is the result's file name; the
         # size change, where {percent} comes with its sign in the page's
         # language ("55%", "55 %") and {factor} is a number ("5.3"); the sizes,
@@ -446,6 +444,21 @@ def _js_i18n_strings(_: gettext.GNUTranslations.gettext) -> dict[str, str]:
             else _(
                 "File too large. Use a smaller file or self-host FileMorph — there you "
                 "set the limits."
+            )
+        ),
+        # The same code in convert mode: a conversion is saved at the server's
+        # default quality (the web UI has no slider for it), so only a more
+        # efficient target format makes the result smaller.
+        "errorOutputCapConvert": (
+            _(
+                "The result would be larger than allowed. Try a more efficient target "
+                "format, or self-host FileMorph — there you set the limits. No account "
+                "yet? Register free for a higher limit."
+            )
+            if accounts
+            else _(
+                "The result would be larger than allowed. Try a more efficient target "
+                "format, or self-host FileMorph — there you set the limits."
             )
         ),
         "errorOutputCapExceeded": (

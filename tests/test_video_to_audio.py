@@ -321,18 +321,11 @@ def test_the_ui_names_the_missing_sound_in_the_page_language(client, locale):
         assert text != NoAudioTrackError.message and "keinen Ton" in text
 
 
-def test_app_js_knows_the_audio_formats_and_the_code():
+def test_app_js_knows_the_code():
+    # Converting sends no quality, so the sound gets the server's default:
+    # tests/test_convert_without_quality.py.
     js = (ROOT / "app/static/js/app.js").read_text(encoding="utf-8")
-    match = re.search(r"const AUDIO_TYPES = \[([^\]]*)\];", js)
-    assert match, "AUDIO_TYPES not found in app.js"
-    assert sorted(re.findall(r"'([a-z0-9]+)'", match.group(1))) == sorted(_AUDIO_FORMATS)
     assert "errCode === 'no_audio_track'" in js and "i18n.errorNoAudioTrack" in js
-    # No quality slider for an audio target, as for audio → audio — and a
-    # hidden slider sends nothing, so the server's default applies, not a
-    # value left from an earlier file.
-    assert "if (AUDIO_TYPES.includes(target)) return false;" in js
-    send = "} else if (!document.getElementById('quality-section').classList.contains('hidden')) {"
-    assert f"{send}\n" in js and js.count("formData.append('quality'") == 1
 
 
 def test_the_api_reference_lists_the_code():

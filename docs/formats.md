@@ -77,6 +77,14 @@ A complete reference of all supported input and output formats, with notes on qu
 > every uploaded HEIC file. Without `pillow-heif`, HEIC/HEIF are not offered as
 > input formats.
 
+> **Quality of a conversion (Web UI)**: converting has no quality setting in
+> the web UI. JPG, WebP and AVIF (and video, see below) are saved at quality
+> 85, the API's default, which a request's `quality` changes. For a smaller
+> file, compress the result afterwards: JPEG, WebP and AVIF by quality or to a
+> target size, MP4, MOV, AVI, MKV and WebM by quality (FLV and WMV can't be
+> compressed). After converting one file to one of these formats, the result
+> points to Compress.
+
 ### Compression
 
 Re-encode an image at a lower quality to reduce file size without changing format.
@@ -381,7 +389,10 @@ takes it (MP4, MOV, MKV, FLV — AAC) and mixed down to stereo otherwise
 | **FLV** | Flash Video. Legacy format. |
 | **WMV** | Windows Media Video. Legacy Microsoft format. |
 
-Any of the above can be converted to any other format.
+Any of the above can be converted to any other format. In the web UI a
+conversion has no quality setting: the video is encoded at quality 85, the
+API's default. Compress makes an MP4, MOV, AVI, MKV or WebM smaller
+afterwards, by quality.
 
 **Common conversions**:
 - MOV → MP4 (iPhone video → universal)
@@ -447,8 +458,8 @@ in one it reads.
 
 **Web UI:** the dedicated, bilingual (DE/EN) page is `/convert/video-to-mp3` —
 ungated, the same embedded Convert/Compress tool as the homepage, pre-set to
-MP3; the other audio formats are in its list. As for audio → audio, the web
-UI shows no quality slider for an audio target.
+MP3; the other audio formats are in its list. As for every conversion, the
+web UI has no quality setting: the sound gets the API's default quality.
 
 A video without sound is answered with `400`
 (`X-FileMorph-Error-Code: no_audio_track`) and a `detail` that names the next

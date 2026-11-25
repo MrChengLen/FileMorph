@@ -501,8 +501,13 @@ def test_app_js_knows_the_video_formats_and_the_gif_codes():
     ):
         assert f"errCode === '{code}'" in js and f"i18n.{key}" in js, code
     assert "i18n.errorOutputCapGif" in js
-    # The quality slider hides for a GIF target.
-    assert "if (target === 'gif') return false;" in js
+    # No quality slider for a GIF target: converting has none at all
+    # (tests/test_convert_without_quality.py). Nor a pointer to Compress,
+    # which doesn't take GIFs: compressMakesSmaller goes by these two lists.
+    for name in ("TARGET_SIZE_FORMATS", "COMPRESS_VIDEO_TYPES"):
+        listed = re.search(rf"const {name} = \[([^\]]*)\];", js)
+        assert listed, f"{name} not found in app.js"
+        assert "'gif'" not in listed.group(1), name
 
 
 # ---------------------------------------------------------------------------

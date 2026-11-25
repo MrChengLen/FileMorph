@@ -169,11 +169,13 @@
     <p class="text-sm text-ink-faint">{{ _('JPEG, WebP and AVIF only.') }}</p>
   </div>
 
-  <!-- Quality Slider (both modes) -->
+  {# Quality slider, compress mode only: a conversion is saved at the server's
+     default quality, as it was with the slider left alone; a smaller file is
+     a step on, under Compress (#compress-hint below). #}
   <div id="quality-section" class="space-y-1 hidden">
     {# The input's name is the heading alone; the slider announces its own value. #}
     <label for="quality-slider" class="flex justify-between text-sm font-medium text-ink-muted">
-      <span id="quality-heading">{{ _('Quality') }}</span>
+      <span id="quality-heading">{{ _('Compression') }}</span>
       <span id="quality-label" class="text-brand-light font-semibold">85%</span>
     </label>
     <input id="quality-slider" type="range" min="1" max="100" value="85"
@@ -283,6 +285,12 @@
       </svg>
       <span id="download-link-label">{{ _('Download Result') }}</span>
     {% endcall %}
+    {# Convert mode, one file in a format Compress makes smaller by quality
+       (app.js, compressMakesSmaller): convert mode has no quality slider, so
+       the way to a smaller file is named here, after the download. #}
+    {% call un.notice(id='compress-hint', hidden=True) %}{{ _('Too large? Download the file, then make it smaller under Compress.') }}
+      <a href="{{ localized_url('/compress', current_prefix) }}"
+        class="ml-1 font-semibold underline hover:text-ink-strong">{{ _('Go to Compress →') }}</a>{% endcall %}
   </div>
 
   <div id="error-section" class="hidden space-y-2">
