@@ -12,6 +12,8 @@ from starlette.concurrency import run_in_threadpool
 from starlette.responses import FileResponse
 from starlette.types import Receive, Scope, Send
 
+from app.core.utils import content_disposition
+
 
 class TempDirFileResponse(FileResponse):
     """Send ``path``, then remove ``tmp_dir`` — the request's temp dir, which
@@ -24,11 +26,25 @@ class TempDirFileResponse(FileResponse):
     sweep.
     The removal sits in a ``finally`` instead, shielded so that a cancelled
     response still finishes it.
+
+    ``filename`` names the download as ``content_disposition`` writes it, the
+    same header as the routes that answer from memory send. Starlette's own
+    header carries a name beyond ASCII in the ``filename*`` form alone.
     """
 
     def __init__(
-        self, path: str | os.PathLike[str], *, tmp_dir: str | os.PathLike[str], **kwargs: Any
+        self,
+        path: str | os.PathLike[str],
+        *,
+        tmp_dir: str | os.PathLike[str],
+        filename: str | None = None,
+        **kwargs: Any,
     ) -> None:
+        if filename is not None:
+            kwargs["headers"] = {
+                **(kwargs.get("headers") or {}),
+                "Content-Disposition": content_disposition(filename),
+            }
         super().__init__(path, **kwargs)
         self.tmp_dir = tmp_dir
 

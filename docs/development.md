@@ -146,7 +146,9 @@ posts no form — no fetch, XHR, beacon, WebSocket, EventSource or form post
 reaches the server — while the same probes on a `default` page do. Navigation,
 pop-up windows, workers started from outside the engine, WebRTC and requests for
 images and scripts from the same origin are outside what the profile blocks
-(`app/core/csp.py`). Each test runs in Chromium and in WebKit (Safari's engine). They need browsers, so `pytest tests/` leaves them out; the
+(`app/core/csp.py`). They also upload files with names beyond ASCII and check
+the name a page gives the download. Each test runs in Chromium and in WebKit
+(Safari's engine). They need browsers, so `pytest tests/` leaves them out; the
 `Browser tests` workflow (`.github/workflows/browser.yml`) runs them on every pull
 request, in the Playwright image of the release `requirements-browser.txt` pins.
 

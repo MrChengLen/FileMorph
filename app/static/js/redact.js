@@ -212,14 +212,16 @@
   }
 
   // ── phase 2: apply ──────────────────────────────────────────────────────────
-  function filenameFromDisposition(res, fallback) {
-    const cd = res.headers.get('Content-Disposition') || '';
-    const m = cd.match(/filename="?([^"]+)"?/);
-    return (m && m[1]) || fallback;
+  // The server's name for the result (app/api/routes/ai.py), for a response
+  // that names no file: <name>.redacted.<ext>, .txt for every text input.
+  function resultSuffix(sourceName) {
+    const ext = sourceName.split('.').pop().toLowerCase();
+    return '.redacted.' + (ext === 'docx' || ext === 'xlsx' ? ext : 'txt');
   }
 
   async function apply() {
     if (!selectedFile) return;
+    const sourceName = selectedFile.name;
     hide($('redact-error'));
     $('redact-progress-text').textContent = t('redactApplying', 'Redacting…');
     show($('redact-progress'));
@@ -240,7 +242,7 @@
         return;
       }
       const blob = await res.blob();
-      const name = filenameFromDisposition(res, 'redacted');
+      const name = FM_downloadName(res, FM_resultName(sourceName, resultSuffix(sourceName)));
       const link = $('redact-download');
       if (link.href && link.href.startsWith('blob:')) URL.revokeObjectURL(link.href);
       link.href = URL.createObjectURL(blob);

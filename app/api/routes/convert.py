@@ -21,6 +21,7 @@ from app.converters.base import (
 from app.converters.registry import _ensure_loaded, get_converter
 from app.core.audit import record_event as audit_record
 from app.core.batch import (
+    BATCH_ZIP_NAME,
     BatchFileError,
     BatchFileResult,
     batch_error_response,
@@ -43,7 +44,7 @@ from app.core.quotas import (
 from app.core.rate_limit import limiter
 from app.core.responses import TempDirFileResponse
 from app.core.usage import enforce_monthly_quota, record_usage
-from app.core.utils import safe_download_name
+from app.core.utils import content_disposition, safe_download_name
 from app.db.models import User
 
 logger = logging.getLogger(__name__)
@@ -146,7 +147,7 @@ async def _do_convert(
     await enforce_monthly_quota(user)
 
     # GDPR: keep original stem only for Content-Disposition, never as a filesystem path
-    original_stem = Path(file.filename or "result").stem
+    original_stem = Path(file.filename or "").stem
 
     # A-1 + GDPR: UUID temp names — no PII on disk, no path traversal
     _t0 = time.monotonic()
@@ -477,7 +478,7 @@ async def _do_convert_batch(
 
     for upload, raw_target in zip(files, target_formats):
         tgt_ext = raw_target.strip().lower().lstrip(".")
-        original_stem = Path(upload.filename or "result").stem
+        original_stem = Path(upload.filename or "").stem
         src_ext = Path(upload.filename or "").suffix.lstrip(".").lower()
         size_in = upload.size or 0
         out_name = _download_name(original_stem, tgt_ext)
@@ -619,7 +620,7 @@ async def _do_convert_batch(
         duration_ms=duration_ms,
     )
 
-    response_headers = {"Content-Disposition": 'attachment; filename="filemorph-batch.zip"'}
+    response_headers = {"Content-Disposition": content_disposition(BATCH_ZIP_NAME)}
     # P2-1: structured batch summary on the response so the UI can render
     # per-file results without parsing the ZIP. The manifest.json inside
     # the ZIP remains the source of truth for callers who want the full

@@ -52,7 +52,7 @@ from app.core.metrics import increment as metric_increment
 from app.core.processing import BLOCKED_MAGIC, actor_id
 from app.core.quotas import _MB, get_quota, tier_for
 from app.core.rate_limit import limiter
-from app.core.utils import safe_download_name
+from app.core.utils import content_disposition, safe_download_name
 from app.db.models import User
 
 logger = logging.getLogger(__name__)
@@ -349,7 +349,7 @@ async def redact_apply(
             used_llm=False,
         )
 
-        original_stem = Path(file.filename or "document").stem
+        original_stem = Path(file.filename or "").stem
         download_name = safe_download_name(original_stem, f".redacted.{out_ext}")
 
         # Cockpit signal (fire-and-forget) — count only, never content.
@@ -381,7 +381,7 @@ async def redact_apply(
             },
         )
         response_headers = {
-            "Content-Disposition": f'attachment; filename="{download_name}"',
+            "Content-Disposition": content_disposition(download_name),
             "X-FileMorph-AI-Entities-Redacted": str(entities),
             "X-FileMorph-AI-Credits-Cost": str(settings.ai_credit_cost_redact),
         }
