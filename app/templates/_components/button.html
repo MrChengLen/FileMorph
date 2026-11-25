@@ -1,4 +1,4 @@
-{# button(label=None, href=None, variant='primary', size='md', disabled=False, type='button', id=None, full_width=False, hidden=False, download=False)
+{# button(label=None, href=None, variant='primary', size='md', disabled=False, type='button', id=None, full_width=False, hidden=False, download=False, external=False)
 
    The single source of truth for buttons. Renders <a> when href is
    set, else <button>.
@@ -10,34 +10,36 @@
                         (e.g. the dashboard "Delete account" flow)
              success  : solid emerald — the download of a finished result
    size    — sm | md | lg
-   disabled — adds aria-disabled + disabled attribute, mutes colours,
-              removes hover. For href variants, the link still
-              renders but is non-interactive. A button that a script
-              disables while it works (el.disabled = true) gets a muted
-              look through the disabled: variants of the base, with its
-              text still readable (ink-muted): scripts write progress
-              labels into it ("Signing in…").
+   disabled — renders a <button> with the disabled attribute (a link becomes
+              a button). It keeps its variant's classes: the muted look comes
+              from the disabled: variants of the base, so a script that later
+              sets el.disabled = false gets the variant's own look back (the
+              pricing upgrade buttons, unlocked by their waiver box). The text
+              stays readable (ink-muted), as scripts write progress labels
+              into disabled buttons ("Signing in…"), and hovering a disabled
+              button changes nothing. A disabled link renders without its
+              href, so a script cannot unlock it: render a link only when
+              it can be followed.
    full_width — stretch to the parent container (used by auth forms
                 where the submit button spans the card width). The
                 element stays inline-flex so contents stay centered.
    hidden   — start hidden with the `hidden` class (a script removes it).
    download — adds the download attribute to a link (a result file).
+   external — a link that opens in a new tab (rel="noopener"), like chip.
 
    Called with {% call %}, the body replaces `label` — for an icon next to
    the text, or a label span that a script rewrites.
 #}
-{% macro button(label=None, href=None, variant='primary', size='md', disabled=False, type='button', id=None, full_width=False, hidden=False, download=False) %}
+{% macro button(label=None, href=None, variant='primary', size='md', disabled=False, type='button', id=None, full_width=False, hidden=False, download=False, external=False) %}
 {# Class composition uses {% if %} branches so every literal class is
    statically extractable by the Tailwind JIT scanner. Do not
    concatenate variant names into class strings. #}
-{%- set base = 'inline-flex items-center justify-center gap-2 rounded-control font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:bg-surface-sunken disabled:text-ink-muted' -%}
+{%- set base = 'inline-flex items-center justify-center gap-2 rounded-control font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:border-hairline disabled:bg-surface-sunken disabled:text-ink-muted' -%}
 {%- if size == 'sm' -%}{%- set size_cls = 'px-4 py-2 text-sm' -%}
 {%- elif size == 'lg' -%}{%- set size_cls = 'px-7 py-3.5 text-base' -%}
 {%- else -%}{%- set size_cls = 'px-6 py-3 text-base' -%}
 {%- endif -%}
-{%- if disabled -%}
-  {%- set variant_cls = 'bg-surface-sunken text-ink-dim cursor-not-allowed' -%}
-{%- elif variant == 'secondary' -%}
+{%- if variant == 'secondary' -%}
   {%- set variant_cls = 'border border-hairline text-ink hover:border-brand hover:text-ink' -%}
 {%- elif variant == 'ghost' -%}
   {%- set variant_cls = 'text-ink-muted hover:text-ink' -%}
@@ -51,7 +53,7 @@
 {%- if full_width -%}{%- set width_cls = 'w-full' -%}{%- else -%}{%- set width_cls = '' -%}{%- endif -%}
 {%- if hidden -%}{%- set hidden_cls = 'hidden' -%}{%- else -%}{%- set hidden_cls = '' -%}{%- endif -%}
 {%- if href and not disabled -%}
-<a href="{{ href }}"
+<a href="{{ href }}"{% if external %} target="_blank" rel="noopener"{% endif %}
    class="{{ base }} {{ size_cls }} {{ variant_cls }} {{ width_cls }} {{ hidden_cls }}"
    {% if id %}id="{{ id }}"{% endif %}
    {% if download %}download{% endif %}
@@ -62,7 +64,7 @@
 <button type="{{ type }}"
         class="{{ base }} {{ size_cls }} {{ variant_cls }} {{ width_cls }} {{ hidden_cls }}"
         {% if id %}id="{{ id }}"{% endif %}
-        {% if disabled %}disabled aria-disabled="true"{% endif %}
+        {% if disabled %}disabled{% endif %}
         data-component="button"
         data-variant="{{ variant }}"
         data-size="{{ size }}">{% if caller is defined %}{{ caller() }}{% else %}{{ label or '' }}{% endif %}</button>

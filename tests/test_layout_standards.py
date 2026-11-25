@@ -79,6 +79,10 @@ TOKEN_FILES = [
     "terms.html",
     "impressum.html",
     "contact.html",
+    # Pricing and the Compliance Edition page (package 3b).
+    "pricing.html",
+    "enterprise.html",
+    "partials/hosting_note.html",
     *sorted(
         p.relative_to(TEMPLATES).as_posix() for p in (TEMPLATES / "_components").glob("*.html")
     ),
@@ -86,9 +90,10 @@ TOKEN_FILES = [
 
 # The scripts that build or restyle markup on those pages follow the same
 # rules for the classes they set (app.js: file rows, batch summary; the PDF and
-# redact scripts: drag state, findings rows; contact.js: the status box).
+# redact scripts: drag state, findings rows; contact.js: the status box;
+# pricing-segment.js: the audience panels).
 SCRIPTS = TEMPLATES.parent / "static" / "js"
-TOKEN_SCRIPTS = ["app.js", "pdf-tools.js", "redact.js", "contact.js"]
+TOKEN_SCRIPTS = ["app.js", "pdf-tools.js", "redact.js", "contact.js", "pricing-segment.js"]
 _JS_COMMENTS = re.compile(r"/\*.*?\*/|//[^\n]*", re.DOTALL)
 
 

@@ -1,184 +1,138 @@
 {% extends "base.html" %}
+{% import "_components/button.html" as ub %}
 {% import "_components/card.html" as uc %}
+{% import "_components/check_item.html" as uci %}
+{% import "_components/eyebrow.html" as ue %}
+{% import "_components/notice.html" as un %}
 {% import "_components/page.html" as up %}
+{% import "_components/segmented.html" as us %}
 {# Two variants behind one URL. With Stripe configured (STRIPE_SECRET_KEY) paid
    plans can be booked: plan cards, comparison table and checkout scripts
    render. Without Stripe — filemorph.io, where paid server plans are shelved —
    the page says what is free: our server with fair limits, self-hosting without
    feature gates, and the commercial license for organizations. A self-hoster
-   who sets up Stripe keeps the plans. #}
+   who sets up Stripe keeps the plans.
+
+   Layout: 48 px between blocks. Plan cards, the table and the trust band use
+   the whole frame; the intro under each heading is centred, and the longer
+   fine print and the FAQ sit in one centred 42rem column, left-aligned. No
+   text below 14 px except the eyebrows and the badge. #}
 {% block title %}{% if stripe_enabled %}{{ _('Pricing — free converter, paid plans') }}{% else %}{{ _('Pricing — FileMorph is free') }}{% endif %} | FileMorph{% endblock %}
 {% block meta_description %}{% if stripe_enabled %}{{ _('FileMorph pricing: the open-source converter is free to self-host. Paid plans add volume, higher limits and larger API quotas.') }}{% else %}{{ _('FileMorph is free: our server converts your files with fair limits, or you self-host the open-source engine without feature gates.') }}{% endif %}{% endblock %}
 {% block content %}
 {% call up.page(max_w='page') %}
-<div class="space-y-10">
+<div class="space-y-section-sm">
 
   {% if stripe_enabled %}
-  <div class="text-center space-y-3">
+  <div class="space-y-3 text-center">
     <h1 class="text-h-page text-ink">{{ _('Free engine. Pay only for hosting or a license.') }}</h1>
-    <p class="text-ink-muted max-w-2xl mx-auto">{{ _('The FileMorph conversion engine is open source (AGPL-3.0) — self-host it free, forever, with no feature gates. The plans below are for our hosted instance and for embedding FileMorph in a closed-source product.') }}</p>
+    <p class="mx-auto max-w-prose-narrow text-ink-muted">{{ _('The FileMorph conversion engine is open source (AGPL-3.0) — self-host it free, forever, with no feature gates. The plans below are for our hosted instance and for embedding FileMorph in a closed-source product.') }}</p>
   </div>
 
-  <p class="text-center text-xs text-ink-faint">
-    {{ _('Using without an account:') }} {{ _('up to') }} {{ anon_plan.max_file_size_mb }} MB {{ _('per file') }} · {{ _('single file at a time') }} · {{ _('API access without a key') }}
-  </p>
-
-  <p class="text-center text-xs text-ink-faint max-w-3xl mx-auto">
-    {{ _('Monthly call quotas are bucket sizes for spread-out use, not parallelism guarantees. Each tier has a concurrency cap per account (per IP address without an account) so one batch can\'t starve the whole worker pool — requests past the cap return') }}
-    <code class="text-gray-400">429</code>
-    {{ _('with a') }}
-    <code class="text-gray-400">Retry-After</code>
-    {{ _('hint. Large batches are processed sequentially inside the request.') }}
-    {{ _('All plans share the server\'s parallel slots, so no plan runs more requests at once than the server allows.') }}
-    {{ _('The per-minute rate limit is the same for every plan — for example 10 requests per minute to convert or compress a file.') }}
-  </p>
-
-  <!-- Audience segment toggle (CSP-safe: handlers in /static/js/pricing-segment.js) -->
-  <div class="flex rounded-lg overflow-hidden border border-gray-700 text-sm font-medium max-w-xl mx-auto" role="tablist" aria-label="{{ _('Choose audience') }}">
-    <button id="seg-dev" type="button" class="flex-1 py-2 transition-colors bg-brand-dark text-white" aria-pressed="true">{{ _('For developers & SaaS') }}</button>
-    <button id="seg-gov" type="button" class="flex-1 py-2 transition-colors text-gray-400 hover:text-white" aria-pressed="false">{{ _('For public sector & compliance') }}</button>
+  <div class="mx-auto max-w-prose-narrow space-y-2 text-sm text-ink-muted">
+    <p>{{ _('Using without an account:') }} {{ _('up to') }} {{ anon_plan.max_file_size_mb }} MB {{ _('per file') }} · {{ _('single file at a time') }} · {{ _('API access without a key') }}</p>
+    <p>
+      {{ _('Monthly call quotas are bucket sizes for spread-out use, not parallelism guarantees. Each tier has a concurrency cap per account (per IP address without an account) so one batch can\'t starve the whole worker pool — requests past the cap return') }}
+      <code>429</code>
+      {{ _('with a') }}
+      <code>Retry-After</code>
+      {{ _('hint. Large batches are processed sequentially inside the request.') }}
+      {{ _('All plans share the server\'s parallel slots, so no plan runs more requests at once than the server allows.') }}
+      {{ _('The per-minute rate limit is the same for every plan — for example 10 requests per minute to convert or compress a file.') }}
+    </p>
   </div>
 
-  <!-- ───────────────────────── PANEL A: developers & SaaS ───────────────────────── -->
-  <section id="panel-dev" class="space-y-8">
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+  {# Audience switch: pricing-segment.js sets aria-pressed and shows one panel. #}
+  <div class="mx-auto max-w-prose-narrow">
+    <p id="seg-label" class="sr-only">{{ _('Choose audience') }}</p>
+    {{ us.segmented([
+         {'label': _('For developers & SaaS'), 'pressed': True, 'id': 'seg-dev'},
+         {'label': _('For public sector & compliance'), 'pressed': False, 'id': 'seg-gov'},
+       ], label_id='seg-label') }}
+  </div>
 
-    <!-- Free -->
+  {# ── Panel A: developers & SaaS ── #}
+  <section id="panel-dev" class="space-y-6">
+  <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+
+    {# Free #}
     {% call uc.card() %}
-    <div class="flex flex-col gap-6 h-full">
-      <div>
-        <p class="text-xs font-semibold uppercase tracking-wider text-ink-faint">{{ _('Free') }}</p>
-        <p class="text-4xl font-bold mt-2">€0<span class="text-base font-normal text-ink-muted">{{ _('/mo') }}</span></p>
-        <p class="text-sm text-ink-muted mt-1">{{ _('No credit card required') }}</p>
+    <div class="flex h-full flex-col gap-6">
+      <div class="space-y-2">
+        {{ ue.eyebrow(_('Free')) }}
+        <p class="text-4xl font-bold">€0<span class="text-base font-normal text-ink-muted">{{ _('/mo') }}</span></p>
+        <p class="text-sm text-ink-muted">{{ _('No credit card required') }}</p>
       </div>
-      <ul class="space-y-2.5 text-sm text-gray-300 flex-1">
-        <li class="flex items-start gap-2">
-          <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span>{{ _('up to') }} {{ plans.free.max_file_size_mb }} MB {{ _('per file') }} <span class="text-ink-faint">{{ _('(vs.') }} {{ anon_plan.max_file_size_mb }} MB {{ _('anonymous)') }}</span></span>
-        </li>
-        <li class="flex items-start gap-2">
-          <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span>{{ _('Batch upload:') }} <strong class="text-white">{{ plans.free.max_files_per_batch }} {{ _('files') }}</strong> {{ _('per request') }}</span>
-        </li>
-        <li class="flex items-start gap-2">
-          <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span>{{ _('30+ formats (images, docs, audio, video)') }}</span>
-        </li>
-        <li class="flex items-start gap-2">
-          <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span>{{ _('API key — ') }}<strong class="text-white">{{ plans.free.api_calls_display }} {{ _('calls / month') }}</strong>, {{ plans.free.concurrency }} {{ _('concurrent') }}</span>
-        </li>
-        <li class="flex items-start gap-2">
-          <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span>{{ _('All smart-tech: compress-to-target, EXIF strip, PDF/A, integrity hash') }}</span>
-        </li>
-        {% if ai_operations_enabled %}<li class="flex items-start gap-2">
-          <span class="text-ink-faint shrink-0 leading-6" aria-hidden="true">+</span>
-          <span class="text-ink-faint">{{ _('PII redaction is a paid add-on (Pro and up)') }}</span>
+      <ul class="flex-1 space-y-2 text-sm text-ink-soft">
+        {% call uci.check_item() %}{{ _('up to') }} {{ plans.free.max_file_size_mb }} MB {{ _('per file') }} <span class="text-ink-faint">{{ _('(vs.') }} {{ anon_plan.max_file_size_mb }} MB {{ _('anonymous)') }}</span>{% endcall %}
+        {% call uci.check_item() %}{{ _('Batch upload:') }} <strong class="text-ink-strong">{{ plans.free.max_files_per_batch }} {{ _('files') }}</strong> {{ _('per request') }}{% endcall %}
+        {% call uci.check_item() %}{{ _('30+ formats (images, docs, audio, video)') }}{% endcall %}
+        {% call uci.check_item() %}{{ _('API key — ') }}<strong class="text-ink-strong">{{ plans.free.api_calls_display }} {{ _('calls / month') }}</strong>, {{ plans.free.concurrency }} {{ _('concurrent') }}{% endcall %}
+        {% call uci.check_item() %}{{ _('All smart-tech: compress-to-target, EXIF strip, PDF/A, integrity hash') }}{% endcall %}
+        {% if ai_operations_enabled %}<li class="flex items-start gap-2 text-ink-faint">
+          <span class="shrink-0" aria-hidden="true">+</span>
+          <span>{{ _('PII redaction is a paid add-on (Pro and up)') }}</span>
         </li>{% endif %}
       </ul>
-      <a href="{{ localized_url('/register', current_prefix) }}" class="block text-center py-2.5 rounded-xl border border-hairline hover:border-brand text-gray-300 hover:text-white transition-colors text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
-        {{ _('Get started free') }}
-      </a>
+      {{ ub.button(_('Get started free'), href=localized_url('/register', current_prefix), variant='secondary', full_width=True) }}
     </div>
     {% endcall %}
 
-    <!-- Pro -->
-    <div class="bg-gray-900 border-2 border-brand rounded-2xl p-6 flex flex-col gap-6 relative">
-      <span class="absolute -top-3 left-1/2 -translate-x-1/2 bg-brand-dark text-white text-xs font-bold px-3 py-1 rounded-full">{{ _('Most popular') }}</span>
-      <div>
-        <p class="text-xs font-semibold uppercase tracking-wider text-brand-light">{{ _('Pro') }}</p>
+    {# Pro #}
+    {% call uc.card(border='brand', badge=_('Most popular')) %}
+    <div class="flex h-full flex-col gap-6">
+      <div class="space-y-2">
+        {{ ue.eyebrow(_('Pro'), color='brand') }}
         {% if plans.pro.price_display %}
-        <p class="text-4xl font-bold mt-2">€{{ plans.pro.price_display }}<span class="text-base font-normal text-gray-400">{{ _('/mo') }}</span></p>
+        <p class="text-4xl font-bold">€{{ plans.pro.price_display }}<span class="text-base font-normal text-ink-muted">{{ _('/mo') }}</span></p>
         {% else %}
-        <p class="text-2xl font-bold mt-2">{{ _('Contact us') }}</p>
+        <p class="text-2xl font-bold">{{ pgettext('price', 'Contact us') }}</p>
         {% endif %}
-        <p class="text-sm text-gray-400 mt-1">{{ _('Billed monthly, cancel anytime') }}</p>
+        <p class="text-sm text-ink-muted">{{ _('Billed monthly, cancel anytime') }}</p>
       </div>
-      <ul class="space-y-2.5 text-sm text-gray-300 flex-1">
-        <li class="flex items-start gap-2">
-          <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span>{{ _('up to') }} {{ plans.pro.max_file_size_mb }} MB {{ _('per file') }}</span>
-        </li>
-        <li class="flex items-start gap-2">
-          <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span>{{ _('Batch upload:') }} <strong class="text-white">{{ plans.pro.max_files_per_batch }} {{ _('files') }}</strong> {{ _('per request') }}</span>
-        </li>
-        <li class="flex items-start gap-2">
-          <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span>{{ _('30+ formats incl. video') }}</span>
-        </li>
-        <li class="flex items-start gap-2">
-          <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span><strong class="text-white">{{ plans.pro.api_calls_display }} {{ _('API calls / month') }}</strong>, {{ plans.pro.concurrency }} {{ _('concurrent') }}</span>
-        </li>
-        {% if ai_operations_enabled %}<li class="flex items-start gap-2">
-          <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span><strong class="text-white">{{ _('PII redaction') }}</strong> — {{ plans.pro.ai_credits_display }} {{ _('credits / month') }}</span>
-        </li>{% endif %}
-        <li class="flex items-start gap-2">
-          <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span>{{ _('E-mail support') }}</span>
-        </li>
+      <ul class="flex-1 space-y-2 text-sm text-ink-soft">
+        {% call uci.check_item() %}{{ _('up to') }} {{ plans.pro.max_file_size_mb }} MB {{ _('per file') }}{% endcall %}
+        {% call uci.check_item() %}{{ _('Batch upload:') }} <strong class="text-ink-strong">{{ plans.pro.max_files_per_batch }} {{ _('files') }}</strong> {{ _('per request') }}{% endcall %}
+        {% call uci.check_item() %}{{ _('30+ formats incl. video') }}{% endcall %}
+        {% call uci.check_item() %}<strong class="text-ink-strong">{{ plans.pro.api_calls_display }} {{ _('API calls / month') }}</strong>, {{ plans.pro.concurrency }} {{ _('concurrent') }}{% endcall %}
+        {% if ai_operations_enabled %}{% call uci.check_item() %}<strong class="text-ink-strong">{{ _('PII redaction') }}</strong> — {{ plans.pro.ai_credits_display }} {{ _('credits / month') }}{% endcall %}{% endif %}
+        {% call uci.check_item() %}{{ _('E-mail support') }}{% endcall %}
       </ul>
-      <label for="pro-waiver" class="flex items-start gap-2 text-xs text-gray-400 mb-3 cursor-pointer">
-        <input type="checkbox" id="pro-waiver" class="withdrawal-waiver mt-0.5 shrink-0"
+      <label for="pro-waiver" class="flex cursor-pointer items-start gap-2 text-sm text-ink-muted">
+        <input type="checkbox" id="pro-waiver" class="withdrawal-waiver mt-0.5 size-4 shrink-0 accent-brand-dark"
                data-target="pro-btn" />
         <span>{{ _('I waive my 14-day right of withdrawal and consent to immediate contract execution pursuant to §356 (5) BGB.') }}</span>
       </label>
-      <button id="pro-btn" disabled
-        class="block w-full text-center py-2.5 rounded-xl bg-brand-dark hover:bg-brand-deep text-white transition-colors text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-50 disabled:cursor-not-allowed">
-        {{ _('Upgrade to Pro') }}
-      </button>
+      {{ ub.button(_('Upgrade to Pro'), id='pro-btn', disabled=True, full_width=True) }}
     </div>
+    {% endcall %}
 
-    <!-- Business -->
+    {# Business #}
     {% call uc.card() %}
-    <div class="flex flex-col gap-6 h-full">
-      <div>
-        <p class="text-xs font-semibold uppercase tracking-wider text-ink-faint">{{ _('Business') }}</p>
+    <div class="flex h-full flex-col gap-6">
+      <div class="space-y-2">
+        {{ ue.eyebrow(_('Business')) }}
         {% if plans.business.price_display %}
-        <p class="text-4xl font-bold mt-2">€{{ plans.business.price_display }}<span class="text-base font-normal text-ink-muted">{{ _('/mo') }}</span></p>
+        <p class="text-4xl font-bold">€{{ plans.business.price_display }}<span class="text-base font-normal text-ink-muted">{{ _('/mo') }}</span></p>
         {% else %}
-        <p class="text-2xl font-bold mt-2">{{ _('Contact us') }}</p>
+        <p class="text-2xl font-bold">{{ pgettext('price', 'Contact us') }}</p>
         {% endif %}
-        <p class="text-sm text-ink-muted mt-1">{{ _('Billed monthly, cancel anytime') }}</p>
+        <p class="text-sm text-ink-muted">{{ _('Billed monthly, cancel anytime') }}</p>
       </div>
-      <ul class="space-y-2.5 text-sm text-gray-300 flex-1">
-        <li class="flex items-start gap-2">
-          <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span>{{ _('up to') }} {{ plans.business.max_file_size_mb }} MB {{ _('per file') }}</span>
-        </li>
-        <li class="flex items-start gap-2">
-          <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span>{{ _('Batch upload:') }} <strong class="text-white">{{ plans.business.max_files_per_batch }} {{ _('files') }}</strong> {{ _('per request') }}</span>
-        </li>
-        <li class="flex items-start gap-2">
-          <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span><strong class="text-white">{{ plans.business.api_calls_display }} {{ _('API calls / month') }}</strong>, {{ plans.business.concurrency }} {{ _('concurrent') }}</span>
-        </li>
-        {% if ai_operations_enabled %}<li class="flex items-start gap-2">
-          <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span><strong class="text-white">{{ _('PII redaction') }}</strong> — {{ plans.business.ai_credits_display }} {{ _('credits / month') }}</span>
-        </li>{% endif %}
-        <li class="flex items-start gap-2">
-          <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span>{{ _('30+ formats (images, docs, audio, video)') }}</span>
-        </li>
-        <li class="flex items-start gap-2">
-          <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span>{{ _('Priority support (best effort)') }}</span>
-        </li>
+      <ul class="flex-1 space-y-2 text-sm text-ink-soft">
+        {% call uci.check_item() %}{{ _('up to') }} {{ plans.business.max_file_size_mb }} MB {{ _('per file') }}{% endcall %}
+        {% call uci.check_item() %}{{ _('Batch upload:') }} <strong class="text-ink-strong">{{ plans.business.max_files_per_batch }} {{ _('files') }}</strong> {{ _('per request') }}{% endcall %}
+        {% call uci.check_item() %}<strong class="text-ink-strong">{{ plans.business.api_calls_display }} {{ _('API calls / month') }}</strong>, {{ plans.business.concurrency }} {{ _('concurrent') }}{% endcall %}
+        {% if ai_operations_enabled %}{% call uci.check_item() %}<strong class="text-ink-strong">{{ _('PII redaction') }}</strong> — {{ plans.business.ai_credits_display }} {{ _('credits / month') }}{% endcall %}{% endif %}
+        {% call uci.check_item() %}{{ _('30+ formats (images, docs, audio, video)') }}{% endcall %}
+        {% call uci.check_item() %}{{ _('Priority support (best effort)') }}{% endcall %}
       </ul>
-      <label for="business-waiver" class="flex items-start gap-2 text-xs text-gray-400 mb-3 cursor-pointer">
-        <input type="checkbox" id="business-waiver" class="withdrawal-waiver mt-0.5 shrink-0"
+      <label for="business-waiver" class="flex cursor-pointer items-start gap-2 text-sm text-ink-muted">
+        <input type="checkbox" id="business-waiver" class="withdrawal-waiver mt-0.5 size-4 shrink-0 accent-brand-dark"
                data-target="business-btn" />
         <span>{{ _('I waive my 14-day right of withdrawal and consent to immediate contract execution pursuant to §356 (5) BGB.') }}</span>
       </label>
-      <button id="business-btn" disabled
-        class="block w-full text-center py-2.5 rounded-xl border border-hairline hover:border-brand text-gray-300 hover:text-white transition-colors text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-50 disabled:cursor-not-allowed">
-        {{ _('Upgrade to Business') }}
-      </button>
+      {{ ub.button(_('Upgrade to Business'), id='business-btn', variant='secondary', disabled=True, full_width=True) }}
     </div>
     {% endcall %}
 
@@ -186,221 +140,182 @@
 
   <p class="text-center text-sm text-ink-muted">
     {{ _('Building a closed-source product, SaaS, or OEM integration on FileMorph?') }}
-    <a href="{{ localized_url('/enterprise', current_prefix) }}" class="text-brand-light hover:underline">{{ _('See licensing →') }}</a>
+    <a href="{{ localized_url('/enterprise', current_prefix) }}" class="text-brand-light underline hover:text-ink-strong">{{ _('See licensing →') }}</a>
   </p>
   </section>
 
-  <!-- ──────────────────── PANEL B: public sector & compliance ──────────────────── -->
+  {# ── Panel B: public sector & compliance ── #}
   <section id="panel-gov" class="hidden">
     {% call uc.card() %}
-    <div class="space-y-5">
-      <div>
+    <div class="space-y-6">
+      <div class="space-y-1">
         <p class="font-semibold text-ink">{{ _('Behörden · Krankenhäuser · Kanzleien') }}</p>
-        <p class="text-sm text-ink-muted mt-1">{{ _('Runs behind your firewall — citizen, patient and client data never leaves your infrastructure. EU vendor, German imprint.') }}</p>
+        <p class="text-sm text-ink-muted">{{ _('Runs behind your firewall — citizen, patient and client data never leaves your infrastructure. EU vendor, German imprint.') }}</p>
       </div>
-      <div class="bg-brand/10 border border-brand/30 rounded-xl px-4 py-3 text-sm text-gray-300">
+      {% call un.notice() %}
         {{ _('Internal use is already free under AGPL-3.0.') }}
-        <a href="{{ localized_url('/enterprise', current_prefix) }}" class="text-brand-light hover:underline">{{ _('Why →') }}</a>
+        <a href="{{ localized_url('/enterprise', current_prefix) }}" class="text-brand-light underline hover:text-ink-strong">{{ _('Why →') }}</a>
         {{ _('The Compliance Edition is for when you need a contract behind it: a commercial license, a support SLA and someone accountable — not "permission".') }}
-      </div>
-      <ul class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-300">
-        <li class="flex items-start gap-2"><span class="text-emerald-400" aria-hidden="true">✓</span> {{ _('Self-hosted (on-prem / air-gap)') }}</li>
-        <li class="flex items-start gap-2"><span class="text-emerald-400" aria-hidden="true">✓</span> {{ _('Self-hosted: no data processing on your behalf, no DPA needed') }}</li>
-        <li class="flex items-start gap-2"><span class="text-emerald-400" aria-hidden="true">✓</span> {{ _('Tamper-evident SHA-256 audit log') }}</li>
-        <li class="flex items-start gap-2"><span class="text-emerald-400" aria-hidden="true">✓</span> {{ _('PDF/A-2b (veraPDF CI gate)') }}</li>
-        <li class="flex items-start gap-2"><span class="text-emerald-400" aria-hidden="true">✓</span> {{ _('Signed releases + CycloneDX SBOM') }}</li>
-        <li class="flex items-start gap-2"><span class="text-emerald-400" aria-hidden="true">✓</span> {{ _('Commercial license on top of AGPL') }}</li>
+      {% endcall %}
+      <ul class="grid grid-cols-1 gap-2 text-sm text-ink-soft sm:grid-cols-2">
+        {% call uci.check_item() %}{{ _('Self-hosted (on-prem / air-gap)') }}{% endcall %}
+        {% call uci.check_item() %}{{ _('Self-hosted: no data processing on your behalf, no DPA needed') }}{% endcall %}
+        {% call uci.check_item() %}{{ _('Tamper-evident SHA-256 audit log') }}{% endcall %}
+        {% call uci.check_item() %}{{ _('PDF/A-2b (veraPDF CI gate)') }}{% endcall %}
+        {% call uci.check_item() %}{{ _('Signed releases + CycloneDX SBOM') }}{% endcall %}
+        {% call uci.check_item() %}{{ _('Commercial license on top of AGPL') }}{% endcall %}
       </ul>
-      <a href="{{ localized_url('/enterprise', current_prefix) }}"
-        class="inline-block px-6 py-2.5 rounded-xl bg-brand-dark hover:bg-brand-deep text-white transition-colors text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
-        {{ _('See the Compliance Edition →') }}
-      </a>
+      {{ ub.button(_('See the Compliance Edition →'), href=localized_url('/enterprise', current_prefix)) }}
     </div>
     {% endcall %}
   </section>
 
-  <!-- ───────────────────────── Feature comparison (both audience segments) ───────────────────────── -->
-  <div class="space-y-3">
+  {# ── Feature comparison (both audience segments). The first cell of a row
+     stays a <td>: tests/test_public_claims.py reads the rows by it. ── #}
+  <div class="space-y-4">
     <h2 class="text-center text-h-sect text-ink">{{ _('Compare plans') }}</h2>
     <div class="overflow-x-auto">
-      <table class="w-full text-sm border-collapse">
+      <table class="w-full border-collapse text-sm">
         <thead>
-          <tr class="text-ink-faint border-b border-hairline">
-            <th class="text-left font-medium py-2 pr-3">{{ _('Feature') }}</th>
-            <th class="font-medium py-2 px-3">{{ _('Free') }}</th>
-            <th class="font-medium py-2 px-3">{{ _('Pro') }}</th>
-            <th class="font-medium py-2 px-3">{{ _('Business') }}</th>
-            <th class="font-medium py-2 px-3">{{ _('Compliance') }}</th>
+          <tr class="border-b border-hairline text-ink-faint">
+            <th scope="col" class="py-2 pr-3 text-left font-medium">{{ _('Feature') }}</th>
+            <th scope="col" class="px-3 py-2 font-medium">{{ _('Free') }}</th>
+            <th scope="col" class="px-3 py-2 font-medium">{{ _('Pro') }}</th>
+            <th scope="col" class="px-3 py-2 font-medium">{{ _('Business') }}</th>
+            <th scope="col" class="px-3 py-2 font-medium">{{ _('Compliance') }}</th>
           </tr>
         </thead>
-        <tbody class="text-gray-300">
-          <tr class="border-b border-hairline/50"><td class="py-2 pr-3 text-ink-muted">{{ _('Max file size') }}</td><td class="text-center">{{ plans.free.max_file_size_mb }} MB</td><td class="text-center">{{ plans.pro.max_file_size_mb }} MB</td><td class="text-center">{{ plans.business.max_file_size_mb }} MB</td><td class="text-center">{{ _('self-set') }}</td></tr>
-          <tr class="border-b border-hairline/50"><td class="py-2 pr-3 text-ink-muted">{{ _('Batch / request') }}</td><td class="text-center">{{ plans.free.max_files_per_batch }}</td><td class="text-center">{{ plans.pro.max_files_per_batch }}</td><td class="text-center">{{ plans.business.max_files_per_batch }}</td><td class="text-center">250</td></tr>
-          <tr class="border-b border-hairline/50"><td class="py-2 pr-3 text-ink-muted">{{ _('API calls / month') }}</td><td class="text-center">{{ plans.free.api_calls_display }}</td><td class="text-center">{{ plans.pro.api_calls_display }}</td><td class="text-center">{{ plans.business.api_calls_display }}</td><td class="text-center">{{ _('unlimited*') }}</td></tr>
-          {% if ai_operations_enabled %}<tr class="border-b border-hairline/50"><td class="py-2 pr-3 text-ink-muted">{{ _('PII redaction (credits / month)') }}</td><td class="text-center">{{ plans.free.ai_credits_display }}</td><td class="text-center">{{ plans.pro.ai_credits_display }}</td><td class="text-center">{{ plans.business.ai_credits_display }}</td><td class="text-center">{{ _('unlimited*') }}</td></tr>{% endif %}
-          <tr class="border-b border-hairline/50"><td class="py-2 pr-3 text-ink-muted">{{ _('Concurrent slots') }}</td><td class="text-center">{{ plans.free.concurrency }}</td><td class="text-center">{{ plans.pro.concurrency }}</td><td class="text-center">{{ plans.business.concurrency }}</td><td class="text-center">{{ _('custom') }}</td></tr>
-          <tr class="border-b border-hairline/50"><td class="py-2 pr-3 text-ink-muted">{{ _('All formats + smart-tech') }}</td><td class="text-center text-emerald-400">✓</td><td class="text-center text-emerald-400">✓</td><td class="text-center text-emerald-400">✓</td><td class="text-center text-emerald-400">✓</td></tr>
-          <tr class="border-b border-hairline/50"><td class="py-2 pr-3 text-ink-muted">{{ _('Self-hosted') }}</td><td class="text-center text-ink-faint">—</td><td class="text-center text-ink-faint">—</td><td class="text-center text-ink-faint">—</td><td class="text-center text-emerald-400">✓</td></tr>
-          <tr class="border-b border-hairline/50"><td class="py-2 pr-3 text-ink-muted">{{ _('Audit log + signed releases') }}</td><td class="text-center text-emerald-400">✓</td><td class="text-center text-emerald-400">✓</td><td class="text-center text-emerald-400">✓</td><td class="text-center text-emerald-400">✓</td></tr>
-          <tr class="border-b border-hairline/50"><td class="py-2 pr-3 text-ink-muted">{{ _('Commercial license') }}</td><td class="text-center text-ink-faint">—</td><td class="text-center text-ink-faint">—</td><td class="text-center text-ink-faint">—</td><td class="text-center text-emerald-400">✓</td></tr>
-          <tr><td class="py-2 pr-3 text-ink-muted">{{ _('Support') }}</td><td class="text-center text-ink-faint">—</td><td class="text-center">{{ _('e-mail') }}</td><td class="text-center">{{ _('priority') }}</td><td class="text-center">{{ _('SLA') }}</td></tr>
+        <tbody class="divide-y divide-hairline/50 text-ink-soft">
+          <tr><td class="py-2 pr-3 text-ink-muted">{{ _('Max file size') }}</td><td class="px-3 py-2 text-center">{{ plans.free.max_file_size_mb }} MB</td><td class="px-3 py-2 text-center">{{ plans.pro.max_file_size_mb }} MB</td><td class="px-3 py-2 text-center">{{ plans.business.max_file_size_mb }} MB</td><td class="px-3 py-2 text-center">{{ _('self-set') }}</td></tr>
+          <tr><td class="py-2 pr-3 text-ink-muted">{{ _('Batch / request') }}</td><td class="px-3 py-2 text-center">{{ plans.free.max_files_per_batch }}</td><td class="px-3 py-2 text-center">{{ plans.pro.max_files_per_batch }}</td><td class="px-3 py-2 text-center">{{ plans.business.max_files_per_batch }}</td><td class="px-3 py-2 text-center">250</td></tr>
+          <tr><td class="py-2 pr-3 text-ink-muted">{{ _('API calls / month') }}</td><td class="px-3 py-2 text-center">{{ plans.free.api_calls_display }}</td><td class="px-3 py-2 text-center">{{ plans.pro.api_calls_display }}</td><td class="px-3 py-2 text-center">{{ plans.business.api_calls_display }}</td><td class="px-3 py-2 text-center">{{ _('unlimited*') }}</td></tr>
+          {% if ai_operations_enabled %}<tr><td class="py-2 pr-3 text-ink-muted">{{ _('PII redaction (credits / month)') }}</td><td class="px-3 py-2 text-center">{{ plans.free.ai_credits_display }}</td><td class="px-3 py-2 text-center">{{ plans.pro.ai_credits_display }}</td><td class="px-3 py-2 text-center">{{ plans.business.ai_credits_display }}</td><td class="px-3 py-2 text-center">{{ _('unlimited*') }}</td></tr>{% endif %}
+          <tr><td class="py-2 pr-3 text-ink-muted">{{ _('Concurrent slots') }}</td><td class="px-3 py-2 text-center">{{ plans.free.concurrency }}</td><td class="px-3 py-2 text-center">{{ plans.pro.concurrency }}</td><td class="px-3 py-2 text-center">{{ plans.business.concurrency }}</td><td class="px-3 py-2 text-center">{{ _('custom') }}</td></tr>
+          <tr><td class="py-2 pr-3 text-ink-muted">{{ _('All formats + smart-tech') }}</td><td class="px-3 py-2 text-center text-tone-ok">✓</td><td class="px-3 py-2 text-center text-tone-ok">✓</td><td class="px-3 py-2 text-center text-tone-ok">✓</td><td class="px-3 py-2 text-center text-tone-ok">✓</td></tr>
+          <tr><td class="py-2 pr-3 text-ink-muted">{{ _('Self-hosted') }}</td><td class="px-3 py-2 text-center text-ink-faint">—</td><td class="px-3 py-2 text-center text-ink-faint">—</td><td class="px-3 py-2 text-center text-ink-faint">—</td><td class="px-3 py-2 text-center text-tone-ok">✓</td></tr>
+          <tr><td class="py-2 pr-3 text-ink-muted">{{ _('Audit log + signed releases') }}</td><td class="px-3 py-2 text-center text-tone-ok">✓</td><td class="px-3 py-2 text-center text-tone-ok">✓</td><td class="px-3 py-2 text-center text-tone-ok">✓</td><td class="px-3 py-2 text-center text-tone-ok">✓</td></tr>
+          <tr><td class="py-2 pr-3 text-ink-muted">{{ _('Commercial license') }}</td><td class="px-3 py-2 text-center text-ink-faint">—</td><td class="px-3 py-2 text-center text-ink-faint">—</td><td class="px-3 py-2 text-center text-ink-faint">—</td><td class="px-3 py-2 text-center text-tone-ok">✓</td></tr>
+          <tr><td class="py-2 pr-3 text-ink-muted">{{ _('Support') }}</td><td class="px-3 py-2 text-center text-ink-faint">—</td><td class="px-3 py-2 text-center">{{ _('e-mail') }}</td><td class="px-3 py-2 text-center">{{ _('priority') }}</td><td class="px-3 py-2 text-center">{{ _('SLA') }}</td></tr>
         </tbody>
       </table>
     </div>
-    <p class="text-xs text-ink-faint">{{ _('* Unlimited within your self-hosted infrastructure — you run the server.') }}</p>
+    <p class="text-sm text-ink-muted">{{ _('* Unlimited within your self-hosted infrastructure — you run the server.') }}</p>
   </div>
   {% else %}
-  <div class="text-center space-y-3">
+  <div class="space-y-3 text-center">
     <h1 class="text-h-page text-ink">{{ _('Free. On our server or on your own.') }}</h1>
-    <p class="text-ink-muted max-w-2xl mx-auto">{{ _('Our server costs nothing: it processes your files with fair limits — or you run the open-source engine yourself, with no feature gates.') }}</p>
+    <p class="mx-auto max-w-prose-narrow text-ink-muted">{{ _('Our server costs nothing: it processes your files with fair limits — or you run the open-source engine yourself, with no feature gates.') }}</p>
   </div>
 
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+  <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
 
-    <!-- On our server -->
+    {# On our server #}
     {% call uc.card() %}
-    <div class="flex flex-col gap-6 h-full">
-      <div>
-        <p class="text-xs font-semibold uppercase tracking-wider text-ink-muted">{{ _('On our server') }}</p>
-        <p class="text-4xl font-bold mt-2">€0</p>
-        <p class="text-sm text-ink-muted mt-1">{{ _('Files are deleted immediately after processing.') }}</p>
+    <div class="flex h-full flex-col gap-6">
+      <div class="space-y-2">
+        {{ ue.eyebrow(_('On our server')) }}
+        <p class="text-4xl font-bold">€0</p>
+        <p class="text-sm text-ink-muted">{{ _('Files are deleted immediately after processing.') }}</p>
       </div>
-      <ul class="space-y-2.5 text-sm text-gray-300 flex-1">
-        <li class="flex items-start gap-2">
-          <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span>{{ _('Without an account:') }} {{ _('up to') }} {{ anon_plan.max_file_size_mb }} MB {{ _('per file') }} · {{ _('single file at a time') }} · {{ _('API access without a key') }}</span>
-        </li>
-        <li class="flex items-start gap-2">
-          <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span>{{ _('With a free account:') }} {{ _('up to') }} {{ plans.free.max_file_size_mb }} MB {{ _('per file') }}</span>
-        </li>
-        <li class="flex items-start gap-2">
-          <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span>{{ _('Batch upload:') }} <strong class="text-white">{{ plans.free.max_files_per_batch }} {{ _('files') }}</strong> {{ _('per request') }}</span>
-        </li>
-        <li class="flex items-start gap-2">
-          <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span>{{ _('API key — ') }}<strong class="text-white">{{ plans.free.api_calls_display }} {{ _('calls / month') }}</strong>, {{ plans.free.concurrency }} {{ _('concurrent') }}</span>
-        </li>
-        <li class="flex items-start gap-2">
-          <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span>{{ _('All formats + smart-tech') }}</span>
-        </li>
+      <ul class="flex-1 space-y-2 text-sm text-ink-soft">
+        {% call uci.check_item() %}{{ _('Without an account:') }} {{ _('up to') }} {{ anon_plan.max_file_size_mb }} MB {{ _('per file') }} · {{ _('single file at a time') }} · {{ _('API access without a key') }}{% endcall %}
+        {% call uci.check_item() %}{{ _('With a free account:') }} {{ _('up to') }} {{ plans.free.max_file_size_mb }} MB {{ _('per file') }}{% endcall %}
+        {% call uci.check_item() %}{{ _('Batch upload:') }} <strong class="text-ink-strong">{{ plans.free.max_files_per_batch }} {{ _('files') }}</strong> {{ _('per request') }}{% endcall %}
+        {% call uci.check_item() %}{{ _('API key — ') }}<strong class="text-ink-strong">{{ plans.free.api_calls_display }} {{ _('calls / month') }}</strong>, {{ plans.free.concurrency }} {{ _('concurrent') }}{% endcall %}
+        {% call uci.check_item() %}{{ _('All formats + smart-tech') }}{% endcall %}
       </ul>
-      <a href="{{ localized_url('/register', current_prefix) }}" class="block text-center py-2.5 rounded-xl border border-hairline hover:border-brand text-gray-300 hover:text-white transition-colors text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
-        {{ _('Get started free') }}
-      </a>
+      {{ ub.button(_('Get started free'), href=localized_url('/register', current_prefix), variant='secondary', full_width=True) }}
     </div>
     {% endcall %}
 
-    <!-- On your own server -->
+    {# On your own server #}
     {% call uc.card() %}
-    <div class="flex flex-col gap-6 h-full">
-      <div>
-        <p class="text-xs font-semibold uppercase tracking-wider text-ink-muted">{{ _('On your own server') }}</p>
-        <p class="text-4xl font-bold mt-2">€0</p>
-        <p class="text-sm text-ink-muted mt-1">{{ _('Open source (AGPL-3.0), no feature gates') }}</p>
+    <div class="flex h-full flex-col gap-6">
+      <div class="space-y-2">
+        {{ ue.eyebrow(_('On your own server')) }}
+        <p class="text-4xl font-bold">€0</p>
+        <p class="text-sm text-ink-muted">{{ _('Open source (AGPL-3.0), no feature gates') }}</p>
       </div>
-      <ul class="space-y-2.5 text-sm text-gray-300 flex-1">
-        <li class="flex items-start gap-2">
-          <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span>{{ _('One-command Docker deploy') }}</span>
-        </li>
-        <li class="flex items-start gap-2">
-          <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span>{{ _('Self-hosted: no data processing on your behalf, no DPA needed') }}</span>
-        </li>
-        <li class="flex items-start gap-2">
-          <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span>{{ _('Signed releases + CycloneDX SBOM') }}</span>
-        </li>
-        <li class="flex items-start gap-2">
-          <span class="text-emerald-400 shrink-0 leading-6" aria-hidden="true">✓</span>
-          <span>{{ _('Tamper-evident SHA-256 audit log') }}</span>
-        </li>
+      <ul class="flex-1 space-y-2 text-sm text-ink-soft">
+        {% call uci.check_item() %}{{ _('One-command Docker deploy') }}{% endcall %}
+        {% call uci.check_item() %}{{ _('Self-hosted: no data processing on your behalf, no DPA needed') }}{% endcall %}
+        {% call uci.check_item() %}{{ _('Signed releases + CycloneDX SBOM') }}{% endcall %}
+        {% call uci.check_item() %}{{ _('Tamper-evident SHA-256 audit log') }}{% endcall %}
       </ul>
-      <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/self-hosting.md" target="_blank" rel="noopener" class="block text-center py-2.5 rounded-xl border border-hairline hover:border-brand text-gray-300 hover:text-white transition-colors text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
-        {{ _('Self-hosting guide ↗') }}
-      </a>
+      {{ ub.button(_('Self-hosting guide ↗'), href='https://github.com/MrChengLen/FileMorph/blob/main/docs/self-hosting.md', variant='secondary', full_width=True, external=True) }}
     </div>
     {% endcall %}
 
   </div>
 
-  <p class="text-center text-xs text-ink-muted max-w-3xl mx-auto">
+  <p class="mx-auto max-w-prose-narrow text-sm text-ink-muted">
     {{ _('Fair use for everyone: a concurrency cap per account (per IP address without an account) keeps one batch from starving the server — requests past the cap return') }}
-    <code class="text-gray-400">429</code>
+    <code>429</code>
     {{ _('with a') }}
-    <code class="text-gray-400">Retry-After</code>
+    <code>Retry-After</code>
     {{ _('hint, and large batches are processed one file after another. All requests share the server\'s parallel slots, and the per-minute rate limit is the same for everyone — for example 10 requests per minute to convert or compress a file.') }}
   </p>
 
-  <!-- For organizations -->
+  {# For organizations #}
   <section aria-labelledby="org-title">
     {% call uc.card() %}
     <div class="space-y-4">
-      <h2 id="org-title" class="font-semibold text-ink">{{ _('For public authorities, hospitals and law firms') }}</h2>
-      <div class="bg-brand/10 border border-brand/30 rounded-xl px-4 py-3 text-sm text-gray-300">
+      <h2 id="org-title" class="text-h-card text-ink">{{ _('For public authorities, hospitals and law firms') }}</h2>
+      {% call un.notice() %}
         {{ _('Internal use is already free under AGPL-3.0.') }}
-        <a href="{{ localized_url('/enterprise', current_prefix) }}" class="text-brand-light hover:underline">{{ _('Why →') }}</a>
+        <a href="{{ localized_url('/enterprise', current_prefix) }}" class="text-brand-light underline hover:text-ink-strong">{{ _('Why →') }}</a>
         {{ _('If you need a contract behind it — a commercial license, a named contact, agreed response times — ask us.') }}
-      </div>
-      <a href="{{ localized_url('/enterprise', current_prefix) }}"
-        class="inline-block px-6 py-2.5 rounded-xl bg-brand-dark hover:bg-brand-deep text-white transition-colors text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
-        {{ _('See the Compliance Edition →') }}
-      </a>
+      {% endcall %}
+      {{ ub.button(_('See the Compliance Edition →'), href=localized_url('/enterprise', current_prefix)) }}
     </div>
     {% endcall %}
   </section>
 
-  <!-- Questions about cost and limits — question-style H3s, as in the homepage FAQ -->
+  {# Questions about cost and limits — question-style H3s, as in the homepage FAQ #}
   <section class="space-y-4" aria-labelledby="pricing-faq-title">
     <h2 id="pricing-faq-title" class="text-center text-h-sect text-ink">{{ _('Questions about cost and limits') }}</h2>
-    <div class="space-y-3 text-sm leading-relaxed max-w-3xl mx-auto">
-      <div>
-        <h3 class="font-semibold text-gray-200">{{ _('Will there be paid plans?') }}</h3>
-        <p class="text-gray-400">{{ _('Not at the moment. If that changes, it will be announced here in advance — never as a surprise.') }}</p>
+    <div class="mx-auto max-w-prose-narrow space-y-6 leading-relaxed">
+      <div class="space-y-1">
+        <h3 class="text-h-card text-ink">{{ _('Will there be paid plans?') }}</h3>
+        <p class="text-ink-muted">{{ _('Not at the moment. If that changes, it will be announced here in advance — never as a surprise.') }}</p>
       </div>
-      <div>
-        <h3 class="font-semibold text-gray-200">{{ _('What do I need an account for?') }}</h3>
-        <p class="text-gray-400">{{ _('For larger files, batch uploads of several files and an API key. Single files work without an account — on the website and via the API.') }}</p>
+      <div class="space-y-1">
+        <h3 class="text-h-card text-ink">{{ _('What do I need an account for?') }}</h3>
+        <p class="text-ink-muted">{{ _('For larger files, batch uploads of several files and an API key. Single files work without an account — on the website and via the API.') }}</p>
       </div>
-      <div>
-        <h3 class="font-semibold text-gray-200">{{ _('What if my file is too large?') }}</h3>
-        <p class="text-gray-400">{{ _('With a free account our server takes files up to') }} {{ plans.free.max_file_size_mb }} MB. {{ _('For larger files, run FileMorph on your own server — there you set the limits.') }}</p>
+      <div class="space-y-1">
+        <h3 class="text-h-card text-ink">{{ _('What if my file is too large?') }}</h3>
+        <p class="text-ink-muted">{{ _('With a free account our server takes files up to') }} {{ plans.free.max_file_size_mb }} MB. {{ _('For larger files, run FileMorph on your own server — there you set the limits.') }}</p>
       </div>
     </div>
   </section>
   {% endif %}
 
-  <!-- ───────────────────────── Honest trust band ───────────────────────── -->
+  {# ── Honest trust band ── #}
   {% call uc.card() %}
   <div class="space-y-4">
-    <p class="font-semibold text-ink">{{ _('What you can verify today') }}</p>
-    <ul class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm text-gray-300">
-      <li class="flex items-start gap-2"><span class="text-emerald-400" aria-hidden="true">✓</span> <span>{% include "partials/hosting_note.html" %}</span></li>
-      <li class="flex items-start gap-2"><span class="text-emerald-400" aria-hidden="true">✓</span> {{ _('Full source on GitHub (AGPLv3)') }}</li>
-      <li class="flex items-start gap-2"><span class="text-emerald-400" aria-hidden="true">✓</span> {{ _('EU vendor with German imprint') }}</li>
-      <li class="flex items-start gap-2"><span class="text-emerald-400" aria-hidden="true">✓</span> {{ _('CycloneDX SBOM per release') }}</li>
-      <li class="flex items-start gap-2"><span class="text-emerald-400" aria-hidden="true">✓</span> {{ _('Signed releases (cosign + GPG)') }}</li>
-      <li class="flex items-start gap-2"><span class="text-emerald-400" aria-hidden="true">✓</span> {{ _('Tamper-evident audit log') }}</li>
+    <p class="text-h-card text-ink">{{ _('What you can verify today') }}</p>
+    <ul class="grid grid-cols-1 gap-2 text-sm text-ink-soft sm:grid-cols-2 lg:grid-cols-3">
+      {% call uci.check_item() %}{% include "partials/hosting_note.html" %}{% endcall %}
+      {% call uci.check_item() %}{{ _('Full source on GitHub (AGPLv3)') }}{% endcall %}
+      {% call uci.check_item() %}{{ _('EU vendor with German imprint') }}{% endcall %}
+      {% call uci.check_item() %}{{ _('CycloneDX SBOM per release') }}{% endcall %}
+      {% call uci.check_item() %}{{ _('Signed releases (cosign + GPG)') }}{% endcall %}
+      {% call uci.check_item() %}{{ _('Tamper-evident audit log') }}{% endcall %}
     </ul>
-    <p class="text-xs text-ink-faint">
+    <p class="max-w-prose-narrow text-sm text-ink-muted">
       {{ _('Being transparent about what is not done yet: no external ISO 27001 certification and no external penetration test yet (both planned once a paying pilot justifies the cost). The newest signed release on GitHub carries a CycloneDX SBOM and an image digest; changes since then ship in the continuously built image ahead of the next tag. Everything else above is in the repository today and auditable.') }}
     </p>
   </div>
   {% endcall %}
 
   {% if stripe_enabled %}
-  {% if ai_operations_enabled %}
-  <p class="text-center text-xs text-ink-faint max-w-3xl mx-auto">
-    {{ _('* PII redaction finds and removes structured personal data — email addresses, IBANs, phone numbers, IPv4 addresses and credit-card numbers — in TXT, DOCX and XLSX. It does not yet detect free-text names or postal addresses, and PDF is not yet supported. It assists a review; it does not guarantee completeness.') }}
-  </p>
-  {% endif %}
-
-  <p class="text-center text-xs text-ink-faint">
-    {{ _('Kleinunternehmer gemäß §19 UStG — keine Umsatzsteuer ausgewiesen (no VAT charged, small-business rule, §19 German VAT Act). Payments processed by Stripe.') }}
-  </p>
+  <div class="mx-auto max-w-prose-narrow space-y-2 text-sm text-ink-muted">
+    {% if ai_operations_enabled %}
+    <p>{{ _('* PII redaction finds and removes structured personal data — email addresses, IBANs, phone numbers, IPv4 addresses and credit-card numbers — in TXT, DOCX and XLSX. It does not yet detect free-text names or postal addresses, and PDF is not yet supported. It assists a review; it does not guarantee completeness.') }}</p>
+    {% endif %}
+    <p>{{ _('Kleinunternehmer gemäß §19 UStG — keine Umsatzsteuer ausgewiesen (no VAT charged, small-business rule, §19 German VAT Act). Payments processed by Stripe.') }}</p>
+  </div>
   {% endif %}
 
 </div>

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Pricing-page audience toggle: "For developers & SaaS" <-> "For public sector
+// Pricing-page audience switch: "For developers & SaaS" <-> "For public sector
 // & compliance". CSP-safe — no inline handlers, wired via addEventListener.
-// Mirrors the Convert/Compress mode toggle pattern in app.js. With JS off both
-// panels stay visible (panel-gov has the `hidden` class only after JS runs is
-// not the case here — it ships hidden in markup; the no-JS fallback is that the
-// always-visible comparison table below still shows every tier).
+// The switch is the segmented component (_components/segmented.html): its look
+// follows aria-pressed alone, so this script sets aria-pressed and shows one
+// panel, and never touches classes. panel-gov ships hidden in the markup;
+// without JS the comparison table below still lists every tier.
 document.addEventListener("DOMContentLoaded", () => {
   const segDev = document.getElementById("seg-dev");
   const segGov = document.getElementById("seg-gov");
@@ -18,12 +18,6 @@ document.addEventListener("DOMContentLoaded", () => {
     panelGov.classList.toggle("hidden", dev);
     segDev.setAttribute("aria-pressed", dev ? "true" : "false");
     segGov.setAttribute("aria-pressed", dev ? "false" : "true");
-    segDev.classList.toggle("bg-brand-dark", dev);
-    segDev.classList.toggle("text-white", dev);
-    segDev.classList.toggle("text-gray-400", !dev);
-    segGov.classList.toggle("bg-brand-dark", !dev);
-    segGov.classList.toggle("text-white", !dev);
-    segGov.classList.toggle("text-gray-400", dev);
   }
 
   segDev.addEventListener("click", () => show("dev"));

@@ -1,4 +1,4 @@
-{# card(border='default', padded='md', shadow=True, id=None, hidden=False, interactive=False)
+{# card(border='default', padded='md', shadow=True, id=None, hidden=False, interactive=False, badge=None)
 
    Surface card with hairline border + radius-card + canonical
    padding. The body is yielded via {{ caller() }}, so this is a
@@ -23,16 +23,22 @@
              the card (/tools). Positions the card for that overlay
              and highlights the border on hover. Nothing else in such
              a card may be a link or button: the overlay covers it.
+   badge   — a short label in a pill on the top edge, centred (the
+             highlighted pricing tier: "Most popular"). Positions the
+             card for it. The text comes in translated: _components/ is
+             not scanned for strings.
 #}
-{% macro card(border='default', padded='md', shadow=True, id=None, hidden=False, interactive=False) %}
+{% macro card(border='default', padded='md', shadow=True, id=None, hidden=False, interactive=False, badge=None) %}
 <div class="bg-surface-raised rounded-card
             {% if border == 'brand' %}border-2 border-brand{% else %}border border-hairline{% endif %}
             {% if padded == 'lg' %}p-4 sm:p-card-pad-lg{% else %}p-4 sm:p-card-pad-md{% endif %}
             {% if shadow %}shadow-card{% endif %}
-            {% if interactive %}relative hover:border-brand transition-colors{% endif %}
+            {% if interactive or badge %}relative{% endif %}
+            {% if interactive %}hover:border-brand transition-colors{% endif %}
             {% if hidden %}hidden{% endif %}"
      {% if id %}id="{{ id }}"{% endif %}
      data-component="card">
+  {% if badge %}<span class="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-pill bg-brand-dark px-3 py-1 text-xs font-bold text-ink-strong">{{ badge }}</span>{% endif %}
   {{ caller() }}
 </div>
 {% endmacro %}

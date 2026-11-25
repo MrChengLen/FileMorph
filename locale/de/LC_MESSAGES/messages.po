@@ -807,6 +807,10 @@ msgid "Contact form"
 msgstr "Kontaktformular"
 
 msgid "Contact us"
+msgstr "Kontakt"
+
+msgctxt "price"
+msgid "Contact us"
 msgstr "Auf Anfrage"
 
 msgid "Contact:"
@@ -2946,8 +2950,8 @@ msgstr "Schreib uns — wir melden uns bei dir."
 
 msgid "Sending messages through this form is not set up on this server."
 msgstr ""
-"Das Senden von Nachrichten über dieses Formular ist auf diesem Server nicht "
-"eingerichtet."
+"Das Senden von Nachrichten über dieses Formular ist auf diesem Server "
+"nicht eingerichtet."
 
 msgid "Sending…"
 msgstr "Sende …"

@@ -10,8 +10,10 @@
               aria_label and data (a dict of data-* attributes, rendered by
               data_attrs.html).
    id       — the group's id.
-   label_id — id of the visible label that names the group; with it the row
-              is a role="group".
+   label_id — id of the label that names the group; with it the row is a
+              role="group". The label is visible where the page shows one
+              (the convert and redact modes) and may be sr-only where the
+              options speak for themselves (the /pricing audience switch).
 #}
 {% import "_components/data_attrs.html" as uda %}
 {% macro segmented(options, id=None, label_id=None) %}

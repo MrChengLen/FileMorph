@@ -22,6 +22,7 @@ from __future__ import annotations
 import re
 
 import pytest
+from bs4 import BeautifulSoup
 
 from app.core.config import settings
 from app.core.templates import templates
@@ -55,6 +56,20 @@ def test_self_host_default_hides_saas_prices(client, monkeypatch):
     assert "€3" not in body
     assert "€9" not in body
     assert "Contact us" in body  # placeholder for the unconfigured paid tiers
+
+
+def test_contact_us_has_two_german_translations(client, monkeypatch):
+    """The plan-card placeholder is its own catalogue entry (pgettext context
+    "price"): German reads "Auf Anfrage" there, while the same English words
+    head the contact page, which reads "Kontakt" (it used to say "Auf Anfrage")."""
+    _enable_pricing(monkeypatch)
+    monkeypatch.setattr(settings, "price_pro_display", "")
+    monkeypatch.setattr(settings, "price_business_display", "")
+    plan_cards = BeautifulSoup(client.get("/de/pricing").text, "html.parser")
+    placeholders = [p for p in plan_cards.find_all("p") if p.get_text(strip=True) == "Auf Anfrage"]
+    assert len(placeholders) == 2
+    heading = BeautifulSoup(client.get("/de/contact").text, "html.parser").find("h1")
+    assert heading.get_text(strip=True) == "Kontakt"
 
 
 def test_quota_numbers_come_from_quotas(client, monkeypatch):
