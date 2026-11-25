@@ -477,7 +477,7 @@ addition, two events to the hash-chained audit log
 the account ID; payload: `had_subscription`, `deletion_mode`) and
 `auth.account_deletion.completed` after it (payload: `deletion_mode`).
 Neither payload holds the email domain: it sits in the hash chain and
-could never be erased, and a personal domain names its owner. The
+could not be erased on request, and a personal domain names its owner. The
 domain goes only into the structured log line below. Events written
 before this change still carry it (on filemorph.io: up to and including
 12 October 2026).

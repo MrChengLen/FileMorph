@@ -501,6 +501,9 @@ From then on:
 - **The audit log:** as the owner of `audit_events`, `filemorph_app` can
   switch off its append-only trigger. The role protects the database
   server, not the audit log, against someone holding the app's login.
+  With the triggers on, the only deletion they allow is that of entries
+  older than three years, which the app runs at start-up and then once
+  a day; TRUNCATE is refused.
 - **After a suspected compromise** of the app or the database, restore a dump
   from before the incident into a new volume instead of relying on these
   steps: a superuser can leave roles, grants and settings behind that they

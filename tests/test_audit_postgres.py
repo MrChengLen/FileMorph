@@ -13,6 +13,13 @@ verifying under recipe 1, the trigger guards the new column too, the plain-SQL
 check ``VERIFY_CHAIN_SQL`` finds what ``verify_chain`` finds, and the
 downgrade refuses once recipe-2 rows exist.
 
+Migration 014 drops ``actor_ip`` with the addresses older rows held and
+rewrites the table; the chain still verifies. Migration 015 lets the trigger
+pass the deletion of entries older than three years and no other, and refuses
+TRUNCATE; a run of ``delete_expired_events`` deletes those but the newest,
+both chain checks pass afterwards, and a deletion without its record or
+with a forged one fails them; both checks agree on malformed records.
+
 These tests run ``alembic upgrade head`` against the database in
 ``FILEMORPH_TEST_POSTGRES_URL`` (an asyncpg URL) and skip without it. Every
 test empties the tables, so the database name must contain ``test``. CI's
@@ -25,10 +32,12 @@ is no superuser, as docs/self-hosting.md recommends for the app;
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import re
 import subprocess
 import sys
+from datetime import timedelta
 from pathlib import Path
 from unittest.mock import AsyncMock
 
@@ -48,12 +57,14 @@ from app.core.audit import (
     VERIFY_CHAIN_SQL,
     _canonical_payload,
     _compute_hash,
+    _compute_hash_v2,
     verify_chain,
 )
 from app.core.auth import hash_password
 from app.db.base import get_db
 from app.db.models import AuditEvent, User
 from app.main import app
+from tests.support.audit_records import RECORD_CASES, record_payload
 
 _ROOT = Path(__file__).resolve().parent.parent
 _ENV = "FILEMORPH_TEST_POSTGRES_URL"
@@ -102,12 +113,14 @@ def pg_factory():
 
 @pytest.fixture
 def pg(pg_factory):
-    """Empty tables for each test. TRUNCATE fires no row triggers, so the
-    append-only trigger does not refuse the cleanup."""
+    """Empty tables for each test. Migration 015 refuses TRUNCATE; the
+    tables' owner switches its triggers off for the cleanup."""
 
     async def _truncate():
         async with pg_factory() as s:
+            await s.execute(text("ALTER TABLE audit_events DISABLE TRIGGER USER"))
             await s.execute(text("TRUNCATE audit_events, users RESTART IDENTITY CASCADE"))
+            await s.execute(text("ALTER TABLE audit_events ENABLE TRIGGER USER"))
             await s.commit()
 
     asyncio.run(_truncate())
@@ -447,6 +460,316 @@ def test_013_downgrade_refuses_while_recipe_2_rows_exist(pg):
     try:
         assert down.returncode != 0
         assert "refusing to drop the column" in down.stdout + down.stderr
+    finally:
+        _upgrade_to_head()
+
+
+# ── Migration 014: actor_ip dropped ──────────────────────────────────────────
+
+_BEFORE_014 = "013_audit_hash_version"
+_BEFORE_015 = "014_audit_drop_actor_ip"
+_DOC_IP = "203.0.113.7"  # RFC 5737 documentation address
+
+
+async def _audit_columns(session: AsyncSession) -> set[str]:
+    rows = await session.execute(
+        text(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_schema = current_schema() AND table_name = 'audit_events'"
+        )
+    )
+    return set(rows.scalars().all())
+
+
+@needs_postgres
+def test_014_drops_the_ip_column_with_the_addresses_in_it(pg):
+    """Rows written before the app stopped recording addresses lose them; the
+    chain verifies as before; the downgrade brings back an empty column."""
+    down = _alembic("downgrade", _BEFORE_014)  # the pg fixture left the table empty
+    assert down.returncode == 0, down.stdout + down.stderr
+    try:
+
+        async def _write_old_rows():
+            async with pg() as s:
+                filenode = await s.scalar(text("SELECT pg_relation_filenode('audit_events')"))
+                prev = GENESIS_PREV_HASH
+                for i in range(2):
+                    canonical = _canonical_payload({"i": i})
+                    record = _compute_hash(prev, canonical)
+                    await s.execute(
+                        text(
+                            "INSERT INTO audit_events (event_type, actor_ip, payload_json, "
+                            "prev_hash, record_hash) VALUES ('convert.success', :ip, :payload, "
+                            ":prev, :record)"
+                        ),
+                        {"ip": _DOC_IP, "payload": canonical, "prev": prev, "record": record},
+                    )
+                    prev = record
+                await s.commit()
+                return filenode
+
+        filenode_before = asyncio.run(_write_old_rows())
+    finally:
+        _upgrade_to_head()
+
+    async def _after_upgrade():
+        async with pg() as s:
+            filenode = await s.scalar(text("SELECT pg_relation_filenode('audit_events')"))
+            await audit_module.record_event("test.event", payload={"i": 2}, db=s)
+        async with pg() as s:
+            return (
+                filenode,
+                await _audit_columns(s),
+                await verify_chain(s),
+                await _first_broken_row_by_sql(s),
+            )
+
+    filenode_after, columns, broken_at, broken_by_sql = asyncio.run(_after_upgrade())
+    # VACUUM FULL wrote the table anew, without the dropped values.
+    assert filenode_after != filenode_before
+    assert "actor_ip" not in columns
+    assert broken_at is None
+    assert broken_by_sql is None
+
+    down = _alembic("downgrade", _BEFORE_014)
+    try:
+        assert down.returncode == 0, down.stdout + down.stderr
+
+        async def _ips():
+            async with pg() as s:
+                rows = await s.execute(text("SELECT actor_ip FROM audit_events"))
+                return rows.scalars().all()
+
+        assert asyncio.run(_ips()) == [None, None, None]
+    finally:
+        _upgrade_to_head()
+
+
+# ── Migration 015: entries older than three years may be deleted ─────────────
+
+# Literal intervals: asyncpg binds a parameter cast to interval as a timedelta,
+# which has no calendar years.
+_INSERT_AGED = {
+    "expired": (
+        "INSERT INTO audit_events (occurred_at, event_type, payload_json, prev_hash, "
+        "record_hash, hash_version) VALUES (now() - interval '3 years 1 minute', "
+        "'test.event', '{}', :prev, :record, 2)"
+    ),
+    "not-yet": (
+        "INSERT INTO audit_events (occurred_at, event_type, payload_json, prev_hash, "
+        "record_hash, hash_version) VALUES (now() - interval '3 years' + interval '1 minute', "
+        "'test.event', '{}', :prev, :record, 2)"
+    ),
+}
+
+
+async def _insert_aged_row(session: AsyncSession, age: str) -> None:
+    await session.execute(text(_INSERT_AGED[age]), {"prev": GENESIS_PREV_HASH, "record": "a" * 64})
+    await session.commit()
+
+
+@needs_postgres
+@pytest.mark.parametrize("age", sorted(_INSERT_AGED))
+def test_trigger_lets_through_only_entries_older_than_three_years(pg, age):
+    async def _run():
+        async with pg() as s:
+            await _insert_aged_row(s, age)
+            if age == "expired":
+                await s.execute(text("DELETE FROM audit_events"))
+                await s.commit()
+                return await s.scalar(select(func.count()).select_from(AuditEvent))
+            with pytest.raises(DBAPIError, match="append-only"):
+                await s.execute(text("DELETE FROM audit_events"))
+            return None
+
+    assert asyncio.run(_run()) == (0 if age == "expired" else None)
+
+
+@needs_postgres
+@pytest.mark.parametrize(
+    "statement", ["TRUNCATE audit_events", "TRUNCATE users CASCADE"], ids=["table", "cascade"]
+)
+def test_trigger_refuses_truncate(pg, statement):
+    """TRUNCATE fires no row trigger; migration 015's statement trigger
+    refuses it, also when it comes through a cascade."""
+
+    async def _run():
+        async with pg() as s:
+            await audit_module.record_event("test.event", payload={"i": 0}, db=s)
+            with pytest.raises(DBAPIError, match="append-only"):
+                await s.execute(text(statement))
+
+    asyncio.run(_run())
+
+
+async def _insert_recipe_2_row(
+    session: AsyncSession,
+    prev_hash: str,
+    occurred_at,
+    canonical: str,
+    event_type: str = "test.event",
+) -> str:
+    record_hash = _compute_hash_v2(prev_hash, event_type, occurred_at, canonical)
+    await session.execute(
+        text(
+            "INSERT INTO audit_events (occurred_at, event_type, payload_json, prev_hash, "
+            "record_hash, hash_version) VALUES (:at, :type, :payload, :prev, :record, 2)"
+        ),
+        {
+            "at": occurred_at,
+            "type": event_type,
+            "payload": canonical,
+            "prev": prev_hash,
+            "record": record_hash,
+        },
+    )
+    return record_hash
+
+
+@needs_postgres
+def test_a_retention_run_deletes_what_expired_and_the_chain_still_verifies(pg):
+    """Of two entries just past three years the older goes and the newer
+    stays as the start; one just short of it stays too. The app's cutoff
+    and the trigger's agree on both sides of the boundary."""
+
+    async def _run():
+        async with pg() as s:
+            ages = (
+                await s.execute(
+                    text(
+                        "SELECT now() - interval '3 years 2 minutes', "
+                        "now() - interval '3 years 1 minute', "
+                        "now() - interval '3 years' + interval '1 minute'"
+                    )
+                )
+            ).one()
+            prev = GENESIS_PREV_HASH
+            for i, occurred_at in enumerate(ages):
+                prev = await _insert_recipe_2_row(
+                    s, prev, occurred_at, _canonical_payload({"i": i})
+                )
+            await s.commit()
+            await audit_module.record_event("test.event", payload={"i": 3}, db=s)
+        async with pg() as s:
+            deleted = await audit_module.delete_expired_events(s)
+        async with pg() as s:
+            rows = (await s.execute(select(AuditEvent).order_by(AuditEvent.id))).scalars().all()
+            return deleted, rows, await verify_chain(s), await _first_broken_row_by_sql(s)
+
+    deleted, rows, broken_at, broken_by_sql = asyncio.run(_run())
+    assert deleted == 1
+    assert [json.loads(r.payload_json).get("i") for r in rows[:3]] == [1, 2, 3]
+    assert rows[-1].event_type == audit_module.RETENTION_EVENT
+    assert json.loads(rows[-1].payload_json)["deleted"] == 1
+    assert broken_at is None
+    assert broken_by_sql is None
+
+
+@needs_postgres
+def test_a_deletion_without_its_record_fails_both_chain_checks(pg):
+    async def _run():
+        async with pg() as s:
+            expired = await s.scalar(text("SELECT now() - interval '3 years 1 minute'"))
+            first = await _insert_recipe_2_row(
+                s, GENESIS_PREV_HASH, expired, _canonical_payload({"i": 0})
+            )
+            await s.commit()
+            await audit_module.record_event("test.event", payload={"i": 1}, db=s)
+            # Expired, so the trigger lets it go; nothing records the deletion.
+            await s.execute(text("DELETE FROM audit_events WHERE record_hash = :h"), {"h": first})
+            await s.commit()
+            kept = await s.scalar(select(AuditEvent.id))
+            return kept, await verify_chain(s), await _first_broken_row_by_sql(s)
+
+    kept, broken_at, broken_by_sql = asyncio.run(_run())
+    assert broken_at == kept
+    assert broken_by_sql == kept
+
+
+@needs_postgres
+def test_a_forged_record_fails_both_chain_checks(pg):
+    """Young entries cut from the start by the table's owner, then a record
+    naming the cut: the oldest entry left is not three years older."""
+
+    async def _run():
+        async with pg() as s:
+            for i in range(3):
+                await audit_module.record_event("test.event", payload={"i": i}, db=s)
+            rows = (await s.execute(select(AuditEvent).order_by(AuditEvent.id))).scalars().all()
+            await s.execute(text("ALTER TABLE audit_events DISABLE TRIGGER USER"))
+            await s.execute(text("DELETE FROM audit_events WHERE id <= :id"), {"id": rows[1].id})
+            await s.execute(text("ALTER TABLE audit_events ENABLE TRIGGER USER"))
+            await s.commit()
+            payload = {"deleted": 2, audit_module.RETENTION_LINK_KEY: rows[1].record_hash}
+            await audit_module.record_event(audit_module.RETENTION_EVENT, payload=payload, db=s)
+        async with pg() as s:
+            return rows[2].id, await verify_chain(s), await _first_broken_row_by_sql(s)
+
+    oldest, broken_at, broken_by_sql = asyncio.run(_run())
+    assert broken_at == oldest
+    assert broken_by_sql == oldest
+
+
+@needs_postgres
+@pytest.mark.parametrize("payload, written_in_days, vouches", RECORD_CASES)
+def test_only_a_well_formed_past_record_vouches_in_both_checks(
+    pg, payload, written_in_days, vouches
+):
+    """A start that has really expired and a record of the deletion before
+    it: both checks agree on which records vouch for it, and the SQL check
+    answers on every malformed payload instead of failing on the JSON
+    (cases in tests/support/audit_records.py)."""
+
+    async def _run():
+        async with pg() as s:
+            first_at, start_at, now = (
+                await s.execute(
+                    text(
+                        "SELECT now() - interval '3 years 2 minutes', "
+                        "now() - interval '3 years 1 minute', now()"
+                    )
+                )
+            ).one()
+            first = await _insert_recipe_2_row(
+                s, GENESIS_PREV_HASH, first_at, _canonical_payload({"i": 0})
+            )
+            start = await _insert_recipe_2_row(s, first, start_at, _canonical_payload({"i": 1}))
+            await s.commit()
+            # Expired, so the trigger lets it go.
+            await s.execute(text("DELETE FROM audit_events WHERE record_hash = :h"), {"h": first})
+            await _insert_recipe_2_row(
+                s,
+                start,
+                now + timedelta(days=written_in_days),
+                record_payload(payload, first),
+                audit_module.RETENTION_EVENT,
+            )
+            await s.commit()
+            start_id = await s.scalar(select(AuditEvent.id).order_by(AuditEvent.id).limit(1))
+        async with pg() as s:
+            return start_id, await verify_chain(s), await _first_broken_row_by_sql(s)
+
+    start_id, broken_at, broken_by_sql = asyncio.run(_run())
+    expected = None if vouches else start_id
+    assert (broken_at, broken_by_sql) == (expected, expected)
+
+
+@needs_postgres
+def test_015_downgrade_refuses_expired_deletions_again(pg):
+    down = _alembic("downgrade", _BEFORE_015)
+    try:
+        assert down.returncode == 0, down.stdout + down.stderr
+
+        async def _run():
+            async with pg() as s:
+                await _insert_aged_row(s, "expired")
+                with pytest.raises(DBAPIError, match="append-only"):
+                    await s.execute(text("DELETE FROM audit_events"))
+            async with pg() as s:  # the TRUNCATE trigger is gone again
+                await s.execute(text("TRUNCATE audit_events"))
+                await s.commit()
+
+        asyncio.run(_run())
     finally:
         _upgrade_to_head()
 

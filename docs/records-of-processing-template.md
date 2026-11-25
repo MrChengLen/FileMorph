@@ -114,7 +114,7 @@ repository so that:
 | Personal data | Account ID of the actor or, for a failed login, a duplicate registration or a password-reset request, of the account the entered address belongs to, where there is one; nothing derived from an email address (older entries, see Data subjects, may hold a SHA-256 hash of an email address or, for account deletions, its domain); event type; event payload (operation metadata such as format pair, byte counts, output hash — no file content); timestamp; hash of the previous event (chain integrity). No IP address is recorded |
 | Recipients | None |
 | Third-country transfers | None |
-| Retention / erasure | `[operator: the audit log has no built-in retention period yet (one is planned) — rows are append-only and are not pruned automatically. State the period your privacy notice declares and how you prune (a privileged database role that bypasses the append-only trigger). On a hard delete (accounts without a Stripe customer id) the actor identifier is nulled while the event type and payload survive.]` |
+| Retention / erasure | Three years: once a day the application deletes older entries, except the newest of them, which stays as the start of the chain until a younger one expires. On a hard delete (accounts without a Stripe customer id) the actor identifier is nulled while the event type and payload stay for the rest of the three years |
 | TOMs | See [`dpa-tom-annex.md`](dpa-tom-annex.md) |
 
 ### A6 — Server / access logging
@@ -159,7 +159,7 @@ repository so that:
 | Categories of personal data | As specified in the customer's DPA §4 — not determined by the processor in advance |
 | Recipients / sub-processors | As listed in [`sub-processors.md`](sub-processors.md), or the reduced set agreed in the customer's DPA §6 |
 | Third-country transfers | None — except, where the customer's own subscription is billed through Stripe, the transfer described in A3 (US; Stripe DPA + SCCs) |
-| Retention / erasure | Per the customer's DPA — file content ephemeral; audit log per the retention period agreed with the customer (no built-in pruning); deletion / return at end of provision per DPA §10 |
+| Retention / erasure | Per the customer's DPA — file content ephemeral; audit log three years (the application deletes older entries once a day); deletion / return at end of provision per DPA §10 |
 | TOMs | See [`dpa-tom-annex.md`](dpa-tom-annex.md), finalised for the deployment in the customer's DPA Annex II |
 
 (One B1 entry per Compliance-Edition customer — see [`dpa-template.md`](dpa-template.md).)

@@ -85,14 +85,14 @@ or data sale.
   worker, is removed by the startup sweep or the background sweep
   (every 10 minutes) once it is older than 10 minutes — with the default
   settings within about 20 minutes (see `app/main.py`)
-- Audit-event records (see §5 below) — retained per the controller's
-  configured retention policy
+- Audit-event records (see §5 below) — kept for three years, then
+  deleted automatically
 
 ## 5. Audit log and integrity attestation
 
 Every Compliance-Edition deployment writes a tamper-evident audit log
-(SHA-256 hash chain, see `app/core/audit.py` and Migrations 005, 012
-and 013). Each entry contains:
+(SHA-256 hash chain, see `app/core/audit.py` and Migrations 005, 012,
+013 and 015). Each entry contains:
 
 - Event type, timestamp, actor identifier (the account ID, where there
   is one; for a failed login, a duplicate registration or a
@@ -110,7 +110,8 @@ and 013). Each entry contains:
   event type, the UTC timestamp, the payload and the previous entry's
   hash. The actor identifier stays outside the hash, so that it can be
   erased (Art. 17 GDPR) without breaking the chain. `VERIFY_CHAIN_SQL`
-  in `app/core/audit.py` checks the whole chain from a database dump
+  in `app/core/audit.py` (Postgres 16 or later) checks the whole chain
+  from a database dump
 
 No IP address is recorded.
 
@@ -119,11 +120,15 @@ the controller's behalf — useful evidence for, but distinct from, the
 controller's Article 30 *Verzeichnis von Verarbeitungstätigkeiten*
 (Records of Processing Activities), for which see
 [`docs/records-of-processing-template.md`](records-of-processing-template.md).
-The application has no built-in retention period for the audit log yet
-(one is planned): rows are append-only and are not pruned automatically.
-Pruning them takes a privileged database role that bypasses the
-append-only trigger; the retention period and procedure are
-`[RETENTION PERIOD + PROCEDURE]`.
+Entries are kept for three years. Once a day the application deletes
+the expired ones except the newest, which stays as the start of the
+chain until a younger entry expires (`delete_expired_events` in
+`app/core/audit.py`). The append-only trigger allows that deletion and
+no other, and refuses TRUNCATE (Migration 015). Each run records how
+many entries it deleted as an entry of its own; the chain checks
+accept the oldest entry's link to a deleted one only when such a
+record names that link and was written about three years after the
+entry.
 
 Each output of the single-file `/convert` and `/compress` endpoints
 carries an `X-Output-SHA256` response header so the controller can
@@ -230,14 +235,12 @@ Place of jurisdiction is Hamburg, Germany.
 
 1. Review the bracketed placeholders in §1 and §2 and fill them with
    the deployment context.
-2. Replace `[RETENTION PERIOD + PROCEDURE]` in §5 with the agreed
-   audit-log retention period and the pruning procedure.
-3. Start from the [`docs/dpa-tom-annex.md`](dpa-tom-annex.md) template,
+2. Start from the [`docs/dpa-tom-annex.md`](dpa-tom-annex.md) template,
    fill its `[operator: …]` placeholders with the measures specific to
    the deployment (instance location, network segmentation, on-call,
    penetration-test status), and append it as "Annex II — Technical and
    Organisational Measures".
-4. Both parties counter-sign a printed PDF or qualified-electronic
+3. Both parties counter-sign a printed PDF or qualified-electronic
    signature; the FileMorph operator counter-signature is provided
    from `legal@filemorph.io` after the pilot conversation closes.
 

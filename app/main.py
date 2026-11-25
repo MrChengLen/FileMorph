@@ -34,6 +34,7 @@ from app.api.routes import cockpit as cockpit_route
 from app.api.routes import keys as keys_route
 from app.compat import base_dir, setup_ffmpeg_path
 from app.core.assets import file_version, static_url, tailwind_css_filename
+from app.core.audit import delete_expired_events
 from app.core.config import jwt_secret_error, settings
 from app.core.csp import CSP_PROFILES
 from app.core.data_classification import (
@@ -191,6 +192,25 @@ async def _periodic_temp_sweep(
             logger.exception("Periodic temp-dir sweep raised; continuing")
 
 
+# Expired audit entries are deleted at start-up and then once a day.
+_AUDIT_RETENTION_INTERVAL_SECONDS = 24 * 60 * 60
+
+
+async def _periodic_audit_retention(*, interval_seconds: int, stop_event: asyncio.Event) -> None:
+    """Run :func:`delete_expired_events` now and then every
+    ``interval_seconds`` until ``stop_event`` is set. A failed run is
+    logged and does not end the loop: the next run deletes what it left."""
+    while not stop_event.is_set():
+        try:
+            await delete_expired_events()
+        except Exception:
+            logger.exception("Audit retention run raised; continuing")
+        try:
+            await asyncio.wait_for(stop_event.wait(), timeout=interval_seconds)
+        except asyncio.TimeoutError:
+            pass
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     configure_logging(debug=settings.app_debug)
@@ -199,6 +219,9 @@ async def lifespan(app: FastAPI):
     # here logs a broken one at start-up instead of on the first page.
     load_catalogs()
 
+    # Set when the app shuts down; ends the background loops below.
+    stop = asyncio.Event()
+    retention_task: asyncio.Task | None = None
     if engine is not None:
         from app.db.base import Base
         import app.db.models  # noqa: F401 — register all ORM models
@@ -214,6 +237,14 @@ async def lifespan(app: FastAPI):
             logger.info("In-memory SQLite schema created for test harness.")
         else:
             logger.info("Database engine configured; schema managed by Alembic.")
+            # Only where the migrations manage the schema: the in-memory
+            # test harness has neither the trigger nor old entries.
+            retention_task = asyncio.create_task(
+                _periodic_audit_retention(
+                    interval_seconds=_AUDIT_RETENTION_INTERVAL_SECONDS, stop_event=stop
+                ),
+                name="audit-retention",
+            )
 
     if shutil.which("ffmpeg") is None:
         logger.warning(
@@ -229,7 +260,6 @@ async def lifespan(app: FastAPI):
 
     # NEU-B.2: keep sweeping while the process runs, so a long-lived
     # worker that survives many incidents does not accumulate orphans.
-    sweep_stop = asyncio.Event()
     sweep_task: asyncio.Task | None = None
     if settings.temp_sweep_interval_minutes > 0:
         interval = settings.temp_sweep_interval_minutes * 60
@@ -237,7 +267,7 @@ async def lifespan(app: FastAPI):
             _periodic_temp_sweep(
                 interval_seconds=interval,
                 max_age_seconds=sweep_max_age,
-                stop_event=sweep_stop,
+                stop_event=stop,
             ),
             name="temp-sweep",
         )
@@ -245,12 +275,13 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
-        sweep_stop.set()
-        if sweep_task is not None:
-            try:
-                await asyncio.wait_for(sweep_task, timeout=5)
-            except (asyncio.TimeoutError, asyncio.CancelledError):
-                sweep_task.cancel()
+        stop.set()
+        running = [task for task in (sweep_task, retention_task) if task is not None]
+        if running:
+            # One budget for both loops, well inside Docker's 10 s stop grace.
+            _, late = await asyncio.wait(running, timeout=5)
+            for task in late:
+                task.cancel()
 
 
 app = FastAPI(

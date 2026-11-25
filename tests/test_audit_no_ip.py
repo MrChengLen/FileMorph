@@ -3,11 +3,9 @@
 
 Until this change the audit events written for a request carried the
 caller's address in ``audit_events.actor_ip`` — anonymous conversions
-included — and the append-only table keeps its rows. Now nothing on the
-audit path receives the client address, and the ORM no longer maps the
-column. The column itself stays in every Alembic-managed database
-(migration 005 creates it), NULL for new rows, until a migration drops
-it.
+included. Now nothing on the audit path receives the client address, the
+ORM no longer maps the column, and migration 014 dropped it together with
+the addresses older rows held (``tests/test_audit_postgres.py``).
 
 Guards
 ------
@@ -25,9 +23,8 @@ Guards
    in ``app/`` code (catches raw SQL and a re-added mapping too).
 3. Behaviour: requests from a fixed documentation address through the
    real routes and the real recorder leave that address in no column of
-   any audit row, not even shortened or hashed, and the legacy
-   ``actor_ip`` column stays NULL — success and failure paths, anonymous
-   and signed in.
+   any audit row, not even shortened or hashed — success and failure
+   paths, anonymous and signed in.
 """
 
 from __future__ import annotations
@@ -100,7 +97,7 @@ def test_chain_insert_has_no_ip_parameter():
 
 def test_audit_model_maps_no_ip_column():
     """SQLAlchemy writes every mapped column into each INSERT, so a mapped
-    ``actor_ip`` would break every audit write once the column is dropped."""
+    ``actor_ip`` would break every audit write: migration 014 dropped it."""
     columns = set(AuditEvent.__table__.c.keys())
     assert not {c for c in columns if _tokens(c) & _ADDRESS_TOKENS}, columns
 
@@ -260,9 +257,6 @@ _TestSession = async_sessionmaker(_test_engine, expire_on_commit=False, class_=A
 async def _setup_schema() -> None:
     async with _test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-        # Every Alembic-managed database still has this column (migration 005)
-        # until a later migration drops it; the model no longer maps it.
-        await conn.execute(text("ALTER TABLE audit_events ADD COLUMN actor_ip VARCHAR(45)"))
 
 
 async def _wipe() -> None:
@@ -275,17 +269,6 @@ async def _wipe() -> None:
 async def _override_get_db():
     async with _TestSession() as session:
         yield session
-
-
-def _legacy_ips() -> list[str]:
-    async def _q():
-        async with _TestSession() as s:
-            res = await s.execute(
-                text("SELECT actor_ip FROM audit_events WHERE actor_ip IS NOT NULL")
-            )
-            return list(res.scalars().all())
-
-    return asyncio.run(_q())
 
 
 def _audit_rows() -> list[tuple]:
@@ -338,7 +321,6 @@ def _assert_no_address_stored(expected_events: set[str]) -> None:
     forms = ("203.0.113.", hashlib.sha256(DOC_IP.encode()).hexdigest())
     leaking = [row for row in rows if any(f in str(cell) for cell in row for f in forms)]
     assert not leaking, f"client address stored in audit rows: {leaking}"
-    assert _legacy_ips() == [], "new rows must leave the legacy actor_ip column empty"
 
 
 def _image(fmt: str, size: int) -> io.BytesIO:
@@ -457,14 +439,14 @@ def test_contact_message_stores_no_ip(ip_client, mail):
     [
         (
             "/en/privacy",
-            ["2h. Audit log (Cloud Edition):", "no longer records IP addresses", "time limit"],
+            ["2h. Audit log (Cloud Edition):", "records no IP addresses", "kept for three years"],
         ),
         (
             "/de/privacy",
             [
                 "2h. Audit-Log (Cloud Edition):",
-                "keine IP-Adressen mehr",
-                "zeitliche Begrenzung",
+                "speichert keine IP-Adressen",
+                "drei Jahre aufbewahrt",
             ],
         ),
     ],
@@ -475,7 +457,7 @@ def test_privacy_page_discloses_the_audit_log(client, path, phrases):
     assert not missing, missing
     if path.startswith("/de/"):
         # A missing or fuzzy translation silently falls back to English.
-        for english in ("no longer records IP addresses", "So that we can prove afterwards"):
+        for english in ("records no IP addresses", "So that we can prove afterwards"):
             assert english not in body, english
 
 
