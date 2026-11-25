@@ -571,7 +571,7 @@ async def forgot_password(
     # NEU-B.3: every reset-request lands in the audit chain — both the
     # match-and-send path and the no-match early-return path. It names
     # the account the lookup above matched, if any; nothing derived from
-    # the address goes into the payload, which could never be erased.
+    # the address goes into the payload, which could not be erased on request.
     await audit_record(
         "auth.password_reset.requested",
         actor_user_id=user.id if user is not None else None,

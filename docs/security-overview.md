@@ -691,7 +691,16 @@ mechanically.
   event type, the UTC timestamp, the payload and the previous entry's
   hash. The account ID stays outside the hash so that account deletion
   can clear it. `VERIFY_CHAIN_SQL` in `app/core/audit.py` checks the
-  whole chain in plain Postgres SQL.
+  whole chain in plain Postgres SQL (Postgres 16 or later).
+- Audit entries are kept for three years. Once a day the application
+  deletes the expired ones except the newest, which stays as the start
+  of the chain until a younger entry expires (`delete_expired_events` in
+  `app/core/audit.py`). That is the only deletion the append-only
+  trigger allows, and it refuses TRUNCATE (Migration 015). Each run
+  records how many entries it deleted as an entry of its own; the chain
+  checks accept the oldest entry's link to a deleted one only when such
+  a record names that link and was written about three years after the
+  entry.
 - `RETENTION_HOURS` is an informational knob (default `0` =
   ephemeral by design; the Cloud edition's published privacy
   position). Compliance-edition self-hosters who plan to use the

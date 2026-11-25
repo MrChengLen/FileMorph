@@ -11,7 +11,7 @@ DDG §5 / ECJ C-298/07.
 The message body is **never persisted**. The only record kept is an audit
 event (``contact.message.received``) with the submitter's browser locale.
 Nothing derived from their address goes into it: the payload sits in the
-hash chain and could never be erased. Even that event is skipped on a
+hash chain and could not be erased on request. Even that event is skipped on a
 deployment without ``DATABASE_URL`` (``record_event`` opens its own
 session), so the form works on the Community edition too.
 

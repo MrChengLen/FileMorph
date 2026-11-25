@@ -283,13 +283,14 @@ class AuditEvent(Base):
     The verification routine walks the table in id order and recomputes
     each hash; the first mismatch is the tamper boundary.
 
-    Append-only enforcement at the database layer (Postgres trigger in
-    migration 005) means even a compromised application credential
-    cannot UPDATE or DELETE rows. The one exception (migration 012) is
-    the ``ON DELETE SET NULL`` cascade that clears ``actor_user_id``
-    when the account it names is deleted. SQLite (test harness only) skips the
-    trigger — the migration scopes the trigger to ``dialect.name ==
-    'postgresql'``.
+    Append-only enforcement at the database layer (Postgres triggers in
+    migrations 005 and 015) refuses UPDATE, DELETE and TRUNCATE, with two
+    exceptions: the ``ON DELETE SET NULL`` cascade that clears
+    ``actor_user_id`` when the account it names is deleted (migration
+    012), and deleting an entry older than three years (migration 015,
+    ``delete_expired_events``). The table's owner can switch the triggers
+    off. SQLite (test harness only) skips them — the migrations scope them
+    to ``dialect.name == 'postgresql'``.
 
     The ``payload_json`` column carries the canonical-JSON
     serialisation of the event details (sorted keys, no whitespace).
@@ -331,10 +332,8 @@ class AuditEvent(Base):
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
-    # No ``actor_ip``: the audit log stores no IP addresses. Every
-    # Alembic-managed database still has the nullable column (migration 005
-    # creates it); it is deliberately unmapped, so INSERTs leave it NULL,
-    # until a migration drops it. Don't map it again.
+    # No IP address: the audit log stores none. Migration 014 dropped the
+    # column that held them for entries written before 2026-10-10.
     payload_json: Mapped[str] = mapped_column(String, nullable=False)
     prev_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     record_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)

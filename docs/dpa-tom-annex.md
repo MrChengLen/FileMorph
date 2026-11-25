@@ -159,15 +159,23 @@ physical assets of its own.
 ### Input control (Eingabekontrolle)
 
 - Tamper-evident audit log: SHA-256 hash chain, Postgres append-only
-  trigger — `app/core/audit.py`, Migrations 005, 012 and 013. Each entry
+  trigger — `app/core/audit.py`, Migrations 005, 012, 013 and 015. Each entry
   records which hash format it uses (`hash_version`), and
   `app/core/audit.py` specifies each format; the current one covers the
   event type, the UTC timestamp, the payload and the previous entry's
-  hash. The account ID stays outside the hash on purpose: the one change
+  hash. The account ID stays outside the hash on purpose: the one update
   the trigger allows is a hard account deletion nulling it on that
-  account's events, and the chain still verifies afterwards. The
+  account's events, and the chain still verifies afterwards. The one
+  deletion it allows is that of entries older than three years, which
+  the application runs once a day, keeping the newest expired entry as
+  the start of the chain; it refuses TRUNCATE. Each run records how
+  many entries it deleted as an entry of its own; the chain checks
+  accept the oldest entry's link to a deleted one only when such a
+  record names that link and was written about three years after the
+  entry. The
   `verify_chain` helper, or `VERIFY_CHAIN_SQL` (the same check in plain
-  Postgres SQL, no application code needed), detects retroactive edits
+  Postgres SQL, Postgres 16 or later, no application code needed),
+  detects retroactive edits
   to the hashed fields from a SQL dump alone. Compatible with ISO/IEC
   27001:2022 A.8.15 (logging). It records registration,
   login, email verification, password reset and account deletion;

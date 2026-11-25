@@ -28,12 +28,20 @@ Coverage
 11. Rows hashed with recipe 1 (before ``hash_version``) still verify,
     also with recipe-2 rows chained after them; a relabelled or
     unknown ``hash_version`` flips ``verify_chain`` to that row.
+12. Retention: ``delete_expired_events`` deletes the expired entries at
+    the start of the chain, up to the first younger one, keeps the
+    newest of them and records the run; the chain verifies, also over
+    years of runs. Deleting at the start without that record, beyond it,
+    or behind a forged, future-dated or malformed record flips
+    ``verify_chain`` to the oldest row left. Nothing is deleted when the
+    record fails.
 """
 
 from __future__ import annotations
 
 import asyncio
 import hashlib
+import json
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -48,17 +56,24 @@ from app.core.audit import (
     AuditWriteError,
     GENESIS_PREV_HASH,
     HASH_VERSION,
+    RETENTION_EVENT,
+    RETENTION_LINK_KEY,
+    RETENTION_MIN_AGE,
+    RETENTION_RECORD_MAX_LENGTH,
+    RETENTION_YEARS,
     _canonical_payload,
     _canonical_timestamp,
     _compute_hash,
     _compute_hash_v2,
     _recompute_hash,
     chain_length,
+    delete_expired_events,
     record_event,
     verify_chain,
 )
 from app.core.config import settings
 from app.db.models import AuditEvent
+from tests.support.audit_records import RECORD_CASES, record_payload
 from tests.support.db import TestSession, cloud_db
 
 _db = cloud_db(override_get_db=False)
@@ -463,3 +478,227 @@ async def test_relabelled_hash_version_breaks_verification(audit_session, versio
     await audit_session.commit()
 
     assert await verify_chain(audit_session) == target.id
+
+
+# ── 12. Retention: entries older than three years ──────────────────
+
+_EXPIRED = timedelta(days=1100)  # more than three calendar years ago
+_KEPT = timedelta(days=1090)  # less than three calendar years ago
+
+
+async def _append_row_at(
+    session: AsyncSession,
+    occurred_at: datetime,
+    canonical: str,
+    event_type: str = "test.event",
+) -> AuditEvent:
+    """What ``record_event`` writes, stamped ``occurred_at`` instead of now."""
+    prev = await session.scalar(
+        select(AuditEvent.record_hash).order_by(AuditEvent.id.desc()).limit(1)
+    )
+    prev_hash = prev or GENESIS_PREV_HASH
+    row = AuditEvent(
+        occurred_at=occurred_at,
+        event_type=event_type,
+        payload_json=canonical,
+        prev_hash=prev_hash,
+        record_hash=_compute_hash_v2(prev_hash, event_type, occurred_at, canonical),
+        hash_version=HASH_VERSION,
+    )
+    session.add(row)
+    await session.commit()
+    return row
+
+
+async def _append_aged(session: AsyncSession, ages: list[timedelta]) -> list[AuditEvent]:
+    now = datetime.now(timezone.utc)
+    return [
+        await _append_row_at(session, now - age, _canonical_payload({"i": i}))
+        for i, age in enumerate(ages)
+    ]
+
+
+@pytest.mark.asyncio
+async def test_retention_keeps_the_newest_expired_entry_and_records_the_run(audit_session):
+    expired = await _append_aged(
+        audit_session, [_EXPIRED + timedelta(minutes=2 - i) for i in range(3)]
+    )
+    (kept,) = await _append_aged(audit_session, [_KEPT])
+    await record_event("test.event", payload={"i": 4}, db=audit_session)
+
+    assert await delete_expired_events(audit_session) == 2
+
+    rows = await _rows_in_order(audit_session)
+    assert [r.id for r in rows[:2]] == [expired[-1].id, kept.id]
+    assert rows[-1].event_type == RETENTION_EVENT
+    assert json.loads(rows[-1].payload_json) == {
+        "deleted": 2,
+        RETENTION_LINK_KEY: expired[1].record_hash,
+    }
+    assert await verify_chain(audit_session) is None
+
+
+@pytest.mark.asyncio
+async def test_retention_stops_at_the_first_entry_that_has_not_expired(audit_session):
+    """The clock went back: an expired entry sits behind a younger one. It
+    waits for a later run, so the entries left stay one chain."""
+    first, second, younger, behind = await _append_aged(
+        audit_session, [_EXPIRED, _EXPIRED - timedelta(minutes=1), _KEPT, _EXPIRED]
+    )
+
+    assert await delete_expired_events(audit_session) == 1
+
+    rows = await _rows_in_order(audit_session)
+    assert [r.id for r in rows[:3]] == [second.id, younger.id, behind.id]
+    assert await verify_chain(audit_session) is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("ages", [[_KEPT], [_EXPIRED, _KEPT]], ids=["none", "only-the-first"])
+async def test_retention_with_nothing_before_the_newest_expired_changes_nothing(
+    audit_session, ages
+):
+    await _append_aged(audit_session, ages)
+
+    assert await delete_expired_events(audit_session) == 0
+    assert await chain_length(audit_session) == len(ages)
+
+
+@pytest.mark.asyncio
+async def test_retention_over_the_years_keeps_one_verifiable_chain(audit_session, monkeypatch):
+    """Runs every half year for eight years: entries expire, then the
+    deletion records themselves; the chain verifies after every run."""
+    start = datetime(2026, 6, 1, tzinfo=timezone.utc)
+    clock = [start]
+
+    class _Clock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return clock[0]
+
+    monkeypatch.setattr(audit_module, "datetime", _Clock)
+    deleted = 0
+    for half_year in range(17):
+        clock[0] = start + timedelta(days=182 * half_year)
+        await record_event("test.event", payload={"half_year": half_year}, db=audit_session)
+        deleted += await delete_expired_events(audit_session)
+        assert await verify_chain(audit_session) is None, half_year
+
+    oldest = (await _rows_in_order(audit_session))[0]
+    age = clock[0] - audit_module._as_utc(oldest.occurred_at)
+    assert deleted > 0
+    assert timedelta(days=3 * 365) < age < timedelta(days=3 * 365 + 183)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("fail_closed", [False, True], ids=["open", "fail-closed"])
+async def test_retention_deletes_nothing_it_cannot_record(audit_session, monkeypatch, fail_closed):
+    await _append_aged(audit_session, [_EXPIRED, _EXPIRED - timedelta(minutes=1), _KEPT])
+    monkeypatch.setattr(settings, "audit_fail_closed", fail_closed)
+
+    def _broken(*_args):
+        raise RuntimeError("hash failed")
+
+    monkeypatch.setattr(audit_module, "_compute_hash_v2", _broken)
+    if fail_closed:
+        with pytest.raises(AuditWriteError):
+            await delete_expired_events(audit_session)
+    else:
+        assert await delete_expired_events(audit_session) == 0
+
+    async with TestSession() as fresh:
+        assert await chain_length(fresh) == 3
+
+
+@pytest.mark.asyncio
+async def test_a_deleted_start_without_its_record_breaks_verification(audit_session):
+    for i in range(3):
+        await record_event("test.event", payload={"i": i}, db=audit_session)
+    rows = await _rows_in_order(audit_session)
+    await audit_session.delete(rows[0])
+    await audit_session.commit()
+
+    assert await verify_chain(audit_session) == rows[1].id
+
+
+@pytest.mark.asyncio
+async def test_deleting_beyond_the_recorded_deletion_breaks_verification(audit_session):
+    await _append_aged(audit_session, [_EXPIRED, _EXPIRED - timedelta(minutes=1), _KEPT, _KEPT])
+    assert await delete_expired_events(audit_session) == 1
+    rows = await _rows_in_order(audit_session)
+    await audit_session.delete(rows[0])
+    await audit_session.commit()
+
+    assert await verify_chain(audit_session) == rows[1].id
+
+
+@pytest.mark.asyncio
+async def test_a_forged_deletion_record_cannot_hide_removed_entries(audit_session):
+    """Young entries cut from the start, then a record appended that names
+    the cut: the oldest entry left is not three years older than the record."""
+    for i in range(6):
+        await record_event("test.event", payload={"i": i}, db=audit_session)
+    rows = await _rows_in_order(audit_session)
+    for row in rows[:4]:
+        await audit_session.delete(row)
+    await audit_session.commit()
+    forged = _canonical_payload({"deleted": 4, RETENTION_LINK_KEY: rows[3].record_hash})
+    assert await audit_module._do_record(audit_session, RETENTION_EVENT, None, forged)
+
+    assert await verify_chain(audit_session) == rows[4].id
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("payload, written_in_days, vouches", RECORD_CASES)
+async def test_only_a_well_formed_past_record_vouches_for_the_start(
+    audit_session, payload, written_in_days, vouches
+):
+    """An expired entry whose predecessor is gone, and a record of that
+    deletion: only the app's own payload, written by now, vouches
+    (cases in tests/support/audit_records.py)."""
+    first, second, _ = await _append_aged(
+        audit_session, [_EXPIRED, _EXPIRED - timedelta(minutes=1), _KEPT]
+    )
+    await audit_session.delete(first)
+    await audit_session.commit()
+    await _append_row_at(
+        audit_session,
+        datetime.now(timezone.utc) + timedelta(days=written_in_days),
+        record_payload(payload, first.record_hash),
+        RETENTION_EVENT,
+    )
+
+    assert await verify_chain(audit_session) == (None if vouches else second.id)
+
+
+@pytest.mark.asyncio
+async def test_retention_counts_calendar_years(audit_session, monkeypatch):
+    """29 February goes back to 28 February, as ``interval '3 years'`` in
+    migration 015's trigger does."""
+
+    class _LeapDay(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime(2028, 2, 29, 12, 0, tzinfo=timezone.utc)
+
+    monkeypatch.setattr(audit_module, "datetime", _LeapDay)
+    cutoff = await audit_module._retention_cutoff(audit_session)
+    assert cutoff == datetime(2025, 2, 28, 12, 0, tzinfo=timezone.utc)
+
+
+def test_verify_chain_sql_spells_the_retention_rule():
+    """The SQL check repeats in literals what the Python check reads from
+    constants, and migration 015's trigger spells the period."""
+    hours = int(RETENTION_MIN_AGE.total_seconds() // 3600)
+    for literal in (
+        f"'{RETENTION_EVENT}'",
+        f"'{RETENTION_LINK_KEY}'",
+        f"interval '{hours} hours'",
+        f"length(deletion.payload_json) > {RETENTION_RECORD_MAX_LENGTH}",
+        "position(chr(92) in deletion.payload_json)",
+    ):
+        assert literal in VERIFY_CHAIN_SQL, literal
+    migration = (
+        Path(__file__).resolve().parent.parent / "alembic" / "versions" / "015_audit_retention.py"
+    )
+    assert f"interval '{RETENTION_YEARS} years'" in migration.read_text(encoding="utf-8")

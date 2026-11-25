@@ -11,15 +11,21 @@ running our code.
 Three properties hold:
 
 1. **Append-only at the database layer.** Migration 005 installs a
-   Postgres trigger that raises on UPDATE / DELETE; the one exception
-   (migration 012) is the ``ON DELETE SET NULL`` cascade that clears
-   ``actor_user_id`` when that account is deleted. SQLite (test
+   Postgres trigger that raises on UPDATE / DELETE, with two
+   exceptions: the ``ON DELETE SET NULL`` cascade that clears
+   ``actor_user_id`` when that account is deleted (migration 012), and
+   deleting an entry older than ``RETENTION_YEARS`` (migration 015),
+   which ``delete_expired_events`` does once a day; TRUNCATE is
+   refused too (migration 015). SQLite (test
    harness only) skips the trigger; we cover the SQLite path with a
    "verify rejects tampering" test instead.
 2. **Forward chain.** ``record_hash[i]`` is the SHA-256 of
    ``record_hash[i-1]`` plus row i's ``event_type``, ``occurred_at`` and
    canonical payload; the exact byte recipe is in ``_compute_hash_v2``.
-   The first row uses ``'0' * 64`` as the genesis sentinel. Any
+   The first row uses ``'0' * 64`` as the genesis sentinel; once expired
+   entries are deleted, the oldest row left links to a deleted one
+   instead, which the deletion's own entry names (``RETENTION_EVENT``,
+   ``_vouched_start``). Any
    retroactive edit cascades — every row from the tampered one onward
    fails verification. ``hash_version`` names the recipe per row: 2 for
    rows written by this code, 1 for rows written before the column
@@ -54,10 +60,10 @@ import json
 import logging
 import re
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Mapping
 
-from sqlalchemy import select, text
+from sqlalchemy import delete, func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -77,6 +83,29 @@ GENESIS_PREV_HASH = "0" * 64
 # Recipe ``_do_record`` writes (``AuditEvent.hash_version``). Rows from
 # before the column existed carry 1; see ``_recompute_hash``.
 HASH_VERSION = 2
+
+# Entries are kept this many calendar years, then deleted (privacy notice
+# § 2h). Migration 015's trigger refuses to delete anything younger; it
+# spells the same period in SQL.
+RETENTION_YEARS = 3
+
+# The entry ``delete_expired_events`` appends for each run that deleted
+# entries, and the payload key that names the hash the oldest entry left
+# links to. ``VERIFY_CHAIN_SQL`` spells both out.
+RETENTION_EVENT = "audit.retention.deleted"
+RETENTION_LINK_KEY = "last_deleted_hash"
+
+# How much older than the deletion record the oldest entry must be for the
+# record to vouch for its link: three years less a day, the slack for the
+# app's and the database's clocks (three calendar years are 1,095 or
+# 1,096 days). ``VERIFY_CHAIN_SQL`` spells it in hours.
+RETENTION_MIN_AGE = timedelta(days=RETENTION_YEARS * 365 - 1)
+
+# A deletion record names its link only when its payload is at most this
+# long and holds no backslash (the app writes about 100 characters, no
+# escapes): anything else could make the SQL check fail on the JSON
+# instead of answering. ``VERIFY_CHAIN_SQL`` spells both out.
+RETENTION_RECORD_MAX_LENGTH = 200
 
 # Mirror of the metrics-key whitelist: ASCII lower/digit/dot/underscore/
 # hyphen, ≤64 chars. Event types are constructed in code, never from
@@ -131,10 +160,14 @@ def _canonical_timestamp(value: datetime) -> str:
     without an offset and returns it naive; Postgres ``timestamptz``
     comes back timezone-aware, possibly in another zone.
     """
+    return _as_utc(value).replace(tzinfo=None).isoformat(timespec="microseconds") + "Z"
+
+
+def _as_utc(value: datetime) -> datetime:
+    """``value`` as an aware UTC datetime; a naive one is UTC already."""
     if value.tzinfo is None:
-        value = value.replace(tzinfo=timezone.utc)
-    utc = value.astimezone(timezone.utc).replace(tzinfo=None)
-    return utc.isoformat(timespec="microseconds") + "Z"
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
 
 
 def _compute_hash_v2(prev_hash: str, event_type: str, occurred_at: datetime, canonical: str) -> str:
@@ -244,8 +277,9 @@ async def _do_record(
     event_type: str,
     actor_user_id: uuid.UUID | None,
     canonical: str,
-) -> None:
-    """Read the chain head, compute the new hash, INSERT.
+) -> bool:
+    """Read the chain head, compute the new hash, INSERT; return whether
+    the row was committed. A failure rolls back the whole transaction.
 
     Held under ``_chain_lock`` so two concurrent recorders inside the
     same process never see the same prev_hash. Cross-process safety is
@@ -283,18 +317,162 @@ async def _do_record(
                 pass
             if settings.audit_fail_closed:
                 raise AuditWriteError(f"audit insert failed for event_type={event_type}")
+            return False
+    return True
+
+
+async def delete_expired_events(db: AsyncSession | None = None) -> int:
+    """Delete the entries older than ``RETENTION_YEARS``; return how many.
+
+    ``app/main.py`` runs it at start-up and then once a day. It looks at
+    the expired entries at the start of the chain, up to the first one
+    that has not expired (an expired entry written after a younger one,
+    because the clock went back, waits for a later run), keeps the newest
+    of them as the new start and deletes the ones before it. The entries
+    left form one unbroken chain whose oldest entry is older than three
+    years, which ``_vouched_start`` relies on; it goes at the next run
+    that finds a younger expired entry. In the same transaction a
+    ``RETENTION_EVENT`` entry records the number deleted and the hash the
+    kept entry links to (``RETENTION_LINK_KEY``). If that entry can't be
+    written, nothing is deleted.
+
+    ``db is None`` opens its own session, like ``record_event``; without
+    a database (Community Edition) there is nothing to delete.
+    """
+    if db is not None:
+        return await _delete_expired(db)
+    if AsyncSessionLocal is None:
+        return 0
+    async with AsyncSessionLocal() as session:
+        return await _delete_expired(session)
+
+
+async def _delete_expired(db: AsyncSession) -> int:
+    cutoff = await _retention_cutoff(db)
+    first_kept = (
+        select(func.min(AuditEvent.id)).where(AuditEvent.occurred_at >= cutoff).scalar_subquery()
+    )
+    newest_expired = (
+        await db.execute(
+            select(AuditEvent.id, AuditEvent.prev_hash)
+            .where(AuditEvent.occurred_at < cutoff)
+            .where(or_(first_kept.is_(None), AuditEvent.id < first_kept))
+            .order_by(AuditEvent.id.desc())
+            .limit(1)
+        )
+    ).first()
+    if newest_expired is None:
+        return 0
+    deleted = (
+        await db.execute(
+            delete(AuditEvent).where(AuditEvent.id < newest_expired.id),
+            execution_options={"synchronize_session": False},
+        )
+    ).rowcount
+    if not deleted:
+        return 0  # nothing before it, or a run in another process was first
+    payload = {"deleted": deleted, RETENTION_LINK_KEY: newest_expired.prev_hash}
+    if not await _do_record(db, RETENTION_EVENT, None, _canonical_payload(payload)):
+        # Rolled back, the deletion with it. Logged as an error: a run that
+        # keeps failing leaves entries past the period in the privacy notice.
+        logger.error("audit: retention run rolled back; its record could not be written")
+        return 0
+    logger.info("audit: deleted %d entries older than %d years", deleted, RETENTION_YEARS)
+    return deleted
+
+
+async def _retention_cutoff(db: AsyncSession) -> datetime:
+    """``RETENTION_YEARS`` calendar years before now; older entries have
+    expired. On Postgres from this transaction's ``now()``, the moment
+    migration 015's trigger measures from, so the trigger lets through
+    every row ``delete_expired_events`` picks. Elsewhere (the SQLite test
+    harness) from Python's clock."""
+    if db.get_bind().dialect.name == "postgresql":
+        return await db.scalar(
+            text("SELECT now() - make_interval(years => :years)"), {"years": RETENTION_YEARS}
+        )
+    now = datetime.now(timezone.utc)
+    try:
+        return now.replace(year=now.year - RETENTION_YEARS)
+    except ValueError:  # 29 February goes back to 28 February, as in Postgres
+        return now.replace(year=now.year - RETENTION_YEARS, day=28)
+
+
+async def _deletion_records(db: AsyncSession) -> dict[str, list[datetime]]:
+    """When each ``RETENTION_EVENT`` entry was written, by the hash it
+    names (``_named_link``)."""
+    rows = await db.execute(
+        select(AuditEvent.payload_json, AuditEvent.occurred_at).where(
+            AuditEvent.event_type == RETENTION_EVENT
+        )
+    )
+    records: dict[str, list[datetime]] = {}
+    for payload, written in rows:
+        link = _named_link(payload)
+        if link is not None:
+            records.setdefault(link, []).append(_as_utc(written))
+    return records
+
+
+def _named_link(payload: str) -> str | None:
+    """The hash a deletion record names, or ``None``: by the rules
+    ``VERIFY_CHAIN_SQL`` applies, the payload is at most
+    ``RETENTION_RECORD_MAX_LENGTH`` characters, holds no backslash, is
+    valid JSON (no NaN or Infinity) and an object with a string under
+    ``RETENTION_LINK_KEY``."""
+    if len(payload) > RETENTION_RECORD_MAX_LENGTH or "\\" in payload:
+        return None
+    try:
+        named = json.loads(payload, parse_constant=_reject_json_constant)
+    except ValueError:
+        return None
+    link = named.get(RETENTION_LINK_KEY) if isinstance(named, dict) else None
+    return link if isinstance(link, str) else None
+
+
+def _reject_json_constant(name: str) -> None:
+    """NaN and Infinity: Python reads them, Postgres JSON does not."""
+    raise ValueError(f"not JSON: {name}")
+
+
+def _vouched_start(row: AuditEvent, records: dict[str, list[datetime]]) -> bool:
+    """Whether the oldest row may link to a deleted entry: a deletion
+    record names its ``prev_hash``, was written no later than now, and
+    is more than ``RETENTION_MIN_AGE`` younger than the row."""
+    now = datetime.now(timezone.utc)
+    started = _as_utc(row.occurred_at)
+    return any(
+        written <= now and started < written - RETENTION_MIN_AGE
+        for written in records.get(row.prev_hash, ())
+    )
 
 
 # ``verify_chain`` in plain Postgres SQL: the id of the first broken row,
 # or no row. ``IS DISTINCT FROM``, not ``<>``: an unknown hash_version
-# makes the CASE NULL, and ``<>`` would let that row through. It takes no
-# parameters and has no backslashes, so it pastes into psql as it stands.
+# makes the CASE NULL, and ``<>`` would let that row through. The oldest
+# row starts at the genesis sentinel or where a deletion record vouches
+# for it, as in ``_vouched_start``: 26256 hours are ``RETENTION_MIN_AGE``
+# (hours, because day steps would follow the session's daylight-saving
+# shifts), and a payload names only by ``_named_link``'s rules. NOT
+# EXISTS, unlike NOT IN, cannot turn NULL and pass a row unchecked. It
+# takes no parameters and has no backslashes, so it pastes into psql as
+# it stands (Postgres 16 or later, for pg_input_is_valid).
 VERIFY_CHAIN_SQL = """
 SELECT id FROM (
     SELECT *, lag(record_hash) OVER (ORDER BY id) AS expected_prev
     FROM audit_events
 ) AS chain
-WHERE prev_hash IS DISTINCT FROM coalesce(expected_prev, repeat('0', 64))
+WHERE (prev_hash IS DISTINCT FROM coalesce(expected_prev, repeat('0', 64))
+       AND (expected_prev IS NOT NULL OR NOT EXISTS (
+           SELECT 1 FROM audit_events AS deletion
+           WHERE deletion.event_type = 'audit.retention.deleted'
+             AND deletion.occurred_at <= now()
+             AND chain.occurred_at < deletion.occurred_at - interval '26256 hours'
+             AND CASE WHEN length(deletion.payload_json) > 200
+                        OR position(chr(92) in deletion.payload_json) > 0 THEN NULL
+                      WHEN pg_input_is_valid(deletion.payload_json, 'jsonb')
+                      THEN deletion.payload_json::jsonb -> 'last_deleted_hash' END
+                 = to_jsonb(chain.prev_hash))))
    OR record_hash IS DISTINCT FROM CASE hash_version
       WHEN 1 THEN encode(sha256(convert_to(prev_hash || payload_json, 'UTF8')), 'hex')
       WHEN 2 THEN encode(sha256(convert_to(
@@ -317,11 +495,12 @@ async def verify_chain(
     match a recomputed hash, or ``None`` if the chain is intact.
 
     Reads in ascending id order; checks each row's ``prev_hash``
-    against the previous row's ``record_hash``, and recomputes the
-    hash with the recipe the row's ``hash_version`` names against the
-    stored ``record_hash``. Either mismatch — or an unknown
-    ``hash_version`` — is a tamper signal. ``VERIFY_CHAIN_SQL`` is the
-    same full-chain check in plain Postgres SQL, for a SQL dump.
+    against the previous row's ``record_hash`` (the oldest row's against
+    the genesis sentinel, or ``_vouched_start``),
+    and recomputes the hash with the recipe the row's ``hash_version``
+    names against the stored ``record_hash``. Either mismatch — or an
+    unknown ``hash_version`` — is a tamper signal. ``VERIFY_CHAIN_SQL``
+    is the same full-chain check in plain Postgres SQL, for a SQL dump.
 
     ``start_id`` and ``limit`` let an admin verify slices of a long
     chain incrementally rather than scanning the whole table at once.
@@ -332,17 +511,26 @@ async def verify_chain(
     if limit is not None:
         stmt = stmt.limit(limit)
     result = await db.execute(stmt)
+    # Read after the rows, so a retention run that commits in between
+    # rarely leaves the oldest row read without its record.
+    records = await _deletion_records(db) if start_id is None else {}
 
     expected_prev = GENESIS_PREV_HASH
     is_first = True
     async for row in _aiter_rows(result):
         if is_first:
-            # Only the very first row of the table must use the
-            # genesis sentinel. A partial-range verification (start_id
-            # > 1) accepts whatever prev_hash the first inspected row
-            # references; the caller is responsible for chaining
-            # ranges together if they want full coverage.
-            if start_id is None and row.prev_hash != GENESIS_PREV_HASH:
+            # Only the very first row of the table must start the chain:
+            # at the genesis sentinel or, after expired entries were
+            # deleted, where a deletion record vouches for it. A
+            # partial-range verification (start_id > 1) accepts whatever
+            # prev_hash the first inspected row references; the caller
+            # is responsible for chaining ranges together if they want
+            # full coverage.
+            if (
+                start_id is None
+                and row.prev_hash != GENESIS_PREV_HASH
+                and not _vouched_start(row, records)
+            ):
                 return row.id
         elif row.prev_hash != expected_prev:
             return row.id

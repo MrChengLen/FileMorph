@@ -418,10 +418,7 @@ msgstr ""
 msgid "Audio"
 msgstr ""
 
-msgid ""
-"Audit entries are currently kept without a time limit; we plan to delete "
-"them automatically after a fixed period and will update this notice once "
-"that is in place."
+msgid "Audit entries are kept for three years and then deleted automatically."
 msgstr ""
 
 msgid "Audit log + signed releases"
@@ -1586,7 +1583,7 @@ msgstr ""
 msgid "Last updated: 2026-10-21 · Community + Cloud Edition"
 msgstr ""
 
-msgid "Last updated: 2026-11-18 · Community + Cloud Edition"
+msgid "Last updated: 2026-11-25 · Community + Cloud Edition"
 msgstr ""
 
 msgid "Last used"
@@ -2710,8 +2707,8 @@ msgid ""
 msgstr ""
 
 msgid ""
-"The audit log no longer records IP addresses; we are removing the "
-"addresses still stored in older entries."
+"The audit log records no IP addresses; we have deleted the addresses "
+"older entries still held."
 msgstr ""
 
 msgid ""

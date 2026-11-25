@@ -273,12 +273,13 @@ refers to and attaches to the counter-signed contract.
 - **Billing records:** statutory retention under HGB §257 / AO §147
   (typically 10 years from the end of the calendar year of the last
   transaction).
-- **Audit log:** no built-in retention period yet (one is planned) —
-  rows are append-only and are not pruned automatically; pruning takes a
-  privileged database role that bypasses the append-only trigger. The
-  operator sets the period to match the privacy notice. On a hard delete
-  (accounts without a Stripe customer id) the actor identifier is
-  nulled; the event type and payload survive.
+- **Audit log:** three years. Once a day the application deletes the
+  expired entries except the newest, which stays as the start of the
+  chain until a younger entry expires; that is the only deletion the
+  append-only trigger allows. On a hard
+  delete (accounts without a Stripe customer id) the actor identifier is
+  nulled; the event type and payload stay for the rest of the three
+  years.
 - **Server access logs:** operator-side, per the operator's log-rotation
   policy.
 
@@ -323,9 +324,10 @@ and renews certificates automatically.
   is shown once at creation and never logged.
 - **Audit log:** plain Postgres rows protected by an append-only
   trigger and a SHA-256 hash chain — `app/core/audit.py`, Migrations
-  005, 012 and 013. Backups protect the integrity of the at-rest copy; the
+  005, 012, 013 and 015. Backups protect the integrity of the at-rest copy; the
   chain detects retroactive edits to the hashed fields from a SQL dump
-  alone (`VERIFY_CHAIN_SQL` in `app/core/audit.py`).
+  alone (`VERIFY_CHAIN_SQL` in `app/core/audit.py`, Postgres 16 or
+  later).
 - **Database backups:** operator-side. The Compliance Edition deployment
   encrypts backups at rest and stores them off-site; the AGPL operator
   documents their own equivalent in their DPA Annex II.
@@ -617,19 +619,30 @@ regression guards are `tests/test_observability_logs.py` and
 
 Yes. The audit log is a SHA-256 hash chain over append-only Postgres
 rows protected by a database trigger
-(`app/core/audit.py`, Migrations 005, 012 and 013). Each entry records
+(`app/core/audit.py`, Migrations 005, 012, 013 and 015). Each entry records
 which hash format it uses (`hash_version`), and `app/core/audit.py`
 specifies each format; the current one covers the event type, the UTC
 timestamp, the payload and the previous entry's hash. The account ID
-stays outside the hash on purpose: the one change the trigger allows
+stays outside the hash on purpose: the one update the trigger allows
 is the database nulling it on an account's events when that account
 is hard-deleted (Art. 17 GDPR), and the chain still verifies
-afterwards. The `verify_chain` helper, or `VERIFY_CHAIN_SQL` (the same
-check in plain Postgres SQL, no application code needed), detects
-retroactive edits to the hashed fields from a SQL dump alone. Keeping
-the newest entry's `id` and `record_hash` outside the database, for
-example after each external audit, also shows changes the chain cannot
-show on its own, such as entries removed from its end. Compatible with
+afterwards. The one deletion it allows is that of entries older than
+three years, which the application runs once a day, keeping the
+newest expired entry as the start of the chain; it refuses TRUNCATE.
+Each run records how many entries it deleted as an entry of its own;
+the chain checks accept the oldest entry's link to a deleted one only
+when such a record names that link and was written about three years
+after the entry. The
+`verify_chain` helper, or `VERIFY_CHAIN_SQL` (the same
+check in plain Postgres SQL, Postgres 16 or later, no application code
+needed), detects retroactive edits to the hashed fields from a SQL
+dump alone. Keeping the `id`, `record_hash` and `occurred_at` of the
+newest and of the oldest entry outside the database, for example
+after each external audit, also shows changes the chain cannot show
+on its own, such as entries removed from its end or its start. An
+anchored entry may be missing only once it is older than three years;
+a younger one that is gone means entries were removed.
+Compatible with
 ISO/IEC 27001:2022 A.8.15 (logging) expectations.
 
 The chain identifies an actor by account ID (a random UUID), never by
@@ -663,14 +676,13 @@ beA-Anhang-Trail, eDiscovery) can act on.
 
 ### 7.4 What about logs as a data category?
 
-The application sets no audit-log retention period itself yet (a
-built-in retention job is planned): rows are append-only and are not
-pruned automatically. Pruning takes a
-privileged database role that bypasses the append-only trigger, and the
-operator sets the period to match their privacy notice. On a hard
-delete (accounts without a Stripe customer id) the actor identifier is
-nulled while the event type and payload survive — the chain integrity
-is preserved.
+Audit-log entries are kept for three years: once a day the application
+deletes the expired ones except the newest, which stays as the start of
+the chain until a younger entry expires; that is the only deletion the
+append-only trigger allows.
+On a hard delete (accounts without a Stripe customer id) the actor
+identifier is nulled while the event type and payload stay — the chain
+integrity is preserved.
 
 Server access logs (IP, request time, URL, status, response size)
 are written by the reverse proxy and by the application server:

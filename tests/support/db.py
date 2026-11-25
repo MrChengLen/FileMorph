@@ -36,7 +36,6 @@ from types import ModuleType
 
 import bcrypt
 import pytest
-from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
@@ -63,11 +62,6 @@ async def _empty_tables() -> None:
     async with engine.begin() as conn:
         if not _schema_ready:
             await conn.run_sync(Base.metadata.create_all)
-            # Every Alembic-managed database still has this column (migration
-            # 005) until a later migration drops it; the model no longer maps
-            # it. The audit tests that read every stored column (SELECT *)
-            # check it holds no client address.
-            await conn.execute(text("ALTER TABLE audit_events ADD COLUMN actor_ip VARCHAR(45)"))
             _schema_ready = True
         for table in reversed(Base.metadata.sorted_tables):  # children first
             await conn.execute(table.delete())
