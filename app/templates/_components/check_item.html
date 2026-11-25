@@ -1,0 +1,15 @@
+{# check_item()
+
+   One line of a ✓ list (plan features, "what you can verify"): a green tick
+   and the text from the call body, e.g.
+       <ul class="space-y-2 text-sm">
+         {% call uci.check_item() %}{{ _('Signed releases') }}{% endcall %}
+       </ul>
+   The tick takes the text's own line height, so it sits on the first line
+   however the text wraps, and never shrinks. The list (the <ul>, its
+   spacing and text size) belongs to the caller; the text comes from the
+   page because _components/ is not scanned for strings.
+#}
+{% macro check_item() %}
+<li class="flex items-start gap-2" data-component="check-item"><span class="shrink-0 text-tone-ok" aria-hidden="true">✓</span><span>{{ caller() }}</span></li>
+{%- endmacro %}

@@ -10,7 +10,7 @@ Each Tier-1 macro gets at least:
 1. A "happy-path" rendering that confirms shape + tokens.
 2. A variant test (e.g., disabled, brand border) that confirms
    conditional class branches make it into the output.
-3. Where applicable, an a11y assertion (aria-disabled, aria-label, …).
+3. Where applicable, an a11y assertion (the disabled attribute, aria-label, …).
 """
 
 from __future__ import annotations
@@ -235,6 +235,40 @@ def test_card_default_is_not_interactive(env: Environment) -> None:
     classes = soup.find("div", attrs={"data-component": "card"})["class"]
     assert "relative" not in classes
     assert "hover:border-brand" not in classes
+    assert not soup.find("span")  # no badge
+
+
+def test_card_badge_sits_on_the_top_edge(env: Environment) -> None:
+    """The highlighted plan: a pill on the card's top edge, positioned against
+    the card, which gets no hover look (it is not a link)."""
+    soup = _render(
+        env,
+        '{% import "_components/card.html" as card %}'
+        "{% call card.card(border='brand', badge='Most popular') %}body{% endcall %}",
+    )
+    div = soup.find("div", attrs={"data-component": "card"})
+    assert {"relative", "border-brand"} <= set(div["class"])
+    assert "hover:border-brand" not in div["class"]
+    badge = div.find("span")
+    assert badge.get_text() == "Most popular"
+    assert {"absolute", "-top-3", "rounded-pill", "bg-brand-dark"} <= set(badge["class"])
+
+
+# ── check_item ─────────────────────────────────────────────────────────────────
+
+
+def test_check_item_is_a_tick_and_the_call_body(env: Environment) -> None:
+    soup = _render(
+        env,
+        '{% import "_components/check_item.html" as ci %}'
+        "<ul>{% call ci.check_item() %}Signed <strong>releases</strong>{% endcall %}</ul>",
+    )
+    li = soup.find("li", attrs={"data-component": "check-item"})
+    tick, text = li.find_all("span", recursive=False)
+    assert tick.get_text() == "✓" and tick["aria-hidden"] == "true"
+    assert {"shrink-0", "text-tone-ok"} <= set(tick["class"])
+    assert "leading-6" not in tick["class"]  # the tick takes the text's line
+    assert text.get_text() == "Signed releases" and text.find("strong")
 
 
 # ── button ─────────────────────────────────────────────────────────────────────
@@ -267,17 +301,29 @@ def test_button_with_href_renders_anchor(env: Environment) -> None:
     assert a["data-component"] == "button"
 
 
-def test_button_disabled_renders_aria_and_attribute(env: Environment) -> None:
+def test_button_disabled_keeps_its_variant_for_a_script_to_unlock(env: Environment) -> None:
+    """A disabled button looks disabled through the disabled: variants alone, so
+    a script that sets el.disabled = false (the pricing upgrade buttons, once
+    their waiver box is ticked) gets the variant's look back. The native
+    attribute is the whole state: no aria-disabled that a script would leave
+    behind."""
     soup = _render(
         env,
         '{% import "_components/button.html" as btn %}'
-        "{{ btn.button('Coming soon', disabled=True) }}",
+        "{{ btn.button('Upgrade', id='up', disabled=True) }}"
+        "{{ btn.button('Go', href='/x', variant='secondary', disabled=True) }}",
     )
-    b = soup.find("button")
-    assert b.has_attr("disabled")
-    assert b["aria-disabled"] == "true"
-    assert "cursor-not-allowed" in b["class"]
-    assert "bg-brand-dark" not in b["class"]  # primary tone replaced
+    primary, link = soup.find_all("button")
+    for b in (primary, link):
+        assert b.has_attr("disabled") and not b.has_attr("aria-disabled")
+        assert {
+            "disabled:cursor-not-allowed",
+            "disabled:bg-surface-sunken",
+            "disabled:text-ink-muted",
+            "disabled:border-hairline",
+        } <= set(b["class"])
+    assert "bg-brand-dark" in primary["class"]  # the variant stays
+    assert not link.has_attr("href")  # a disabled link is a button
 
 
 def test_button_secondary_uses_outline(env: Environment) -> None:
@@ -321,6 +367,18 @@ def test_button_default_is_not_full_width(env: Environment) -> None:
     )
     b = soup.find("button")
     assert "w-full" not in b["class"]
+
+
+def test_button_external_link_opens_a_new_tab(env: Environment) -> None:
+    soup = _render(
+        env,
+        '{% import "_components/button.html" as btn %}'
+        "{{ btn.button('Guide', href='https://example.org/', external=True) }}"
+        "{{ btn.button('Home', href='/') }}",
+    )
+    external, internal = soup.find_all("a")
+    assert external["target"] == "_blank" and external["rel"] == ["noopener"]
+    assert not internal.has_attr("target") and not internal.has_attr("rel")
 
 
 # ── eyebrow ────────────────────────────────────────────────────────────────────

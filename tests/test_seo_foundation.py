@@ -14,6 +14,8 @@ import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+from bs4 import BeautifulSoup
+
 
 # ── AT-01..02 — Endpoints ────────────────────────────────────────────────────
 
@@ -303,8 +305,10 @@ def test_pricing_renders_live_buttons_with_waiver_gate_when_stripe_enabled(clien
         assert 'data-target="business-btn"' in body
         # The buttons themselves carry the `disabled` attribute on render — JS
         # toggles it off once the checkbox is ticked.
-        assert 'id="pro-btn" disabled' in body
-        assert 'id="business-btn" disabled' in body
+        soup = BeautifulSoup(body, "html.parser")
+        for button_id in ("pro-btn", "business-btn"):
+            button = soup.find(id=button_id)
+            assert button.name == "button" and button.has_attr("disabled"), button_id
         # Legal load-bearing disclosure: the visible label MUST cite §356 BGB
         # and the 14-day window. A copy-edit that drops either weakens the
         # consent record and breaks dispute reproducibility — pin both.

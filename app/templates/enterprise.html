@@ -1,364 +1,385 @@
 {% extends "base.html" %}
+{% import "_components/button.html" as ub %}
+{% import "_components/card.html" as uc %}
+{% import "_components/eyebrow.html" as ue %}
 {% import "_components/page.html" as up %}
 {% block title %}{{ _('Compliance Edition — self-hosted conversion') }} | FileMorph{% endblock %}
 {% block meta_description %}{{ _('Self-hosted, GDPR-compliant file conversion for public sector, hospitals and law firms — commercial license, SLA, signed releases, audit log.') }}{% endblock %}
 {% block content %}
 {% call up.page(max_w='wide') %}
-<div class="space-y-20 text-gray-300 text-sm leading-relaxed">
+{# A landing page: 80 px between sections, 24 px inside one. Running text is
+   16 px in one 42rem column; cards and tables use the whole 56rem column. #}
+<div class="space-y-section-y text-base leading-relaxed text-ink-soft">
 
   {% if locale == 'en' %}
-  <div class="border-l-4 border-brand bg-brand/5 px-5 py-4 text-sm rounded-r-lg space-y-2">
-    <p class="text-white font-semibold">{{ _('FileMorph operates under German law (Hamburg).') }}</p>
-    <p class="text-gray-300 leading-relaxed">{{ _('Compliance assertions on this page cite German statutes (HGB §257, AO §147, DSGVO Art 17). This English translation is provided for accessibility — the German version is the authoritative legal text in case of conflict.') }}</p>
+  <div class="max-w-prose-narrow space-y-2 rounded-r-control border-l-4 border-brand bg-brand/5 px-5 py-4">
+    <p class="font-semibold text-ink-strong">{{ _('FileMorph operates under German law (Hamburg).') }}</p>
+    <p>{{ _('Compliance assertions on this page cite German statutes (HGB §257, AO §147, DSGVO Art 17). This English translation is provided for accessibility — the German version is the authoritative legal text in case of conflict.') }}</p>
   </div>
   {% endif %}
 
-  <!-- Hero -->
+  {# Hero #}
   <section class="space-y-6">
-    <p class="text-xs uppercase tracking-widest text-brand-light">{{ _('FileMorph Compliance Edition') }}</p>
-    <h1 class="text-3xl sm:text-4xl font-bold text-white leading-tight">
-      {{ _('Run FileMorph on citizen data — on your own servers, with a liable EU contact and an SLA.') }}
-    </h1>
-    <p class="text-lg text-gray-300 max-w-2xl leading-relaxed">
+    <div class="space-y-3">
+      {{ ue.eyebrow(_('FileMorph Compliance Edition'), color='brand') }}
+      <h1 class="text-h-page text-ink">
+        {{ _('Run FileMorph on citizen data — on your own servers, with a liable EU contact and an SLA.') }}
+      </h1>
+    </div>
+    <p class="max-w-prose-narrow text-lg">
       {{ _('Self-hosted behind your firewall: we process no data on your behalf, so no DPA is needed. The open-source engine is free under AGPLv3; the Compliance Edition adds the contract behind it — commercial license, support SLA and someone accountable. EU vendor with German imprint.') }}
     </p>
-    <p class="text-sm text-gray-400 max-w-2xl leading-relaxed">
+    <p class="max-w-prose-narrow text-ink-muted">
       {{ _('Internal use is already free under AGPL-3.0') }} —
-      <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/agpl-fuer-behoerden.md" class="text-brand-light hover:underline" target="_blank" rel="noopener noreferrer">{{ _('here is why ↗') }}</a>.
+      <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/agpl-fuer-behoerden.md" class="text-brand-light underline hover:text-ink-strong" target="_blank" rel="noopener noreferrer">{{ _('here is why ↗') }}</a>.
       {{ _('You pay for accountability, not permission.') }}
     </p>
-    <div class="flex flex-wrap gap-3 pt-4">
-      <a href="mailto:enterprise@filemorph.io"
-         class="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-brand-dark hover:bg-brand-deep text-white font-semibold text-base transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
-        {{ _('Request pilot call') }}
-      </a>
-      <a href="#tier-uebersicht"
-         class="inline-flex items-center gap-2 px-6 py-3 rounded-lg border border-gray-700 hover:border-brand text-gray-200 hover:text-white text-base transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
-        {{ _('What does the Edition cost?') }}
-      </a>
+    <div class="flex flex-wrap gap-3">
+      {{ ub.button(_('Request pilot call'), href='mailto:enterprise@filemorph.io') }}
+      {{ ub.button(_('What does the Edition cost?'), href='#tier-uebersicht', variant='secondary') }}
     </div>
-    <p class="text-sm text-gray-400 pt-1">
+    <p class="text-sm text-ink-muted">
       {{ _('Design Partner Programme: 3 spots, 6 months free.') }}
-      <a href="#design-partner" class="text-brand-light hover:underline">{{ _('Apply →') }}</a>
+      <a href="#design-partner" class="text-brand-light underline hover:text-ink-strong">{{ _('Apply →') }}</a>
     </p>
   </section>
 
-  <!-- In-page Trust-Summary — proof before doc-links -->
-  <section class="bg-gray-900/50 border border-gray-800 rounded-xl p-6 space-y-4">
-    <p class="text-xs uppercase tracking-wider text-ink-faint">{{ _('Engineering proof before contract') }}</p>
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-5 text-sm">
+  {# In-page trust summary — proof before doc links #}
+  {% call uc.card(shadow=False) %}
+  <div class="space-y-4">
+    {{ ue.eyebrow(_('Engineering proof before contract')) }}
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
       <div class="space-y-1">
-        <p class="text-white font-semibold">{{ _('SHA-256 audit log') }}</p>
-        <p class="text-gray-400 text-xs leading-relaxed">{{ _('Single-file format conversions and image/video compressions, plus account, contact, billing and redaction events, go into a continuous hash chain over each entry\'s type, time and details. Tampering with an old entry breaks every following one, and one SQL query checks the whole chain from a database dump. Account IDs stay outside the hash, so erasing them under the GDPR leaves the chain intact.') }}</p>
+        <p class="font-semibold text-ink">{{ _('SHA-256 audit log') }}</p>
+        <p class="text-sm text-ink-muted">{{ _('Single-file format conversions and image/video compressions, plus account, contact, billing and redaction events, go into a continuous hash chain over each entry\'s type, time and details. Tampering with an old entry breaks every following one, and one SQL query checks the whole chain from a database dump. Account IDs stay outside the hash, so erasing them under the GDPR leaves the chain intact.') }}</p>
       </div>
       <div class="space-y-1">
-        <p class="text-white font-semibold">{{ _('Signed image + SBOM') }}</p>
-        <p class="text-gray-400 text-xs leading-relaxed">{{ _('cosign keyless OIDC, cryptographically signed git tags, CycloneDX-JSON SBOM in every GitHub release.') }}</p>
+        <p class="font-semibold text-ink">{{ _('Signed image + SBOM') }}</p>
+        <p class="text-sm text-ink-muted">{{ _('cosign keyless OIDC, cryptographically signed git tags, CycloneDX-JSON SBOM in every GitHub release.') }}</p>
       </div>
       <div class="space-y-1">
-        <p class="text-white font-semibold">{{ _('PDF/A-2b veraPDF-validated') }}</p>
-        <p class="text-gray-400 text-xs leading-relaxed">{{ _('Conformance check runs in CI on every push to main and every pull request, against a worst-case source PDF.') }}</p>
+        <p class="font-semibold text-ink">{{ _('PDF/A-2b veraPDF-validated') }}</p>
+        <p class="text-sm text-ink-muted">{{ _('Conformance check runs in CI on every push to main and every pull request, against a worst-case source PDF.') }}</p>
       </div>
     </div>
-  </section>
+  </div>
+  {% endcall %}
 
-  <!-- Tier overview -->
-  <section id="tier-uebersicht" class="space-y-5">
-    <div>
-      <h2 class="text-2xl font-bold text-white">{{ _('Tier overview') }}</h2>
-      <p class="text-gray-400 mt-2">{{ _('Server-volume-based, not per user seat. Binding terms follow the personal conversation.') }}</p>
+  {# Tier overview #}
+  <section id="tier-uebersicht" class="space-y-6">
+    <div class="space-y-2">
+      <h2 class="text-h-sect text-ink">{{ _('Tier overview') }}</h2>
+      <p class="max-w-prose-narrow text-ink-muted">{{ _('Server-volume-based, not per user seat. Binding terms follow the personal conversation.') }}</p>
     </div>
-    <div class="overflow-x-auto">
-      <table class="w-full text-sm bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-        <thead class="bg-gray-950 text-xs uppercase tracking-wider text-ink-faint">
+    <div class="overflow-x-auto rounded-card border border-hairline bg-surface-raised">
+      <table class="w-full text-sm">
+        <thead class="bg-surface-page text-eyebrow uppercase text-ink-faint">
           <tr>
-            <th class="px-4 py-3 text-left font-semibold">{{ _('Tier') }}</th>
-            <th class="px-4 py-3 text-left font-semibold">{{ _('Scope') }}</th>
-            <th class="px-4 py-3 text-left font-semibold whitespace-nowrap">{{ _('Price / year') }}</th>
+            <th scope="col" class="px-4 py-3 text-left font-semibold">{{ _('Tier') }}</th>
+            <th scope="col" class="px-4 py-3 text-left font-semibold">{{ _('Scope') }}</th>
+            <th scope="col" class="whitespace-nowrap px-4 py-3 text-left font-semibold">{{ _('Price / year') }}</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-gray-800">
+        <tbody class="divide-y divide-hairline">
           <tr>
-            <td class="px-4 py-3 font-semibold text-white">{{ _('Compliance Starter') }}</td>
-            <td class="px-4 py-3 text-gray-400">{{ _('1 server, ≤ 50 employees') }}</td>
-            <td class="px-4 py-3 text-gray-200 whitespace-nowrap">{% if compliance_plans[0].price_display %}€ {{ compliance_plans[0].price_display }}{% else %}{{ _('on request') }}{% endif %}</td>
+            <td class="px-4 py-3 font-semibold text-ink-strong">{{ _('Compliance Starter') }}</td>
+            <td class="px-4 py-3 text-ink-muted">{{ _('1 server, ≤ 50 employees') }}</td>
+            <td class="whitespace-nowrap px-4 py-3 text-ink">{% if compliance_plans[0].price_display %}€ {{ compliance_plans[0].price_display }}{% else %}{{ _('on request') }}{% endif %}</td>
           </tr>
           <tr>
-            <td class="px-4 py-3 font-semibold text-white">{{ _('Compliance Standard') }}</td>
-            <td class="px-4 py-3 text-gray-400">{{ _('3 servers, ≤ 2,000 employees') }}</td>
-            <td class="px-4 py-3 text-gray-200 whitespace-nowrap">{% if compliance_plans[1].price_display %}€ {{ compliance_plans[1].price_display }}{% else %}{{ _('on request') }}{% endif %}</td>
+            <td class="px-4 py-3 font-semibold text-ink-strong">{{ _('Compliance Standard') }}</td>
+            <td class="px-4 py-3 text-ink-muted">{{ _('3 servers, ≤ 2,000 employees') }}</td>
+            <td class="whitespace-nowrap px-4 py-3 text-ink">{% if compliance_plans[1].price_display %}€ {{ compliance_plans[1].price_display }}{% else %}{{ _('on request') }}{% endif %}</td>
           </tr>
           <tr>
-            <td class="px-4 py-3 font-semibold text-white">{{ _('Compliance Enterprise') }}</td>
-            <td class="px-4 py-3 text-gray-400">{{ _('unlimited servers, dedicated onboarding, custom SLA') }}</td>
-            <td class="px-4 py-3 text-gray-200 whitespace-nowrap">{% if compliance_plans[2].price_display %}{{ _('from') }} € {{ compliance_plans[2].price_display }}{% else %}{{ _('on request') }}{% endif %}</td>
+            <td class="px-4 py-3 font-semibold text-ink-strong">{{ _('Compliance Enterprise') }}</td>
+            <td class="px-4 py-3 text-ink-muted">{{ _('unlimited servers, dedicated onboarding, custom SLA') }}</td>
+            <td class="whitespace-nowrap px-4 py-3 text-ink">{% if compliance_plans[2].price_display %}{{ _('from') }} € {{ compliance_plans[2].price_display }}{% else %}{{ _('on request') }}{% endif %}</td>
           </tr>
         </tbody>
       </table>
     </div>
-    <p class="text-xs text-ink-faint">
-      {{ _('KRITIS and air-gap variants on request. All tiers include commercial license, signed Docker image and support SLA.') }}
-    </p>
-    {# Only when at least one tier shows a price (PRICE_COMPLIANCE_*_DISPLAY);
-       with every tier "on request" there is nothing to qualify. #}
-    {% if compliance_plans | selectattr('price_display') | list %}
-    <p class="text-xs text-ink-faint">
-      {{ _('Prices per year. Kleinunternehmer gemäß §19 UStG — keine Umsatzsteuer ausgewiesen (no VAT charged, small-business rule, §19 German VAT Act).') }}
-    </p>
-    {% endif %}
-  </section>
-
-  <!-- Why this exists -->
-  <section class="space-y-5">
-    <h2 class="text-2xl font-bold text-white">{{ _('Why a Compliance Edition?') }}</h2>
-    <p>
-      {{ _('Public authorities, hospitals and law firms often may not process citizen and client data through public cloud conversion services — the GDPR data chain and the EVB-IT contract framework set tight limits here. At the same time, the typical IT department lacks the bandwidth to maintain a conversion backend on its own.') }}
-    </p>
-    <p>
-      {{ _('FileMorph closes this gap: the open-source engine covers 180+ format pairs, 13 of them document and spreadsheet pairs, and runs on your own Hetzner / on-premises / air-gap infrastructure. The Compliance Edition additionally provides the contracts, SLAs and roadmap guarantees that an EVB-IT-compliant procurement requires.') }}
-    </p>
-  </section>
-
-  <!-- What's in the edition -->
-  <section class="space-y-5">
-    <h2 class="text-2xl font-bold text-white">{{ _('What\'s in the Compliance Edition') }}</h2>
-    <p class="text-gray-400">{{ _('The audit log, PDF/A-2b and signed releases are part of the open-source engine and come with every edition. The Compliance Edition adds the commercial license, the support SLA and a liable contact.') }}</p>
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-      <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-3">
-        <h3 class="text-base font-semibold text-white tracking-tight">{{ _('Commercial license') }}</h3>
-        <p class="text-gray-400 leading-relaxed">{{ _('Lifts the AGPLv3 publication obligation for internal in-house developments + public citizen-portal integrations.') }}</p>
-      </div>
-      <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-3">
-        <h3 class="text-base font-semibold text-white tracking-tight">{{ _('Data protection: no DPA needed') }}</h3>
-        <p class="text-gray-400 leading-relaxed">{{ _('You run FileMorph on your own infrastructure, so there is no processing on your behalf under Art. 28 GDPR and no DPA is needed.') }}</p>
-      </div>
-      <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-3">
-        <h3 class="text-base font-semibold text-white tracking-tight">{{ _('Audit log with hash chain') }}</h3>
-        <p class="text-gray-400 leading-relaxed">{{ _('SHA-256-chained operations log, for ISO/IEC 27001:2022 control A.8.15 (logging).') }}</p>
-      </div>
-      <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-3">
-        <h3 class="text-base font-semibold text-white tracking-tight">{{ _('PDF/A-2b output') }}</h3>
-        <p class="text-gray-400 leading-relaxed">{{ _('Conformance secured by veraPDF CI gate against a worst-case source PDF — for beA attachments, citizen-application archiving, BSI TR-RESISCAN.') }}</p>
-      </div>
-      {% if ai_operations_enabled %}<div class="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-3">
-        <h3 class="text-base font-semibold text-white tracking-tight">{{ _('PII redaction with audit trail') }}</h3>
-        <p class="text-gray-400 leading-relaxed">{{ _('Find and remove structured personal data (email, IBAN, phone, IPv4, card) from TXT, DOCX and XLSX. Deterministic checks (no external AI), a fail-closed verification pass, and every redaction recorded in the tamper-evident hash chain (metadata only, never the values). It assists your review and does not guarantee completeness; free-text names and PDF are on the roadmap.') }}</p>
-      </div>{% endif %}
-      <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-3">
-        <h3 class="text-base font-semibold text-white tracking-tight">{{ _('Signed releases + SBOM') }}</h3>
-        <p class="text-gray-400 leading-relaxed">{{ _('cosign-signed Docker image, cryptographically signed git tags, CycloneDX-JSON SBOM in every release. Aligned with the open-source + SBOM provisions of the EVB-IT reform (March 2026).') }}</p>
-      </div>
-      <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-3">
-        <h3 class="text-base font-semibold text-white tracking-tight">{{ _('Support SLA') }}</h3>
-        <p class="text-gray-400 leading-relaxed">{{ _('Response-time targets by severity are individually agreed in the support contract.') }}</p>
-      </div>
+    <div class="max-w-prose-narrow space-y-2 text-sm text-ink-muted">
+      <p>{{ _('KRITIS and air-gap variants on request. All tiers include commercial license, signed Docker image and support SLA.') }}</p>
+      {# Only when at least one tier shows a price (PRICE_COMPLIANCE_*_DISPLAY);
+         with every tier "on request" there is nothing to qualify. #}
+      {% if compliance_plans | selectattr('price_display') | list %}
+      <p>{{ _('Prices per year. Kleinunternehmer gemäß §19 UStG — keine Umsatzsteuer ausgewiesen (no VAT charged, small-business rule, §19 German VAT Act).') }}</p>
+      {% endif %}
     </div>
   </section>
 
-  <!-- Pilot programme -->
-  <section id="design-partner" class="space-y-5 scroll-mt-20">
-    <h2 class="text-2xl font-bold text-white">{{ _('Design Partner Programme') }}</h2>
-    <div class="bg-brand/5 border border-brand/30 rounded-xl p-6 space-y-4">
-      <p class="text-base text-gray-200 leading-relaxed">
-        {{ _('Three spots. Six months free. Direct influence on the Compliance Edition roadmap.') }}
-      </p>
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
-        <div class="space-y-1">
-          <p class="text-white font-semibold">{{ _('What you give') }}</p>
-          <p class="text-gray-400 text-xs leading-relaxed">{{ _('Anonymized case study (optional). Roadmap feedback every four weeks. Willingness to prioritize feature tickets.') }}</p>
-        </div>
-        <div class="space-y-1">
-          <p class="text-white font-semibold">{{ _('What you get') }}</p>
-          <p class="text-gray-400 text-xs leading-relaxed">{{ _('Full Compliance Edition. Onboarding together with the maintainer. Priority bug hotfixes.') }}</p>
-        </div>
-        <div class="space-y-1">
-          <p class="text-white font-semibold">{{ _('Who\'s a fit') }}</p>
-          <p class="text-gray-400 text-xs leading-relaxed">{{ _('Public authority, clinic IT, law firm with a concrete GDPR conversion use case. We filter for pilot readiness — not every applicant fits.') }}</p>
-        </div>
-      </div>
-      <div class="pt-2">
-        <a href="mailto:enterprise@filemorph.io?subject=Design-Partner-Bewerbung"
-           class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-brand-dark hover:bg-brand-deep text-white font-semibold text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
-          {{ _('Apply as design partner') }}
-        </a>
-      </div>
+  {# Why this exists #}
+  <section class="space-y-6">
+    <h2 class="text-h-sect text-ink">{{ _('Why a Compliance Edition?') }}</h2>
+    <div class="max-w-prose-narrow space-y-4">
+      <p>{{ _('Public authorities, hospitals and law firms often may not process citizen and client data through public cloud conversion services — the GDPR data chain and the EVB-IT contract framework set tight limits here. At the same time, the typical IT department lacks the bandwidth to maintain a conversion backend on its own.') }}</p>
+      <p>{{ _('FileMorph closes this gap: the open-source engine covers 180+ format pairs, 13 of them document and spreadsheet pairs, and runs on your own Hetzner / on-premises / air-gap infrastructure. The Compliance Edition additionally provides the contracts, SLAs and roadmap guarantees that an EVB-IT-compliant procurement requires.') }}</p>
     </div>
   </section>
 
-  <!-- Comparison table -->
-  <section class="space-y-5">
-    <div>
-      <h2 class="text-2xl font-bold text-white">{{ _('What we deliver compared to typical alternatives') }}</h2>
-      <p class="text-gray-400 mt-2">{{ _('An orientation about the provider categories common in DACH RFPs. In individual cases, a specific product may do more — please check individually.') }}</p>
+  {# What's in the edition #}
+  <section class="space-y-6">
+    <div class="space-y-2">
+      <h2 class="text-h-sect text-ink">{{ _('What\'s in the Compliance Edition') }}</h2>
+      <p class="max-w-prose-narrow text-ink-muted">{{ _('The audit log, PDF/A-2b and signed releases are part of the open-source engine and come with every edition. The Compliance Edition adds the commercial license, the support SLA and a liable contact.') }}</p>
     </div>
-    <div class="overflow-x-auto">
-      <table class="w-full text-sm bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-        <thead class="bg-gray-950 text-xs uppercase tracking-wider text-ink-faint">
+    <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+      {% call uc.card(shadow=False) %}
+      <div class="space-y-2">
+        <h3 class="text-h-card text-ink">{{ _('Commercial license') }}</h3>
+        <p class="text-ink-muted">{{ _('Lifts the AGPLv3 publication obligation for internal in-house developments + public citizen-portal integrations.') }}</p>
+      </div>
+      {% endcall %}
+      {% call uc.card(shadow=False) %}
+      <div class="space-y-2">
+        <h3 class="text-h-card text-ink">{{ _('Data protection: no DPA needed') }}</h3>
+        <p class="text-ink-muted">{{ _('You run FileMorph on your own infrastructure, so there is no processing on your behalf under Art. 28 GDPR and no DPA is needed.') }}</p>
+      </div>
+      {% endcall %}
+      {% call uc.card(shadow=False) %}
+      <div class="space-y-2">
+        <h3 class="text-h-card text-ink">{{ _('Audit log with hash chain') }}</h3>
+        <p class="text-ink-muted">{{ _('SHA-256-chained operations log, for ISO/IEC 27001:2022 control A.8.15 (logging).') }}</p>
+      </div>
+      {% endcall %}
+      {% call uc.card(shadow=False) %}
+      <div class="space-y-2">
+        <h3 class="text-h-card text-ink">{{ _('PDF/A-2b output') }}</h3>
+        <p class="text-ink-muted">{{ _('Conformance secured by veraPDF CI gate against a worst-case source PDF — for beA attachments, citizen-application archiving, BSI TR-RESISCAN.') }}</p>
+      </div>
+      {% endcall %}
+      {% if ai_operations_enabled %}
+      {% call uc.card(shadow=False) %}
+      <div class="space-y-2">
+        <h3 class="text-h-card text-ink">{{ _('PII redaction with audit trail') }}</h3>
+        <p class="text-ink-muted">{{ _('Find and remove structured personal data (email, IBAN, phone, IPv4, card) from TXT, DOCX and XLSX. Deterministic checks (no external AI), a fail-closed verification pass, and every redaction recorded in the tamper-evident hash chain (metadata only, never the values). It assists your review and does not guarantee completeness; free-text names and PDF are on the roadmap.') }}</p>
+      </div>
+      {% endcall %}
+      {% endif %}
+      {% call uc.card(shadow=False) %}
+      <div class="space-y-2">
+        <h3 class="text-h-card text-ink">{{ _('Signed releases + SBOM') }}</h3>
+        <p class="text-ink-muted">{{ _('cosign-signed Docker image, cryptographically signed git tags, CycloneDX-JSON SBOM in every release. Aligned with the open-source + SBOM provisions of the EVB-IT reform (March 2026).') }}</p>
+      </div>
+      {% endcall %}
+      {% call uc.card(shadow=False) %}
+      <div class="space-y-2">
+        <h3 class="text-h-card text-ink">{{ _('Support SLA') }}</h3>
+        <p class="text-ink-muted">{{ _('Response-time targets by severity are individually agreed in the support contract.') }}</p>
+      </div>
+      {% endcall %}
+    </div>
+  </section>
+
+  {# Pilot programme #}
+  <section id="design-partner" class="space-y-6">
+    <h2 class="text-h-sect text-ink">{{ _('Design Partner Programme') }}</h2>
+    {% call uc.card(border='brand', shadow=False) %}
+    <div class="space-y-6">
+      <p class="text-ink">{{ _('Three spots. Six months free. Direct influence on the Compliance Edition roadmap.') }}</p>
+      <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div class="space-y-1">
+          <p class="font-semibold text-ink">{{ _('What you give') }}</p>
+          <p class="text-sm text-ink-muted">{{ _('Anonymized case study (optional). Roadmap feedback every four weeks. Willingness to prioritize feature tickets.') }}</p>
+        </div>
+        <div class="space-y-1">
+          <p class="font-semibold text-ink">{{ _('What you get') }}</p>
+          <p class="text-sm text-ink-muted">{{ _('Full Compliance Edition. Onboarding together with the maintainer. Priority bug hotfixes.') }}</p>
+        </div>
+        <div class="space-y-1">
+          <p class="font-semibold text-ink">{{ _('Who\'s a fit') }}</p>
+          <p class="text-sm text-ink-muted">{{ _('Public authority, clinic IT, law firm with a concrete GDPR conversion use case. We filter for pilot readiness — not every applicant fits.') }}</p>
+        </div>
+      </div>
+      <div>
+        {{ ub.button(_('Apply as design partner'), href='mailto:enterprise@filemorph.io?subject=Design-Partner-Bewerbung') }}
+      </div>
+    </div>
+    {% endcall %}
+  </section>
+
+  {# Comparison table #}
+  <section class="space-y-6">
+    <div class="space-y-2">
+      <h2 class="text-h-sect text-ink">{{ _('What we deliver compared to typical alternatives') }}</h2>
+      <p class="max-w-prose-narrow text-ink-muted">{{ _('An orientation about the provider categories common in DACH RFPs. In individual cases, a specific product may do more — please check individually.') }}</p>
+    </div>
+    <div class="overflow-x-auto rounded-card border border-hairline bg-surface-raised">
+      <table class="w-full text-sm">
+        <thead class="bg-surface-page text-eyebrow uppercase text-ink-faint">
           <tr>
-            <th class="px-4 py-3 text-left font-semibold">{{ _('Criterion') }}</th>
-            <th class="px-4 py-3 text-center font-semibold whitespace-nowrap">FileMorph<br/>{{ _('Compliance') }}</th>
-            <th class="px-4 py-3 text-center font-semibold">{{ _('Typical open-source converters') }}</th>
-            <th class="px-4 py-3 text-center font-semibold">{{ _('Typical SaaS converters') }}</th>
+            <th scope="col" class="px-4 py-3 text-left font-semibold">{{ _('Criterion') }}</th>
+            <th scope="col" class="whitespace-nowrap px-4 py-3 text-center font-semibold">FileMorph<br/>{{ _('Compliance') }}</th>
+            <th scope="col" class="px-4 py-3 text-center font-semibold">{{ _('Typical open-source converters') }}</th>
+            <th scope="col" class="px-4 py-3 text-center font-semibold">{{ _('Typical SaaS converters') }}</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-gray-800 text-gray-300">
+        <tbody class="divide-y divide-hairline">
           <tr>
             <td class="px-4 py-3 font-medium">{{ _('Self-hosted (data stays in-house)') }}</td>
-            <td class="px-4 py-3 text-center text-emerald-400">✓</td>
-            <td class="px-4 py-3 text-center text-gray-400">{{ _('often ✓') }}</td>
-            <td class="px-4 py-3 text-center text-gray-400">{{ _('rare') }}</td>
+            <td class="px-4 py-3 text-center text-tone-ok">✓</td>
+            <td class="px-4 py-3 text-center text-ink-muted">{{ _('often ✓') }}</td>
+            <td class="px-4 py-3 text-center text-ink-muted">{{ _('rare') }}</td>
           </tr>
           <tr>
             <td class="px-4 py-3 font-medium">{{ _('Audit log with hash chain') }}</td>
-            <td class="px-4 py-3 text-center text-emerald-400">✓</td>
-            <td class="px-4 py-3 text-center text-gray-400">{{ _('varies') }}</td>
-            <td class="px-4 py-3 text-center text-gray-400">{{ _('varies') }}</td>
+            <td class="px-4 py-3 text-center text-tone-ok">✓</td>
+            <td class="px-4 py-3 text-center text-ink-muted">{{ _('varies') }}</td>
+            <td class="px-4 py-3 text-center text-ink-muted">{{ _('varies') }}</td>
           </tr>
           <tr>
             <td class="px-4 py-3 font-medium">{{ _('PDF/A-2b veraPDF-validated') }}</td>
-            <td class="px-4 py-3 text-center text-emerald-400">✓</td>
-            <td class="px-4 py-3 text-center text-gray-400">{{ _('varies') }}</td>
-            <td class="px-4 py-3 text-center text-gray-400">{{ _('varies') }}</td>
+            <td class="px-4 py-3 text-center text-tone-ok">✓</td>
+            <td class="px-4 py-3 text-center text-ink-muted">{{ _('varies') }}</td>
+            <td class="px-4 py-3 text-center text-ink-muted">{{ _('varies') }}</td>
           </tr>
           {% if ai_operations_enabled %}<tr>
             <td class="px-4 py-3 font-medium">{{ _('PII redaction (audit-logged)') }}</td>
-            <td class="px-4 py-3 text-center text-emerald-400">✓</td>
-            <td class="px-4 py-3 text-center text-gray-400">{{ _('rare') }}</td>
-            <td class="px-4 py-3 text-center text-gray-400">{{ _('varies') }}</td>
+            <td class="px-4 py-3 text-center text-tone-ok">✓</td>
+            <td class="px-4 py-3 text-center text-ink-muted">{{ _('rare') }}</td>
+            <td class="px-4 py-3 text-center text-ink-muted">{{ _('varies') }}</td>
           </tr>{% endif %}
           <tr>
             <td class="px-4 py-3 font-medium">{{ _('Multi-format (image + audio + video + sheet)') }}</td>
-            <td class="px-4 py-3 text-center text-emerald-400">✓</td>
-            <td class="px-4 py-3 text-center text-gray-400">{{ _('often limited to one area') }}</td>
-            <td class="px-4 py-3 text-center text-gray-400">{{ _('often ✓') }}</td>
+            <td class="px-4 py-3 text-center text-tone-ok">✓</td>
+            <td class="px-4 py-3 text-center text-ink-muted">{{ _('often limited to one area') }}</td>
+            <td class="px-4 py-3 text-center text-ink-muted">{{ _('often ✓') }}</td>
           </tr>
           <tr>
             <td class="px-4 py-3 font-medium">{{ _('EU vendor with German imprint') }}</td>
-            <td class="px-4 py-3 text-center text-emerald-400">✓</td>
-            <td class="px-4 py-3 text-center text-gray-400">{{ _('varies') }}</td>
-            <td class="px-4 py-3 text-center text-gray-400">{{ _('varies') }}</td>
+            <td class="px-4 py-3 text-center text-tone-ok">✓</td>
+            <td class="px-4 py-3 text-center text-ink-muted">{{ _('varies') }}</td>
+            <td class="px-4 py-3 text-center text-ink-muted">{{ _('varies') }}</td>
           </tr>
           <tr>
             <td class="px-4 py-3 font-medium">{{ _('Commercial license on AGPL code') }}</td>
-            <td class="px-4 py-3 text-center text-emerald-400">✓</td>
-            <td class="px-4 py-3 text-center text-gray-400">{{ _('rare') }}</td>
-            <td class="px-4 py-3 text-center text-gray-400">{{ _('not applicable') }}</td>
+            <td class="px-4 py-3 text-center text-tone-ok">✓</td>
+            <td class="px-4 py-3 text-center text-ink-muted">{{ _('rare') }}</td>
+            <td class="px-4 py-3 text-center text-ink-muted">{{ _('not applicable') }}</td>
           </tr>
         </tbody>
       </table>
     </div>
-    <p class="text-xs text-ink-faint">
+    <p class="max-w-prose-narrow text-sm text-ink-muted">
       {{ _('The table describes typical characteristics of the named provider categories and is not a definitive comparison of specific products. Individual providers may do more or less — please check the current offer directly with the manufacturer.') }}
     </p>
   </section>
 
-  <!-- Trust signals -->
-  <section class="space-y-5">
-    <div>
-      <h2 class="text-2xl font-bold text-white">{{ _('Trust basis before contract') }}</h2>
-      <p class="text-gray-400 mt-2">{{ _('You can fully audit FileMorph before the first conversation. All relevant security and architecture documents are freely accessible:') }}</p>
+  {# Trust signals #}
+  <section class="space-y-6">
+    <div class="space-y-2">
+      <h2 class="text-h-sect text-ink">{{ _('Trust basis before contract') }}</h2>
+      <p class="max-w-prose-narrow text-ink-muted">{{ _('You can fully audit FileMorph before the first conversation. All relevant security and architecture documents are freely accessible:') }}</p>
     </div>
-    <ul class="space-y-3 text-gray-300">
+    <ul class="max-w-prose-narrow space-y-3">
       <li>
-        <strong class="text-white font-semibold">{{ _('Security Disclosure Policy') }}</strong> —
-        <a href="{{ localized_url('/security', current_prefix) }}" class="text-brand-light hover:underline">{{ _('RFC 9116, with response times and scope') }}</a>.
+        <strong class="font-semibold text-ink-strong">{{ _('Security Disclosure Policy') }}</strong> —
+        <a href="{{ localized_url('/security', current_prefix) }}" class="text-brand-light underline hover:text-ink-strong">{{ _('RFC 9116, with response times and scope') }}</a>.
       </li>
       <li>
-        <strong class="text-white font-semibold">{{ _('Architecture overview') }}</strong> —
-        <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/architecture.md" class="text-brand-light hover:underline" target="_blank" rel="noopener noreferrer">{{ _('Mermaid diagram and request lifecycle ↗') }}</a>.
+        <strong class="font-semibold text-ink-strong">{{ _('Architecture overview') }}</strong> —
+        <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/architecture.md" class="text-brand-light underline hover:text-ink-strong" target="_blank" rel="noopener noreferrer">{{ _('Mermaid diagram and request lifecycle ↗') }}</a>.
       </li>
       <li>
-        <strong class="text-white font-semibold">{{ _('STRIDE threat model') }}</strong> —
-        <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/threat-model.md" class="text-brand-light hover:underline" target="_blank" rel="noopener noreferrer">{{ _('threat-mitigation anchors per category ↗') }}</a>.
+        <strong class="font-semibold text-ink-strong">{{ _('STRIDE threat model') }}</strong> —
+        <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/threat-model.md" class="text-brand-light underline hover:text-ink-strong" target="_blank" rel="noopener noreferrer">{{ _('threat-mitigation anchors per category ↗') }}</a>.
       </li>
       <li>
-        <strong class="text-white font-semibold">{{ _('AGPLv3 for public authorities') }}</strong> —
-        <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/agpl-fuer-behoerden.md" class="text-brand-light hover:underline" target="_blank" rel="noopener noreferrer">{{ _('when publication obligation applies, when not ↗') }}</a>.
+        <strong class="font-semibold text-ink-strong">{{ _('AGPLv3 for public authorities') }}</strong> —
+        <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/agpl-fuer-behoerden.md" class="text-brand-light underline hover:text-ink-strong" target="_blank" rel="noopener noreferrer">{{ _('when publication obligation applies, when not ↗') }}</a>.
       </li>
       <li>
-        <strong class="text-white font-semibold">{{ _('Patch policy') }}</strong> —
-        <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/patch-policy.md" class="text-brand-light hover:underline" target="_blank" rel="noopener noreferrer">{{ _('versioning, CVSS bands, signed artefacts ↗') }}</a>.
+        <strong class="font-semibold text-ink-strong">{{ _('Patch policy') }}</strong> —
+        <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/patch-policy.md" class="text-brand-light underline hover:text-ink-strong" target="_blank" rel="noopener noreferrer">{{ _('versioning, CVSS bands, signed artefacts ↗') }}</a>.
       </li>
       <li>
-        <strong class="text-white font-semibold">{{ _('Incident response plan') }}</strong> —
-        <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/incident-response.md" class="text-brand-light hover:underline" target="_blank" rel="noopener noreferrer">{{ _('escalation, post-mortem template ↗') }}</a>.
+        <strong class="font-semibold text-ink-strong">{{ _('Incident response plan') }}</strong> —
+        <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/incident-response.md" class="text-brand-light underline hover:text-ink-strong" target="_blank" rel="noopener noreferrer">{{ _('escalation, post-mortem template ↗') }}</a>.
       </li>
       <li>
-        <strong class="text-white font-semibold">{{ _('Sub-processor list') }}</strong> —
-        <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/sub-processors.md" class="text-brand-light hover:underline" target="_blank" rel="noopener noreferrer">{{ _('GDPR Art. 28 annex ↗') }}</a>.
+        <strong class="font-semibold text-ink-strong">{{ _('Sub-processor list') }}</strong> —
+        <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/sub-processors.md" class="text-brand-light underline hover:text-ink-strong" target="_blank" rel="noopener noreferrer">{{ _('GDPR Art. 28 annex ↗') }}</a>.
       </li>
       <li>
-        <strong class="text-white font-semibold">{{ _('Account-deletion design') }}</strong> —
-        <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/gdpr-account-deletion-design.md" class="text-brand-light hover:underline" target="_blank" rel="noopener noreferrer">{{ _('DSGVO Art. 17 self-service flow, incl. the HGB §257 / AO §147 tax-retention edge case ↗') }}</a>.
+        <strong class="font-semibold text-ink-strong">{{ _('Account-deletion design') }}</strong> —
+        <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/gdpr-account-deletion-design.md" class="text-brand-light underline hover:text-ink-strong" target="_blank" rel="noopener noreferrer">{{ _('DSGVO Art. 17 self-service flow, incl. the HGB §257 / AO §147 tax-retention edge case ↗') }}</a>.
       </li>
       <li>
-        <strong class="text-white font-semibold">{{ _('Source code') }}</strong> —
-        <a href="https://github.com/MrChengLen/FileMorph" class="text-brand-light hover:underline" target="_blank" rel="noopener noreferrer">{{ _('full GitHub repository ↗') }}</a>.
+        <strong class="font-semibold text-ink-strong">{{ _('Source code') }}</strong> —
+        <a href="https://github.com/MrChengLen/FileMorph" class="text-brand-light underline hover:text-ink-strong" target="_blank" rel="noopener noreferrer">{{ _('full GitHub repository ↗') }}</a>.
       </li>
     </ul>
   </section>
 
-  <!-- FAQ -->
-  <section class="space-y-5">
-    <h2 class="text-2xl font-bold text-white">{{ _('Frequently asked questions') }}</h2>
+  {# FAQ #}
+  <section class="space-y-6">
+    <h2 class="text-h-sect text-ink">{{ _('Frequently asked questions') }}</h2>
     <div class="space-y-4">
-      <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-2">
-        <p class="text-white font-semibold">{{ _('Do you also host if we can\'t operate ourselves?') }}</p>
-        <p class="text-gray-400 leading-relaxed">{{ _('The Compliance Edition is self-hosted. If you can\'t operate your own infrastructure, filemorph.io (Cloud Edition) is the right path — different data class, different contracts, no EVB-IT anchor.') }}</p>
+      {% call uc.card(shadow=False) %}
+      <div class="max-w-prose-narrow space-y-2">
+        <p class="font-semibold text-ink">{{ _('Do you also host if we can\'t operate ourselves?') }}</p>
+        <p class="text-ink-muted">{{ _('The Compliance Edition is self-hosted. If you can\'t operate your own infrastructure, filemorph.io (Cloud Edition) is the right path — different data class, different contracts, no EVB-IT anchor.') }}</p>
       </div>
-      <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-2">
-        <p class="text-white font-semibold">{{ _('What happens if we cancel?') }}</p>
-        <p class="text-gray-400 leading-relaxed">{{ _('You keep the code (AGPLv3 stays) and can keep updating under the AGPL. You lose the commercial license, the support SLA and any backports agreed in the contract. Existing installations continue running — no lock-in via forced updates.') }}</p>
+      {% endcall %}
+      {% call uc.card(shadow=False) %}
+      <div class="max-w-prose-narrow space-y-2">
+        <p class="font-semibold text-ink">{{ _('What happens if we cancel?') }}</p>
+        <p class="text-ink-muted">{{ _('You keep the code (AGPLv3 stays) and can keep updating under the AGPL. You lose the commercial license, the support SLA and any backports agreed in the contract. Existing installations continue running — no lock-in via forced updates.') }}</p>
       </div>
-      <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-2">
-        <p class="text-white font-semibold">{{ _('How does AGPLv3 behave with citizen-portal integrations?') }}</p>
-        <p class="text-gray-400 leading-relaxed">{{ _('For a publicly accessible service integration, the AGPL publication obligation applies. The commercial license lifts it — you can integrate FileMorph into a citizen portal without disclosing your portal\'s source code. Detail in') }} <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/agpl-fuer-behoerden.md" class="text-brand-light hover:underline" target="_blank" rel="noopener noreferrer">docs/agpl-fuer-behoerden.md ↗</a>.</p>
+      {% endcall %}
+      {% call uc.card(shadow=False) %}
+      <div class="max-w-prose-narrow space-y-2">
+        <p class="font-semibold text-ink">{{ _('How does AGPLv3 behave with citizen-portal integrations?') }}</p>
+        <p class="text-ink-muted">{{ _('For a publicly accessible service integration, the AGPL publication obligation applies. The commercial license lifts it — you can integrate FileMorph into a citizen portal without disclosing your portal\'s source code. Detail in') }} <a href="https://github.com/MrChengLen/FileMorph/blob/main/docs/agpl-fuer-behoerden.md" class="text-brand-light underline hover:text-ink-strong" target="_blank" rel="noopener noreferrer">docs/agpl-fuer-behoerden.md ↗</a>.</p>
       </div>
-      <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-2">
-        <p class="text-white font-semibold">{{ _('Do I need the Enterprise tier for KRITIS?') }}</p>
-        <p class="text-gray-400 leading-relaxed">{{ _('Standard tier is enough for most KRITIS requirements (self-hosting, audit log, signed artefacts). Enterprise becomes relevant once air-gap update mechanism, reproducible builds or dedicated support SLA are required. We clarify this in 15 minutes by phone.') }}</p>
+      {% endcall %}
+      {% call uc.card(shadow=False) %}
+      <div class="max-w-prose-narrow space-y-2">
+        <p class="font-semibold text-ink">{{ _('Do I need the Enterprise tier for KRITIS?') }}</p>
+        <p class="text-ink-muted">{{ _('Standard tier is enough for most KRITIS requirements (self-hosting, audit log, signed artefacts). Enterprise becomes relevant once air-gap update mechanism, reproducible builds or dedicated support SLA are required. We clarify this in 15 minutes by phone.') }}</p>
       </div>
-      <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-2">
-        <p class="text-white font-semibold">{{ _('What does the data export look like if we migrate?') }}</p>
-        <p class="text-gray-400 leading-relaxed">{{ _('FileMorph is stateless for conversions — there is nothing to export apart from the audit log (Postgres, SQL-dumpable) and configuration (env vars). Migration to a successor is a SQL-dump + container-image question, not a vendor lock-in.') }}</p>
+      {% endcall %}
+      {% call uc.card(shadow=False) %}
+      <div class="max-w-prose-narrow space-y-2">
+        <p class="font-semibold text-ink">{{ _('What does the data export look like if we migrate?') }}</p>
+        <p class="text-ink-muted">{{ _('FileMorph is stateless for conversions — there is nothing to export apart from the audit log (Postgres, SQL-dumpable) and configuration (env vars). Migration to a successor is a SQL-dump + container-image question, not a vendor lock-in.') }}</p>
       </div>
+      {% endcall %}
     </div>
   </section>
 
-  <!-- Limits we are honest about -->
-  <section class="space-y-5">
-    <h2 class="text-2xl font-bold text-white">{{ _('What we\'re transparent about') }}</h2>
-    <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-3">
-      <ul class="list-disc list-outside ml-5 space-y-2 text-gray-300 leading-relaxed">
-        <li>{{ _('External ISO 27001 certification and external pen test are planned as Year-2 roadmap items — both will be implemented as soon as the first paying pilot economically justifies the effort.') }}</li>
-        <li>{{ _('Reproducible builds and air-gap update mechanism are also Year-2 (required for the KRITIS variant, not critical in the standard tier).') }}</li>
-        {% if ai_operations_enabled %}<li>{{ _('PII redaction currently covers structured identifiers (email, IBAN, phone, IPv4, card) in TXT/DOCX/XLSX. Free-text names, postal addresses and PDF redaction are roadmap items — we name the gap rather than let an RFP reviewer find it.') }}</li>{% endif %}
-        <li>{{ _('We name it because an RFP reviewer would notice anyway — and because we prefer to keep the roadmap transparent rather than embellished.') }}</li>
-      </ul>
-    </div>
+  {# Limits we are honest about #}
+  <section class="space-y-6">
+    <h2 class="text-h-sect text-ink">{{ _('What we\'re transparent about') }}</h2>
+    {% call uc.card(shadow=False) %}
+    <ul class="ml-5 max-w-prose-narrow list-outside list-disc space-y-2">
+      <li>{{ _('External ISO 27001 certification and external pen test are planned as Year-2 roadmap items — both will be implemented as soon as the first paying pilot economically justifies the effort.') }}</li>
+      <li>{{ _('Reproducible builds and air-gap update mechanism are also Year-2 (required for the KRITIS variant, not critical in the standard tier).') }}</li>
+      {% if ai_operations_enabled %}<li>{{ _('PII redaction currently covers structured identifiers (email, IBAN, phone, IPv4, card) in TXT/DOCX/XLSX. Free-text names, postal addresses and PDF redaction are roadmap items — we name the gap rather than let an RFP reviewer find it.') }}</li>{% endif %}
+      <li>{{ _('We name it because an RFP reviewer would notice anyway — and because we prefer to keep the roadmap transparent rather than embellished.') }}</li>
+    </ul>
+    {% endcall %}
   </section>
 
-  <!-- Closing CTA -->
-  <section class="space-y-6 text-center pt-4 border-t border-gray-800">
-    <div class="space-y-3 pt-8">
-      <h2 class="text-2xl font-bold text-white">{{ _('Ready for a 15-minute pilot call?') }}</h2>
-      <p class="text-base text-gray-300 max-w-2xl mx-auto leading-relaxed">
+  {# Closing CTA #}
+  <section class="space-y-6 border-t border-hairline pt-section-sm text-center">
+    <div class="space-y-3">
+      <h2 class="text-h-sect text-ink">{{ _('Ready for a 15-minute pilot call?') }}</h2>
+      <p class="mx-auto max-w-prose-narrow">
         {{ _('You\'re evaluating conversion software for a public authority, hospital or law firm? Write to us with your use case — we respond within one business day.') }}
       </p>
     </div>
-    <div class="flex flex-col sm:flex-row gap-3 justify-center items-center">
-      <a href="mailto:enterprise@filemorph.io?subject=Pilot-call%20Compliance-Edition"
-         class="inline-flex items-center gap-2 px-7 py-3.5 rounded-lg bg-brand-dark hover:bg-brand-deep text-white font-semibold text-base transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
-        {{ _('Request pilot call by email') }}
-      </a>
+    <div class="flex flex-col items-center justify-center gap-3 sm:flex-row">
+      {{ ub.button(_('Request pilot call by email'), href='mailto:enterprise@filemorph.io?subject=Pilot-call%20Compliance-Edition', size='lg') }}
       <a href="mailto:enterprise@filemorph.io?subject=Design-Partner-Application"
-         class="text-sm text-gray-400 hover:text-brand-light transition-colors">
+         class="inline-flex min-h-6 items-center rounded-control text-sm text-ink-muted transition-colors hover:text-brand-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
         {{ _('or apply directly as design partner →') }}
       </a>
     </div>
-    <p class="text-xs text-ink-faint pt-4">
+    <p class="text-sm text-ink-muted">
       {{ _('Confidential inquiries: email') }}
-      <a href="mailto:security@filemorph.io" class="text-brand-light hover:underline">security@filemorph.io</a>
+      <a href="mailto:security@filemorph.io" class="text-brand-light underline hover:text-ink-strong">security@filemorph.io</a>
       {{ _('— a PGP key is available on request.') }}
     </p>
   </section>

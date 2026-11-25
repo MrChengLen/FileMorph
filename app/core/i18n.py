@@ -818,6 +818,9 @@ def localized_context(request: Request, **extra) -> dict:
         "_": translator.gettext,
         "gettext": translator.gettext,
         "ngettext": translator.ngettext,
+        # An English string with two meanings gets a context (msgctxt), e.g.
+        # pgettext('price', 'Contact us') on a plan card without an amount.
+        "pgettext": translator.pgettext,
         "locale": locale,
         "current_prefix": current_prefix,
         "base_path": base_path(request.url.path),

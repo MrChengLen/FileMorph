@@ -694,6 +694,10 @@ msgstr ""
 msgid "Contact us"
 msgstr ""
 
+msgctxt "price"
+msgid "Contact us"
+msgstr ""
+
 msgid "Contact:"
 msgstr ""
 
